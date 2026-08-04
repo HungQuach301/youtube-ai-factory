@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 
-type Tab = "brief" | "evidence" | "script" | "critics" | "voice" | "history";
+type Tab = "brief" | "evidence" | "script" | "critics" | "voice" | "production" | "history";
 type Workspace = {
   project: { id: string; title: string; pillar: string; status: string; progress: number; spentUsd: number; budgetUsd: number };
   brief: { targetViewer: string; centralQuestion: string; viewerPromise: string; uniqueAngle: string; format: string; riskNote: string; status: string };
@@ -20,6 +20,7 @@ const tabs: Array<{ key: Tab; label: string }> = [
   { key: "script", label: "Script versions" },
   { key: "critics", label: "Critic review" },
   { key: "voice", label: "Voice studio" },
+  { key: "production", label: "Storyboard & export" },
   { key: "history", label: "History" },
 ];
 
@@ -115,6 +116,7 @@ export default function ProjectWorkspace() {
           {tab === "script" && <ScriptView latest={latest} sections={scriptSections} versions={data.scripts} onRun={() => runAction("RUN_CRITICS")} busy={busy} />}
           {tab === "critics" && <CriticsView critics={currentCritics} onRun={() => runAction("RUN_CRITICS")} onRevise={() => runAction("CREATE_REVISION")} busy={busy} />}
           {tab === "voice" && <VoiceStudio projectId={id} setProjectNotice={setNotice} />}
+          {tab === "production" && <ProductionStudio projectId={id} setProjectNotice={setNotice} />}
           {tab === "history" && <HistoryView events={data.events} />}
         </div>
       </section>
@@ -154,6 +156,7 @@ type VoiceData = {
   segments: Array<{ id: string; position: number; label: string; text: string; characterCount: number; status: string; durationSeconds: number | null; takeNumber: number; audioKey: string | null }>;
   rules: Array<{ id: number; term: string; pronunciation: string; ruleType: string; status: string }>;
   evaluations: Array<{ id: number; segmentId: string; takeNumber: number; pronunciationScore: number; paceScore: number; consistencyScore: number; decision: string; findings: string }>;
+  gatePassed: boolean;
 };
 
 function VoiceStudio({ projectId, setProjectNotice }: { projectId: string; setProjectNotice: (message: string) => void }) {
@@ -175,9 +178,9 @@ function VoiceStudio({ projectId, setProjectNotice }: { projectId: string; setPr
     return () => { active = false; };
   }, [projectId, setProjectNotice]);
 
-  async function voiceAction(action: "LOCK_VOICE" | "GENERATE_SEGMENT" | "APPROVE_SEGMENT", segmentId?: string) {
-    setWorkingId(segmentId || "profile");
-    setProjectNotice(action === "LOCK_VOICE" ? "Locking the channel voice profile…" : action === "GENERATE_SEGMENT" ? "Generating narration with timestamps…" : "Approving narration take…");
+  async function voiceAction(action: "LOCK_VOICE" | "GENERATE_SEGMENT" | "APPROVE_SEGMENT" | "PASS_VOICE_GATE", segmentId?: string) {
+    setWorkingId(segmentId || (action === "PASS_VOICE_GATE" ? "gate" : "profile"));
+    setProjectNotice(action === "LOCK_VOICE" ? "Locking the channel voice profile…" : action === "GENERATE_SEGMENT" ? "Generating narration with timestamps…" : action === "PASS_VOICE_GATE" ? "Closing the voice gate and unlocking storyboard production…" : "Approving narration take…");
     try {
       const response = await fetch(`/api/projects/${projectId}/voice`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, segmentId }) });
       if (!response.ok) {
@@ -189,7 +192,7 @@ function VoiceStudio({ projectId, setProjectNotice }: { projectId: string; setPr
         throw new Error();
       }
       await loadVoice();
-      setProjectNotice(action === "LOCK_VOICE" ? "Channel voice profile locked" : action === "GENERATE_SEGMENT" ? "New narration take ready for the listening gate" : "Narration segment approved");
+      setProjectNotice(action === "LOCK_VOICE" ? "Channel voice profile locked" : action === "GENERATE_SEGMENT" ? "New narration take ready for the listening gate" : action === "PASS_VOICE_GATE" ? "Voice gate passed · storyboard production unlocked" : "Narration segment approved");
     } catch { setProjectNotice("Voice action failed safely · no approved audio was replaced"); }
     finally { setWorkingId(null); }
   }
@@ -220,7 +223,73 @@ function VoiceStudio({ projectId, setProjectNotice }: { projectId: string; setPr
     <aside className="voiceSideRail">
       <section className="workspacePanel voiceProfile"><div className="sideTitle"><p className="eyebrow">Channel identity</p><h3>Voice profile</h3></div><div className="voiceIdentity"><span>DN</span><div><strong>{voice.profile.voiceName}</strong><p>US English · calm authority</p></div></div><dl><div><dt>Model</dt><dd>{voice.profile.modelId.replaceAll("_", " ")}</dd></div><div><dt>Stability</dt><dd>{Math.round(voice.profile.stability * 100)}%</dd></div><div><dt>Similarity</dt><dd>{Math.round(voice.profile.similarityBoost * 100)}%</dd></div><div><dt>Delivery speed</dt><dd>{voice.profile.speed}×</dd></div></dl><button className={voice.profile.status === "LOCKED" ? "lockedVoice" : "primaryButton"} disabled={workingId === "profile" || voice.profile.status === "LOCKED"} onClick={() => voiceAction("LOCK_VOICE")}>{voice.profile.status === "LOCKED" ? "✓ Voice locked" : "Lock channel voice"}</button></section>
       <section className="workspacePanel pronunciationPanel"><div className="sideTitle"><p className="eyebrow">Pronunciation guardrail</p><h3>Term rules</h3></div><div>{voice.rules.map((rule) => <article key={rule.id}><div><strong>{rule.term}</strong><span>{rule.ruleType}</span></div><p>{rule.pronunciation}</p></article>)}</div><button className="textButton">＋ Add term rule</button></section>
-      <section className="workspacePanel gateChecklist"><div className="sideTitle"><p className="eyebrow">Voice gate</p><h3>Approval criteria</h3></div><ul><li className={generated === voice.segments.length ? "done" : ""}>All segments generated</li><li className={approved === voice.segments.length ? "done" : ""}>Human listening complete</li><li>Pronunciation ≥ 90</li><li>Pace and tone consistent</li></ul><button disabled={approved !== voice.segments.length} className="primaryButton">Pass voice gate</button></section>
+      <section className="workspacePanel gateChecklist"><div className="sideTitle"><p className="eyebrow">Voice gate</p><h3>Approval criteria</h3></div><ul><li className={generated === voice.segments.length ? "done" : ""}>All segments generated</li><li className={approved === voice.segments.length ? "done" : ""}>Human listening complete</li><li className={voice.evaluations.every((item) => item.pronunciationScore >= 90) ? "done" : ""}>Pronunciation ≥ 90</li><li className={approved === voice.segments.length ? "done" : ""}>Pace and tone consistent</li></ul><button disabled={approved !== voice.segments.length || workingId === "gate" || voice.gatePassed} className={voice.gatePassed ? "lockedVoice" : "primaryButton"} onClick={() => voiceAction("PASS_VOICE_GATE")}>{voice.gatePassed ? "✓ Voice gate passed" : workingId === "gate" ? "Passing gate…" : "Pass voice gate"}</button></section>
     </aside>
   </div>;
+}
+
+type ProductionData = {
+  scenes: Array<{ id: string; sceneNumber: number; startSeconds: number | null; endSeconds: number | null; beat: string; narrationExcerpt: string; visualIntent: string; shotType: string; mediaStrategy: string; searchQuery: string; assetSource: string; licenseStatus: string; assetStatus: string; sceneStatus: string }>;
+  segments: Array<{ id: string; status: string; durationSeconds: number | null }>;
+  packages: Array<{ id: string; version: number; status: string; totalDuration: number; exportFormat: string; createdAt: string }>;
+  gates: { voice: boolean; storyboardReady: boolean; storyboardPassed: boolean; licensesReady: boolean };
+};
+
+function ProductionStudio({ projectId, setProjectNotice }: { projectId: string; setProjectNotice: (message: string) => void }) {
+  const [production, setProduction] = useState<ProductionData | null>(null);
+  const [working, setWorking] = useState<string | null>(null);
+
+  const loadProduction = useCallback(async () => {
+    const response = await fetch(`/api/projects/${projectId}/production`);
+    if (!response.ok) throw new Error();
+    setProduction(await response.json() as ProductionData);
+  }, [projectId]);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/projects/${projectId}/production`)
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((payload: ProductionData) => active && setProduction(payload))
+      .catch(() => active && setProjectNotice("Production workspace could not be loaded"));
+    return () => { active = false; };
+  }, [projectId, setProjectNotice]);
+
+  async function productionAction(action: "APPROVE_SCENE" | "PASS_STORYBOARD_GATE" | "BUILD_EXPORT", sceneId?: string) {
+    setWorking(sceneId || action);
+    setProjectNotice(action === "APPROVE_SCENE" ? "Approving scene brief…" : action === "PASS_STORYBOARD_GATE" ? "Validating storyboard continuity…" : "Building editor-ready production package…");
+    try {
+      const response = await fetch(`/api/projects/${projectId}/production`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, sceneId }) });
+      if (!response.ok) throw new Error();
+      await loadProduction();
+      setProjectNotice(action === "APPROVE_SCENE" ? "Scene brief approved" : action === "PASS_STORYBOARD_GATE" ? "Storyboard gate passed · media sourcing unlocked" : "Production package ready to download");
+    } catch { setProjectNotice("Production action stopped at its gate · no approved work was changed"); }
+    finally { setWorking(null); }
+  }
+
+  if (!production) return <section className="workspacePanel voiceLoading"><span>◌</span><p>Building the scene manifest from approved narration…</p></section>;
+  const approved = production.scenes.filter((scene) => scene.sceneStatus === "APPROVED").length;
+  const licensed = production.scenes.filter((scene) => scene.licenseStatus === "VERIFIED").length;
+  const mediaMix = production.scenes.reduce<Record<string, number>>((mix, scene) => ({ ...mix, [scene.mediaStrategy]: (mix[scene.mediaStrategy] || 0) + 1 }), {});
+  const latestPackage = production.packages[0];
+
+  return <div className="productionLayout">
+    <section className="workspacePanel productionMain">
+      <div className="contentHeader"><div><p className="eyebrow">WS-06 · production blueprint</p><h2>Storyboard & scene manifest</h2><p>Every scene is tied to approved narration, a sourcing strategy and a license gate. Planned assets are never presented as acquired media.</p></div><span className="coverageScore">{approved}/{production.scenes.length} scenes approved</span></div>
+      <div className="productionMetrics"><div><small>Runtime</small><strong>{Math.round(production.scenes.reduce((max, scene) => Math.max(max, scene.endSeconds || 0), 0))} sec</strong></div><div><small>Scene coverage</small><strong>{production.gates.storyboardReady ? "100%" : "Needs work"}</strong></div><div><small>Licenses verified</small><strong>{licensed}/{production.scenes.length}</strong></div><div><small>Export packages</small><strong>{production.packages.length}</strong></div></div>
+      <div className="sceneList">{production.scenes.map((scene) => <article key={scene.id} className={`sceneCard ${scene.sceneStatus.toLowerCase()}`}>
+        <div className="sceneTime"><strong>{String(scene.sceneNumber).padStart(2, "0")}</strong><span>{formatTime(scene.startSeconds)}–{formatTime(scene.endSeconds)}</span></div>
+        <div className="sceneContent"><header><div><strong>{scene.beat}</strong><span>{scene.shotType}</span></div><div className="sceneBadges"><span className={`license ${scene.licenseStatus.toLowerCase()}`}>{scene.licenseStatus.replaceAll("_", " ")}</span><span>{scene.mediaStrategy.replaceAll("_", " ")}</span></div></header><p className="visualIntent">{scene.visualIntent}</p><blockquote>“{scene.narrationExcerpt}”</blockquote><div className="sourcePlan"><div><small>Source plan</small><strong>{scene.assetSource}</strong></div><div><small>Search / generation prompt</small><strong>{scene.searchQuery}</strong></div></div><footer><span>{scene.assetStatus.replaceAll("_", " ")}</span><button disabled={working === scene.id || scene.sceneStatus === "APPROVED"} className={scene.sceneStatus === "APPROVED" ? "lockedVoice" : "secondaryButton compact"} onClick={() => productionAction("APPROVE_SCENE", scene.id)}>{scene.sceneStatus === "APPROVED" ? "✓ Approved" : working === scene.id ? "Approving…" : "Approve scene"}</button></footer></div>
+      </article>)}</div>
+    </section>
+    <aside className="productionRail">
+      <section className="workspacePanel"><div className="sideTitle"><p className="eyebrow">Media strategy</p><h3>Planned source mix</h3></div><div className="mediaMix">{Object.entries(mediaMix).map(([strategy, count]) => <div key={strategy}><span>{strategy.replaceAll("_", " ")}</span><strong>{count} scenes</strong></div>)}</div><p className="railNote">Stock and generated visuals remain marked “needs source” until a file and its usage rights are attached.</p></section>
+      <section className="workspacePanel gateChecklist"><div className="sideTitle"><p className="eyebrow">Storyboard gate</p><h3>Human review</h3></div><ul><li className={production.gates.voice ? "done" : ""}>Approved voice locked</li><li className={production.gates.storyboardReady ? "done" : ""}>Visual intent complete</li><li className={approved === production.scenes.length ? "done" : ""}>All scene briefs approved</li><li className={production.gates.storyboardPassed ? "done" : ""}>Continuity gate recorded</li></ul><button disabled={approved !== production.scenes.length || production.gates.storyboardPassed || working === "PASS_STORYBOARD_GATE"} className={production.gates.storyboardPassed ? "lockedVoice" : "primaryButton"} onClick={() => productionAction("PASS_STORYBOARD_GATE")}>{production.gates.storyboardPassed ? "✓ Storyboard passed" : "Pass storyboard gate"}</button></section>
+      <section className="workspacePanel exportPanel"><div className="sideTitle"><p className="eyebrow">Editor handoff</p><h3>Production package</h3></div><p>JSON includes scene timing, approved audio URLs, character timestamps, source queries and 4K/30fps handoff settings.</p><button disabled={working === "BUILD_EXPORT"} className="primaryButton" onClick={() => productionAction("BUILD_EXPORT")}>{working === "BUILD_EXPORT" ? "Building…" : "Build export package"}</button>{latestPackage && <a className="downloadPackage" href={`/api/projects/${projectId}/production?download=latest`}>↓ Download package v{latestPackage.version}</a>}<small>Final render stays blocked until every external asset license is verified.</small></section>
+    </aside>
+  </div>;
+}
+
+function formatTime(value: number | null) {
+  const seconds = Math.max(0, Math.round(value || 0));
+  return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }

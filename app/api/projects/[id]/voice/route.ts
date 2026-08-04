@@ -6,6 +6,7 @@ import {
   scriptVersions,
   voiceEvaluations,
   voiceProfiles,
+  videoProjects,
   workflowEvents,
 } from "../../../../../db/schema";
 
@@ -98,9 +99,18 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       db.select().from(voiceEvaluations).where(eq(voiceEvaluations.projectId, id)).orderBy(desc(voiceEvaluations.id)),
       runtimeEnv(),
     ]);
+    const gatePassed = segments.length > 0 && segments.every((segment) => segment.status === "APPROVED");
+    if (gatePassed) {
+      const events = await db.select().from(workflowEvents).where(eq(workflowEvents.projectId, id));
+      if (!events.some((event) => event.eventType === "VOICE_GATE_PASSED")) {
+        await db.update(voiceProfiles).set({ status: "LOCKED", updatedAt: new Date().toISOString() }).where(eq(voiceProfiles.projectId, id));
+        await db.update(videoProjects).set({ status: "STORYBOARDING", progress: 68, nextAction: "Review scene manifest", updatedAt: new Date().toISOString() }).where(eq(videoProjects.id, id));
+        await db.insert(workflowEvents).values({ projectId: id, fromStatus: "VOICE_PRODUCTION", toStatus: "STORYBOARDING", eventType: "VOICE_GATE_PASSED", summary: `${segments.length} approved narration takes locked; storyboard production unlocked` });
+      }
+    }
     return Response.json({
       provider: { name: "ElevenLabs", connected: Boolean(env.ELEVENLABS_API_KEY), storageReady: Boolean(env.BUCKET) },
-      profile: profile[0], segments, rules, evaluations,
+      profile: profile[0], segments, rules, evaluations, gatePassed,
     });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Unable to load voice workspace" }, { status: 500 });
@@ -110,7 +120,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const payload = await request.json() as { action?: "LOCK_VOICE" | "GENERATE_SEGMENT" | "APPROVE_SEGMENT"; segmentId?: string };
+    const payload = await request.json() as { action?: "LOCK_VOICE" | "GENERATE_SEGMENT" | "APPROVE_SEGMENT" | "PASS_VOICE_GATE"; segmentId?: string };
     await seedVoiceWorkspace(id);
     const db = await getDb();
 
@@ -118,6 +128,20 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       await db.update(voiceProfiles).set({ status: "LOCKED", updatedAt: new Date().toISOString() }).where(eq(voiceProfiles.projectId, id));
       await db.insert(workflowEvents).values({ projectId: id, toStatus: "VOICE_PRODUCTION", eventType: "VOICE_LOCKED", summary: "Documentary narrator locked as the channel voice profile" });
       return Response.json({ ok: true });
+    }
+
+    if (payload.action === "PASS_VOICE_GATE") {
+      const segments = await db.select().from(narrationSegments).where(eq(narrationSegments.projectId, id));
+      if (!segments.length || segments.some((segment) => segment.status !== "APPROVED")) {
+        return Response.json({ error: "Every narration segment must be approved" }, { status: 409 });
+      }
+      await db.update(voiceProfiles).set({ status: "LOCKED", updatedAt: new Date().toISOString() }).where(eq(voiceProfiles.projectId, id));
+      await db.update(videoProjects).set({ status: "STORYBOARDING", progress: 68, nextAction: "Review scene manifest", updatedAt: new Date().toISOString() }).where(eq(videoProjects.id, id));
+      const existing = await db.select().from(workflowEvents).where(eq(workflowEvents.projectId, id));
+      if (!existing.some((event) => event.eventType === "VOICE_GATE_PASSED")) {
+        await db.insert(workflowEvents).values({ projectId: id, fromStatus: "VOICE_PRODUCTION", toStatus: "STORYBOARDING", eventType: "VOICE_GATE_PASSED", summary: `${segments.length} approved narration takes locked; storyboard production unlocked` });
+      }
+      return Response.json({ ok: true, gatePassed: true });
     }
 
     if (!payload.segmentId) return Response.json({ error: "segmentId is required" }, { status: 400 });

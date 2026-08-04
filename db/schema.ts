@@ -144,3 +144,36 @@ export const voiceEvaluations = sqliteTable("voice_evaluations", {
   findings: text("findings").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const sceneManifest = sqliteTable("scene_manifest", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  segmentId: text("segment_id").notNull(),
+  sceneNumber: integer("scene_number").notNull(),
+  startSeconds: real("start_seconds"),
+  endSeconds: real("end_seconds"),
+  beat: text("beat").notNull(),
+  narrationExcerpt: text("narration_excerpt").notNull(),
+  visualIntent: text("visual_intent").notNull(),
+  shotType: text("shot_type").notNull(),
+  mediaStrategy: text("media_strategy").notNull(),
+  searchQuery: text("search_query").notNull(),
+  assetSource: text("asset_source").notNull(),
+  assetUrl: text("asset_url"),
+  licenseStatus: text("license_status").notNull().default("NEEDS_SOURCE"),
+  assetStatus: text("asset_status").notNull().default("PLANNED"),
+  sceneStatus: text("scene_status").notNull().default("DRAFT"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const productionPackages = sqliteTable("production_packages", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  version: integer("version").notNull(),
+  status: text("status").notNull().default("READY"),
+  manifestJson: text("manifest_json").notNull(),
+  totalDuration: real("total_duration").notNull().default(0),
+  exportFormat: text("export_format").notNull().default("FRAMEFLOW_JSON_V1"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
