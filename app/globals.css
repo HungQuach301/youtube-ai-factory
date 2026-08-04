@@ -390,6 +390,10 @@ nav { display: grid; gap: 5px; }
 .exportPanel .primaryButton, .downloadPackage { width: 100%; display: block; text-align: center; }
 .downloadPackage { margin-top: 8px; padding: 9px; border: 1px solid #bfd9ce; border-radius: 9px; color: #286b54; background: #e8f3ee; text-decoration: none; font-size: 8px; font-weight: 800; }
 .exportPanel > small { display: block; margin-top: 10px; color: #98672b; font-size: 7px; line-height: 1.45; }
+.productionError { min-height: 330px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.productionError > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: #faeadc; color: #a45f23; font-weight: 900; }
+.productionError h2 { margin: 14px 0 0; font: 600 19px/1.2 Georgia, serif; }
+.productionError p { max-width: 480px; margin: 8px 0 16px; color: #78847f; font-size: 10px; line-height: 1.5; }
 
 @media (max-width: 1160px) {
   .contentGrid { grid-template-columns: 1fr; }

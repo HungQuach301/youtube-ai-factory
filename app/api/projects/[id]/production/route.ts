@@ -20,6 +20,56 @@ const sceneBlueprints = [
   { beat: "The net deposit", visualIntent: "Finish on a simple fee waterfall: $100 purchase, variable costs, merchant net deposit; label all values illustrative.", shotType: "Original diagram", mediaStrategy: "DIAGRAM", searchQuery: "merchant card payment fee waterfall diagram", assetSource: "Frameflow diagram" },
 ];
 
+type RuntimeD1 = {
+  prepare(sql: string): { run(): Promise<unknown> };
+};
+
+let productionSchemaReady: Promise<void> | null = null;
+
+async function ensureProductionSchema() {
+  if (!productionSchemaReady) {
+    productionSchemaReady = (async () => {
+      const { env } = await import("cloudflare:workers") as unknown as { env: { DB?: RuntimeD1 } };
+      if (!env.DB) throw new Error("Production database is unavailable");
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS scene_manifest (
+        id text PRIMARY KEY NOT NULL,
+        project_id text NOT NULL,
+        segment_id text NOT NULL,
+        scene_number integer NOT NULL,
+        start_seconds real,
+        end_seconds real,
+        beat text NOT NULL,
+        narration_excerpt text NOT NULL,
+        visual_intent text NOT NULL,
+        shot_type text NOT NULL,
+        media_strategy text NOT NULL,
+        search_query text NOT NULL,
+        asset_source text NOT NULL,
+        asset_url text,
+        license_status text DEFAULT 'NEEDS_SOURCE' NOT NULL,
+        asset_status text DEFAULT 'PLANNED' NOT NULL,
+        scene_status text DEFAULT 'DRAFT' NOT NULL,
+        created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )`).run();
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS production_packages (
+        id text PRIMARY KEY NOT NULL,
+        project_id text NOT NULL,
+        version integer NOT NULL,
+        status text DEFAULT 'READY' NOT NULL,
+        manifest_json text NOT NULL,
+        total_duration real DEFAULT 0 NOT NULL,
+        export_format text DEFAULT 'FRAMEFLOW_JSON_V1' NOT NULL,
+        created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )`).run();
+    })().catch((error) => {
+      productionSchemaReady = null;
+      throw error;
+    });
+  }
+  await productionSchemaReady;
+}
+
 async function seedProduction(projectId: string) {
   const db = await getDb();
   const existing = await db.select({ id: sceneManifest.id }).from(sceneManifest).where(eq(sceneManifest.projectId, projectId)).limit(1);
@@ -91,6 +141,7 @@ async function buildPackage(projectId: string) {
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
+    await ensureProductionSchema();
     await seedProduction(id);
     const db = await getDb();
     const url = new URL(request.url);
@@ -114,6 +165,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       },
     });
   } catch (error) {
+    console.error("Production workspace GET failed", error);
     return Response.json({ error: error instanceof Error ? error.message : "Unable to load production workspace" }, { status: 500 });
   }
 }
@@ -121,6 +173,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
+    await ensureProductionSchema();
     await seedProduction(id);
     const db = await getDb();
     const payload = await request.json() as { action?: "APPROVE_SCENE" | "PASS_STORYBOARD_GATE" | "BUILD_EXPORT"; sceneId?: string };
@@ -145,6 +198,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     return Response.json({ error: "Unknown action" }, { status: 400 });
   } catch (error) {
+    console.error("Production workspace POST failed", error);
     return Response.json({ error: error instanceof Error ? error.message : "Unable to update production workspace" }, { status: 500 });
   }
 }

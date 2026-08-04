@@ -239,19 +239,31 @@ type ProductionData = {
 function ProductionStudio({ projectId, setProjectNotice }: { projectId: string; setProjectNotice: (message: string) => void }) {
   const [production, setProduction] = useState<ProductionData | null>(null);
   const [working, setWorking] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadProduction = useCallback(async () => {
-    const response = await fetch(`/api/projects/${projectId}/production`);
-    if (!response.ok) throw new Error();
-    setProduction(await response.json() as ProductionData);
+    setLoadError(null);
+    const response = await fetch(`/api/projects/${projectId}/production`, { signal: AbortSignal.timeout(15000) });
+    const payload = await response.json().catch(() => ({})) as ProductionData & { error?: string };
+    if (!response.ok) throw new Error(payload.error || "Production workspace could not be loaded");
+    setProduction(payload);
   }, [projectId]);
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/projects/${projectId}/production`)
-      .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((payload: ProductionData) => active && setProduction(payload))
-      .catch(() => active && setProjectNotice("Production workspace could not be loaded"));
+    fetch(`/api/projects/${projectId}/production`, { signal: AbortSignal.timeout(15000) })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({})) as ProductionData & { error?: string };
+        if (!response.ok) throw new Error(payload.error || "Production workspace could not be loaded");
+        return payload;
+      })
+      .then((payload) => { if (active) setProduction(payload); })
+      .catch((error: Error) => {
+        if (!active) return;
+        const message = error.name === "TimeoutError" ? "Scene manifest timed out. Please retry." : error.message;
+        setLoadError(message);
+        setProjectNotice(message);
+      });
     return () => { active = false; };
   }, [projectId, setProjectNotice]);
 
@@ -267,6 +279,7 @@ function ProductionStudio({ projectId, setProjectNotice }: { projectId: string; 
     finally { setWorking(null); }
   }
 
+  if (loadError) return <section className="workspacePanel productionError"><span>!</span><h2>Scene manifest could not load</h2><p>{loadError}</p><button className="primaryButton" onClick={() => loadProduction().catch((error: Error) => setLoadError(error.message))}>Try again</button></section>;
   if (!production) return <section className="workspacePanel voiceLoading"><span>◌</span><p>Building the scene manifest from approved narration…</p></section>;
   const approved = production.scenes.filter((scene) => scene.sceneStatus === "APPROVED").length;
   const licensed = production.scenes.filter((scene) => scene.licenseStatus === "VERIFIED").length;
