@@ -177,3 +177,33 @@ export const productionPackages = sqliteTable("production_packages", {
   exportFormat: text("export_format").notNull().default("FRAMEFLOW_JSON_V1"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const mediaAssets = sqliteTable("media_assets", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  sceneId: text("scene_id").notNull(),
+  name: text("name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  sourceType: text("source_type").notNull(),
+  sourceUrl: text("source_url"),
+  storageKey: text("storage_key"),
+  licenseType: text("license_type").notNull(),
+  licenseProof: text("license_proof"),
+  rightsStatus: text("rights_status").notNull().default("PENDING"),
+  status: text("status").notNull().default("REVIEW"),
+  sizeBytes: integer("size_bytes").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const assemblyRuns = sqliteTable("assembly_runs", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  version: integer("version").notNull(),
+  status: text("status").notNull().default("READY_FOR_RENDER"),
+  manifestJson: text("manifest_json").notNull(),
+  assetCoverage: integer("asset_coverage").notNull().default(0),
+  licenseCoverage: integer("license_coverage").notNull().default(0),
+  criticResults: text("critic_results").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 
-type Tab = "brief" | "evidence" | "script" | "critics" | "voice" | "production" | "history";
+type Tab = "brief" | "evidence" | "script" | "critics" | "voice" | "production" | "media" | "history";
 type Workspace = {
   project: { id: string; title: string; pillar: string; status: string; progress: number; spentUsd: number; budgetUsd: number };
   brief: { targetViewer: string; centralQuestion: string; viewerPromise: string; uniqueAngle: string; format: string; riskNote: string; status: string };
@@ -21,6 +21,7 @@ const tabs: Array<{ key: Tab; label: string }> = [
   { key: "critics", label: "Critic review" },
   { key: "voice", label: "Voice studio" },
   { key: "production", label: "Storyboard & export" },
+  { key: "media", label: "Media & assembly" },
   { key: "history", label: "History" },
 ];
 
@@ -76,7 +77,7 @@ export default function ProjectWorkspace() {
   }, [latest]);
   const currentCritics = data?.critics.filter((critic) => critic.scriptVersionId === latest?.id) || [];
   const supportedClaims = data?.claims.filter((claim) => claim.status === "SUPPORTED").length || 0;
-  const currentStageIndex = data?.project.status === "PRODUCTION_PREP" ? 5 : data?.project.status === "STORYBOARDING" ? 3 : data?.project.status === "VOICE_PRODUCTION" ? 4 : data?.project.status === "SCRIPTING" ? 2 : data?.project.status === "RESEARCHING" ? 1 : 0;
+  const currentStageIndex = data?.project.status === "ASSEMBLY_READY" ? 5 : data?.project.status === "PRODUCTION_PREP" ? 5 : data?.project.status === "STORYBOARDING" ? 3 : data?.project.status === "VOICE_PRODUCTION" ? 4 : data?.project.status === "SCRIPTING" ? 2 : data?.project.status === "RESEARCHING" ? 1 : 0;
 
   if (!data) {
     return <main className="projectLoading"><span className="loadingMark">F</span><h1>{notice}</h1><button onClick={() => { window.location.href = "/"; }}>Return to command center</button></main>;
@@ -118,6 +119,7 @@ export default function ProjectWorkspace() {
           {tab === "critics" && <CriticsView critics={currentCritics} onRun={() => runAction("RUN_CRITICS")} onRevise={() => runAction("CREATE_REVISION")} busy={busy} />}
           {tab === "voice" && <VoiceStudio projectId={id} setProjectNotice={setNotice} />}
           {tab === "production" && <ProductionStudio projectId={id} setProjectNotice={setNotice} />}
+          {tab === "media" && <MediaStudio projectId={id} setProjectNotice={setNotice} />}
           {tab === "history" && <HistoryView events={data.events} />}
         </div>
       </section>
@@ -299,6 +301,98 @@ function ProductionStudio({ projectId, setProjectNotice }: { projectId: string; 
       <section className="workspacePanel"><div className="sideTitle"><p className="eyebrow">Media strategy</p><h3>Planned source mix</h3></div><div className="mediaMix">{Object.entries(mediaMix).map(([strategy, count]) => <div key={strategy}><span>{strategy.replaceAll("_", " ")}</span><strong>{count} scenes</strong></div>)}</div><p className="railNote">Stock and generated visuals remain marked “needs source” until a file and its usage rights are attached.</p></section>
       <section className="workspacePanel gateChecklist"><div className="sideTitle"><p className="eyebrow">Storyboard gate</p><h3>Human review</h3></div><ul><li className={production.gates.voice ? "done" : ""}>Approved voice locked</li><li className={production.gates.storyboardReady ? "done" : ""}>Visual intent complete</li><li className={approved === production.scenes.length ? "done" : ""}>All scene briefs approved</li><li className={production.gates.storyboardPassed ? "done" : ""}>Continuity gate recorded</li></ul><button disabled={approved !== production.scenes.length || production.gates.storyboardPassed || working === "PASS_STORYBOARD_GATE"} className={production.gates.storyboardPassed ? "lockedVoice" : "primaryButton"} onClick={() => productionAction("PASS_STORYBOARD_GATE")}>{production.gates.storyboardPassed ? "✓ Storyboard passed" : "Pass storyboard gate"}</button></section>
       <section className="workspacePanel exportPanel"><div className="sideTitle"><p className="eyebrow">Editor handoff</p><h3>Production package</h3></div><p>JSON includes scene timing, approved audio URLs, character timestamps, source queries and 4K/30fps handoff settings.</p><button disabled={working === "BUILD_EXPORT"} className="primaryButton" onClick={() => productionAction("BUILD_EXPORT")}>{working === "BUILD_EXPORT" ? "Building…" : "Build export package"}</button>{latestPackage && <a className="downloadPackage" href={`/api/projects/${projectId}/production?download=latest`}>↓ Download package v{latestPackage.version}</a>}<small>Final render stays blocked until every external asset license is verified.</small></section>
+    </aside>
+  </div>;
+}
+
+type MediaData = {
+  scenes: Array<{ id: string; sceneNumber: number; beat: string; visualIntent: string; mediaStrategy: string; searchQuery: string; assetUrl: string | null; assetStatus: string; licenseStatus: string }>;
+  assets: Array<{ id: string; sceneId: string; name: string; mimeType: string; sourceType: string; sourceUrl: string | null; storageKey: string | null; licenseType: string; licenseProof: string | null; rightsStatus: string; status: string; sizeBytes: number }>;
+  runs: Array<{ id: string; version: number; status: string; assetCoverage: number; licenseCoverage: number; criticResults: string; createdAt: string }>;
+  gates: { voice: boolean; assetCoverage: number; rightsCoverage: number; assemblyReady: boolean };
+};
+
+function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setProjectNotice: (message: string) => void }) {
+  const [media, setMedia] = useState<MediaData | null>(null);
+  const [working, setWorking] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [linkDrafts, setLinkDrafts] = useState<Record<string, string>>({});
+
+  const loadMedia = useCallback(async () => {
+    setError(null);
+    const response = await fetch(`/api/projects/${projectId}/media`, { signal: AbortSignal.timeout(15000) });
+    if (!response.ok) throw new Error("Media workspace could not be loaded");
+    setMedia(await response.json() as MediaData);
+  }, [projectId]);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/projects/${projectId}/media`, { signal: AbortSignal.timeout(15000) })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Media workspace could not be loaded")))
+      .then((payload: MediaData) => { if (active) setMedia(payload); })
+      .catch((caught: Error) => { if (active) { setError(caught.message); setProjectNotice(caught.message); } });
+    return () => { active = false; };
+  }, [projectId, setProjectNotice]);
+
+  async function mediaAction(action: "GENERATE_DIAGRAMS" | "REGISTER_LINK" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY", input: { sceneId?: string; assetId?: string; sourceUrl?: string } = {}) {
+    setWorking(input.assetId || input.sceneId || action);
+    const labels = { GENERATE_DIAGRAMS: "Creating channel-owned diagrams…", REGISTER_LINK: "Registering media candidate…", VERIFY_RIGHTS: "Recording human rights verification…", APPROVE_ASSET: "Approving asset for the timeline…", BUILD_ASSEMBLY: "Running assembly critics and building the timeline…" };
+    setProjectNotice(labels[action]);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/media`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...input, licenseType: action === "REGISTER_LINK" ? "SOURCE_LICENSE" : undefined, licenseProof: action === "VERIFY_RIGHTS" ? "Human verified source terms and intended YouTube use" : undefined }) });
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Media action stopped at its gate");
+      await loadMedia();
+      if (input.sceneId) setLinkDrafts((current) => ({ ...current, [input.sceneId!]: "" }));
+      setProjectNotice(action === "BUILD_ASSEMBLY" ? "Assembly gate passed · render package is ready" : "Media workspace updated");
+    } catch (caught) { setProjectNotice(caught instanceof Error && caught.message.includes("GATE_BLOCKED") ? "Assembly is blocked until every scene has one rights-verified asset" : caught instanceof Error ? caught.message : "Media action failed safely"); }
+    finally { setWorking(null); }
+  }
+
+  async function uploadAsset(sceneId: string, file: File | undefined) {
+    if (!file) return;
+    setWorking(sceneId);
+    setProjectNotice(`Uploading ${file.name} to protected media storage…`);
+    try {
+      const form = new FormData();
+      form.set("sceneId", sceneId); form.set("file", file); form.set("licenseType", "OWNED_OR_LICENSED");
+      const response = await fetch(`/api/projects/${projectId}/media`, { method: "POST", body: form });
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Upload failed");
+      await loadMedia(); setProjectNotice("Asset uploaded · verify usage rights before approval");
+    } catch (caught) { setProjectNotice(caught instanceof Error ? caught.message : "Upload failed safely"); }
+    finally { setWorking(null); }
+  }
+
+  if (error) return <section className="workspacePanel productionError"><span>!</span><h2>Media workspace could not load</h2><p>{error}</p><button className="primaryButton" onClick={() => loadMedia().catch((caught: Error) => setError(caught.message))}>Try again</button></section>;
+  if (!media) return <section className="workspacePanel voiceLoading"><span>◌</span><p>Preparing media sourcing and assembly controls…</p></section>;
+  const latestRun = media.runs[0];
+  const approvedCount = media.scenes.filter((scene) => media.assets.some((asset) => asset.sceneId === scene.id && asset.status === "APPROVED" && asset.rightsStatus === "VERIFIED")).length;
+
+  return <div className="mediaWorkspaceLayout">
+    <section className="workspacePanel mediaMain">
+      <div className="contentHeader"><div><p className="eyebrow">WS-07 · controlled media production</p><h2>Media sourcing & assembly</h2><p>Attach real files or source links, verify usage rights, then select exactly one approved visual for each scene.</p></div><span className={`providerState ${media.gates.assemblyReady ? "connected" : "waiting"}`}><i />{approvedCount}/8 scenes covered</span></div>
+      <div className="mediaMetrics"><div><small>Approved coverage</small><strong>{media.gates.assetCoverage}%</strong></div><div><small>Candidate assets</small><strong>{media.assets.length}</strong></div><div><small>Voice locked</small><strong>{media.gates.voice ? "Yes" : "No"}</strong></div><div><small>Assembly versions</small><strong>{media.runs.length}</strong></div></div>
+      <div className="diagramAutomation"><div><strong>Create the three original system diagrams</strong><p>Scenes 02, 05 and 08 are generated as channel-owned SVG assets and rights-verified automatically.</p></div><button className="primaryButton" disabled={working === "GENERATE_DIAGRAMS"} onClick={() => mediaAction("GENERATE_DIAGRAMS")}>{working === "GENERATE_DIAGRAMS" ? "Creating…" : "Generate original diagrams"}</button></div>
+      <div className="mediaSceneList">{media.scenes.map((scene) => {
+        const sceneAssets = media.assets.filter((asset) => asset.sceneId === scene.id);
+        const selected = sceneAssets.find((asset) => asset.status === "APPROVED");
+        return <article className={`mediaScene ${selected ? "covered" : ""}`} key={scene.id}>
+          <header><span>{String(scene.sceneNumber).padStart(2, "0")}</span><div><strong>{scene.beat}</strong><p>{scene.visualIntent}</p></div><span className={`coverageTag ${selected ? "ready" : "missing"}`}>{selected ? "✓ Covered" : "Needs asset"}</span></header>
+          <div className="mediaSceneBody"><div className="assetCandidates">
+            {sceneAssets.length ? sceneAssets.map((asset) => <div className={`assetCandidate ${asset.status.toLowerCase()}`} key={asset.id}>
+              <div className="assetPreview">{asset.storageKey && asset.mimeType.startsWith("image/") ? <span className="assetImage" role="img" aria-label={`${asset.name} preview`} style={{ backgroundImage: `url(/api/projects/${projectId}/media?asset=${encodeURIComponent(asset.id)})` }} /> : <span>{asset.mimeType.startsWith("video/") ? "▶" : "↗"}</span>}</div>
+              <div className="assetInfo"><strong>{asset.name}</strong><p>{asset.sourceType.replaceAll("_", " ")} · {asset.licenseType.replaceAll("_", " ")}</p><div><span className={`rights ${asset.rightsStatus.toLowerCase()}`}>{asset.rightsStatus.replaceAll("_", " ")}</span><span>{asset.status}</span></div></div>
+              <div className="assetActions">{asset.rightsStatus !== "VERIFIED" && <button disabled={working === asset.id} onClick={() => mediaAction("VERIFY_RIGHTS", { assetId: asset.id })}>Verify rights</button>}{asset.status !== "APPROVED" && <button disabled={working === asset.id || asset.rightsStatus !== "VERIFIED"} onClick={() => mediaAction("APPROVE_ASSET", { assetId: asset.id })}>Approve</button>}</div>
+            </div>) : <div className="noAsset"><span>＋</span><p>No candidate attached yet</p></div>}
+          </div><aside className="sourceAssetControls"><small>{scene.mediaStrategy.replaceAll("_", " ")}</small><strong>{scene.searchQuery}</strong><label className="uploadControl">Upload image/video<input type="file" accept="image/*,video/*" onChange={(event) => uploadAsset(scene.id, event.target.files?.[0])} /></label><div className="linkControl"><input type="url" placeholder="Paste licensed source URL" value={linkDrafts[scene.id] || ""} onChange={(event) => setLinkDrafts((current) => ({ ...current, [scene.id]: event.target.value }))}/><button disabled={!linkDrafts[scene.id] || working === scene.id} onClick={() => mediaAction("REGISTER_LINK", { sceneId: scene.id, sourceUrl: linkDrafts[scene.id] })}>Add link</button></div></aside></div>
+        </article>;
+      })}</div>
+    </section>
+    <aside className="mediaRail">
+      <section className="workspacePanel gateChecklist"><div className="sideTitle"><p className="eyebrow">Asset gate</p><h3>Render prerequisites</h3></div><ul><li className={media.gates.voice ? "done" : ""}>Approved narration locked</li><li className={media.gates.assetCoverage === 100 ? "done" : ""}>8/8 scenes have approved media</li><li className={media.gates.assemblyReady ? "done" : ""}>Selected assets rights-verified</li><li className={latestRun ? "done" : ""}>Assembly critics passed</li></ul><button disabled={!media.gates.assemblyReady || working === "BUILD_ASSEMBLY"} className={latestRun ? "lockedVoice" : "primaryButton"} onClick={() => mediaAction("BUILD_ASSEMBLY")}>{working === "BUILD_ASSEMBLY" ? "Reviewing…" : latestRun ? "Build next assembly version" : "Run assembly gate"}</button></section>
+      <section className="workspacePanel sourcingPolicy"><div className="sideTitle"><p className="eyebrow">Rights policy</p><h3>Allowed sources</h3></div><ul><li><strong>Original</strong><span>Channel-owned diagrams and generated visuals</span></li><li><strong>Free stock</strong><span>Commercial-use terms recorded per asset</span></li><li><strong>Paid stock</strong><span>Subscription or receipt evidence retained</span></li><li><strong>External link</strong><span>Never approved until human verification</span></li></ul></section>
+      <section className="workspacePanel assemblyPackage"><div className="sideTitle"><p className="eyebrow">Editor timeline</p><h3>Assembly package</h3></div>{latestRun ? <><div className="assemblyScore"><strong>{latestRun.assetCoverage}%</strong><span>coverage passed</span></div><a className="downloadPackage" href={`/api/projects/${projectId}/media?download=latest`}>↓ Download assembly v{latestRun.version}</a><p>Includes selected visuals, narration URLs, caption timings and four critic decisions.</p></> : <p>The package unlocks only after all eight scenes pass asset and rights gates.</p>}</section>
     </aside>
   </div>;
 }
