@@ -125,6 +125,17 @@ nav { display: grid; gap: 5px; }
 .eventDot.green { background: #43a276; box-shadow: 0 0 0 4px #e4f2eb; }
 .eventDot.amberDot { background: #d69a47; box-shadow: 0 0 0 4px #f8ecda; }
 
+.modalBackdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(9, 30, 25, .52); backdrop-filter: blur(4px); }
+.modalCard { width: min(520px, 100%); background: white; border-radius: 17px; padding: 23px; box-shadow: 0 24px 80px rgba(9, 34, 27, .28); }
+.modalHeader { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+.modalHeader h2 { margin: 0; font: 600 22px/1.2 Georgia, serif; }
+.modalHeader > button { border: 0; background: #eff3f1; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: #5e6b67; }
+.modalCard label { display: block; margin-top: 24px; color: #4f5c58; font-size: 10px; font-weight: 750; }
+.modalCard textarea { width: 100%; min-height: 105px; resize: vertical; margin-top: 8px; padding: 13px; border: 1px solid #cfd8d4; border-radius: 10px; color: var(--ink); outline: none; font: 500 14px/1.5 Georgia, serif; }
+.modalCard textarea:focus { border-color: #43816d; box-shadow: 0 0 0 3px #dfede8; }
+.modalCard > p { color: #7a8682; font-size: 10px; line-height: 1.6; }
+.modalActions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+
 @media (max-width: 1160px) {
   .contentGrid { grid-template-columns: 1fr; }
   .rightRail { grid-template-columns: repeat(3, 1fr); }

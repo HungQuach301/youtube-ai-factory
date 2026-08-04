@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
-import { videoProjects, workflowEvents } from "../../../db/schema";
+import { channels, videoProjects, workflowEvents } from "../../../db/schema";
 
 const allowedStatuses = [
   "OPPORTUNITY_REVIEW",
@@ -11,17 +11,60 @@ const allowedStatuses = [
 
 export async function GET() {
   try {
-    const db = getDb();
-    const projects = await db
+    const db = await getDb();
+    let projects = await db
       .select()
       .from(videoProjects)
       .orderBy(desc(videoProjects.opportunityScore));
+    if (projects.length === 0) {
+      await db.insert(channels).values({
+        id: "channel-hidden-systems",
+        name: "Hidden Systems Behind Money",
+        niche: "Hidden Systems Behind Money",
+      }).onConflictDoNothing();
+      await db.insert(videoProjects).values([
+        { id: "VID-001", channelId: "channel-hidden-systems", title: "What Really Happens When You Swipe a Credit Card", pillar: "Payments & Money Movement", status: "RESEARCHING", opportunityScore: 93, progress: 28, budgetUsd: 45, spentUsd: 6.2, nextAction: "Review source coverage" },
+        { id: "VID-002", channelId: "channel-hidden-systems", title: "What Banks Actually See When You Apply for a Loan", pillar: "Credit & Lending", status: "OPPORTUNITY_REVIEW", opportunityScore: 92, progress: 10, budgetUsd: 50, spentUsd: 1.1, nextAction: "Approve opportunity brief" },
+        { id: "VID-003", channelId: "channel-hidden-systems", title: "What Happens to Your Money When a Bank Fails", pillar: "Banking Infrastructure", status: "OPPORTUNITY_REVIEW", opportunityScore: 90, progress: 6, budgetUsd: 55, spentUsd: 0.8, nextAction: "Confirm documentary scope" },
+      ]).onConflictDoNothing();
+      projects = await db.select().from(videoProjects).orderBy(desc(videoProjects.opportunityScore));
+    }
     return Response.json({ projects });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to load projects" },
       { status: 500 },
     );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const payload = (await request.json()) as { title?: string };
+    const title = payload.title?.trim();
+    if (!title) return Response.json({ error: "title is required" }, { status: 400 });
+    const db = await getDb();
+    const existing = await db.select({ id: videoProjects.id }).from(videoProjects);
+    const id = `VID-${String(existing.length + 1).padStart(3, "0")}`;
+    const [project] = await db.insert(videoProjects).values({
+      id,
+      channelId: "channel-hidden-systems",
+      title,
+      pillar: "Unassigned",
+      status: "OPPORTUNITY_REVIEW",
+      progress: 4,
+      budgetUsd: 45,
+      nextAction: "Run opportunity assessment",
+    }).returning();
+    await db.insert(workflowEvents).values({
+      projectId: id,
+      toStatus: "OPPORTUNITY_REVIEW",
+      eventType: "PROJECT_CREATED",
+      summary: `${id} created from a working topic`,
+    });
+    return Response.json({ project }, { status: 201 });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "Unable to create project" }, { status: 500 });
   }
 }
 
@@ -32,7 +75,7 @@ export async function PATCH(request: Request) {
       return Response.json({ error: "Valid id and status are required" }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await getDb();
     const [current] = await db
       .select()
       .from(videoProjects)

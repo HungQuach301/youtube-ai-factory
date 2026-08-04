@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type ProjectStatus =
   | "OPPORTUNITY_REVIEW"
@@ -84,19 +84,45 @@ export default function Home() {
   const [projects, setProjects] = useState(initialProjects);
   const [selectedId, setSelectedId] = useState(initialProjects[0].id);
   const [notice, setNotice] = useState("Workflow baseline ready");
+  const [showNewProject, setShowNewProject] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
   const selected = projects.find((project) => project.id === selectedId)!;
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/projects")
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((payload: { projects?: Array<Record<string, unknown>> }) => {
+        if (!active || !payload.projects?.length) return;
+        setProjects(
+          payload.projects.map((project) => ({
+            id: String(project.id),
+            title: String(project.title),
+            pillar: String(project.pillar),
+            status: String(project.status) as ProjectStatus,
+            score: Number(project.opportunityScore),
+            progress: Number(project.progress),
+            budget: Number(project.budgetUsd),
+            spent: Number(project.spentUsd),
+            nextAction: String(project.nextAction),
+          })),
+        );
+      })
+      .catch(() => setNotice("Working locally · durable sync will resume automatically"));
+    return () => { active = false; };
+  }, []);
 
   const totalSpent = useMemo(
     () => projects.reduce((sum, project) => sum + project.spent, 0),
     [projects],
   );
 
-  function advanceProject() {
+  async function advanceProject() {
+    const currentIndex = workflow.indexOf(selected.status);
+    const next = workflow[Math.min(currentIndex + 1, workflow.length - 1)];
     setProjects((current) =>
       current.map((project) => {
         if (project.id !== selectedId) return project;
-        const currentIndex = workflow.indexOf(project.status);
-        const next = workflow[Math.min(currentIndex + 1, workflow.length - 1)];
         return {
           ...project,
           status: next,
@@ -112,6 +138,53 @@ export default function Home() {
       }),
     );
     setNotice(`${selected.id} advanced with a new workflow event`);
+    try {
+      await fetch("/api/projects", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id: selected.id, status: next }),
+      });
+    } catch {
+      setNotice(`${selected.id} advanced locally · sync pending`);
+    }
+  }
+
+  async function createProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const title = newTitle.trim();
+    if (!title) return;
+    const provisional: Project = {
+      id: `VID-${String(projects.length + 1).padStart(3, "0")}`,
+      title,
+      pillar: "Unassigned",
+      status: "OPPORTUNITY_REVIEW",
+      score: 0,
+      progress: 4,
+      budget: 45,
+      spent: 0,
+      nextAction: "Run opportunity assessment",
+    };
+    setProjects((current) => [...current, provisional]);
+    setSelectedId(provisional.id);
+    setNewTitle("");
+    setShowNewProject(false);
+    setNotice(`${provisional.id} created and queued for opportunity review`);
+    try {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload.project?.id && payload.project.id !== provisional.id) {
+          setProjects((current) => current.map((item) => item.id === provisional.id ? { ...item, id: payload.project.id } : item));
+          setSelectedId(payload.project.id);
+        }
+      }
+    } catch {
+      setNotice(`${provisional.id} created locally · sync pending`);
+    }
   }
 
   return (
@@ -152,7 +225,7 @@ export default function Home() {
           <div className="topActions">
             <span className="systemPulse"><i />All systems ready</span>
             <button className="secondaryButton">View roadmap</button>
-            <button className="primaryButton">＋ New video</button>
+            <button className="primaryButton" onClick={() => setShowNewProject(true)}>＋ New video</button>
           </div>
         </header>
 
@@ -266,6 +339,18 @@ export default function Home() {
           </aside>
         </section>
       </section>
+
+      {showNewProject && (
+        <div className="modalBackdrop" role="presentation" onMouseDown={() => setShowNewProject(false)}>
+          <form className="modalCard" onSubmit={createProject} onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modalHeader"><div><p className="eyebrow">Create project</p><h2>Start from a working topic</h2></div><button type="button" onClick={() => setShowNewProject(false)} aria-label="Close">×</button></div>
+            <label htmlFor="project-title">Video topic or working title</label>
+            <textarea id="project-title" autoFocus value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="What really happens when..." />
+            <p>The opportunity engine will score demand, differentiation, visual potential and risk before research begins.</p>
+            <div className="modalActions"><button type="button" className="secondaryButton" onClick={() => setShowNewProject(false)}>Cancel</button><button type="submit" className="primaryButton">Create project</button></div>
+          </form>
+        </div>
+      )}
     </main>
   );
 }
