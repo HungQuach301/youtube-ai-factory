@@ -76,6 +76,7 @@ export default function ProjectWorkspace() {
   }, [latest]);
   const currentCritics = data?.critics.filter((critic) => critic.scriptVersionId === latest?.id) || [];
   const supportedClaims = data?.claims.filter((claim) => claim.status === "SUPPORTED").length || 0;
+  const currentStageIndex = data?.project.status === "PRODUCTION_PREP" ? 5 : data?.project.status === "STORYBOARDING" ? 3 : data?.project.status === "VOICE_PRODUCTION" ? 4 : data?.project.status === "SCRIPTING" ? 2 : data?.project.status === "RESEARCHING" ? 1 : 0;
 
   if (!data) {
     return <main className="projectLoading"><span className="loadingMark">F</span><h1>{notice}</h1><button onClick={() => { window.location.href = "/"; }}>Return to command center</button></main>;
@@ -93,17 +94,17 @@ export default function ProjectWorkspace() {
           <div className="projectBudget"><small>Production budget</small><strong>${data.project.spentUsd.toFixed(2)} <span>/ ${data.project.budgetUsd}</span></strong></div>
         </div>
         <div className="stageRail">
-          {stages.map((stage, index) => <div key={stage} className={`stageNode ${index < 2 ? "done" : index === 2 ? "current" : ""}`}><span>{index < 2 ? "✓" : index + 1}</span><small>{stage}</small></div>)}
+          {stages.map((stage, index) => <div key={stage} className={`stageNode ${index < currentStageIndex ? "done" : index === currentStageIndex ? "current" : ""}`}><span>{index < currentStageIndex ? "✓" : index + 1}</span><small>{stage}</small></div>)}
         </div>
       </header>
 
       <section className="projectBody">
         <div className="projectNotice" role="status"><span>✓</span>{notice}</div>
         <div className="workspaceSummary">
-          <div><small>Current gate</small><strong>Script quality review</strong></div>
+          <div><small>Current gate</small><strong>{currentStageIndex >= 5 ? "Production asset readiness" : currentStageIndex >= 3 ? "Storyboard approval" : "Script quality review"}</strong></div>
           <div><small>Evidence coverage</small><strong>{supportedClaims}/{data.claims.length} claims passed</strong></div>
           <div><small>Latest version</small><strong>Script v{latest?.version || 1}</strong></div>
-          <div><small>Next unlock</small><strong>Storyboard generation</strong></div>
+          <div><small>Next unlock</small><strong>{currentStageIndex >= 5 ? "Final video assembly" : currentStageIndex >= 3 ? "Editor export package" : "Storyboard generation"}</strong></div>
         </div>
 
         <nav className="projectTabs" aria-label="Project workspace sections">

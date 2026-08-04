@@ -26,6 +26,13 @@ async function seedProduction(projectId: string) {
   if (existing.length) return;
   const segments = await db.select().from(narrationSegments).where(eq(narrationSegments.projectId, projectId)).orderBy(asc(narrationSegments.position));
   if (!segments.length) return;
+  if (segments.every((segment) => segment.status === "APPROVED")) {
+    const events = await db.select().from(workflowEvents).where(eq(workflowEvents.projectId, projectId));
+    if (!events.some((event) => event.eventType === "VOICE_GATE_PASSED")) {
+      await db.update(videoProjects).set({ status: "STORYBOARDING", progress: 68, nextAction: "Review scene manifest", updatedAt: new Date().toISOString() }).where(eq(videoProjects.id, projectId));
+      await db.insert(workflowEvents).values({ projectId, fromStatus: "VOICE_PRODUCTION", toStatus: "STORYBOARDING", eventType: "VOICE_GATE_PASSED", summary: `${segments.length} approved narration takes locked; storyboard production unlocked` });
+    }
+  }
   let cursor = 0;
   const scenes = sceneBlueprints.map((blueprint, index) => {
     const segment = segments[Math.min(Math.floor(index / 2), segments.length - 1)];
