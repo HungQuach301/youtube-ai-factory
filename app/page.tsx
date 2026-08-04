@@ -263,10 +263,13 @@ export default function Home() {
 
             <div className="projectList">
               {projects.map((project) => (
-                <button
+                <div
                   key={project.id}
                   className={`projectCard ${selectedId === project.id ? "selected" : ""}`}
                   onClick={() => setSelectedId(project.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => event.key === "Enter" && setSelectedId(project.id)}
                 >
                   <div className="projectTopline">
                     <span className="projectId">{project.id}</span>
@@ -282,14 +285,18 @@ export default function Home() {
                     <span>{project.progress}% complete</span>
                     <span>${project.spent.toFixed(2)} / ${project.budget}</span>
                   </div>
-                </button>
+                  <button className="openProjectButton" onClick={(event) => { event.stopPropagation(); window.location.href = `/projects/${project.id}`; }}>Open workspace →</button>
+                </div>
               ))}
             </div>
 
             <article className="workflowPanel">
               <div className="panelTitle">
                 <div><span className="projectId">{selected.id}</span><h2>{selected.title}</h2></div>
-                <button className="primaryButton compact" onClick={advanceProject}>Advance workflow</button>
+                <div className="panelActions">
+                  <button className="secondaryButton compact" onClick={() => { window.location.href = `/projects/${selected.id}`; }}>Open workspace</button>
+                  <button className="primaryButton compact" onClick={advanceProject}>Advance workflow</button>
+                </div>
               </div>
               <div className="workflowSteps">
                 {workflow.map((step, index) => {

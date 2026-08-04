@@ -35,3 +35,58 @@ export const workflowEvents = sqliteTable("workflow_events", {
   costUsd: real("cost_usd").notNull().default(0),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const contentBriefs = sqliteTable("content_briefs", {
+  projectId: text("project_id").primaryKey(),
+  targetViewer: text("target_viewer").notNull(),
+  centralQuestion: text("central_question").notNull(),
+  viewerPromise: text("viewer_promise").notNull(),
+  uniqueAngle: text("unique_angle").notNull(),
+  format: text("format").notNull(),
+  riskNote: text("risk_note").notNull(),
+  status: text("status").notNull().default("DRAFT"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const researchSources = sqliteTable("research_sources", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  title: text("title").notNull(),
+  publisher: text("publisher").notNull(),
+  url: text("url").notNull(),
+  authority: text("authority").notNull(),
+  freshness: text("freshness").notNull(),
+  status: text("status").notNull().default("VERIFIED"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const researchClaims = sqliteTable("research_claims", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  claimText: text("claim_text").notNull(),
+  riskLevel: text("risk_level").notNull(),
+  status: text("status").notNull(),
+  sourceCount: integer("source_count").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const scriptVersions = sqliteTable("script_versions", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  version: integer("version").notNull(),
+  content: text("content").notNull(),
+  status: text("status").notNull().default("DRAFT"),
+  criticScore: integer("critic_score"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const criticEvaluations = sqliteTable("critic_evaluations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  projectId: text("project_id").notNull(),
+  scriptVersionId: text("script_version_id").notNull(),
+  criticType: text("critic_type").notNull(),
+  score: integer("score").notNull(),
+  decision: text("decision").notNull(),
+  findings: text("findings").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
