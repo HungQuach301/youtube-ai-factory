@@ -104,7 +104,12 @@ async function seedProduction(projectId: string) {
       sceneStatus: "DRAFT",
     };
   });
-  await db.insert(sceneManifest).values(scenes).onConflictDoNothing();
+  // D1 has a bounded variable count per prepared statement. Eight scene rows
+  // exceed that limit when Drizzle expands them into one multi-value insert,
+  // so persist each small, idempotent row independently.
+  for (const scene of scenes) {
+    await db.insert(sceneManifest).values(scene).onConflictDoNothing();
+  }
   await db.insert(workflowEvents).values({ projectId, toStatus: "STORYBOARDING", eventType: "SCENE_MANIFEST_CREATED", summary: `${scenes.length}-scene production manifest created from approved narration timing` });
 }
 
@@ -166,7 +171,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     });
   } catch (error) {
     console.error("Production workspace GET failed", error);
-    return Response.json({ error: error instanceof Error ? error.message : "Unable to load production workspace" }, { status: 500 });
+    return Response.json({ error: "Scene manifest could not be prepared", code: "SCENE_MANIFEST_FAILED" }, { status: 500 });
   }
 }
 
@@ -199,6 +204,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return Response.json({ error: "Unknown action" }, { status: 400 });
   } catch (error) {
     console.error("Production workspace POST failed", error);
-    return Response.json({ error: error instanceof Error ? error.message : "Unable to update production workspace" }, { status: 500 });
+    return Response.json({ error: "Production action could not be completed", code: "PRODUCTION_ACTION_FAILED" }, { status: 500 });
   }
 }

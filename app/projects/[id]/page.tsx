@@ -244,8 +244,8 @@ function ProductionStudio({ projectId, setProjectNotice }: { projectId: string; 
   const loadProduction = useCallback(async () => {
     setLoadError(null);
     const response = await fetch(`/api/projects/${projectId}/production`, { signal: AbortSignal.timeout(15000) });
-    const payload = await response.json().catch(() => ({})) as ProductionData & { error?: string };
-    if (!response.ok) throw new Error(payload.error || "Production workspace could not be loaded");
+    const payload = await response.json().catch(() => ({})) as ProductionData;
+    if (!response.ok) throw new Error("Scene manifest could not be prepared. Please try again.");
     setProduction(payload);
   }, [projectId]);
 
@@ -253,8 +253,8 @@ function ProductionStudio({ projectId, setProjectNotice }: { projectId: string; 
     let active = true;
     fetch(`/api/projects/${projectId}/production`, { signal: AbortSignal.timeout(15000) })
       .then(async (response) => {
-        const payload = await response.json().catch(() => ({})) as ProductionData & { error?: string };
-        if (!response.ok) throw new Error(payload.error || "Production workspace could not be loaded");
+        const payload = await response.json().catch(() => ({})) as ProductionData;
+        if (!response.ok) throw new Error("Scene manifest could not be prepared. Please try again.");
         return payload;
       })
       .then((payload) => { if (active) setProduction(payload); })
