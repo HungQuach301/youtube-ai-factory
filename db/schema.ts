@@ -90,3 +90,57 @@ export const criticEvaluations = sqliteTable("critic_evaluations", {
   findings: text("findings").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const voiceProfiles = sqliteTable("voice_profiles", {
+  projectId: text("project_id").primaryKey(),
+  provider: text("provider").notNull().default("ELEVENLABS"),
+  voiceId: text("voice_id").notNull(),
+  voiceName: text("voice_name").notNull(),
+  modelId: text("model_id").notNull().default("eleven_multilingual_v2"),
+  stability: real("stability").notNull().default(0.55),
+  similarityBoost: real("similarity_boost").notNull().default(0.78),
+  style: real("style").notNull().default(0.2),
+  speed: real("speed").notNull().default(0.96),
+  status: text("status").notNull().default("CANDIDATE"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const narrationSegments = sqliteTable("narration_segments", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  scriptVersionId: text("script_version_id").notNull(),
+  position: integer("position").notNull(),
+  label: text("label").notNull(),
+  text: text("text").notNull(),
+  characterCount: integer("character_count").notNull(),
+  status: text("status").notNull().default("READY"),
+  durationSeconds: real("duration_seconds"),
+  audioKey: text("audio_key"),
+  alignment: text("alignment"),
+  takeNumber: integer("take_number").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const pronunciationRules = sqliteTable("pronunciation_rules", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  projectId: text("project_id").notNull(),
+  term: text("term").notNull(),
+  pronunciation: text("pronunciation").notNull(),
+  ruleType: text("rule_type").notNull().default("ALIAS"),
+  status: text("status").notNull().default("ACTIVE"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const voiceEvaluations = sqliteTable("voice_evaluations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  projectId: text("project_id").notNull(),
+  segmentId: text("segment_id").notNull(),
+  takeNumber: integer("take_number").notNull(),
+  pronunciationScore: integer("pronunciation_score").notNull(),
+  paceScore: integer("pace_score").notNull(),
+  consistencyScore: integer("consistency_score").notNull(),
+  decision: text("decision").notNull(),
+  findings: text("findings").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

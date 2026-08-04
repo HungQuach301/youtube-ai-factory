@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 
-type Tab = "brief" | "evidence" | "script" | "critics" | "history";
+type Tab = "brief" | "evidence" | "script" | "critics" | "voice" | "history";
 type Workspace = {
   project: { id: string; title: string; pillar: string; status: string; progress: number; spentUsd: number; budgetUsd: number };
   brief: { targetViewer: string; centralQuestion: string; viewerPromise: string; uniqueAngle: string; format: string; riskNote: string; status: string };
@@ -19,6 +19,7 @@ const tabs: Array<{ key: Tab; label: string }> = [
   { key: "evidence", label: "Evidence & claims" },
   { key: "script", label: "Script versions" },
   { key: "critics", label: "Critic review" },
+  { key: "voice", label: "Voice studio" },
   { key: "history", label: "History" },
 ];
 
@@ -113,6 +114,7 @@ export default function ProjectWorkspace() {
           {tab === "evidence" && <EvidenceView sources={data.sources} claims={data.claims} />}
           {tab === "script" && <ScriptView latest={latest} sections={scriptSections} versions={data.scripts} onRun={() => runAction("RUN_CRITICS")} busy={busy} />}
           {tab === "critics" && <CriticsView critics={currentCritics} onRun={() => runAction("RUN_CRITICS")} onRevise={() => runAction("CREATE_REVISION")} busy={busy} />}
+          {tab === "voice" && <VoiceStudio projectId={id} setProjectNotice={setNotice} />}
           {tab === "history" && <HistoryView events={data.events} />}
         </div>
       </section>
@@ -144,4 +146,81 @@ function CriticsView({ critics, onRun, onRevise, busy }: { critics: Workspace["c
 
 function HistoryView({ events }: { events: Workspace["events"] }) {
   return <section className="workspacePanel"><div className="contentHeader"><div><p className="eyebrow">Audit trail</p><h2>Project history</h2><p>Every gate, automation and revision produces a durable workflow event.</p></div></div><div className="historyList">{events.map((event) => <article key={event.id}><span className="historyDot"/><div><strong>{event.summary}</strong><p>{event.eventType.replaceAll("_", " ")} · {new Date(event.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}</p></div></article>)}</div></section>;
+}
+
+type VoiceData = {
+  provider: { name: string; connected: boolean; storageReady: boolean };
+  profile: { voiceName: string; voiceId: string; modelId: string; stability: number; similarityBoost: number; style: number; speed: number; status: string };
+  segments: Array<{ id: string; position: number; label: string; text: string; characterCount: number; status: string; durationSeconds: number | null; takeNumber: number; audioKey: string | null }>;
+  rules: Array<{ id: number; term: string; pronunciation: string; ruleType: string; status: string }>;
+  evaluations: Array<{ id: number; segmentId: string; takeNumber: number; pronunciationScore: number; paceScore: number; consistencyScore: number; decision: string; findings: string }>;
+};
+
+function VoiceStudio({ projectId, setProjectNotice }: { projectId: string; setProjectNotice: (message: string) => void }) {
+  const [voice, setVoice] = useState<VoiceData | null>(null);
+  const [workingId, setWorkingId] = useState<string | null>(null);
+
+  const loadVoice = useCallback(async () => {
+    const response = await fetch(`/api/projects/${projectId}/voice`);
+    if (!response.ok) throw new Error();
+    setVoice(await response.json() as VoiceData);
+  }, [projectId]);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/projects/${projectId}/voice`)
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((payload: VoiceData) => active && setVoice(payload))
+      .catch(() => active && setProjectNotice("Voice workspace could not be loaded"));
+    return () => { active = false; };
+  }, [projectId, setProjectNotice]);
+
+  async function voiceAction(action: "LOCK_VOICE" | "GENERATE_SEGMENT" | "APPROVE_SEGMENT", segmentId?: string) {
+    setWorkingId(segmentId || "profile");
+    setProjectNotice(action === "LOCK_VOICE" ? "Locking the channel voice profile…" : action === "GENERATE_SEGMENT" ? "Generating narration with timestamps…" : "Approving narration take…");
+    try {
+      const response = await fetch(`/api/projects/${projectId}/voice`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, segmentId }) });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { error?: string };
+        if (payload.error === "ELEVENLABS_NOT_CONNECTED") {
+          setProjectNotice("Secure ElevenLabs connection required before audio generation");
+          return;
+        }
+        throw new Error();
+      }
+      await loadVoice();
+      setProjectNotice(action === "LOCK_VOICE" ? "Channel voice profile locked" : action === "GENERATE_SEGMENT" ? "New narration take ready for the listening gate" : "Narration segment approved");
+    } catch { setProjectNotice("Voice action failed safely · no approved audio was replaced"); }
+    finally { setWorkingId(null); }
+  }
+
+  if (!voice) return <section className="workspacePanel voiceLoading"><span>◌</span><p>Preparing narration segments…</p></section>;
+  const totalCharacters = voice.segments.reduce((sum, segment) => sum + segment.characterCount, 0);
+  const approved = voice.segments.filter((segment) => segment.status === "APPROVED").length;
+  const generated = voice.segments.filter((segment) => segment.audioKey).length;
+  const estimatedMinutes = Math.max(1, Math.round(voice.segments.reduce((sum, segment) => sum + segment.text.split(/\s+/).length, 0) / 150));
+
+  return <div className="voiceStudioLayout">
+    <section className="workspacePanel voiceMain">
+      <div className="contentHeader voiceHeader"><div><p className="eyebrow">WS-05 · narration production</p><h2>Voice studio</h2><p>Generate and approve narration one segment at a time. A failed take never replaces approved audio.</p></div><span className={`providerState ${voice.provider.connected ? "connected" : "waiting"}`}><i />{voice.provider.connected ? "ElevenLabs connected" : "Secure connection required"}</span></div>
+      {!voice.provider.connected && <div className="connectionBanner"><span className="connectionIcon">⌁</span><div><strong>Audio generation is safely locked</strong><p>Add the ElevenLabs key as a protected workspace secret. It is never stored in project data or sent to the browser.</p></div><span className="secretBadge">Secret-only</span></div>}
+      <div className="voiceMetrics"><div><small>Segments</small><strong>{voice.segments.length}</strong></div><div><small>Generated</small><strong>{generated}</strong></div><div><small>Approved</small><strong>{approved}/{voice.segments.length}</strong></div><div><small>Est. narration</small><strong>~{estimatedMinutes} min</strong></div><div><small>Character budget</small><strong>{totalCharacters.toLocaleString("en-US")}</strong></div></div>
+      <div className="segmentList">{voice.segments.map((segment) => {
+        const evaluation = voice.evaluations.find((item) => item.segmentId === segment.id && item.takeNumber === segment.takeNumber);
+        const busy = workingId === segment.id;
+        return <article className={`voiceSegment ${segment.status.toLowerCase()}`} key={segment.id}>
+          <div className="segmentNumber">{String(segment.position).padStart(2, "0")}</div>
+          <div className="segmentBody"><header><div><strong>{segment.label}</strong><span>{segment.characterCount} characters · take {segment.takeNumber || "—"}</span></div><span className={`segmentStatus ${segment.status.toLowerCase()}`}>{segment.status.replaceAll("_", " ")}</span></header><p>{segment.text}</p>
+            {segment.audioKey && <div className="audioReview"><audio controls preload="none" src={`/api/projects/${projectId}/voice?audio=${encodeURIComponent(segment.id)}`} /><div className="qualityScores"><span>Pronunciation <strong>{evaluation?.pronunciationScore || "—"}</strong></span><span>Pace <strong>{evaluation?.paceScore || "—"}</strong></span><span>Consistency <strong>{evaluation?.consistencyScore || "—"}</strong></span></div></div>}
+            <footer><span>{segment.durationSeconds ? `${segment.durationSeconds.toFixed(1)} sec` : "Awaiting first take"}</span><div><button className="secondaryButton compact" disabled={busy || !voice.provider.connected} onClick={() => voiceAction("GENERATE_SEGMENT", segment.id)}>{busy ? "Working…" : segment.audioKey ? "Regenerate" : "Generate take"}</button>{segment.audioKey && segment.status !== "APPROVED" && <button className="primaryButton compact" disabled={busy} onClick={() => voiceAction("APPROVE_SEGMENT", segment.id)}>Approve take</button>}</div></footer>
+          </div>
+        </article>;
+      })}</div>
+    </section>
+    <aside className="voiceSideRail">
+      <section className="workspacePanel voiceProfile"><div className="sideTitle"><p className="eyebrow">Channel identity</p><h3>Voice profile</h3></div><div className="voiceIdentity"><span>DN</span><div><strong>{voice.profile.voiceName}</strong><p>US English · calm authority</p></div></div><dl><div><dt>Model</dt><dd>{voice.profile.modelId.replaceAll("_", " ")}</dd></div><div><dt>Stability</dt><dd>{Math.round(voice.profile.stability * 100)}%</dd></div><div><dt>Similarity</dt><dd>{Math.round(voice.profile.similarityBoost * 100)}%</dd></div><div><dt>Delivery speed</dt><dd>{voice.profile.speed}×</dd></div></dl><button className={voice.profile.status === "LOCKED" ? "lockedVoice" : "primaryButton"} disabled={workingId === "profile" || voice.profile.status === "LOCKED"} onClick={() => voiceAction("LOCK_VOICE")}>{voice.profile.status === "LOCKED" ? "✓ Voice locked" : "Lock channel voice"}</button></section>
+      <section className="workspacePanel pronunciationPanel"><div className="sideTitle"><p className="eyebrow">Pronunciation guardrail</p><h3>Term rules</h3></div><div>{voice.rules.map((rule) => <article key={rule.id}><div><strong>{rule.term}</strong><span>{rule.ruleType}</span></div><p>{rule.pronunciation}</p></article>)}</div><button className="textButton">＋ Add term rule</button></section>
+      <section className="workspacePanel gateChecklist"><div className="sideTitle"><p className="eyebrow">Voice gate</p><h3>Approval criteria</h3></div><ul><li className={generated === voice.segments.length ? "done" : ""}>All segments generated</li><li className={approved === voice.segments.length ? "done" : ""}>Human listening complete</li><li>Pronunciation ≥ 90</li><li>Pace and tone consistent</li></ul><button disabled={approved !== voice.segments.length} className="primaryButton">Pass voice gate</button></section>
+    </aside>
+  </div>;
 }
