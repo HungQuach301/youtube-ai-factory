@@ -830,6 +830,50 @@ nav { display: grid; gap: 5px; }
 .repairQueue article > p { margin-top: 3px; color: #7b8984; font-size: 6px; line-height: 1.45; }
 .adapterCard ul { margin: 10px 0 0; padding-left: 15px; color: #4e6d62; font-size: 7px; line-height: 1.7; }
 
+.artifactExecution { border: 1px solid #d6e3dc; border-radius: 18px; overflow: hidden; background: #fbfdfc; }
+.artifactExecution > .optimizationSectionTitle { padding: 22px 24px; border-bottom: 1px solid #e1e9e5; }
+.artifactPreview { padding: 22px 24px; }
+.artifactFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.artifactFields article { padding: 14px; border: 1px solid #e1e8e4; border-radius: 12px; background: #fff; }
+.artifactFields small, .artifactColumns small, .scriptArtifact small { display: block; margin-bottom: 7px; color: #58766a; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.artifactFields p, .artifactColumns p { margin: 0; color: #243a31; font-size: 13px; line-height: 1.55; }
+.artifactColumns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.artifactColumns article { padding: 17px; border-radius: 13px; background: #eef4f1; }
+.artifactColumns p + p { margin-top: 10px; }
+.artifactEvidence { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.artifactEvidence span { padding: 7px 10px; border-radius: 99px; background: #163d31; color: #fff; font-size: 11px; font-weight: 700; }
+.outlineActs { display: grid; gap: 14px; }
+.outlineActs > article { border: 1px solid #dfe8e3; border-radius: 14px; overflow: hidden; background: #fff; }
+.outlineActs > article > header { display: grid; grid-template-columns: minmax(180px, .7fr) 1fr; gap: 16px; padding: 16px 18px; background: #12382e; color: #fff; }
+.outlineActs header small, .outlineActs header strong { display: block; }
+.outlineActs header small { color: #99c4b2; font-size: 10px; }
+.outlineActs header p { margin: 0; color: #dcebe5; font-size: 12px; line-height: 1.5; }
+.outlineActs article > div:not(header) { display: grid; grid-template-columns: 76px 160px 1fr; gap: 12px; padding: 13px 18px; border-top: 1px solid #e9efec; align-items: start; }
+.outlineActs article > div > b { color: #2e6d58; font-size: 11px; }
+.outlineActs article > div > strong { font-size: 12px; }
+.outlineActs article > div > p { margin: 0; font-size: 12px; line-height: 1.5; }
+.outlineActs article > div > p small { display: block; margin-top: 4px; color: #6a7d75; }
+.scriptArtifact { max-width: 820px; margin: 0 auto; padding: 28px 34px; border: 1px solid #dfe6e2; border-radius: 14px; background: #fff; box-shadow: 0 12px 32px rgba(24, 57, 46, .06); }
+.scriptArtifact > header { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 16px; border-bottom: 1px solid #dfe7e3; }
+.scriptArtifact header strong { display: block; font-family: var(--font-serif); font-size: 24px; }
+.scriptArtifact header span { color: #537267; font-size: 12px; }
+.scriptArtifact article { padding: 18px 0; border-bottom: 1px solid #edf1ef; }
+.scriptArtifact article:last-child { border: 0; }
+.scriptArtifact article p { margin: 0; color: #263b33; font-family: var(--font-serif); font-size: 16px; line-height: 1.8; }
+.microQa { margin: 0 24px 24px; border: 1px solid #b9d7ca; border-radius: 14px; background: #eef7f3; overflow: hidden; }
+.microQa > header { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; background: #dceee6; }
+.microQa header small, .microQa header strong { display: block; }
+.microQa header small { color: #477162; font-size: 10px; letter-spacing: .1em; }
+.microQa header > b { color: #153d31; font-size: 26px; }
+.microQa header > b span { font-size: 12px; }
+.microQa > div { display: grid; grid-template-columns: repeat(3, 1fr); }
+.microQa article { padding: 14px 16px; border-right: 1px solid #d4e7de; border-bottom: 1px solid #d4e7de; }
+.microQa article div { display: flex; justify-content: space-between; gap: 12px; }
+.microQa article strong, .microQa article b { font-size: 12px; }
+.microQa article p, .microQa footer p { margin: 7px 0 0; color: #526c62; font-size: 11px; line-height: 1.45; }
+.microQa footer { padding: 13px 16px; }
+.microQa footer span { color: #1c5946; font-size: 11px; font-weight: 800; }
+
 @media (max-width: 1160px) {
   .contentGrid { grid-template-columns: 1fr; }
   .rightRail { grid-template-columns: repeat(3, 1fr); }
@@ -904,6 +948,7 @@ nav { display: grid; gap: 5px; }
   .contractBody { grid-template-columns: 1fr; }
   .contractGrid { grid-template-columns: repeat(2, 1fr); }
   .candidateTournament { grid-template-columns: 1fr; }
+  .microQa > div { grid-template-columns: repeat(2, 1fr); }
   .mediaSceneBody { grid-template-columns: 1fr; }
   .audioReview { grid-template-columns: 1fr; }
 }
@@ -959,6 +1004,12 @@ nav { display: grid; gap: 5px; }
   .optimizationActions > div button { width: 100%; }
   .contractChecks { grid-template-columns: 1fr; }
   .contractGrid { grid-template-columns: 1fr; }
+  .artifactFields, .artifactColumns { grid-template-columns: 1fr; }
+  .outlineActs > article > header { grid-template-columns: 1fr; }
+  .outlineActs article > div:not(header) { grid-template-columns: 60px 1fr; }
+  .outlineActs article > div > p { grid-column: 1 / -1; }
+  .scriptArtifact { padding: 22px 18px; }
+  .microQa > div { grid-template-columns: 1fr; }
   .gapTableHead { display: none; }
   .gapTable article { grid-template-columns: 1fr 46px 58px; }
   .gapTable article > p { grid-column: 1 / -1; grid-row: 2; }

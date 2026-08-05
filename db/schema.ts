@@ -342,3 +342,36 @@ export const optimizationStageRuns = sqliteTable("optimization_stage_runs", {
   decisionJson: text("decision_json").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const optimizationArtifacts = sqliteTable("optimization_artifacts", {
+  id: text("id").primaryKey(),
+  cycleId: text("cycle_id").notNull(),
+  projectId: text("project_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  version: integer("version").notNull().default(1),
+  status: text("status").notNull().default("ARTIFACT_READY"),
+  artifactType: text("artifact_type").notNull(),
+  title: text("title").notNull(),
+  contentJson: text("content_json").notNull(),
+  sourceRunId: text("source_run_id").notNull(),
+  wordCount: integer("word_count").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const optimizationArtifactQa = sqliteTable("optimization_artifact_qa", {
+  id: text("id").primaryKey(),
+  artifactId: text("artifact_id").notNull(),
+  cycleId: text("cycle_id").notNull(),
+  projectId: text("project_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  attempt: integer("attempt").notNull().default(1),
+  status: text("status").notNull(),
+  decision: text("decision").notNull(),
+  score: integer("score").notNull().default(0),
+  threshold: integer("threshold").notNull(),
+  rubricJson: text("rubric_json").notNull(),
+  issuesJson: text("issues_json").notNull(),
+  regressionJson: text("regression_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
