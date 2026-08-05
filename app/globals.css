@@ -446,6 +446,35 @@ nav { display: grid; gap: 5px; }
 .sourcePlanPolicy span { color: #6f827a; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
 .sourcePlanPolicy strong { margin-top: 5px; color: #245f4b; font-size: 9px; }
 .sourcePlanPolicy p { margin: 4px 0 0; color: #7c8984; font-size: 7px; line-height: 1.4; }
+.materializationAudit { margin: 12px; overflow: hidden; border: 1px solid #d2e2db; border-radius: 12px; background: #fff; }
+.materializationAudit.pass { border-color: #73b99b; box-shadow: 0 0 0 2px rgba(78,154,121,.08); }
+.materializationAudit.repair_required { border-color: #dfb675; background: #fffdf9; }
+.materializationAudit > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; background: #edf5f1; }
+.materializationAudit.repair_required > header { background: #fbf2e4; }
+.materializationAudit > header span, .materializationAudit > header strong { display: block; }
+.materializationAudit > header span, .actualAssetMix small { color: #5e796e; font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+.materializationAudit > header strong { margin-top: 4px; color: #173f34; font: 18px/1 Georgia, serif; }
+.materializationAudit > header p { margin: 5px 0 0; color: #73877f; font-size: 8px; }
+.materializationAudit > header > b { color: #1d604a; font: 30px/1 Georgia, serif; }
+.materializationAudit > header > b small { color: #789087; font: 9px/1 var(--font-body), sans-serif; }
+.auditDimensions { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid #e0eae6; border-bottom: 1px solid #e0eae6; }
+.auditDimensions article { padding: 11px; border-right: 1px solid #e0eae6; }
+.auditDimensions article:last-child { border-right: 0; }
+.auditDimensions small, .auditDimensions strong { display: block; }
+.auditDimensions small { min-height: 20px; color: #73877f; font-size: 6px; font-weight: 800; text-transform: uppercase; }
+.auditDimensions strong { margin: 4px 0 7px; color: #1d604a; font: 19px/1 Georgia, serif; }
+.auditDimensions .fail strong { color: #a35f24; }
+.auditDimensions i { display: block; height: 3px; overflow: hidden; border-radius: 10px; background: #e2ebe7; }
+.auditDimensions i span { display: block; height: 100%; background: #62af8e; }
+.auditDimensions .fail i span { background: #d59a52; }
+.actualAssetMix { display: grid; grid-template-columns: 1.4fr 1fr 1fr; }
+.actualAssetMix > div { padding: 12px 15px; border-right: 1px solid #e0eae6; }
+.actualAssetMix > div:last-child { border-right: 0; }
+.actualAssetMix p { margin: 5px 0 0; color: #294f42; font-size: 8px; line-height: 1.5; }
+.materializationAudit > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 15px; border-top: 1px solid #e0eae6; }
+.materializationAudit > footer p { margin: 0; color: #6b7f77; font-size: 8px; }
+.materializationAudit > footer button { border: 0; border-radius: 8px; padding: 9px 13px; background: #174c3d; color: white; font-size: 8px; font-weight: 900; cursor: pointer; }
+.materializationAudit > footer button:disabled { cursor: not-allowed; opacity: .5; }
 .masterBeatManifest > article { display: grid; grid-template-columns: 80px minmax(0, 1.4fr) minmax(155px, .8fr) 92px; gap: 12px; align-items: center; padding: 11px 15px; border-top: 1px solid #e5ede9; }
 .masterBeatManifest > article:first-child { border-top: 0; }
 .masterBeatManifest > article.materialized { box-shadow: inset 3px 0 #47a078; }
@@ -1512,6 +1541,11 @@ nav { display: grid; gap: 5px; }
   .masterSourceMetrics { grid-template-columns: 1fr 1fr; }
   .sourcePlanPolicy { grid-template-columns: 1fr; }
   .sourcePlanPolicy > div { border-right: 0; border-bottom: 1px solid #e2ebe7; }
+  .auditDimensions { grid-template-columns: 1fr 1fr; }
+  .auditDimensions article { border-bottom: 1px solid #e0eae6; }
+  .actualAssetMix { grid-template-columns: 1fr; }
+  .actualAssetMix > div { border-right: 0; border-bottom: 1px solid #e0eae6; }
+  .materializationAudit > header, .materializationAudit > footer { align-items: flex-start; flex-direction: column; }
   .masterBeatManifest > article { grid-template-columns: 62px 1fr; }
   .masterBeatSelection, .masterBeatState { grid-column: 2; grid-row: auto; justify-items: start; }
   .sourceHubActions { justify-items: stretch; }
