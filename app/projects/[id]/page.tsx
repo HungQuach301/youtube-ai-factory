@@ -22,7 +22,7 @@ const tabs: Array<{ key: Tab; label: string }> = [
   { key: "critics", label: "Critic review" },
   { key: "voice", label: "Voice studio" },
   { key: "production", label: "Storyboard & export" },
-  { key: "media", label: "Media & assembly" },
+  { key: "media", label: "Asset Source Hub" },
   { key: "composer", label: "Master Render v2" },
   { key: "references", label: "Reference intelligence" },
   { key: "quality", label: "Universal quality gate" },
@@ -317,6 +317,7 @@ type MediaData = {
   scenes: Array<{ id: string; sceneNumber: number; startSeconds: number; endSeconds: number; beat: string; visualIntent: string; mediaStrategy: string; searchQuery: string; assetUrl: string | null; assetStatus: string; licenseStatus: string }>;
   assets: Array<{ id: string; sceneId: string; name: string; mimeType: string; sourceType: string; sourceUrl: string | null; storageKey: string | null; licenseType: string; licenseProof: string | null; rightsStatus: string; status: string; sizeBytes: number }>;
   runs: Array<{ id: string; version: number; status: string; assetCoverage: number; licenseCoverage: number; criticResults: string; createdAt: string }>;
+  sourceConnectors: Array<{ id: string; name: string; category: "FREE" | "PAID" | "OWNED"; status: "CONNECTED" | "KEY_REQUIRED" | "CONFIG_REQUIRED" | "OAUTH_SETUP" | "BLOCKED"; capability: string; nextAction: string }>;
   automation: { verificationMode: "AUTOPILOT" | "REVIEW"; minimumConfidence: number; autoBuildAssembly: boolean };
   gates: { voice: boolean; assetCoverage: number; rightsCoverage: number; assemblyReady: boolean };
 };
@@ -483,10 +484,19 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
   const motionSources = media.assets.filter((asset) => asset.sourceType.startsWith("ORIGINAL_MOTION_")).filter((asset, index, rows) => rows.findIndex((item) => item.sceneId === asset.sceneId) === index);
   const renderedScenes = new Set(media.assets.filter((asset) => asset.sourceType === "MOTION_RENDER_WEBM" && asset.status === "APPROVED").map((asset) => asset.sceneId));
   const latestMotionIds = new Set(motionSources.map((asset) => asset.id));
+  const connectedSources = media.sourceConnectors.filter((source) => source.status === "CONNECTED").length;
 
   return <div className="mediaWorkspaceLayout">
     <section className="workspacePanel mediaMain">
-      <div className="contentHeader"><div><p className="eyebrow">WS-07 · controlled media production</p><h2>Media sourcing & assembly</h2><p>Attach real files or source links, verify usage rights, then select exactly one approved visual for each scene.</p></div><span className={`providerState ${media.gates.assemblyReady ? "connected" : "waiting"}`}><i />{approvedCount}/8 scenes covered</span></div>
+      <div className="contentHeader"><div><p className="eyebrow">WS-07 · unified source control</p><h2>Asset Source Hub</h2><p>Search free and paid providers, import your own media, preserve rights evidence, then bind one approved visual to every scene.</p></div><span className={`providerState ${connectedSources >= 2 ? "connected" : "waiting"}`}><i />{connectedSources}/{media.sourceConnectors.length} sources ready</span></div>
+      <section className="assetSourceHub">
+        <header><div><span>SOURCE CONNECTIONS</span><strong>One search surface · explicit licensing state</strong></div><p>Connect → search or import → rank → verify rights → select → render</p></header>
+        <div className="sourceConnectorGrid">{media.sourceConnectors.map((source) => <article className={`sourceConnectorCard ${source.status.toLowerCase()}`} key={source.id}>
+          <div><span>{source.category}</span><em>{source.status.replaceAll("_", " ")}</em></div>
+          <strong>{source.name}</strong><p>{source.capability}</p><small>{source.nextAction}</small>
+        </article>)}</div>
+        <footer><strong>Personal credibility media belongs here.</strong><span>Upload your own face, office, documents or product footage from the relevant scene card; every file stays private and receives its own provenance record.</span></footer>
+      </section>
       <div className="mediaMetrics"><div><small>Approved coverage</small><strong>{media.gates.assetCoverage}%</strong></div><div><small>Candidate assets</small><strong>{media.assets.length}</strong></div><div><small>Voice locked</small><strong>{media.gates.voice ? "Yes" : "No"}</strong></div><div><small>Assembly versions</small><strong>{media.runs.length}</strong></div></div>
       <section className={`automationControl ${media.automation.verificationMode === "AUTOPILOT" ? "isAuto" : "isReview"}`}><div className="automationIntro"><span>MEDIA DECISION MODE</span><strong>{media.automation.verificationMode === "AUTOPILOT" ? "Autopilot · no human verification required" : "Review mode · human approval retained"}</strong><p>{media.automation.verificationMode === "AUTOPILOT" ? `Frameflow ranks visual fit, accepts only sources scoring at least ${media.automation.minimumConfidence}% rights confidence, records the evidence trail and excludes uncertain candidates.` : "Frameflow proposes ranked candidates; you verify rights and approve the final visual for each scene."}</p></div><div className="modeSelector"><button className={media.automation.verificationMode === "AUTOPILOT" ? "active" : ""} onClick={() => mediaAction("SET_AUTOMATION_MODE", { verificationMode: "AUTOPILOT" })}>Autopilot</button><button className={media.automation.verificationMode === "REVIEW" ? "active" : ""} onClick={() => mediaAction("SET_AUTOMATION_MODE", { verificationMode: "REVIEW" })}>Review mode</button></div>{media.automation.verificationMode === "AUTOPILOT" && <button className="autopilotRun" disabled={working === "AUTO_SOURCE_ALL"} onClick={() => mediaAction("AUTO_SOURCE_ALL")}>{working === "AUTO_SOURCE_ALL" ? "Evaluating every scene…" : media.gates.assemblyReady ? "Run Autopilot again" : "Run full media Autopilot"}</button>}</section>
       <div className="diagramAutomation motionAutomation"><div><span className="motionBadge">MOTION RENDER PIPELINE</span><strong>Generate motion visuals, then render editor-ready clips</strong><p>Frameflow creates looping 16:9 SVG motion, captures it at 30fps and stores a WebM clip in the internal media library. {renderedScenes.size}/{motionSources.length || 3} motion scenes rendered. Motion clips are silent until narration is added by Full Video Composer.</p></div><div className="motionControls"><button className="secondaryMotionButton" disabled={working === "GENERATE_MOTION_VISUALS" || working === "RENDER_ALL_MOTION"} onClick={() => mediaAction("GENERATE_MOTION_VISUALS")}>{working === "GENERATE_MOTION_VISUALS" ? "Generating…" : "1 · Generate motion"}</button><button className="primaryButton" disabled={!motionSources.length || working === "RENDER_ALL_MOTION"} onClick={renderAllMotion}>{working === "RENDER_ALL_MOTION" ? `Rendering ${renderProgress?.current || 1}/${renderProgress?.total || motionSources.length}…` : renderedScenes.size ? "2 · Re-render all WebM" : "2 · Render all WebM"}</button></div></div>

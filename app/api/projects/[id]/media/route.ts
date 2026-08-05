@@ -9,7 +9,11 @@ type RuntimeBucket = {
   head(key: string): Promise<{ size: number; httpMetadata?: { contentType?: string } } | null>;
   get(key: string, options?: { range?: { offset: number; length: number } }): Promise<{ body: ReadableStream; arrayBuffer?: () => Promise<ArrayBuffer>; size: number; httpMetadata?: { contentType?: string } } | null>;
 };
-type RuntimeEnv = { DB?: RuntimeD1; BUCKET?: RuntimeBucket; PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string };
+type RuntimeEnv = {
+  DB?: RuntimeD1; BUCKET?: RuntimeBucket; PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string;
+  SHUTTERSTOCK_CONSUMER_KEY?: string; SHUTTERSTOCK_CONSUMER_SECRET?: string;
+  GOOGLE_DRIVE_CLIENT_ID?: string;
+};
 
 type DiscoveryCandidate = {
   id: string; provider: string; category: "FREE" | "PAID" | "INTERNAL"; title: string;
@@ -121,7 +125,8 @@ async function discoverAssets(projectId: string, sceneId: string) {
   if (!scene || scene.projectId !== projectId) throw new Error("SCENE_NOT_FOUND");
   const query = cleanText(scene.searchQuery, scene.visualIntent).slice(0, 120);
   const env = await runtimeEnv();
-  const providerStatus = { openverse: "CONNECTED", pexels: env.PEXELS_API_KEY ? "CONNECTED" : "KEY_REQUIRED", pixabay: env.PIXABAY_API_KEY ? "CONNECTED" : "KEY_REQUIRED", paidCatalogs: "HANDOFF" };
+  const shutterstockConnected = Boolean(env.SHUTTERSTOCK_CONSUMER_KEY && env.SHUTTERSTOCK_CONSUMER_SECRET);
+  const providerStatus = { openverse: "CONNECTED", pexels: env.PEXELS_API_KEY ? "CONNECTED" : "KEY_REQUIRED", pixabay: env.PIXABAY_API_KEY ? "CONNECTED" : "KEY_REQUIRED", shutterstock: shutterstockConnected ? "CONNECTED" : "KEY_REQUIRED", paidCatalogs: "HANDOFF" };
 
   const openverseTask = fetchJson(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&license_type=commercial&page_size=6`).then((data) =>
     (Array.isArray(data.results) ? data.results : []).map((item: any, index: number): DiscoveryCandidate => ({
@@ -149,8 +154,24 @@ async function discoverAssets(projectId: string, sceneId: string) {
     ...(videos.hits || []).map((item: any, index: number): DiscoveryCandidate => ({ id: `pixabay-video:${item.id}`, provider: "Pixabay", category: "FREE", title: cleanText(item.tags, `Pixabay video ${item.id}`), mediaType: "VIDEO", thumbnailUrl: item.videos?.medium?.thumbnail || null, assetUrl: item.videos?.large?.url || item.videos?.medium?.url || null, landingUrl: item.pageURL, licenseType: "PIXABAY_CONTENT_LICENSE", licenseUrl: "https://pixabay.com/service/license-summary/", creator: cleanText(item.user, "Unknown"), score: 89 - index })),
   ]).catch(() => [] as DiscoveryCandidate[]) : Promise.resolve([] as DiscoveryCandidate[]);
 
-  const [openverse, pexels, pixabay, internalRows] = await Promise.all([
-    openverseTask, pexelsTask, pixabayTask,
+  const shutterstockTask = shutterstockConnected ? Promise.all([
+    fetchJson(`https://api.shutterstock.com/v2/images/search?query=${encodeURIComponent(query)}&orientation=horizontal&per_page=4&view=minimal`, { Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}` }),
+    fetchJson(`https://api.shutterstock.com/v2/videos/search?query=${encodeURIComponent(query)}&per_page=3&view=minimal`, { Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}` }),
+  ]).then(([images, videos]) => [
+    ...(images.data || []).map((item: any, index: number): DiscoveryCandidate => ({
+      id: `shutterstock-image:${item.id}`, provider: "Shutterstock", category: "PAID", title: cleanText(item.description, `Shutterstock image ${item.id}`), mediaType: "IMAGE",
+      thumbnailUrl: item.assets?.preview?.url || item.assets?.small_thumb?.url || null, assetUrl: item.assets?.preview?.url || null,
+      landingUrl: `https://www.shutterstock.com/search/${encodeURIComponent(query)}`, licenseType: "SHUTTERSTOCK_LICENSE_REQUIRED", licenseUrl: "https://www.shutterstock.com/license", creator: item.contributor?.id ? `Contributor ${item.contributor.id}` : null, score: 88 - index,
+    })),
+    ...(videos.data || []).map((item: any, index: number): DiscoveryCandidate => ({
+      id: `shutterstock-video:${item.id}`, provider: "Shutterstock", category: "PAID", title: cleanText(item.description, `Shutterstock video ${item.id}`), mediaType: "VIDEO",
+      thumbnailUrl: item.assets?.thumb_jpg?.url || item.assets?.preview_jpg?.url || null, assetUrl: item.assets?.preview_mp4?.url || item.assets?.preview_webm?.url || null,
+      landingUrl: `https://www.shutterstock.com/search/${encodeURIComponent(query)}`, licenseType: "SHUTTERSTOCK_LICENSE_REQUIRED", licenseUrl: "https://www.shutterstock.com/license", creator: item.contributor?.id ? `Contributor ${item.contributor.id}` : null, score: 87 - index,
+    })),
+  ]).catch(() => [] as DiscoveryCandidate[]) : Promise.resolve([] as DiscoveryCandidate[]);
+
+  const [openverse, pexels, pixabay, shutterstock, internalRows] = await Promise.all([
+    openverseTask, pexelsTask, pixabayTask, shutterstockTask,
     db.select().from(mediaAssets).where(eq(mediaAssets.rightsStatus, "VERIFIED")).orderBy(desc(mediaAssets.createdAt)).limit(30),
   ]);
   const terms = new Set(query.toLowerCase().split(/\W+/).filter((term) => term.length > 3));
@@ -159,11 +180,11 @@ async function discoverAssets(projectId: string, sceneId: string) {
     return { id: `internal:${asset.id}`, provider: "Frameflow library", category: "INTERNAL", title: asset.name, mediaType: asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE", thumbnailUrl: asset.storageKey ? `/api/projects/${asset.projectId}/media?asset=${encodeURIComponent(asset.id)}` : asset.sourceUrl, assetUrl: asset.sourceUrl, landingUrl: asset.sourceUrl || "#", licenseType: asset.licenseType, licenseUrl: null, creator: "Verified internal asset", sourceAssetId: asset.id, score: 80 + overlap * 5 - index };
   }).sort((a, b) => b.score - a.score).slice(0, 6);
   const paid: DiscoveryCandidate[] = [
-    { id: "paid:shutterstock", provider: "Shutterstock", category: "PAID", title: `Search Shutterstock for “${query}”`, mediaType: "CATALOG", thumbnailUrl: null, assetUrl: null, landingUrl: `https://www.shutterstock.com/search/${encodeURIComponent(query)}`, licenseType: "PAID_LICENSE_REQUIRED", licenseUrl: null, creator: null, score: 75 },
+    ...(!shutterstock.length ? [{ id: "paid:shutterstock", provider: "Shutterstock", category: "PAID" as const, title: `Search Shutterstock for “${query}”`, mediaType: "CATALOG" as const, thumbnailUrl: null, assetUrl: null, landingUrl: `https://www.shutterstock.com/search/${encodeURIComponent(query)}`, licenseType: "PAID_LICENSE_REQUIRED", licenseUrl: null, creator: null, score: 75 }] : []),
     { id: "paid:storyblocks", provider: "Storyblocks", category: "PAID", title: `Search Storyblocks for “${query}”`, mediaType: "CATALOG", thumbnailUrl: null, assetUrl: null, landingUrl: `https://www.storyblocks.com/video/search/${encodeURIComponent(query)}`, licenseType: "PAID_LICENSE_REQUIRED", licenseUrl: null, creator: null, score: 74 },
     { id: "paid:artgrid", provider: "Artgrid", category: "PAID", title: `Search Artgrid for “${query}”`, mediaType: "CATALOG", thumbnailUrl: null, assetUrl: null, landingUrl: "https://artgrid.io/", licenseType: "PAID_LICENSE_REQUIRED", licenseUrl: null, creator: null, score: 73 },
   ];
-  return { scene: { id: scene.id, query }, providerStatus, candidates: [...internal, ...pexels, ...pixabay, ...openverse, ...paid].sort((a, b) => b.score - a.score) };
+  return { scene: { id: scene.id, query }, providerStatus, candidates: [...internal, ...pexels, ...pixabay, ...shutterstock, ...openverse, ...paid].sort((a, b) => b.score - a.score) };
 }
 
 function automationConfidence(candidate: DiscoveryCandidate) {
@@ -311,7 +332,16 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const approved = assets.filter((asset) => asset.status === "APPROVED");
     const verified = assets.filter((asset) => asset.rightsStatus === "VERIFIED");
     const coveredScenes = scenes.filter((scene) => approved.some((asset) => asset.sceneId === scene.id && asset.rightsStatus === "VERIFIED")).length;
-    return Response.json({ scenes, assets, runs, automation: settingsRows[0] || { verificationMode: "AUTOPILOT", minimumConfidence: 85, autoBuildAssembly: true }, gates: { voice: segments.length > 0 && segments.every((segment) => segment.status === "APPROVED" && segment.audioKey), assetCoverage: scenes.length ? Math.round(coveredScenes / scenes.length * 100) : 0, rightsCoverage: assets.length ? Math.round(verified.length / assets.length * 100) : 0, assemblyReady: scenes.length > 0 && coveredScenes === scenes.length } });
+    const env = await runtimeEnv();
+    const sourceConnectors = [
+      { id: "owned", name: "Owned Media Vault", category: "OWNED", status: env.BUCKET ? "CONNECTED" : "BLOCKED", capability: "Upload personal images and videos into private object storage with a per-asset rights ledger.", nextAction: env.BUCKET ? "Ready · assign media from any scene" : "Storage binding required" },
+      { id: "openverse", name: "Openverse", category: "FREE", status: "CONNECTED", capability: "Commercially reusable image discovery with creator and license metadata.", nextAction: "Ready · no key required" },
+      { id: "pexels", name: "Pexels", category: "FREE", status: env.PEXELS_API_KEY ? "CONNECTED" : "KEY_REQUIRED", capability: "Landscape photo and video search with direct preview candidates.", nextAction: env.PEXELS_API_KEY ? "Ready for unified search" : "Add PEXELS_API_KEY" },
+      { id: "pixabay", name: "Pixabay", category: "FREE", status: env.PIXABAY_API_KEY ? "CONNECTED" : "KEY_REQUIRED", capability: "Photo and video search with commercial-use license references.", nextAction: env.PIXABAY_API_KEY ? "Ready for unified search" : "Add PIXABAY_API_KEY" },
+      { id: "shutterstock", name: "Shutterstock", category: "PAID", status: env.SHUTTERSTOCK_CONSUMER_KEY && env.SHUTTERSTOCK_CONSUMER_SECRET ? "CONNECTED" : "KEY_REQUIRED", capability: "Paid image and footage search; previews remain unlicensed until purchase evidence is attached.", nextAction: env.SHUTTERSTOCK_CONSUMER_KEY && env.SHUTTERSTOCK_CONSUMER_SECRET ? "Search ready · license handoff retained" : "Add consumer key + secret" },
+      { id: "google_drive", name: "Google Drive", category: "OWNED", status: env.GOOGLE_DRIVE_CLIENT_ID ? "OAUTH_SETUP" : "CONFIG_REQUIRED", capability: "Import selected personal files through Picker without exposing the whole Drive.", nextAction: env.GOOGLE_DRIVE_CLIENT_ID ? "Complete OAuth callback and Picker" : "Add Drive OAuth client ID" },
+    ];
+    return Response.json({ scenes, assets, runs, sourceConnectors, automation: settingsRows[0] || { verificationMode: "AUTOPILOT", minimumConfidence: 85, autoBuildAssembly: true }, gates: { voice: segments.length > 0 && segments.every((segment) => segment.status === "APPROVED" && segment.audioKey), assetCoverage: scenes.length ? Math.round(coveredScenes / scenes.length * 100) : 0, rightsCoverage: assets.length ? Math.round(verified.length / assets.length * 100) : 0, assemblyReady: scenes.length > 0 && coveredScenes === scenes.length } });
   } catch (error) {
     console.error("Media workspace GET failed", error);
     return Response.json({ error: "Media workspace could not be loaded" }, { status: 500 });

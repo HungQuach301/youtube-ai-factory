@@ -398,6 +398,27 @@ nav { display: grid; gap: 5px; }
 /* Media sourcing and assembly */
 .mediaWorkspaceLayout { display: grid; grid-template-columns: minmax(0, 1fr) 285px; gap: 13px; align-items: start; }
 .mediaMain { min-width: 0; }
+.assetSourceHub { margin-top: 14px; overflow: hidden; border: 1px solid #b9d8ca; border-radius: 12px; background: linear-gradient(135deg, #eff8f4, #fbfdfc); }
+.assetSourceHub > header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 15px; border-bottom: 1px solid #d7e7e0; background: #173e35; color: white; }
+.assetSourceHub > header span, .assetSourceHub > header strong { display: block; }
+.assetSourceHub > header span { color: #8bd5b5; font-size: 6px; font-weight: 900; letter-spacing: .1em; }
+.assetSourceHub > header strong { margin-top: 4px; font-size: 10px; }
+.assetSourceHub > header p { margin: 0; color: #c6dfd5; font-size: 7px; font-weight: 750; }
+.sourceConnectorGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px; }
+.sourceConnectorCard { min-height: 118px; padding: 11px; border: 1px solid #dce7e2; border-radius: 9px; background: white; }
+.sourceConnectorCard > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sourceConnectorCard > div span, .sourceConnectorCard > div em { padding: 3px 5px; border-radius: 9px; font-size: 5px; font-style: normal; font-weight: 900; letter-spacing: .06em; }
+.sourceConnectorCard > div span { color: #547268; background: #edf3f0; }
+.sourceConnectorCard > div em { color: #8b642e; background: #faecd8; }
+.sourceConnectorCard.connected { border-color: #99c9b4; box-shadow: inset 0 3px #3f956f; }
+.sourceConnectorCard.connected > div em { color: #246b50; background: #ddf1e7; }
+.sourceConnectorCard.oauth_setup > div em { color: #336a7c; background: #e0eff4; }
+.sourceConnectorCard.blocked > div em { color: #9b433e; background: #f9e3e0; }
+.sourceConnectorCard > strong { display: block; margin-top: 9px; color: #173f35; font-size: 10px; }
+.sourceConnectorCard > p { min-height: 34px; margin: 5px 0 0; color: #718079; font-size: 7px; line-height: 1.45; }
+.sourceConnectorCard > small { display: block; margin-top: 7px; color: #2f7259; font-size: 6px; font-weight: 850; }
+.assetSourceHub > footer { display: flex; gap: 7px; padding: 10px 13px; border-top: 1px solid #dce8e3; color: #63776f; background: rgba(255,255,255,.7); font-size: 7px; line-height: 1.45; }
+.assetSourceHub > footer strong { color: #245f4b; white-space: nowrap; }
 .mediaMetrics { display: grid; grid-template-columns: repeat(4, 1fr); margin: 14px 0; border: 1px solid #e3e8e5; border-radius: 10px; overflow: hidden; }
 .mediaMetrics > div { padding: 12px; border-right: 1px solid #e8ecea; }
 .mediaMetrics > div:last-child { border: 0; }
@@ -1255,6 +1276,7 @@ nav { display: grid; gap: 5px; }
   .secondaryButton { display: none; }
   .metricGrid { grid-template-columns: repeat(2, 1fr); }
   .automationControl { grid-template-columns: 1fr; }
+  .sourceConnectorGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .modeSelector, .autopilotRun { width: 100%; }
   .modeSelector button { flex: 1; }
   .diagramAutomation { align-items: stretch; flex-direction: column; }
@@ -1334,6 +1356,8 @@ nav { display: grid; gap: 5px; }
   .sourcePlan { grid-template-columns: 1fr; }
   .sceneContent header { align-items: flex-start; flex-direction: column; }
   .mediaMetrics { grid-template-columns: repeat(2, 1fr); }
+  .assetSourceHub > header, .assetSourceHub > footer { align-items: flex-start; flex-direction: column; }
+  .sourceConnectorGrid { grid-template-columns: 1fr; }
   .composerMetrics, .composerTimeline { grid-template-columns: repeat(2, 1fr); }
   .referenceMetrics { grid-template-columns: repeat(2, 1fr); }
   .referenceGrid { grid-template-columns: 1fr; }
