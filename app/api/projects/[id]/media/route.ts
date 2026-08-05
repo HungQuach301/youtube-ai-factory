@@ -22,6 +22,12 @@ type DiscoveryCandidate = {
   sourceAssetId?: string; score: number;
 };
 
+type MaterializationBeat = OptimizedVisualBeat & {
+  assetKey: string;
+  selectedPlan: (PlannedAssetCandidate & { selectedScore: number; verificationStatus: string }) | null;
+  materializedAsset: null | { id: string; name: string; mimeType: string; sourceType: string; rightsStatus: string; url: string | null };
+};
+
 type OptimizedVisualBeat = {
   id: string; parentSection: string; time: string; startSeconds: number; endSeconds: number;
   primaryFamily: string; secondaryFamily: string; visualIntent: string; sourceStrategy: string;
@@ -191,6 +197,7 @@ async function getOptimizedSourcePlan(projectId: string, assets: Array<typeof me
     };
   });
   const materialized = planBeats.filter((beat) => beat.materializationStatus === "MATERIALIZED").length;
+  const fallbacks = planBeats.filter((beat) => beat.materializedAsset?.sourceType === "OWNED_SEMANTIC_FALLBACK").length;
   return {
     version: Math.max(storyboardArtifact.version, assetArtifact.version),
     status: materialized === planBeats.length ? "READY_FOR_MASTER_BINDING" : "MATERIALIZATION_REQUIRED",
@@ -203,10 +210,98 @@ async function getOptimizedSourcePlan(projectId: string, assets: Array<typeof me
       plannedSelections: planBeats.filter((beat) => beat.selectedPlan).length,
       materialized,
       rightsReady: materialized,
+      remaining: Math.max(0, planBeats.length - materialized),
+      fallbacks,
+      paidApprovals: planBeats.filter((beat) => beat.selectedPlan?.sourceType?.includes("PAID") && !beat.materializedAsset).length,
       exceptions: planBeats.filter((beat) => beat.requiresHumanReview || !beat.selectedPlan).length,
     },
     beats: planBeats,
   };
+}
+
+function optimizedQuery(beat: MaterializationBeat) {
+  const planned = beat.selectedPlan?.searchQuery || beat.selectedPlan?.locator || "";
+  const family = beat.primaryFamily.replaceAll("_", " ").toLowerCase();
+  return cleanText(planned || `${beat.visualIntent} ${family}`, beat.visualIntent).replace(/\b(4k|cinematic|animation|diagram)\b/gi, " ").replace(/\s+/g, " ").trim().slice(0, 110);
+}
+
+function selectPexelsVideo(files: any[]) {
+  return [...(files || [])].filter((file) => file?.link && (file.width || 0) >= 960).sort((a, b) => Math.abs((a.width || 1280) - 1280) - Math.abs((b.width || 1280) - 1280))[0]?.link || null;
+}
+
+async function discoverOptimizedCandidates(projectId: string, beat: MaterializationBeat) {
+  const env = await runtimeEnv();
+  const query = optimizedQuery(beat);
+  const wantsVideo = beat.primaryFamily === "MACRO_REALITY" || /footage|video|b-roll|camera/i.test(`${beat.assetType} ${beat.sourceStrategy}`);
+  const pexelsTask = env.PEXELS_API_KEY ? fetchJson(`https://api.pexels.com/v1/videos/search?query=${encodeURIComponent(query)}&orientation=landscape&per_page=5`, { Authorization: env.PEXELS_API_KEY }).then((data) =>
+    (data.videos || []).map((item: any, index: number): DiscoveryCandidate => ({ id: `pexels-video:${item.id}`, provider: "Pexels", category: "FREE", title: cleanText(item.url, `Pexels video ${item.id}`), mediaType: "VIDEO", thumbnailUrl: item.image || null, assetUrl: selectPexelsVideo(item.video_files), landingUrl: item.url, licenseType: "PEXELS_LICENSE", licenseUrl: "https://www.pexels.com/license/", creator: cleanText(item.user?.name, "Unknown"), score: 96 - index }))
+  ).catch(() => [] as DiscoveryCandidate[]) : Promise.resolve([] as DiscoveryCandidate[]);
+  const pixabayTask = env.PIXABAY_API_KEY ? fetchJson(`https://pixabay.com/api/videos/?key=${encodeURIComponent(env.PIXABAY_API_KEY)}&q=${encodeURIComponent(query)}&safesearch=true&per_page=5`).then((data) =>
+    (data.hits || []).map((item: any, index: number): DiscoveryCandidate => ({ id: `pixabay-video:${item.id}`, provider: "Pixabay", category: "FREE", title: cleanText(item.tags, `Pixabay video ${item.id}`), mediaType: "VIDEO", thumbnailUrl: item.videos?.medium?.thumbnail || null, assetUrl: item.videos?.medium?.url || item.videos?.small?.url || null, landingUrl: item.pageURL, licenseType: "PIXABAY_CONTENT_LICENSE", licenseUrl: "https://pixabay.com/service/license-summary/", creator: cleanText(item.user, "Unknown"), score: 94 - index }))
+  ).catch(() => [] as DiscoveryCandidate[]) : Promise.resolve([] as DiscoveryCandidate[]);
+  const imageTask = fetchJson(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&license_type=commercial&page_size=5`).then((data) =>
+    (Array.isArray(data.results) ? data.results : []).map((item: any, index: number): DiscoveryCandidate => ({ id: `openverse:${cleanText(item.id, String(index))}`, provider: "Openverse", category: "FREE", title: cleanText(item.title), mediaType: "IMAGE", thumbnailUrl: typeof item.thumbnail === "string" ? item.thumbnail : null, assetUrl: typeof item.url === "string" ? item.url : null, landingUrl: typeof item.foreign_landing_url === "string" ? item.foreign_landing_url : "https://openverse.org/", licenseType: cleanText(item.license, "OPEN_LICENSE").toUpperCase(), licenseUrl: typeof item.license_url === "string" ? item.license_url : null, creator: item.creator ? cleanText(item.creator) : null, score: (wantsVideo ? 82 : 93) - index }))
+  ).catch(() => [] as DiscoveryCandidate[]);
+  const db = await getDb();
+  const [pexels, pixabay, openverse, internalRows] = await Promise.all([pexelsTask, pixabayTask, imageTask, db.select().from(mediaAssets).where(eq(mediaAssets.rightsStatus, "VERIFIED")).orderBy(desc(mediaAssets.createdAt)).limit(40)]);
+  const terms = new Set(query.toLowerCase().split(/\W+/).filter((term) => term.length > 3));
+  const internal = internalRows.filter((asset) => asset.sceneId !== beat.assetKey && (asset.storageKey || asset.sourceUrl)).map((asset, index): DiscoveryCandidate => {
+    const overlap = [...terms].filter((term) => `${asset.name} ${asset.sourceType}`.toLowerCase().includes(term)).length;
+    return { id: `internal:${asset.id}`, provider: "Frameflow library", category: "INTERNAL", title: asset.name, mediaType: asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE", thumbnailUrl: asset.storageKey ? `/api/projects/${asset.projectId}/media?asset=${encodeURIComponent(asset.id)}` : asset.sourceUrl, assetUrl: asset.sourceUrl, landingUrl: asset.sourceUrl || "#", licenseType: asset.licenseType, licenseUrl: null, creator: "Verified internal asset", sourceAssetId: asset.id, score: 88 + Math.min(8, overlap * 3) - index * .1 };
+  }).filter((candidate) => candidate.score >= 90).slice(0, 4);
+  return [...internal, ...pexels, ...pixabay, ...openverse].filter((candidate) => candidate.assetUrl || candidate.sourceAssetId).sort((a, b) => b.score - a.score);
+}
+
+async function sha256Hex(bytes: Uint8Array) {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+async function storeOptimizedAsset(projectId: string, beat: MaterializationBeat, candidate: DiscoveryCandidate, attempt: number) {
+  const db = await getDb(); const env = await runtimeEnv();
+  if (!env.BUCKET) throw new Error("MEDIA_STORAGE_UNAVAILABLE");
+  if (candidate.category === "INTERNAL" && candidate.sourceAssetId) {
+    const [source] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, candidate.sourceAssetId)).limit(1);
+    if (!source || source.rightsStatus !== "VERIFIED" || (!source.storageKey && !source.sourceUrl)) throw new Error("INTERNAL_RIGHTS_CHANGED");
+    const assetId = `${projectId}-MAT-${beat.id}-${crypto.randomUUID()}`;
+    await db.insert(mediaAssets).values({ id: assetId, projectId, sceneId: beat.assetKey, name: source.name, mimeType: source.mimeType, sourceType: "MATERIALIZED_INTERNAL_REUSE", sourceUrl: source.sourceUrl, storageKey: source.storageKey, licenseType: source.licenseType, licenseProof: JSON.stringify({ policy: "MATERIALIZATION_ENGINE_V1", inheritedFrom: source.id, beatId: beat.id, selectedAt: new Date().toISOString(), attempt }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: source.sizeBytes });
+    return { assetId, provider: "Frameflow library", fallback: false };
+  }
+  if (!candidate.assetUrl || !candidate.assetUrl.startsWith("https://")) throw new Error("INVALID_SOURCE_URL");
+  const response = await fetch(candidate.assetUrl, { headers: { "User-Agent": "Frameflow-YouTube-Factory/1.0" }, signal: AbortSignal.timeout(30000) });
+  if (!response.ok) throw new Error(`DOWNLOAD_${response.status}`);
+  const contentType = (response.headers.get("content-type") || "").split(";")[0];
+  if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) throw new Error("UNSUPPORTED_MEDIA_TYPE");
+  const declaredSize = Number(response.headers.get("content-length") || 0); const cap = contentType.startsWith("video/") ? 60 * 1024 * 1024 : 15 * 1024 * 1024;
+  if (declaredSize > cap) throw new Error("ASSET_TOO_LARGE");
+  const bytes = new Uint8Array(await response.arrayBuffer()); if (!bytes.byteLength || bytes.byteLength > cap) throw new Error("ASSET_SIZE_REJECTED");
+  const assetId = `${projectId}-MAT-${beat.id}-${crypto.randomUUID()}`; const extension = contentType.includes("video") ? (contentType.includes("webm") ? "webm" : "mp4") : (contentType.includes("png") ? "png" : contentType.includes("svg") ? "svg" : "jpg"); const key = `media/${projectId}/optimized/${beat.id}/${assetId}.${extension}`; const hash = await sha256Hex(bytes);
+  await env.BUCKET.put(key, bytes, { httpMetadata: { contentType }, customMetadata: { projectId, beatId: beat.id, provider: candidate.provider, sourceAssetId: candidate.id, sha256: hash } });
+  await db.insert(mediaAssets).values({ id: assetId, projectId, sceneId: beat.assetKey, name: cleanText(candidate.title), mimeType: contentType, sourceType: `MATERIALIZED_${candidate.provider.toUpperCase().replace(/\W+/g, "_")}`, sourceUrl: candidate.landingUrl, storageKey: key, licenseType: candidate.licenseType, licenseProof: JSON.stringify({ policy: "MATERIALIZATION_ENGINE_V1", decision: "AUTO_VERIFIED_FREE_SOURCE", beatId: beat.id, provider: candidate.provider, providerAssetId: candidate.id, landingUrl: candidate.landingUrl, directSourceUrl: candidate.assetUrl, licenseType: candidate.licenseType, licenseUrl: candidate.licenseUrl, creator: candidate.creator, selectionScore: candidate.score, sha256: hash, capturedAt: new Date().toISOString(), attempt }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: bytes.byteLength });
+  return { assetId, provider: candidate.provider, fallback: false };
+}
+
+async function storeOptimizedFallback(projectId: string, beat: MaterializationBeat, reason: string) {
+  const db = await getDb(); const env = await runtimeEnv(); if (!env.BUCKET) throw new Error("MEDIA_STORAGE_UNAVAILABLE");
+  const bytes = new TextEncoder().encode(diagramSvg(beat.visualIntent)); const assetId = `${projectId}-MAT-${beat.id}-OWNED`; const key = `media/${projectId}/optimized/${beat.id}/${assetId}.svg`;
+  await env.BUCKET.put(key, bytes, { httpMetadata: { contentType: "image/svg+xml" }, customMetadata: { projectId, beatId: beat.id, fallback: "true" } });
+  await db.insert(mediaAssets).values({ id: assetId, projectId, sceneId: beat.assetKey, name: `${beat.id} · owned semantic motion`, mimeType: "image/svg+xml", sourceType: "OWNED_SEMANTIC_FALLBACK", storageKey: key, licenseType: "CHANNEL_OWNED", licenseProof: JSON.stringify({ policy: "MATERIALIZATION_ENGINE_V1", generator: "FRAMEFLOW_MOTION_SVG", beatId: beat.id, fallbackAfterAttempts: 2, reason, rights: "CHANNEL_OWNED", createdAt: new Date().toISOString() }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: bytes.byteLength }).onConflictDoNothing();
+  return { assetId, provider: "Frameflow owned fallback", fallback: true };
+}
+
+async function materializeOptimizedWave(projectId: string, batchSize = 4) {
+  const db = await getDb(); const assets = await db.select().from(mediaAssets).where(eq(mediaAssets.projectId, projectId)); const plan = await getOptimizedSourcePlan(projectId, assets);
+  if (!plan) throw new Error("OPTIMIZED_SOURCE_PLAN_NOT_FOUND");
+  const pending = (plan.beats as MaterializationBeat[]).filter((beat) => !beat.materializedAsset).slice(0, Math.max(1, Math.min(5, batchSize))); const decisions: Array<Record<string, unknown>> = [];
+  for (const beat of pending) {
+    const candidates = await discoverOptimizedCandidates(projectId, beat); let stored: { assetId: string; provider: string; fallback: boolean } | null = null; const errors: string[] = [];
+    for (const [index, candidate] of candidates.slice(0, 2).entries()) { try { stored = await storeOptimizedAsset(projectId, beat, candidate, index + 1); break; } catch (error) { errors.push(error instanceof Error ? error.message : "INGEST_FAILED"); } }
+    if (!stored) stored = await storeOptimizedFallback(projectId, beat, errors.join(", ") || "No free candidate passed the automatic ingest gate");
+    decisions.push({ beatId: beat.id, status: "MATERIALIZED", ...stored, attempts: Math.min(2, Math.max(1, errors.length + (stored.fallback ? 0 : 1))), errors });
+  }
+  const refreshedAssets = await db.select().from(mediaAssets).where(eq(mediaAssets.projectId, projectId)); const refreshed = await getOptimizedSourcePlan(projectId, refreshedAssets);
+  await db.insert(workflowEvents).values({ projectId, toStatus: "PRODUCTION_PREP", eventType: "OPTIMIZED_MATERIALIZATION_WAVE", summary: `${decisions.length} optimized visual beats materialized; ${refreshed?.summary.remaining || 0} remain` });
+  return { decisions, summary: refreshed?.summary, status: refreshed?.status };
 }
 
 async function discoverAssets(projectId: string, sceneId: string) {
@@ -489,7 +584,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ ok: true, assetId, generatedMotion });
     }
 
-    const payload = await request.json() as { action?: "GENERATE_DIAGRAMS" | "GENERATE_MOTION_VISUALS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY" | "FINALIZE_MOTION_UPLOAD"; sceneId?: string; assetId?: string; parentAssetId?: string; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
+    const payload = await request.json() as { action?: "MATERIALIZE_OPTIMIZED_WAVE" | "GENERATE_DIAGRAMS" | "GENERATE_MOTION_VISUALS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY" | "FINALIZE_MOTION_UPLOAD"; batchSize?: number; sceneId?: string; assetId?: string; parentAssetId?: string; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
+    if (payload.action === "MATERIALIZE_OPTIMIZED_WAVE") return Response.json({ ok: true, ...(await materializeOptimizedWave(id, Number(payload.batchSize) || 4)) });
     if (payload.action === "FINALIZE_MOTION_UPLOAD") {
       const uploadId = payload.uploadId || ""; const chunkCount = Number(payload.chunkCount); const sceneId = payload.sceneId || ""; const parentAssetId = payload.parentAssetId || "";
       if (!safeUploadId(uploadId) || !Number.isInteger(chunkCount) || chunkCount < 1 || chunkCount > 200 || !sceneId || !parentAssetId) return Response.json({ error: "Invalid motion upload manifest" }, { status: 400 });
