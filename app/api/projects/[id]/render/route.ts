@@ -13,6 +13,15 @@ type RuntimeBucket = {
 type RuntimeEnv = { DB?: RuntimeD1; BUCKET?: RuntimeBucket; ELEVENLABS_API_KEY?: string };
 type TimingResponse = { audio_base64: string; alignment?: Record<string, unknown>; normalized_alignment?: { character_end_times_seconds?: number[] } & Record<string, unknown> };
 
+const PLAYBACK_QA_CHECKS = ["FULL_PLAYBACK", "SINGLE_VOICE", "SYNC", "LOUDNESS", "BLACK_FRAMES", "RIGHTS"] as const;
+
+function voiceSignature(profile: { voiceId: string; modelId: string; stability: number; similarityBoost: number; style: number; speed: number }) {
+  const value = `${profile.voiceId}|${profile.modelId}|${profile.stability}|${profile.similarityBoost}|${profile.style}|${profile.speed}`;
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) { hash ^= value.charCodeAt(index); hash = Math.imul(hash, 16777619); }
+  return (hash >>> 0).toString(36).toUpperCase();
+}
+
 let schemaReady: Promise<void> | null = null;
 
 async function runtimeEnv() {
@@ -52,12 +61,13 @@ function isSafeExternalUrl(value: string) {
 
 async function projectSnapshot(projectId: string) {
   const db = await getDb();
-  const [scenes, assets, segments, assemblies, renders] = await Promise.all([
+  const [scenes, assets, segments, assemblies, renders, profiles] = await Promise.all([
     db.select().from(sceneManifest).where(eq(sceneManifest.projectId, projectId)).orderBy(asc(sceneManifest.sceneNumber)),
     db.select().from(mediaAssets).where(eq(mediaAssets.projectId, projectId)).orderBy(desc(mediaAssets.createdAt)),
     db.select().from(narrationSegments).where(eq(narrationSegments.projectId, projectId)).orderBy(asc(narrationSegments.position)),
     db.select().from(assemblyRuns).where(eq(assemblyRuns.projectId, projectId)).orderBy(desc(assemblyRuns.version)),
     db.select().from(videoRenders).where(eq(videoRenders.projectId, projectId)).orderBy(desc(videoRenders.version)),
+    db.select().from(voiceProfiles).where(eq(voiceProfiles.projectId, projectId)).limit(1),
   ]);
   const approved = assets.filter((asset) => asset.status === "APPROVED" && asset.rightsStatus === "VERIFIED");
   const selected = scenes.map((scene) => {
@@ -76,10 +86,11 @@ async function projectSnapshot(projectId: string) {
   const artifacts = await db.select().from(optimizationArtifacts).where(eq(optimizationArtifacts.projectId, projectId)).orderBy(desc(optimizationArtifacts.createdAt));
   const editArtifact = artifacts.find((artifact) => artifact.stageKey === "EDIT_COMPOSE" && artifact.status === "FROZEN"); const scriptArtifact = artifacts.find((artifact) => artifact.stageKey === "SCRIPT" && artifact.status === "FROZEN"); const audioArtifact = artifacts.find((artifact) => artifact.stageKey === "VOICE_SOUND" && artifact.status === "FROZEN");
   let optimized: null | Record<string, unknown> = null;
-  if (editArtifact && scriptArtifact && audioArtifact) {
+  const profile = profiles[0];
+  if (editArtifact && scriptArtifact && audioArtifact && profile) {
     const edit = JSON.parse(editArtifact.contentJson) as { editClips?: Array<Record<string, unknown>>; masterProfile?: Record<string, unknown>; execution?: Record<string, unknown> }; const script = JSON.parse(scriptArtifact.contentJson) as { sections?: Array<{ time: string; beat: string; text: string }> }; const audio = JSON.parse(audioArtifact.contentJson) as { narrationSegments?: Array<{ id: string; targetDurationSeconds: number; targetWpm: number; direction: string }> };
-    const versionKey = `${editArtifact.id}:V2`; const optimizedSegments = segments.filter((segment) => segment.scriptVersionId === versionKey); const plans = audio.narrationSegments || [];
-    optimized = { editArtifactId: editArtifact.id, versionKey, editClips: edit.editClips || [], masterProfile: edit.masterProfile, execution: edit.execution, scriptSections: script.sections || [], audioPlan: plans, segments: optimizedSegments.map((segment) => ({ ...segment, audioUrl: `/api/projects/${projectId}/voice?audio=${encodeURIComponent(segment.id)}`, targetDurationSeconds: plans[segment.position - 1]?.targetDurationSeconds || segment.durationSeconds || 0, targetWpm: plans[segment.position - 1]?.targetWpm || 0, direction: plans[segment.position - 1]?.direction || "" })), gates: { editPlanReady: (edit.editClips?.length || 0) === 40, optimizedVoiceReady: optimizedSegments.length === 12 && optimizedSegments.every((segment) => Boolean(segment.audioKey)), proceduralVisualFallbackReady: true, masterProfileReady: Number(edit.masterProfile?.width) === 1920 && Number(edit.masterProfile?.height) === 1080 }, actualMasterRequired: true };
+    const signature = voiceSignature(profile); const versionKey = `${editArtifact.id}:V3:${signature}`; const optimizedSegments = segments.filter((segment) => segment.scriptVersionId === versionKey); const plans = audio.narrationSegments || [];
+    optimized = { editArtifactId: editArtifact.id, versionKey, voiceIdentity: { voiceId: profile.voiceId, voiceName: profile.voiceName, modelId: profile.modelId, signature, status: profile.status }, editClips: edit.editClips || [], masterProfile: edit.masterProfile, execution: edit.execution, scriptSections: script.sections || [], audioPlan: plans, segments: optimizedSegments.map((segment) => ({ ...segment, audioUrl: `/api/projects/${projectId}/voice?audio=${encodeURIComponent(segment.id)}`, targetDurationSeconds: plans[segment.position - 1]?.targetDurationSeconds || segment.durationSeconds || 0, targetWpm: plans[segment.position - 1]?.targetWpm || 0, direction: plans[segment.position - 1]?.direction || "" })), gates: { editPlanReady: (edit.editClips?.length || 0) === 40, singleVoiceLocked: profile.status === "LOCKED", optimizedVoiceReady: optimizedSegments.length === 12 && optimizedSegments.every((segment) => Boolean(segment.audioKey)), proceduralVisualFallbackReady: true, masterProfileReady: Number(edit.masterProfile?.width) === 1920 && Number(edit.masterProfile?.height) === 1080 }, actualMasterRequired: true };
   }
   return { scenes: selected, segments, assemblies, renders, gates, optimized, totalDuration: optimized ? 480 : selected.reduce((max, scene) => Math.max(max, scene.endSeconds || 0), 0) };
 }
@@ -143,16 +154,27 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       await bucket.put(`final-uploads/${id}/${uploadId}/${part}.part`, bytes, { httpMetadata: { contentType: "application/octet-stream" }, customMetadata: { projectId: id, uploadId, part: String(part) } });
       return Response.json({ ok: true, part });
     }
-    const payload = await request.json() as { action?: "FINALIZE_VIDEO" | "MATERIALIZE_V2_NARRATION"; position?: number; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; durationSeconds?: number; width?: number; height?: number; fps?: number; renderMode?: string };
+    const payload = await request.json() as { action?: "FINALIZE_VIDEO" | "MATERIALIZE_V2_NARRATION" | "COMPLETE_PLAYBACK_QA"; position?: number; renderId?: string; checks?: string[]; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; durationSeconds?: number; width?: number; height?: number; fps?: number; renderMode?: string };
+    if (payload.action === "COMPLETE_PLAYBACK_QA") {
+      const db = await getDb(); const renderId = String(payload.renderId || ""); const [render] = await db.select().from(videoRenders).where(eq(videoRenders.id, renderId)).limit(1);
+      if (!render || render.projectId !== id) return Response.json({ error: "Master render not found" }, { status: 404 });
+      if (render.status !== "READY_FOR_PLAYBACK_QA") return Response.json({ error: render.status === "QA_PASSED" ? "Playback QA already passed" : "This render is not awaiting playback QA" }, { status: 409 });
+      const completed = new Set(Array.isArray(payload.checks) ? payload.checks : []); const missing = PLAYBACK_QA_CHECKS.filter((check) => !completed.has(check));
+      if (missing.length) return Response.json({ error: `Playback QA incomplete: ${missing.join(", ")}` }, { status: 409 });
+      const priorGates = JSON.parse(render.gateResults) as Array<Record<string, unknown>>; await db.update(videoRenders).set({ status: "QA_PASSED", gateResults: JSON.stringify([...priorGates, ...PLAYBACK_QA_CHECKS.map((check) => ({ gate: `PLAYBACK_${check}`, passed: true }))]) }).where(eq(videoRenders.id, render.id));
+      await db.insert(workflowEvents).values({ projectId: id, toStatus: "RENDER_READY", eventType: "FULL_PLAYBACK_QA_PASSED", summary: `Master video v${render.version} passed full playback QA with single-voice verification` });
+      return Response.json({ ok: true, renderId: render.id, status: "QA_PASSED" });
+    }
     if (payload.action === "MATERIALIZE_V2_NARRATION") {
       const position = Number(payload.position); if (!Number.isInteger(position) || position < 1 || position > 12) return Response.json({ error: "Narration position must be 1–12" }, { status: 400 });
       const db = await getDb(); const artifacts = await db.select().from(optimizationArtifacts).where(eq(optimizationArtifacts.projectId, id)).orderBy(desc(optimizationArtifacts.createdAt)); const editArtifact = artifacts.find((artifact) => artifact.stageKey === "EDIT_COMPOSE" && artifact.status === "FROZEN"); const scriptArtifact = artifacts.find((artifact) => artifact.stageKey === "SCRIPT" && artifact.status === "FROZEN"); if (!editArtifact || !scriptArtifact) return Response.json({ error: "Freeze Edit & Composition and Script v2 before voice materialization" }, { status: 409 });
-      const script = JSON.parse(scriptArtifact.contentJson) as { sections?: Array<{ beat: string; text: string }> }; const section = script.sections?.[position - 1]; if (!section) return Response.json({ error: "Optimized script section is missing" }, { status: 409 }); const versionKey = `${editArtifact.id}:V2`; const segmentId = `${id}-OPT-V2-SEG-${String(position).padStart(2, "0")}`;
-      const [existing] = await db.select().from(narrationSegments).where(eq(narrationSegments.id, segmentId)).limit(1); if (existing?.audioKey) return Response.json({ ok: true, position, reused: true });
-      const env = await runtimeEnv(); if (!env.ELEVENLABS_API_KEY || !env.BUCKET) return Response.json({ error: !env.ELEVENLABS_API_KEY ? "ELEVENLABS_NOT_CONNECTED" : "AUDIO_STORAGE_NOT_READY" }, { status: 424 }); const [profile] = await db.select().from(voiceProfiles).where(eq(voiceProfiles.projectId, id)).limit(1); if (!profile) return Response.json({ error: "Locked voice profile not found" }, { status: 409 });
+      const script = JSON.parse(scriptArtifact.contentJson) as { sections?: Array<{ beat: string; text: string }> }; const section = script.sections?.[position - 1]; if (!section) return Response.json({ error: "Optimized script section is missing" }, { status: 409 });
+      const env = await runtimeEnv(); if (!env.ELEVENLABS_API_KEY || !env.BUCKET) return Response.json({ error: !env.ELEVENLABS_API_KEY ? "ELEVENLABS_NOT_CONNECTED" : "AUDIO_STORAGE_NOT_READY" }, { status: 424 }); const [profile] = await db.select().from(voiceProfiles).where(eq(voiceProfiles.projectId, id)).limit(1); if (!profile || profile.status !== "LOCKED") return Response.json({ error: "Lock exactly one channel voice before narration materialization" }, { status: 409 });
+      const signature = voiceSignature(profile); const versionKey = `${editArtifact.id}:V3:${signature}`; const segmentId = `${id}-OPT-V3-${signature}-SEG-${String(position).padStart(2, "0")}`;
+      const [existing] = await db.select().from(narrationSegments).where(eq(narrationSegments.id, segmentId)).limit(1); if (existing?.audioKey) return Response.json({ ok: true, position, reused: true, voiceSignature: signature });
       if (!existing) await db.insert(narrationSegments).values({ id: segmentId, projectId: id, scriptVersionId: versionKey, position, label: section.beat, text: section.text, characterCount: section.text.length, status: "GENERATING" });
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(profile.voiceId)}/with-timestamps?output_format=mp3_44100_128`, { method: "POST", headers: { "content-type": "application/json", "xi-api-key": env.ELEVENLABS_API_KEY }, body: JSON.stringify({ text: section.text, model_id: profile.modelId, language_code: "en", voice_settings: { stability: profile.stability, similarity_boost: profile.similarityBoost, style: profile.style, use_speaker_boost: true, speed: profile.speed } }) }); if (!response.ok) return Response.json({ error: "ElevenLabs optimized narration failed", providerStatus: response.status }, { status: 502 });
-      const generated = await response.json() as TimingResponse; const bytes = Uint8Array.from(atob(generated.audio_base64), (character) => character.charCodeAt(0)); const audioKey = `voice/${id}/optimized-v2/${segmentId}.mp3`; await env.BUCKET.put(audioKey, bytes, { httpMetadata: { contentType: "audio/mpeg" }, customMetadata: { projectId: id, segmentId, source: "OPTIMIZED_V2" } }); const timing = generated.normalized_alignment || generated.alignment || {}; const endTimes = generated.normalized_alignment?.character_end_times_seconds || []; const durationSeconds = endTimes.length ? endTimes[endTimes.length - 1] : null; await db.update(narrationSegments).set({ scriptVersionId: versionKey, status: "MATERIALIZED", audioKey, alignment: JSON.stringify(timing), durationSeconds, takeNumber: 1, updatedAt: new Date().toISOString() }).where(eq(narrationSegments.id, segmentId)); return Response.json({ ok: true, position, durationSeconds });
+      const generated = await response.json() as TimingResponse; const bytes = Uint8Array.from(atob(generated.audio_base64), (character) => character.charCodeAt(0)); const audioKey = `voice/${id}/optimized-v3/${signature}/${segmentId}.mp3`; await env.BUCKET.put(audioKey, bytes, { httpMetadata: { contentType: "audio/mpeg" }, customMetadata: { projectId: id, segmentId, source: "OPTIMIZED_V3", voiceId: profile.voiceId, voiceName: profile.voiceName, modelId: profile.modelId, voiceSignature: signature } }); const timing = generated.normalized_alignment || generated.alignment || {}; const endTimes = generated.normalized_alignment?.character_end_times_seconds || []; const durationSeconds = endTimes.length ? endTimes[endTimes.length - 1] : null; await db.update(narrationSegments).set({ scriptVersionId: versionKey, status: "MATERIALIZED", audioKey, alignment: JSON.stringify(timing), durationSeconds, takeNumber: 1, updatedAt: new Date().toISOString() }).where(eq(narrationSegments.id, segmentId)); return Response.json({ ok: true, position, durationSeconds, voiceName: profile.voiceName, voiceSignature: signature });
     }
     if (payload.action !== "FINALIZE_VIDEO") return Response.json({ error: "Unknown composer action" }, { status: 400 });
     const uploadId = payload.uploadId || ""; const chunkCount = Number(payload.chunkCount);

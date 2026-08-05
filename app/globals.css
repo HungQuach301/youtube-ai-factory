@@ -575,6 +575,17 @@ nav { display: grid; gap: 5px; }
 .masterState strong, .masterState p { display: block; }
 .masterState strong { color: #23473d; font-size: 8px; }
 .masterState p { margin-top: 3px; color: #83918c; font-size: 6px; }
+.playbackQaPanel { display: grid; gap: 12px; border: 1px solid #e5c28f; background: #fffaf1; }
+.playbackQaPanel.passed { border-color: #9bd6bb; background: #eff9f4; }
+.playbackQaPanel > button { width: 100%; }
+.fullPlaybackState, .playbackPassed { display: flex; align-items: center; gap: 9px; padding: 10px; border-radius: 10px; background: #f5ead7; color: #78551e; }
+.fullPlaybackState.done, .playbackPassed { background: #dff3e9; color: #277257; }
+.fullPlaybackState > span, .playbackPassed > span { display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 auto; border-radius: 50%; background: currentColor; color: #fff; font-size: 9px; font-weight: 900; }
+.fullPlaybackState p, .playbackPassed p { margin: 0; font-size: 8px; font-weight: 800; line-height: 1.4; }
+.playbackPassed strong { display: block; font-size: 10px; }
+.playbackChecks { display: grid; gap: 7px; }
+.playbackChecks label { display: grid; grid-template-columns: 18px 1fr; gap: 7px; align-items: start; color: #536a62; font-size: 8px; line-height: 1.4; cursor: pointer; }
+.playbackChecks input { width: 14px; height: 14px; margin: 0; accent-color: #277257; }
 
 /* Reference intelligence */
 .referenceLayout { display: grid; grid-template-columns: minmax(0, 1fr) 278px; gap: 12px; align-items: start; }
