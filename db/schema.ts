@@ -275,3 +275,32 @@ export const referenceSettings = sqliteTable("reference_settings", {
   language: text("language").notNull().default("en"),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const qualityGateSettings = sqliteTable("quality_gate_settings", {
+  projectId: text("project_id").primaryKey(),
+  verificationMode: text("verification_mode").notNull().default("AUTOPILOT"),
+  minimumScore: integer("minimum_score").notNull().default(85),
+  dimensionFloor: integer("dimension_floor").notNull().default(70),
+  criticalFloor: integer("critical_floor").notNull().default(80),
+  formatAdapter: text("format_adapter").notNull().default("EXPLAINER_DOCUMENTARY"),
+  maximumRepairLoops: integer("maximum_repair_loops").notNull().default(2),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const qualityGateRuns = sqliteTable("quality_gate_runs", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  version: integer("version").notNull(),
+  loopNumber: integer("loop_number").notNull().default(0),
+  status: text("status").notNull().default("READY"),
+  decision: text("decision").notNull(),
+  compositeScore: integer("composite_score").notNull().default(0),
+  coreScore: integer("core_score").notNull().default(0),
+  adapterScore: integer("adapter_score").notNull().default(0),
+  formatAdapter: text("format_adapter").notNull(),
+  rubricJson: text("rubric_json").notNull(),
+  hardGatesJson: text("hard_gates_json").notNull(),
+  criticResultsJson: text("critic_results_json").notNull(),
+  repairPlanJson: text("repair_plan_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

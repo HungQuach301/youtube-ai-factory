@@ -646,6 +646,90 @@ nav { display: grid; gap: 5px; }
 .originalityPolicy li::before { content: "✓"; position: absolute; left: 0; color: #2d8064; font-weight: 900; }
 .originalityPolicy small { color: #87938f; font-size: 6px; line-height: 1.45; }
 
+/* Universal quality gate */
+.qualityLayout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 12px; align-items: start; }
+.qualityMain { min-width: 0; padding: 20px; }
+.qualityModes { min-width: 255px; }
+.adapterControl { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 12px; padding: 13px 15px; border: 1px solid #dbe7e2; border-radius: 10px; background: linear-gradient(120deg, #f3f8f6, #fff); }
+.adapterControl small, .adapterControl strong { display: block; }
+.adapterControl small { color: #568371; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.adapterControl strong { margin-top: 4px; color: #23483d; font-size: 10px; }
+.adapterControl p { margin-top: 3px; color: #7b8b85; font-size: 7px; }
+.adapterControl select { max-width: 250px; padding: 8px 28px 8px 10px; border: 1px solid #cfdcd7; border-radius: 8px; background: white; color: #2e5f50; font-size: 7px; font-weight: 800; }
+.qualityMetrics { display: grid; grid-template-columns: repeat(5, 1fr); margin: 13px 0; overflow: hidden; border: 1px solid #e0e8e5; border-radius: 10px; }
+.qualityMetrics > div { min-width: 0; padding: 11px; border-right: 1px solid #e4ebe8; background: #fbfcfb; }
+.qualityMetrics > div:last-child { border-right: 0; }
+.qualityMetrics small, .qualityMetrics strong { display: block; }
+.qualityMetrics small { color: #7f8f89; font-size: 6px; text-transform: uppercase; letter-spacing: .07em; }
+.qualityMetrics strong { margin-top: 5px; color: #1e4c3e; font: 600 19px/1 Georgia, serif; }
+.qualityMetrics strong span { margin-left: 3px; color: #90a099; font: 700 6px/1 sans-serif; }
+.qualityActions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 13px; }
+.qualityActions p { color: #7d8d87; font-size: 7px; }
+.qualityDecisionBanner { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 14px; padding: 15px 17px; border-radius: 11px; background: #123d32; color: white; }
+.qualityDecisionBanner.blocked_critical, .qualityDecisionBanner.recompose { background: #5a2d24; }
+.qualityDecisionBanner.repair_required { background: #524322; }
+.qualityDecisionBanner > div span { color: #8bd5b5; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.qualityDecisionBanner > div strong { display: block; margin-top: 4px; font: 600 20px/1.1 Georgia, serif; }
+.qualityDecisionBanner > div p { margin-top: 4px; color: #abc8bd; font-size: 7px; }
+.qualityDecisionBanner > b { padding: 7px 10px; border: 1px solid rgba(255,255,255,.22); border-radius: 15px; color: #c7efdd; font-size: 6px; letter-spacing: .04em; }
+.hardGatePanel, .rubricPanel { margin-top: 13px; overflow: hidden; border: 1px solid #dfe8e4; border-radius: 11px; }
+.qualitySectionTitle { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #f1f6f4; }
+.qualitySectionTitle small { color: #568371; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.qualitySectionTitle h3 { margin-top: 3px; color: #23493d; font: 600 17px/1 Georgia, serif; }
+.qualitySectionTitle > span { padding: 5px 8px; border-radius: 12px; background: #dfeee8; color: #2a7059; font-size: 6px; font-weight: 900; }
+.hardGateGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 11px; }
+.hardGateGrid article { min-width: 0; padding: 11px; border: 1px solid #e2e9e6; border-radius: 9px; background: white; }
+.hardGateGrid article.fail { border-color: #e9c7ba; background: #fff9f7; }
+.hardGateGrid article.action { border-color: #ead8ad; background: #fffdf7; }
+.hardGateGrid header { display: flex; align-items: center; gap: 8px; }
+.hardGateGrid header > span { display: grid; width: 23px; height: 23px; place-items: center; border-radius: 50%; background: #dff2e9; color: #277258; font-size: 9px; font-weight: 900; }
+.hardGateGrid .fail header > span { background: #f5ded6; color: #a04f31; }
+.hardGateGrid .action header > span { background: #faedcf; color: #9b6a1d; }
+.hardGateGrid header strong, .hardGateGrid header small { display: block; }
+.hardGateGrid header strong { color: #294b41; font-size: 7px; }
+.hardGateGrid header small { margin-top: 2px; color: #7d8c87; font-size: 5px; font-weight: 900; }
+.hardGateGrid article > p { min-height: 30px; margin-top: 8px; color: #71817b; font-size: 6px; line-height: 1.45; }
+.hardGateGrid article > footer { margin-top: 7px; padding-top: 7px; border-top: 1px solid #e8eeeb; color: #2b6b55; font-size: 6px; font-weight: 700; line-height: 1.4; }
+.rubricHead, .rubricTable article { display: grid; grid-template-columns: 1.15fr 2fr 46px 46px; gap: 10px; align-items: center; }
+.rubricHead { padding: 8px 13px; border-top: 1px solid #e0e8e4; background: #f9fbfa; color: #74867f; font-size: 6px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.rubricTable article { padding: 10px 13px; border-top: 1px solid #e8eeeb; }
+.rubricTable article > div strong { display: flex; align-items: center; gap: 5px; color: #284a40; font-size: 7px; }
+.rubricTable article > div em { padding: 2px 4px; border-radius: 5px; background: #f1dfd7; color: #975035; font-size: 4px; font-style: normal; text-transform: uppercase; }
+.rubricTable article > div i { display: block; height: 3px; margin-top: 6px; overflow: hidden; border-radius: 2px; background: #e5ece9; }
+.rubricTable article > div i b { display: block; height: 100%; background: linear-gradient(90deg, #82d1ae, #34785f); }
+.rubricTable article > p { color: #60736b; font-size: 6px; line-height: 1.45; }
+.rubricTable article > p small { display: block; margin-top: 3px; color: #2f705a; font-size: 6px; font-weight: 700; }
+.rubricTable article > span { color: #7d8d87; font-size: 7px; text-align: center; }
+.rubricTable article > b { display: grid; width: 32px; height: 32px; place-items: center; justify-self: center; border-radius: 50%; background: #e1f1e9; color: #236d52; font-size: 8px; }
+.rubricTable article > b.watch { background: #fff0d2; color: #99671d; }
+.rubricTable article > b.revise { background: #f7e1da; color: #9c4b2d; }
+.qualityRail { display: grid; gap: 10px; }
+.qualityRail .workspacePanel { padding: 16px; }
+.qualityVerdict > p, .adapterCard > p { color: #778983; font-size: 7px; line-height: 1.5; }
+.qualityVerdict .primaryButton { width: 100%; margin-top: 12px; }
+.qualityScoreRing { display: grid; width: 116px; height: 116px; margin: 15px auto; place-items: center; border-radius: 50%; background: conic-gradient(#3c9a74 var(--quality-score), #e5ece9 0); }
+.qualityScoreRing::before { content: ""; grid-area: 1 / 1; width: 91px; height: 91px; border-radius: 50%; background: white; }
+.qualityScoreRing > div { z-index: 1; grid-area: 1 / 1; text-align: center; }
+.qualityScoreRing strong { color: #1e4d3d; font: 600 34px/1 Georgia, serif; }
+.qualityScoreRing span { color: #7f9089; font-size: 7px; }
+.qualityCritics ul { list-style: none; margin: 10px 0 0; padding: 0; }
+.qualityCritics li { padding: 9px 0; border-top: 1px solid #e7edeb; }
+.qualityCritics li > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.qualityCritics li > div strong { color: #294a40; font-size: 7px; }
+.qualityCritics li > div b { color: #286e56; font: 600 14px/1 Georgia, serif; }
+.qualityCritics li > span { display: inline-block; margin-top: 4px; padding: 3px 5px; border-radius: 6px; background: #e4f1eb; color: #2f725b; font-size: 5px; font-weight: 900; }
+.qualityCritics li > p { margin-top: 5px; color: #7b8a85; font-size: 6px; line-height: 1.45; }
+.repairQueue article { padding: 9px 0; border-top: 1px solid #e7edeb; }
+.repairQueue article > header { display: flex; align-items: center; gap: 5px; }
+.repairQueue article > header span, .repairQueue article > header b, .repairQueue article > header em { padding: 3px 5px; border-radius: 6px; font-size: 5px; font-style: normal; font-weight: 900; }
+.repairQueue article > header span { background: #e6f1ec; color: #2d7059; }
+.repairQueue article > header span.exception { background: #f6e2da; color: #9b4c2e; }
+.repairQueue article > header b { background: #edf0ef; color: #63766f; }
+.repairQueue article > header em { margin-left: auto; color: #7c8d86; }
+.repairQueue article > strong { display: block; margin-top: 6px; color: #294a40; font-size: 7px; }
+.repairQueue article > p { margin-top: 3px; color: #7b8984; font-size: 6px; line-height: 1.45; }
+.adapterCard ul { margin: 10px 0 0; padding-left: 15px; color: #4e6d62; font-size: 7px; line-height: 1.7; }
+
 @media (max-width: 1160px) {
   .contentGrid { grid-template-columns: 1fr; }
   .rightRail { grid-template-columns: repeat(3, 1fr); }
@@ -660,6 +744,8 @@ nav { display: grid; gap: 5px; }
   .composerRail { grid-template-columns: repeat(2, 1fr); }
   .referenceLayout { grid-template-columns: 1fr; }
   .referenceRail { grid-template-columns: repeat(3, 1fr); }
+  .qualityLayout { grid-template-columns: 1fr; }
+  .qualityRail { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 840px) {
@@ -708,6 +794,8 @@ nav { display: grid; gap: 5px; }
   .mediaRail { grid-template-columns: 1fr; }
   .composerRail { grid-template-columns: 1fr; }
   .referenceRail { grid-template-columns: 1fr; }
+  .qualityRail { grid-template-columns: 1fr; }
+  .hardGateGrid { grid-template-columns: repeat(2, 1fr); }
   .mediaSceneBody { grid-template-columns: 1fr; }
   .audioReview { grid-template-columns: 1fr; }
 }
@@ -749,6 +837,13 @@ nav { display: grid; gap: 5px; }
   .composerMetrics, .composerTimeline { grid-template-columns: repeat(2, 1fr); }
   .referenceMetrics { grid-template-columns: repeat(2, 1fr); }
   .referenceGrid { grid-template-columns: 1fr; }
+  .qualityMetrics { grid-template-columns: repeat(2, 1fr); }
+  .adapterControl, .qualityActions { align-items: flex-start; flex-direction: column; }
+  .adapterControl select { width: 100%; max-width: none; }
+  .hardGateGrid { grid-template-columns: 1fr; }
+  .rubricHead { display: none; }
+  .rubricTable article { grid-template-columns: 1fr 42px 42px; }
+  .rubricTable article > p { grid-column: 1 / -1; grid-row: 2; }
   .gapTableHead { display: none; }
   .gapTable article { grid-template-columns: 1fr 46px 58px; }
   .gapTable article > p { grid-column: 1 / -1; grid-row: 2; }

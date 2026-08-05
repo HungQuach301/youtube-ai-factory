@@ -57,6 +57,13 @@
       "when": 1785914791833,
       "tag": "0007_early_forge",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1785916282273,
+      "tag": "0008_curved_hellfire_club",
+      "breakpoints": true
     }
   ]
 }
