@@ -1,6 +1,6 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
-import { assemblyRuns, mediaAssets, mediaAutomationSettings, narrationSegments, sceneManifest, videoProjects, workflowEvents } from "../../../../../db/schema";
+import { assemblyRuns, mediaAssets, mediaAutomationSettings, narrationSegments, optimizationArtifacts, sceneManifest, videoProjects, workflowEvents } from "../../../../../db/schema";
 
 type RuntimeD1 = { prepare(sql: string): { run(): Promise<unknown> } };
 type RuntimeBucket = {
@@ -20,6 +20,24 @@ type DiscoveryCandidate = {
   mediaType: "IMAGE" | "VIDEO" | "CATALOG"; thumbnailUrl: string | null; assetUrl: string | null;
   landingUrl: string; licenseType: string; licenseUrl: string | null; creator: string | null;
   sourceAssetId?: string; score: number;
+};
+
+type OptimizedVisualBeat = {
+  id: string; parentSection: string; time: string; startSeconds: number; endSeconds: number;
+  primaryFamily: string; secondaryFamily: string; visualIntent: string; sourceStrategy: string;
+  assetType: string; cognitiveLoad: string;
+};
+
+type PlannedAssetCandidate = {
+  id: string; sourceType: string; provider: string; locator?: string; searchQuery?: string;
+  generationPrompt?: string; rightsStatus: string; licenseBasis: string; estimatedCostUsd: number;
+  compositeScore: number;
+};
+
+type PlannedAssetEntry = {
+  beatId: string; parentSection: string; primaryFamily: string; narrativeNeed: string;
+  candidates: PlannedAssetCandidate[]; selectedCandidateId: string; selectedScore: number;
+  selectionStatus: string; verificationStatus: string; requiresHumanReview: boolean;
 };
 
 let mediaSchemaReady: Promise<void> | null = null;
@@ -140,6 +158,55 @@ async function providerHealth(provider: string) {
   } catch (error) {
     return { provider, status: "FAILED", latencyMs: Date.now() - startedAt, message: error instanceof Error ? error.message : "Provider connection test failed" };
   }
+}
+
+function parseArtifactContent(value: string) {
+  try { return JSON.parse(value) as unknown; } catch { return null; }
+}
+
+async function getOptimizedSourcePlan(projectId: string, assets: Array<typeof mediaAssets.$inferSelect>) {
+  const db = await getDb();
+  const artifacts = await db.select().from(optimizationArtifacts).where(eq(optimizationArtifacts.projectId, projectId)).orderBy(desc(optimizationArtifacts.createdAt));
+  const storyboardArtifact = artifacts.find((artifact) => artifact.stageKey === "STORYBOARD" && artifact.status === "FROZEN");
+  const assetArtifact = artifacts.find((artifact) => artifact.stageKey === "ASSET_TOURNAMENT" && artifact.status === "FROZEN");
+  if (!storyboardArtifact || !assetArtifact) return null;
+  const storyboard = parseArtifactContent(storyboardArtifact.contentJson) as null | { visualBeats?: OptimizedVisualBeat[] };
+  const tournament = parseArtifactContent(assetArtifact.contentJson) as null | { selectionMode?: string; userVerification?: { participation: string; defaultAction: string }; budgetPolicy?: { assetBudgetCapUsd: number; estimatedSelectedCostUsd: number; maximumSingleAssetUsd: number }; entries?: PlannedAssetEntry[] };
+  const beats = Array.isArray(storyboard?.visualBeats) ? storyboard.visualBeats : [];
+  const entries = Array.isArray(tournament?.entries) ? tournament.entries : [];
+  if (!beats.length || !entries.length) return null;
+  const entryMap = new Map(entries.map((entry) => [entry.beatId, entry]));
+  const planBeats = beats.map((beat) => {
+    const entry = entryMap.get(beat.id);
+    const selected = entry?.candidates.find((candidate) => candidate.id === entry.selectedCandidateId) || null;
+    const assetKey = `${projectId}-${beat.id}`;
+    const materialized = assets.find((asset) => asset.sceneId === assetKey && asset.status === "APPROVED" && asset.rightsStatus === "VERIFIED" && Boolean(asset.storageKey || asset.sourceUrl)) || null;
+    return {
+      ...beat,
+      assetKey,
+      selectedPlan: selected ? { ...selected, selectedScore: entry?.selectedScore || selected.compositeScore, verificationStatus: entry?.verificationStatus || "PLANNED" } : null,
+      materializedAsset: materialized ? { id: materialized.id, name: materialized.name, mimeType: materialized.mimeType, sourceType: materialized.sourceType, rightsStatus: materialized.rightsStatus, url: materialized.storageKey ? `/api/projects/${projectId}/media?asset=${encodeURIComponent(materialized.id)}` : materialized.sourceUrl } : null,
+      materializationStatus: materialized ? "MATERIALIZED" : "PLANNED",
+      requiresHumanReview: entry?.requiresHumanReview || false,
+    };
+  });
+  const materialized = planBeats.filter((beat) => beat.materializationStatus === "MATERIALIZED").length;
+  return {
+    version: Math.max(storyboardArtifact.version, assetArtifact.version),
+    status: materialized === planBeats.length ? "READY_FOR_MASTER_BINDING" : "MATERIALIZATION_REQUIRED",
+    selectionMode: tournament?.selectionMode || "AUTONOMOUS",
+    userVerification: tournament?.userVerification || { participation: "OPTIONAL", defaultAction: "SKIP_AND_AUTO_VERIFY" },
+    budgetPolicy: tournament?.budgetPolicy || null,
+    summary: {
+      visualBeats: planBeats.length,
+      families: new Set(planBeats.map((beat) => beat.primaryFamily)).size,
+      plannedSelections: planBeats.filter((beat) => beat.selectedPlan).length,
+      materialized,
+      rightsReady: materialized,
+      exceptions: planBeats.filter((beat) => beat.requiresHumanReview || !beat.selectedPlan).length,
+    },
+    beats: planBeats,
+  };
 }
 
 async function discoverAssets(projectId: string, sceneId: string) {
@@ -354,6 +421,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       if (!runs[0]) return Response.json({ error: "Build an assembly plan first" }, { status: 404 });
       return new Response(runs[0].manifestJson, { headers: { "content-type": "application/json", "content-disposition": `attachment; filename="${id}-assembly-v${runs[0].version}.json"` } });
     }
+    const optimizedSourcePlan = await getOptimizedSourcePlan(id, assets);
     const approved = assets.filter((asset) => asset.status === "APPROVED");
     const verified = assets.filter((asset) => asset.rightsStatus === "VERIFIED");
     const coveredScenes = scenes.filter((scene) => approved.some((asset) => asset.sceneId === scene.id && asset.rightsStatus === "VERIFIED")).length;
@@ -366,7 +434,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       { id: "shutterstock", name: "Shutterstock", category: "PAID", status: env.SHUTTERSTOCK_CONSUMER_KEY && env.SHUTTERSTOCK_CONSUMER_SECRET ? "CONNECTED" : "KEY_REQUIRED", capability: "Paid image and footage search; previews remain unlicensed until purchase evidence is attached.", nextAction: env.SHUTTERSTOCK_CONSUMER_KEY && env.SHUTTERSTOCK_CONSUMER_SECRET ? "Search ready · license handoff retained" : "Add consumer key + secret", requiredKeys: ["SHUTTERSTOCK_CONSUMER_KEY", "SHUTTERSTOCK_CONSUMER_SECRET"], securityModel: "Protected server secrets · purchase proof required" },
       { id: "google_drive", name: "Google Drive", category: "OWNED", status: env.GOOGLE_DRIVE_CLIENT_ID ? "OAUTH_SETUP" : "CONFIG_REQUIRED", capability: "Import selected personal files through Picker without exposing the whole Drive.", nextAction: env.GOOGLE_DRIVE_CLIENT_ID ? "Complete OAuth callback and Picker" : "Add Drive OAuth client ID", requiredKeys: ["GOOGLE_DRIVE_CLIENT_ID"], securityModel: "OAuth + Picker · file-scoped access only" },
     ];
-    return Response.json({ scenes, assets, runs, sourceConnectors, automation: settingsRows[0] || { verificationMode: "AUTOPILOT", minimumConfidence: 85, autoBuildAssembly: true }, gates: { voice: segments.length > 0 && segments.every((segment) => segment.status === "APPROVED" && segment.audioKey), assetCoverage: scenes.length ? Math.round(coveredScenes / scenes.length * 100) : 0, rightsCoverage: assets.length ? Math.round(verified.length / assets.length * 100) : 0, assemblyReady: scenes.length > 0 && coveredScenes === scenes.length } });
+    return Response.json({ scenes, assets, runs, sourceConnectors, optimizedSourcePlan, automation: settingsRows[0] || { verificationMode: "AUTOPILOT", minimumConfidence: 85, autoBuildAssembly: true }, gates: { voice: segments.length > 0 && segments.every((segment) => segment.status === "APPROVED" && segment.audioKey), assetCoverage: scenes.length ? Math.round(coveredScenes / scenes.length * 100) : 0, rightsCoverage: assets.length ? Math.round(verified.length / assets.length * 100) : 0, assemblyReady: scenes.length > 0 && coveredScenes === scenes.length } });
   } catch (error) {
     console.error("Media workspace GET failed", error);
     return Response.json({ error: "Media workspace could not be loaded" }, { status: 500 });

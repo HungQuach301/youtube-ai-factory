@@ -424,6 +424,49 @@ nav { display: grid; gap: 5px; }
 .sourceConnectorCard > small { display: block; margin-top: 7px; color: #2f7259; font-size: 6px; font-weight: 850; }
 .assetSourceHub > footer { display: flex; gap: 7px; padding: 10px 13px; border-top: 1px solid #dce8e3; color: #63776f; background: rgba(255,255,255,.7); font-size: 7px; line-height: 1.45; }
 .assetSourceHub > footer strong { color: #245f4b; white-space: nowrap; }
+.masterSourcePlan { margin: 14px 0; overflow: hidden; border: 1px solid #9bc9b5; border-radius: 14px; background: #fbfdfc; box-shadow: 0 8px 24px rgba(18,56,46,.06); }
+.masterSourcePlan > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 18px; color: white; background: #10382e; }
+.masterSourcePlan > header span, .masterSourcePlan > header strong, .masterSourcePlan > header em, .masterSourcePlan > header b { display: block; }
+.masterSourcePlan > header span { color: #86d4b2; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+.masterSourcePlan > header strong { margin-top: 6px; font: 24px/1 Georgia, serif; }
+.masterSourcePlan > header p { max-width: 620px; margin: 7px 0 0; color: #c5ded4; font-size: 8px; line-height: 1.5; }
+.masterSourcePlan > header > div:last-child { display: grid; justify-items: end; gap: 6px; }
+.masterSourcePlan > header em { padding: 4px 7px; border: 1px solid #4d806f; border-radius: 999px; color: #86d4b2; font-size: 7px; font-style: normal; font-weight: 900; }
+.masterSourcePlan > header b { color: #f1c57d; font-size: 7px; letter-spacing: .06em; }
+.masterSourceMetrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; background: #dfe9e5; }
+.masterSourceMetrics article { padding: 13px; background: #f8fbf9; }
+.masterSourceMetrics small, .masterSourceMetrics strong { display: block; }
+.masterSourceMetrics small { color: #647a71; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.masterSourceMetrics strong { margin-top: 6px; color: #174c3d; font: 22px/1 Georgia, serif; }
+.masterSourceMetrics strong b { color: #7d8e87; font: 8px/1 var(--font-body), sans-serif; }
+.sourcePlanPolicy { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid #e2ebe7; border-bottom: 1px solid #e2ebe7; }
+.sourcePlanPolicy > div { padding: 12px 15px; border-right: 1px solid #e2ebe7; }
+.sourcePlanPolicy > div:last-child { border-right: 0; }
+.sourcePlanPolicy span, .sourcePlanPolicy strong { display: block; }
+.sourcePlanPolicy span { color: #6f827a; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.sourcePlanPolicy strong { margin-top: 5px; color: #245f4b; font-size: 9px; }
+.sourcePlanPolicy p { margin: 4px 0 0; color: #7c8984; font-size: 7px; line-height: 1.4; }
+.masterBeatManifest > article { display: grid; grid-template-columns: 80px minmax(0, 1.4fr) minmax(155px, .8fr) 92px; gap: 12px; align-items: center; padding: 11px 15px; border-top: 1px solid #e5ede9; }
+.masterBeatManifest > article:first-child { border-top: 0; }
+.masterBeatManifest > article.materialized { box-shadow: inset 3px 0 #47a078; }
+.masterBeatClock, .masterBeatIntent, .masterBeatSelection, .masterBeatState { display: grid; gap: 4px; min-width: 0; }
+.masterBeatClock b { color: #276b54; font-size: 10px; }
+.masterBeatClock span, .masterBeatClock em { color: #788780; font-size: 7px; font-style: normal; }
+.masterBeatIntent small, .masterBeatSelection small { color: #71837b; font-size: 7px; }
+.masterBeatIntent strong, .masterBeatSelection strong { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.masterBeatIntent p, .masterBeatSelection p { margin: 0; color: #557168; font-size: 7px; }
+.masterBeatState { justify-items: end; }
+.masterBeatState > span { padding: 4px 6px; border-radius: 999px; color: #916425; background: #faead2; font-size: 6px; font-weight: 900; }
+.materialized .masterBeatState > span { color: #246d51; background: #dff1e8; }
+.masterBeatState small { color: #8a9691; font-size: 6px; }
+.masterBeatState button, .masterSourcePlan > footer button, .legacyMediaToggle button { border: 1px solid #7db49d; border-radius: 7px; padding: 6px 9px; background: white; color: #276b54; font-size: 7px; font-weight: 850; cursor: pointer; }
+.masterSourcePlan > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 15px; border-top: 1px solid #dfe9e5; background: #f0f6f3; }
+.masterSourcePlan > footer p { margin: 0; color: #62766e; font-size: 7px; }
+.legacyMediaToggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 14px 0; padding: 13px 15px; border: 1px dashed #bdcbc5; border-radius: 11px; background: #f7f9f8; }
+.legacyMediaToggle span, .legacyMediaToggle strong { display: block; }
+.legacyMediaToggle span { color: #8a7160; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.legacyMediaToggle strong { margin-top: 4px; font-size: 10px; }
+.legacyMediaToggle p { margin: 3px 0 0; color: #7c8883; font-size: 7px; }
 .sourceHubActions { display: grid; justify-items: end; gap: 7px; }
 .sourceHubActions > button, .sourceHubActions > a { padding: 7px 10px; border: 1px solid #8bbda8; border-radius: 8px; background: white; color: #27674f; font-size: 7px; font-weight: 850; cursor: pointer; text-decoration: none; }
 .providerSettingsPanel { margin: 12px 0 0; overflow: hidden; border: 1px solid #a9cfc0; border-radius: 12px; background: #f9fcfa; box-shadow: 0 12px 30px rgba(20,61,51,.08); }
@@ -1373,6 +1416,10 @@ nav { display: grid; gap: 5px; }
   .metricGrid { grid-template-columns: repeat(2, 1fr); }
   .automationControl { grid-template-columns: 1fr; }
   .sourceConnectorGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .masterSourceMetrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .masterBeatManifest > article { grid-template-columns: 70px minmax(0, 1fr) 82px; }
+  .masterBeatSelection { grid-column: 2; }
+  .masterBeatState { grid-column: 3; grid-row: 1 / span 2; }
   .providerSettingsPanel article { grid-template-columns: 1fr 1fr; }
   .providerSettingsPanel article > button { width: 100%; }
   .modeSelector, .autopilotRun { width: 100%; }
@@ -1460,6 +1507,13 @@ nav { display: grid; gap: 5px; }
   .mediaMetrics { grid-template-columns: repeat(2, 1fr); }
   .assetSourceHub > header, .assetSourceHub > footer { align-items: flex-start; flex-direction: column; }
   .sourceConnectorGrid { grid-template-columns: 1fr; }
+  .masterSourcePlan > header, .masterSourcePlan > footer, .legacyMediaToggle { align-items: flex-start; flex-direction: column; }
+  .masterSourcePlan > header > div:last-child { justify-items: start; }
+  .masterSourceMetrics { grid-template-columns: 1fr 1fr; }
+  .sourcePlanPolicy { grid-template-columns: 1fr; }
+  .sourcePlanPolicy > div { border-right: 0; border-bottom: 1px solid #e2ebe7; }
+  .masterBeatManifest > article { grid-template-columns: 62px 1fr; }
+  .masterBeatSelection, .masterBeatState { grid-column: 2; grid-row: auto; justify-items: start; }
   .sourceHubActions { justify-items: stretch; }
   .sourceHubActions > button { width: 100%; }
   .sourceHubActions > a { width: 100%; text-align: center; }
