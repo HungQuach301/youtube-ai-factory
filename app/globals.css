@@ -535,6 +535,9 @@ nav { display: grid; gap: 5px; }
 .composerLayout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
 .composerMain { padding: 20px; min-width: 0; }
 .composerMetrics { display: grid; grid-template-columns: repeat(4, 1fr); margin: 17px 0; border: 1px solid #e4eae7; border-radius: 10px; overflow: hidden; }
+.renderTruthBanner { display: grid; gap: 5px; margin: 0 0 16px; padding: 13px 15px; border: 1px solid #d9c391; border-radius: 12px; background: #fff8e8; }
+.renderTruthBanner strong { color: #8c5b18; font-size: 9px; letter-spacing: .1em; }
+.renderTruthBanner p { margin: 0; color: #695f50; font-size: 10px; line-height: 1.5; }
 .composerMetrics > div { padding: 12px; border-right: 1px solid #e4eae7; background: #fbfcfb; }
 .composerMetrics > div:last-child { border-right: 0; }
 .composerMetrics small, .composerMetrics strong { display: block; }
