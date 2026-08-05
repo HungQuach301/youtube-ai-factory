@@ -34,7 +34,7 @@ const adapters: Array<{ key: AdapterKey; label: string; focus: string; criteria:
   { key: "STORY_ENTERTAINMENT", label: "Story / entertainment", focus: "Character, stakes, escalation and emotional payoff", criteria: ["Desire is visible", "Stakes escalate", "Scenes turn", "Ending resolves emotion"] },
 ];
 
-const weights = [8, 8, 10, 10, 12, 12, 10, 8, 5, 6, 6, 5];
+const weights = [6, 8, 12, 8, 12, 10, 10, 10, 10, 5, 5, 4];
 let schemaReady: Promise<void> | null = null;
 
 async function runtimeEnv() { const { env } = await import("cloudflare:workers"); return env as unknown as RuntimeEnv; }
@@ -63,6 +63,12 @@ async function ensureSchema() {
 
 function clamp(value: number, minimum = 0, maximum = 100) { return Math.max(minimum, Math.min(maximum, Math.round(value))); }
 function average(values: number[], fallback = 0) { return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : fallback; }
+function ratioScore(actual: number, target: number, floor = 15) { return clamp(floor + Math.min(1, actual / Math.max(1, target)) * (100 - floor)); }
+function scriptWordCount(content?: string) {
+  if (!content) return 0;
+  try { const parsed = JSON.parse(content) as Array<{ text?: string }>; return parsed.flatMap((section) => (section.text || "").trim().split(/\s+/).filter(Boolean)).length; }
+  catch { return content.trim().split(/\s+/).filter(Boolean).length; }
+}
 function dimension(name: string, weight: number, score: number, evidence: string, action: string, critical = false) {
   return { name, weight, score: clamp(score), critical, status: score >= 85 ? "PASS" : score >= 70 ? "WATCH" : "REVISE", evidence, action };
 }
@@ -95,65 +101,90 @@ async function buildAssessment(projectId: string) {
   const rightsVerified = selectedAssets.filter((asset) => asset.rightsStatus === "VERIFIED");
   const rightsCoverage = selectedAssets.length ? rightsVerified.length / selectedAssets.length : 0;
   const motionScenes = new Set(assets.filter((asset) => asset.sourceType === "MOTION_RENDER_WEBM" && asset.status === "APPROVED").map((asset) => asset.sceneId)).size;
+  const uniqueAssets = new Set(selectedAssets.map((asset) => asset.storageKey || asset.sourceUrl || asset.id)).size;
+  const visualFamilies = new Set(selectedAssets.map((asset) => asset.sourceType)).size;
+  const backgroundAudio = assets.filter((asset) => asset.mimeType.startsWith("audio/") && !asset.sourceType.includes("VOICE"));
+  const soundEffects = backgroundAudio.filter((asset) => /sfx|effect|transition|sting/i.test(`${asset.name} ${asset.sourceType}`));
   const audioCoverage = segments.length ? segments.filter((segment) => Boolean(segment.audioKey)).length / segments.length : 0;
   const voiceScore = average(voiceChecks.map((check) => average([check.pronunciationScore, check.paceScore, check.consistencyScore])), audioCoverage ? 84 : 0);
   const scriptScore = latestScript?.criticScore || average(scriptCritics.filter((critic) => critic.scriptVersionId === latestScript?.id).map((critic) => critic.score), 82);
+  const wordCount = scriptWordCount(latestScript?.content);
+  const durationSeconds = latestRender?.durationSeconds || latestAssembly?.totalDuration || Math.max(0, ...scenes.map((scene) => scene.endSeconds || 0));
+  const targetDuration = adapter.key === "SHORTS" ? 45 : adapter.key === "INTERVIEW_PODCAST" ? 1200 : 420;
+  const minimumDuration = adapter.key === "SHORTS" ? 20 : adapter.key === "INTERVIEW_PODCAST" ? 600 : 300;
+  const targetWords = adapter.key === "SHORTS" ? 110 : adapter.key === "INTERVIEW_PODCAST" ? 2200 : 950;
+  const targetVisualUnits = adapter.key === "SHORTS" ? 12 : adapter.key === "INTERVIEW_PODCAST" ? 18 : 32;
   const averageSceneLength = scenes.length ? average(scenes.map((scene) => Math.max(0, (scene.endSeconds || 0) - (scene.startSeconds || 0)))) : 20;
   const referencePassed = latestReference?.status === "PASSED";
   const packageNeedsWork = latestReference?.decision === "PACKAGE_ONLY";
 
+  const durationScore = ratioScore(durationSeconds, targetDuration, 10);
+  const depthScore = clamp(ratioScore(wordCount, targetWords, 10) * .7 + ratioScore(claims.length, 10, 20) * .3);
+  const visualFidelityScore = latestRender ? (latestRender.width >= 1920 && latestRender.height >= 1080 ? 88 : latestRender.width >= 1280 && latestRender.height >= 720 ? 55 : 35) : 20;
+  const visualRichnessScore = clamp(ratioScore(uniqueAssets, targetVisualUnits, 15) * .45 + ratioScore(visualFamilies, 5, 15) * .2 + ratioScore(motionScenes, 10, 15) * .25 + ratioScore(scenes.length, targetVisualUnits, 15) * .1);
+  const soundscapeScore = clamp((audioCoverage * 35) + (voiceScore * .25) + Math.min(22, backgroundAudio.length * 11) + Math.min(18, soundEffects.length * 6));
+  const perceivedProductionScore = Math.round(average([durationScore, depthScore, visualFidelityScore, visualRichnessScore, soundscapeScore]));
+  const competitiveParityScore = latestReference ? clamp(perceivedProductionScore * .8 + 12) : clamp(perceivedProductionScore * .75);
+
   const rubric = [
-    dimension("Audience & intent fit", weights[0], briefRows[0]?.status === "APPROVED" ? 90 : 76, briefRows[0] ? "Approved English-US audience contract is available." : "Audience contract is incomplete.", "Clarify the viewer, problem and post-view value."),
-    dimension("Demand & positioning", weights[1], latestReference ? 86 : 72, latestReference ? "Reference set validates an established payment-systems audience and differentiated approval paradox." : "No competitive benchmark has been completed.", "Complete reference discovery and preserve the hidden-system angle."),
-    dimension("Promise & packaging", weights[2], packageNeedsWork ? 70 : latestReference ? 88 : 74, packageNeedsWork ? "Reference benchmark found a clear video with category-generic packaging." : "The viewer promise aligns with the current title direction.", "Generate and test three differentiated title-thumbnail pairs."),
-    dimension("Research & accuracy", weights[3], 64 + claimCoverage * 24, `${supportedClaims}/${claims.length} claims are supported; ${highRiskUnsupported.length} unsupported high-risk claims.`, "Resolve every high-risk claim and retain qualifiers for uncertain figures.", true),
-    dimension("Value & story structure", weights[4], Math.min(94, scriptScore + (scenes.length >= 8 ? 2 : -8)), `${scenes.length} scenes and the $100 transaction through-line create a complete explanatory payoff.`, "Preserve the approval-to-settlement narrative spine."),
-    dimension("Retention engineering", weights[5], 76 + (averageSceneLength <= 8 ? 8 : 0) + (motionScenes >= 3 ? 4 : 0), `Average scene length is ${averageSceneLength.toFixed(1)}s with ${motionScenes} approved motion scenes.`, "Keep visual changes inside the 4–7 second rhythm and sharpen the first 30 seconds."),
-    dimension("Visual communication", weights[6], 68 + Math.min(18, rightsCoverage * 14) + (motionScenes >= 3 ? 6 : 0), `${rightsVerified.length}/${selectedAssets.length} selected assets have verified rights; ${motionScenes} scenes use owned motion diagrams.`, "Remove visual repetition and verify mobile readability of every label."),
-    dimension("Voice, music & sound", weights[7], 60 + audioCoverage * 18 + Math.min(14, voiceScore * .14), `${segments.filter((segment) => Boolean(segment.audioKey)).length}/${segments.length} narration segments have audio; voice QA averages ${Math.round(voiceScore)}.`, "Run final pronunciation, pacing, clipping and loudness checks."),
-    dimension("Technical & accessibility", weights[8], latestRender ? (latestRender.width >= 1280 && latestRender.height >= 720 ? 82 : 72) : 55, latestRender ? `${latestRender.width}×${latestRender.height}, ${latestRender.fps}fps master is playback-ready; captions remain a publishing action.` : "No final playback-ready master is stored.", "Add captions, mobile legibility and full-file playback checks."),
-    dimension("Originality & brand", weights[9], motionScenes >= 3 ? 94 : 84, "Original narration, owned diagrams and a distinct approval-is-not-payment thesis are present.", "Retain the channel-owned visual language and pattern-learning firewall.", true),
-    dimension("Legal, policy & monetization", weights[10], selectedAssets.length ? 68 + rightsCoverage * 24 : 58, `${rightsVerified.length}/${selectedAssets.length} selected assets have verified commercial rights.`, "Complete the asset ledger and carry synthetic-content disclosure into publishing.", true),
-    dimension("Channel & session value", weights[11], 72, "The video resolves its topic, but the next-video path and end-screen destination are not yet defined.", "Create one sequel bridge, end screen and playlist destination."),
+    dimension("Audience, demand & promise", weights[0], briefRows[0]?.status === "APPROVED" && latestReference ? 86 : 72, latestReference ? "The topic and approval paradox fit a broad English-US audience." : "Audience demand has not been benchmarked fully.", "Keep the topic, but do not confuse a good premise with a good finished video."),
+    dimension("Competitive parity", weights[1], competitiveParityScore, `Viewer-perceived production score is ${perceivedProductionScore}/100; metadata benchmarking alone cannot prove parity with leading videos.`, "Benchmark runtime, narrative depth, shot variety, motion density and sound design against at least five references."),
+    dimension("Runtime & content depth", weights[2], Math.round(average([durationScore, depthScore])), `${Math.round(durationSeconds)}s runtime and approximately ${wordCount} script words versus a ${Math.round(targetDuration / 60)}–${Math.round((targetDuration + 180) / 60)} minute / ${targetWords}+ word target.`, "Expand to a properly developed mini-documentary with mechanisms, incentives, failure cases and a stronger payoff."),
+    dimension("Research & accuracy", weights[3], 58 + claimCoverage * 28, `${supportedClaims}/${claims.length} claims are supported; only ${claims.length} explicit claims currently support the narrative.`, "Add primary-source evidence for fees, timing, participant incentives and settlement risk.", true),
+    dimension("Script, value & story", weights[4], Math.round(scriptScore * .45 + depthScore * .4 + durationScore * .15), `Structural critic score is ${Math.round(scriptScore)}, but the script is too short to develop a competitive explanatory arc.`, "Rewrite as a 3-act script: approval paradox, hidden network and where the $100 finally goes."),
+    dimension("Retention & pacing", weights[5], Math.round(averageSceneLength <= 8 ? 62 + Math.min(12, motionScenes * 2) : 48), `The ${averageSceneLength.toFixed(1)}s average scene length is acceptable, but brevity substitutes for escalation and pattern development.`, "Design retention beats across a full runtime, not only frequent cuts inside a short video."),
+    dimension("Visual fidelity", weights[6], visualFidelityScore, latestRender ? `${latestRender.width}×${latestRender.height} master; competitive long-form delivery requires 1080p and source-resolution verification.` : "No master is available for fidelity review.", "Re-render at 1920×1080 and reject soft, artifacted or low-resolution source assets."),
+    dimension("Visual richness & motion", weights[7], visualRichnessScore, `${uniqueAssets} unique approved assets, ${visualFamilies} visual families, ${motionScenes} motion scenes and ${scenes.length} total scenes versus ${targetVisualUnits}+ planned visual units.`, "Build 30–45 distinct visual beats across stock, macro b-roll, UI, diagrams, maps, charts and transitions."),
+    dimension("Voice, music & soundscape", weights[8], soundscapeScore, `Narration coverage ${Math.round(audioCoverage * 100)}%, voice QA ${Math.round(voiceScore)}, ${backgroundAudio.length} background audio assets and ${soundEffects.length} detected sound effects.`, "Add a licensed music bed, ambience, transition SFX, emphasis hits and a measured final mix."),
+    dimension("Originality & channel language", weights[9], motionScenes >= 3 ? 88 : 78, "The approval-is-not-payment thesis and owned diagrams are distinctive, but the audiovisual language is not yet rich enough to become a channel signature.", "Create a repeatable visual and sonic system for Hidden Systems Behind Money.", true),
+    dimension("Legal, policy & monetization", weights[10], selectedAssets.length ? 68 + rightsCoverage * 24 : 45, `${rightsVerified.length}/${selectedAssets.length} selected assets have verified commercial rights.`, "Retain the asset ledger, music license and synthetic-content disclosure.", true),
+    dimension("Packaging & session value", weights[11], packageNeedsWork ? 64 : 72, "Packaging is generic and the sequel bridge, playlist destination and end screen are not yet defined.", "Resolve title, thumbnail and next-view path only after recomposition."),
   ];
 
   const hardGates = [
-    { name: "Critical factual claims", status: highRiskUnsupported.length ? "FAIL" : "PASS", evidence: highRiskUnsupported.length ? `${highRiskUnsupported.length} high-risk claims are unsupported.` : "No unsupported high-risk claim detected.", action: "Block publication until every high-risk claim is sourced or removed." },
-    { name: "Commercial asset rights", status: selectedAssets.length && rightsCoverage === 1 ? "PASS" : "FAIL", evidence: `${rightsVerified.length}/${selectedAssets.length} selected assets have verified commercial rights.`, action: "Replace or license every unverified production asset." },
-    { name: "Playback-ready master", status: latestRender?.status === "READY" ? "PASS" : "FAIL", evidence: latestRender ? `Final master v${latestRender.version} is ${latestRender.status}.` : "Final master is missing.", action: "Compose and inspect the complete audiovisual master." },
-    { name: "Reference originality firewall", status: referencePassed ? "PASS" : "ACTION", evidence: referencePassed ? "Reference benchmark passed with pattern-learning-only controls." : "Reference gate has not been passed yet.", action: "Run and pass Reference Intelligence before final approval." },
-    { name: "Promise–delivery alignment", status: packageNeedsWork ? "ACTION" : "PASS", evidence: packageNeedsWork ? "Video delivery is strong; current package is too generic." : "No material promise mismatch detected.", action: "Resolve packaging without changing the verified video promise." },
-    { name: "Synthetic-content disclosure", status: assets.some((asset) => asset.sourceType.includes("GENERAT") || asset.sourceType.includes("MOTION")) ? "ACTION" : "PASS", evidence: "Generated or animated visuals are retained in the production manifest.", action: "Set the appropriate altered/synthetic-content disclosure during upload." },
+    { name: "Critical factual claims", category: "COMPLIANCE", status: highRiskUnsupported.length ? "FAIL" : "PASS", evidence: highRiskUnsupported.length ? `${highRiskUnsupported.length} high-risk claims are unsupported.` : "No unsupported high-risk claim detected.", action: "Block publication until every high-risk claim is sourced or removed." },
+    { name: "Commercial asset rights", category: "COMPLIANCE", status: selectedAssets.length && rightsCoverage === 1 ? "PASS" : "FAIL", evidence: `${rightsVerified.length}/${selectedAssets.length} selected assets have verified commercial rights.`, action: "Replace or license every unverified production asset." },
+    { name: "Runtime and script depth", category: "PRODUCTION", status: durationSeconds >= minimumDuration && wordCount >= targetWords * .75 ? "PASS" : "FAIL", evidence: `${Math.round(durationSeconds)}s and ${wordCount} words do not meet the ${minimumDuration}s / ${Math.round(targetWords * .75)} word minimum.`, action: "Expand and rewrite before recomposition." },
+    { name: "Competitive visual fidelity", category: "PRODUCTION", status: latestRender && latestRender.width >= 1920 && latestRender.height >= 1080 ? "PASS" : "FAIL", evidence: latestRender ? `Current master is ${latestRender.width}×${latestRender.height}; 1920×1080 is required.` : "No master is available.", action: "Use verified high-resolution sources and render a 1080p master." },
+    { name: "Visual diversity", category: "PRODUCTION", status: uniqueAssets >= targetVisualUnits * .7 && visualFamilies >= 4 ? "PASS" : "FAIL", evidence: `${uniqueAssets} unique visuals across ${visualFamilies} families; target is at least ${Math.ceil(targetVisualUnits * .7)} across 4 families.`, action: "Create a substantially richer visual plan before rendering." },
+    { name: "Designed soundscape", category: "PRODUCTION", status: backgroundAudio.length >= 1 && soundEffects.length >= 2 ? "PASS" : "FAIL", evidence: `${backgroundAudio.length} background audio assets and ${soundEffects.length} SFX are detected.`, action: "Add music, ambience, SFX and a measured final mix." },
+    { name: "Playback-ready master", category: "TECHNICAL", status: latestRender?.status === "READY" ? "PASS" : "FAIL", evidence: latestRender ? `Final master v${latestRender.version} is ${latestRender.status}.` : "Final master is missing.", action: "Compose and inspect the complete audiovisual master." },
+    { name: "Reference originality firewall", category: "ORIGINALITY", status: referencePassed ? "PASS" : "ACTION", evidence: referencePassed ? "Reference benchmark passed with pattern-learning-only controls." : "Reference gate has not been passed yet.", action: "Run and pass Reference Intelligence before final approval." },
   ];
 
   const coreScore = Math.round(rubric.reduce((sum, item) => sum + item.score * item.weight, 0) / 100);
-  const adapterDimensions = adapter.key === "EXPLAINER_DOCUMENTARY" ? [rubric[3].score, rubric[4].score, rubric[6].score, rubric[9].score] : adapter.key === "SHORTS" ? [rubric[2].score, rubric[5].score, rubric[6].score, rubric[11].score] : adapter.key === "TUTORIAL" ? [rubric[0].score, rubric[3].score, rubric[4].score, rubric[8].score] : adapter.key === "NEWS_CURRENT" ? [rubric[1].score, rubric[3].score, rubric[10].score, rubric[8].score] : [rubric[0].score, rubric[4].score, rubric[5].score, rubric[9].score];
+  const adapterDimensions = adapter.key === "EXPLAINER_DOCUMENTARY" ? [rubric[2].score, rubric[3].score, rubric[4].score, rubric[6].score, rubric[7].score, rubric[8].score] : adapter.key === "SHORTS" ? [rubric[2].score, rubric[5].score, rubric[7].score, rubric[8].score] : adapter.key === "TUTORIAL" ? [rubric[2].score, rubric[3].score, rubric[4].score, rubric[6].score] : adapter.key === "NEWS_CURRENT" ? [rubric[1].score, rubric[3].score, rubric[6].score, rubric[10].score] : [rubric[1].score, rubric[4].score, rubric[5].score, rubric[7].score, rubric[8].score];
   const adapterScore = Math.round(average(adapterDimensions));
   const composite = Math.round(coreScore * .8 + adapterScore * .2);
-  const hasFailure = hardGates.some((gate) => gate.status === "FAIL");
-  const productionWeak = rubric.slice(4, 9).some((item) => item.score < settings.dimensionFloor);
+  const complianceFailure = hardGates.some((gate) => gate.category === "COMPLIANCE" && gate.status === "FAIL");
+  const productionFailure = hardGates.some((gate) => gate.category === "PRODUCTION" && gate.status === "FAIL");
+  const productionWeak = [rubric[2], rubric[4], rubric[5], rubric[6], rubric[7], rubric[8]].some((item) => item.score < settings.dimensionFloor);
   const criticalWeak = rubric.filter((item) => item.critical).some((item) => item.score < settings.criticalFloor);
-  const packageRepair = [rubric[2], rubric[8], rubric[11]].some((item) => item.score < 85) || hardGates.some((gate) => gate.status === "ACTION");
-  const decision = hasFailure || criticalWeak ? "BLOCKED_CRITICAL" : productionWeak ? "RECOMPOSE" : packageRepair ? "PACKAGE_REPAIR" : composite >= settings.minimumScore ? "PASS" : "REPAIR_REQUIRED";
+  const packageRepair = rubric[11].score < 85 || hardGates.some((gate) => gate.status === "ACTION");
+  const decision = complianceFailure || criticalWeak ? "BLOCKED_CRITICAL" : productionFailure || productionWeak || competitiveParityScore < 75 ? "RECOMPOSE" : packageRepair ? "PACKAGE_REPAIR" : composite >= settings.minimumScore ? "PASS" : "REPAIR_REQUIRED";
   const mode = settings.verificationMode as VerificationMode;
   const status = mode === "MANUAL" ? "AWAITING_REVIEW" : mode === "EXCEPTIONS" && decision !== "PASS" ? "AWAITING_EXCEPTION_REVIEW" : decision === "PASS" ? "PASSED" : decision === "PACKAGE_REPAIR" && mode === "AUTOPILOT" ? "AUTO_ROUTED" : "BLOCKED";
   const repairPlan = [
-    { owner: "Packaging agent", type: "PACKAGE", priority: "P0", status: rubric[2].score >= 85 ? "DONE" : "OPEN", action: "Generate three differentiated title-thumbnail pairs around approval ≠ payment, six companies and the $100 split." },
-    { owner: "Publishing agent", type: "AUTO", priority: "P0", status: latestRender ? "OPEN" : "BLOCKED", action: "Create captions, full-playback checklist and synthetic-content disclosure instruction." },
-    { owner: "Channel strategist", type: "PACKAGE", priority: "P1", status: "OPEN", action: "Define the sequel bridge, end screen and Hidden Systems Behind Money playlist destination." },
+    { owner: "Content architect", type: "AUTO", priority: "P0", status: wordCount >= targetWords * .75 ? "DONE" : "BLOCKED", action: `Rewrite to ${targetWords}–${targetWords + 350} words and ${Math.round(targetDuration / 60)}–${Math.round((targetDuration + 180) / 60)} minutes with a 3-act explanatory arc.` },
+    { owner: "Visual director", type: "AUTO", priority: "P0", status: uniqueAssets >= targetVisualUnits * .7 && visualFamilies >= 4 ? "DONE" : "BLOCKED", action: `Plan ${targetVisualUnits}–${targetVisualUnits + 12} visual beats across at least five visual families, then render at 1080p.` },
+    { owner: "Sound designer", type: "AUTO", priority: "P0", status: backgroundAudio.length >= 1 && soundEffects.length >= 2 ? "DONE" : "BLOCKED", action: "Design narration, licensed music bed, ambience, transition SFX, emphasis hits and loudness targets before recomposition." },
+    { owner: "Competitive analyst", type: "EXCEPTION", priority: "P0", status: competitiveParityScore >= 75 ? "DONE" : "BLOCKED", action: "Create a scene-level parity matrix for duration, content depth, visual density, fidelity and sound design without importing competitor media." },
+    { owner: "Production orchestrator", type: "AUTO", priority: "P0", status: decision === "RECOMPOSE" ? "BLOCKED" : "OPEN", action: "Recompose only after content, visual and sound plans meet their minimum gates." },
+    { owner: "Packaging agent", type: "PACKAGE", priority: "P1", status: "OPEN", action: "Defer title and thumbnail optimization until the stronger master is complete." },
     { owner: "Evidence auditor", type: "EXCEPTION", priority: "P0", status: highRiskUnsupported.length ? "BLOCKED" : "DONE", action: "Resolve unsupported high-risk claims before publication." },
     { owner: "Rights guard", type: "EXCEPTION", priority: "P0", status: rightsCoverage === 1 ? "DONE" : "BLOCKED", action: "Verify commercial rights for every selected visual and audio asset." },
   ];
   const critics = [
-    { critic: "Audience advocate", score: rubric[0].score, decision: rubric[0].status, finding: "The everyday card-tap entry point fits a broad English-US audience and delivers a concrete hidden-system payoff." },
+    { critic: "Audience advocate", score: rubric[0].score, decision: rubric[0].status, finding: "The premise is strong, but premise quality must not inflate finished-video quality." },
     { critic: "Evidence auditor", score: rubric[3].score, decision: hardGates[0].status, finding: `${supportedClaims}/${claims.length} claims are supported; qualifiers and source traceability remain visible.` },
-    { critic: "Story & retention editor", score: Math.round(average([rubric[4].score, rubric[5].score])), decision: productionWeak ? "REVISE" : "PASS", finding: "The $100 transaction spine is strong; first-30-second retention remains the key post-publish calibration target." },
-    { critic: "Audiovisual director", score: Math.round(average([rubric[6].score, rubric[7].score, rubric[8].score])), decision: latestRender ? "PASS_WITH_ACTIONS" : "BLOCK", finding: "The master is coherent and motion-led; captions, mobile labels and end-to-end playback QA remain mandatory." },
-    { critic: "Originality & rights guard", score: Math.round(average([rubric[9].score, rubric[10].score])), decision: hasFailure ? "BLOCK" : "PASS_WITH_ACTIONS", finding: "Owned diagrams and original narration differentiate the work; rights provenance and disclosure must travel with the package." },
-    { critic: "Publishing strategist", score: Math.round(average([rubric[2].score, rubric[11].score])), decision: packageRepair ? "REVISE" : "PASS", finding: "Keep the video, strengthen the package and define the next-view path before upload." },
+    { critic: "Story & depth editor", score: Math.round(average([rubric[2].score, rubric[4].score, rubric[5].score])), decision: productionWeak ? "RECOMPOSE" : "PASS", finding: `${wordCount} words and ${Math.round(durationSeconds)} seconds are insufficient for a competitive mini-documentary.` },
+    { critic: "Visual quality director", score: Math.round(average([rubric[6].score, rubric[7].score])), decision: productionFailure ? "RECOMPOSE" : "PASS", finding: `${uniqueAssets} unique visuals and a ${latestRender?.width || 0}×${latestRender?.height || 0} master fall below the visual parity target.` },
+    { critic: "Sound director", score: rubric[8].score, decision: soundscapeScore < 70 ? "RECOMPOSE" : "PASS", finding: "Clean narration alone is not a sound design; music, ambience, SFX and mix evidence are required." },
+    { critic: "Competitive quality judge", score: competitiveParityScore, decision: competitiveParityScore < 75 ? "BELOW_PARITY" : "PASS", finding: "The current master is materially below the reference set on depth, visual richness, fidelity and soundscape." },
+    { critic: "Originality & rights guard", score: Math.round(average([rubric[9].score, rubric[10].score])), decision: complianceFailure ? "BLOCK" : "PASS_WITH_ACTIONS", finding: "Originality is promising, but it cannot compensate for weak execution quality." },
   ];
   const version = (priorRuns[0]?.version || 0) + 1;
-  return { settings, adapter, rubric, hardGates, coreScore, adapterScore, composite, decision, status, repairPlan, critics, version, loopNumber: Math.min((priorRuns[0]?.loopNumber || -1) + 1, settings.maximumRepairLoops), latestAssembly };
+  return { settings, adapter, rubric, hardGates, coreScore, adapterScore, composite, decision, status, repairPlan, critics, version, loopNumber: Math.min((priorRuns[0]?.loopNumber || -1) + 1, settings.maximumRepairLoops), latestAssembly, perceivedProductionScore };
 }
 
 async function runGate(projectId: string) {
