@@ -5,7 +5,8 @@ import { assemblyRuns, mediaAssets, mediaAutomationSettings, narrationSegments, 
 type RuntimeD1 = { prepare(sql: string): { run(): Promise<unknown> } };
 type RuntimeBucket = {
   put(key: string, value: ArrayBuffer | Uint8Array, options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<unknown>;
-  get(key: string): Promise<{ body: ReadableStream; httpMetadata?: { contentType?: string } } | null>;
+  head(key: string): Promise<{ size: number; httpMetadata?: { contentType?: string } } | null>;
+  get(key: string, options?: { range?: { offset: number; length: number } }): Promise<{ body: ReadableStream; size: number; httpMetadata?: { contentType?: string } } | null>;
 };
 type RuntimeEnv = { DB?: RuntimeD1; BUCKET?: RuntimeBucket; PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string };
 
@@ -255,9 +256,24 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (assetId) {
       const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, assetId)).limit(1);
       if (!asset || asset.projectId !== id || !asset.storageKey) return new Response("Asset not found", { status: 404 });
-      const object = await (await runtimeEnv()).BUCKET?.get(asset.storageKey);
+      const bucket = (await runtimeEnv()).BUCKET;
+      if (!bucket) return new Response("Asset storage unavailable", { status: 424 });
+      const rangeHeader = request.headers.get("range");
+      if (rangeHeader && asset.mimeType.startsWith("video/")) {
+        const head = await bucket.head(asset.storageKey);
+        if (!head) return new Response("Asset not found", { status: 404 });
+        const match = /^bytes=(\d+)-(\d*)$/.exec(rangeHeader);
+        if (!match) return new Response("Invalid range", { status: 416, headers: { "content-range": `bytes */${head.size}` } });
+        const start = Number(match[1]); const requestedEnd = match[2] ? Number(match[2]) : head.size - 1;
+        const end = Math.min(requestedEnd, head.size - 1);
+        if (start > end || start >= head.size) return new Response("Invalid range", { status: 416, headers: { "content-range": `bytes */${head.size}` } });
+        const object = await bucket.get(asset.storageKey, { range: { offset: start, length: end - start + 1 } });
+        if (!object) return new Response("Asset not found", { status: 404 });
+        return new Response(object.body, { status: 206, headers: { "content-type": object.httpMetadata?.contentType || asset.mimeType, "content-range": `bytes ${start}-${end}/${head.size}`, "content-length": String(end - start + 1), "accept-ranges": "bytes", "cache-control": "private, max-age=3600" } });
+      }
+      const object = await bucket.get(asset.storageKey);
       if (!object) return new Response("Asset not found", { status: 404 });
-      return new Response(object.body, { headers: { "content-type": object.httpMetadata?.contentType || asset.mimeType, "cache-control": "private, max-age=3600" } });
+      return new Response(object.body, { headers: { "content-type": object.httpMetadata?.contentType || asset.mimeType, "content-length": String(object.size || asset.sizeBytes), "accept-ranges": asset.mimeType.startsWith("video/") ? "bytes" : "none", "cache-control": "private, max-age=3600" } });
     }
     const [scenes, assets, runs, segments, settingsRows] = await Promise.all([
       db.select().from(sceneManifest).where(eq(sceneManifest.projectId, id)).orderBy(asc(sceneManifest.sceneNumber)),
@@ -309,6 +325,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const key = `media/${id}/${sceneId}/${assetId}-${safeName(file.name)}`;
       await env.BUCKET.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type }, customMetadata: { projectId: id, sceneId, generatedMotion: String(generatedMotion) } });
       if (generatedMotion && parentAsset) {
+        await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(and(eq(mediaAssets.projectId, id), eq(mediaAssets.sceneId, sceneId), eq(mediaAssets.sourceType, "MOTION_RENDER_WEBM")));
         await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(eq(mediaAssets.id, parentAsset.id));
         await db.insert(mediaAssets).values({ id: assetId, projectId: id, sceneId, name: file.name, mimeType: "video/webm", sourceType: "MOTION_RENDER_WEBM", storageKey: key, licenseType: "CHANNEL_OWNED", licenseProof: JSON.stringify({ renderer: "FRAMEFLOW_BROWSER_RENDER_V1", sourceAssetId: parentAsset.id, format: "WEBM", fps: 30, rights: "INHERITED_CHANNEL_OWNED", renderedAt: new Date().toISOString() }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: file.size });
         await db.update(sceneManifest).set({ assetUrl: `/api/projects/${id}/media?asset=${encodeURIComponent(assetId)}`, assetStatus: "READY", licenseStatus: "VERIFIED", updatedAt: new Date().toISOString() }).where(eq(sceneManifest.id, sceneId));

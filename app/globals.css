@@ -425,6 +425,18 @@ nav { display: grid; gap: 5px; }
 .motionControls button { white-space: nowrap; }
 .secondaryMotionButton { padding: 9px 10px; border: 1px solid #75ad96; border-radius: 8px; background: white; color: #286b54; font-size: 7px; font-weight: 850; cursor: pointer; }
 .secondaryMotionButton:disabled { opacity: .5; cursor: wait; }
+.renderProgressCard { margin: -4px 0 13px; padding: 13px 15px; border: 1px solid #86bda7; border-radius: 10px; background: #f3faf7; }
+.renderProgressCard.done { border-color: #7db99f; background: #e8f5ef; }
+.renderProgressCard.error { border-color: #d6a873; background: #fff7ed; }
+.renderProgressHeader { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+.renderProgressHeader span, .renderProgressHeader strong, .renderProgressHeader p { display: block; margin: 0; }
+.renderProgressHeader span { color: #2d7459; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.renderProgressHeader strong { margin-top: 4px; max-width: 650px; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.renderProgressHeader p { margin-top: 3px; color: #74847d; font-size: 7px; }
+.renderProgressHeader > b { color: #1f654c; font: 600 20px/1 Georgia, serif; }
+.renderProgressTrack { height: 6px; margin-top: 10px; overflow: hidden; border-radius: 5px; background: #dbe9e2; }
+.renderProgressTrack i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2c795b, #83d0af); transition: width .2s ease; }
+.renderProgressCard > small { display: block; margin-top: 7px; color: #8a6b3f; font-size: 6px; }
 .mediaSceneList { display: grid; gap: 10px; }
 .mediaScene { border: 1px solid #e0e6e3; border-radius: 12px; overflow: hidden; }
 .mediaScene.covered { border-color: #b7dbc9; }
@@ -502,8 +514,9 @@ nav { display: grid; gap: 5px; }
 .mediaPreviewModal > header strong { margin-top: 4px; font-size: 11px; }
 .mediaPreviewModal > header p { margin-top: 3px; color: #91afa5; font-size: 6px; text-transform: capitalize; }
 .mediaPreviewModal > header button { width: 32px; height: 32px; border: 1px solid #3b6258; border-radius: 50%; background: #173e35; color: white; font-size: 19px; cursor: pointer; }
-.mediaPreviewStage { aspect-ratio: 16 / 9; display: grid; place-items: center; overflow: hidden; background: #081d18; }
+.mediaPreviewStage { position: relative; aspect-ratio: 16 / 9; display: grid; place-items: center; overflow: hidden; background: #081d18; }
 .mediaPreviewStage object, .mediaPreviewStage img, .mediaPreviewStage video { width: 100%; height: 100%; border: 0; object-fit: contain; }
+.silentClipBadge { position: absolute; z-index: 2; top: 12px; left: 12px; padding: 6px 8px; border: 1px solid rgba(139,213,181,.35); border-radius: 12px; background: rgba(10,38,31,.82); color: #a6e7cc; font-size: 6px; font-weight: 900; letter-spacing: .07em; pointer-events: none; }
 .mediaPreviewModal > footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 18px; color: #8eaaa1; font-size: 7px; }
 .mediaPreviewModal > footer a { color: #8bd5b5; font-weight: 800; text-decoration: none; }
 .mediaRail { display: grid; gap: 10px; }
