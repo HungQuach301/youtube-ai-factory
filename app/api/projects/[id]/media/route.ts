@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
 import { assemblyRuns, mediaAssets, mediaAutomationSettings, narrationSegments, sceneManifest, videoProjects, workflowEvents } from "../../../../../db/schema";
 
@@ -52,17 +52,32 @@ async function ensureMediaSchema() {
   await mediaSchemaReady;
 }
 
+function motionVisualType(beat: string) {
+  const value = beat.toLowerCase();
+  return value.includes("net") || value.includes("fee") ? "CHART" : value.includes("route") || value.includes("six") ? "MAP" : "DIAGRAM";
+}
+
 function diagramSvg(beat: string) {
   const title = beat.replace(/[<>&]/g, "");
-  const nodes = beat.includes("net")
-    ? ["$100 purchase", "Variable fees", "Merchant net"]
-    : beat.includes("route") ? ["Terminal", "Acquirer", "Network", "Issuer"] : ["Authorization now", "Settlement later"];
+  const type = motionVisualType(beat);
+  const nodes = type === "CHART" ? ["$100 purchase", "Variable fees", "Merchant net"] : type === "MAP" ? ["Terminal", "Acquirer", "Network", "Issuer"] : ["Authorization now", "Settlement later"];
   const nodeWidth = nodes.length === 4 ? 330 : 440;
+  const chart = type === "CHART" ? `${nodes.map((node, index) => { const x = 190 + index * 520; const height = [390, 155, 310][index]; const y = 790 - height; return `<g class="bar b${index}"><rect x="${x}" y="${y}" width="330" height="${height}" rx="22" fill="${index === 1 ? "#edb86c" : "#8bd5b5"}"/><text x="${x + 28}" y="${y - 30}" fill="#fff" font-family="Arial" font-size="34" font-weight="700">${node}</text></g>`; }).join("")}<path class="chartLine" d="M355 390 C650 390 650 635 875 635 S1220 480 1395 480" fill="none" stroke="#fff" stroke-width="8" stroke-dasharray="18 16"/>` : "";
+  const network = type !== "CHART" ? `${nodes.map((node, index) => { const x = 120 + index * (nodeWidth + 35); return `<g class="node n${index}"><rect x="${x}" y="420" width="${nodeWidth}" height="190" rx="28" fill="#e7f3ed"/><text x="${x + 34}" y="525" fill="#153f35" font-family="Arial" font-size="32" font-weight="700">${node}</text></g>${index < nodes.length - 1 ? `<path class="flow f${index}" d="M${x + nodeWidth + 8} 515h30" stroke="#62c59b" stroke-width="10"/><circle class="packet p${index}" cx="${x + nodeWidth + 8}" cy="515" r="13" fill="#fff"/>` : ""}`; }).join("")}` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <style>
+    .node{opacity:0;animation:reveal .65s ease forwards}.n1{animation-delay:.45s}.n2{animation-delay:.9s}.n3{animation-delay:1.35s}
+    .flow{stroke-dasharray:55;stroke-dashoffset:55;animation:draw .45s ease forwards}.f0{animation-delay:.55s}.f1{animation-delay:1s}.f2{animation-delay:1.45s}
+    .packet{opacity:0;animation:pulse 2.4s ease-in-out infinite}.p0{animation-delay:.9s}.p1{animation-delay:1.35s}.p2{animation-delay:1.8s}
+    .bar{transform-box:fill-box;transform-origin:center bottom;transform:scaleY(0);animation:rise .8s cubic-bezier(.2,.8,.2,1) forwards}.b1{animation-delay:.35s}.b2{animation-delay:.7s}
+    .chartLine{stroke-dashoffset:900;animation:trace 2.2s ease 1s forwards}
+    @keyframes reveal{to{opacity:1}}@keyframes draw{to{stroke-dashoffset:0}}@keyframes pulse{0%,100%{opacity:0;transform:translateX(0)}20%{opacity:1}80%{opacity:1;transform:translateX(28px)}}
+    @keyframes rise{to{transform:scaleY(1)}}@keyframes trace{to{stroke-dashoffset:0}}
+  </style>
   <rect width="1920" height="1080" fill="#102e29"/><text x="120" y="150" fill="#8bd5b5" font-family="Arial" font-size="36" font-weight="700">HIDDEN SYSTEMS BEHIND MONEY</text>
-  <text x="120" y="245" fill="#ffffff" font-family="Georgia" font-size="72">${title}</text>
-  ${nodes.map((node, index) => { const x = 120 + index * (nodeWidth + 35); return `<rect x="${x}" y="420" width="${nodeWidth}" height="190" rx="28" fill="#e7f3ed"/><text x="${x + 34}" y="525" fill="#153f35" font-family="Arial" font-size="32" font-weight="700">${node}</text>${index < nodes.length - 1 ? `<path d="M${x + nodeWidth + 8} 515h22" stroke="#62c59b" stroke-width="10"/><path d="M${x + nodeWidth + 20} 495l22 20-22 20" fill="none" stroke="#62c59b" stroke-width="8"/>` : ""}`; }).join("")}
-  <text x="120" y="920" fill="#9cb9b0" font-family="Arial" font-size="28">Original channel diagram · licensed for this production</text></svg>`;
+  <text x="120" y="245" fill="#ffffff" font-family="Georgia" font-size="72">${title}</text><text x="1700" y="150" fill="#8bd5b5" font-family="Arial" font-size="28" text-anchor="end">MOTION ${type}</text>
+  ${chart}${network}
+  <text x="120" y="920" fill="#9cb9b0" font-family="Arial" font-size="28">Original channel motion visual · loops in preview · editor-ready 16:9</text></svg>`;
 }
 
 function safeName(name: string) { return name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 100); }
@@ -288,7 +303,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ ok: true, assetId });
     }
 
-    const payload = await request.json() as { action?: "GENERATE_DIAGRAMS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY"; sceneId?: string; assetId?: string; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
+    const payload = await request.json() as { action?: "GENERATE_DIAGRAMS" | "GENERATE_MOTION_VISUALS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY"; sceneId?: string; assetId?: string; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
     if (payload.action === "SET_AUTOMATION_MODE") {
       if (!payload.verificationMode || !["AUTOPILOT", "REVIEW"].includes(payload.verificationMode)) return Response.json({ error: "Invalid verification mode" }, { status: 400 });
       await db.insert(mediaAutomationSettings).values({ projectId: id, verificationMode: payload.verificationMode, minimumConfidence: 85, autoBuildAssembly: true, updatedAt: new Date().toISOString() }).onConflictDoUpdate({ target: mediaAutomationSettings.projectId, set: { verificationMode: payload.verificationMode, updatedAt: new Date().toISOString() } });
@@ -312,6 +327,25 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       }
       await db.insert(workflowEvents).values({ projectId: id, toStatus: "PRODUCTION_PREP", eventType: "ORIGINAL_DIAGRAMS_CREATED", summary: `${created} channel-owned diagrams created and rights-verified` });
       return Response.json({ ok: true, created });
+    }
+    if (payload.action === "GENERATE_MOTION_VISUALS") {
+      const env = await runtimeEnv();
+      if (!env.BUCKET) return Response.json({ error: "Media storage is unavailable" }, { status: 424 });
+      const [scenes, settingsRows] = await Promise.all([db.select().from(sceneManifest).where(eq(sceneManifest.projectId, id)), db.select().from(mediaAutomationSettings).where(eq(mediaAutomationSettings.projectId, id)).limit(1)]);
+      const autopilot = (settingsRows[0]?.verificationMode || "AUTOPILOT") === "AUTOPILOT";
+      let created = 0;
+      for (const scene of scenes.filter((item) => item.mediaStrategy === "DIAGRAM")) {
+        const visualType = motionVisualType(scene.beat);
+        const assetId = `${id}-AST-MOTION-${scene.sceneNumber}-${Date.now()}`;
+        const key = `media/${id}/${scene.id}/${assetId}.svg`;
+        await env.BUCKET.put(key, new TextEncoder().encode(diagramSvg(scene.beat)), { httpMetadata: { contentType: "image/svg+xml" }, customMetadata: { projectId: id, sceneId: scene.id, visualType } });
+        if (autopilot) await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(and(eq(mediaAssets.projectId, id), eq(mediaAssets.sceneId, scene.id)));
+        await db.insert(mediaAssets).values({ id: assetId, projectId: id, sceneId: scene.id, name: `${scene.beat} · motion ${visualType.toLowerCase()}.svg`, mimeType: "image/svg+xml", sourceType: `ORIGINAL_MOTION_${visualType}`, storageKey: key, licenseType: "CHANNEL_OWNED", licenseProof: JSON.stringify({ generator: "FRAMEFLOW_MOTION_V1", visualType, animation: "CSS_SVG_LOOP", rights: "CHANNEL_OWNED" }), rightsStatus: "VERIFIED", status: autopilot ? "APPROVED" : "REVIEW", sizeBytes: 0 });
+        if (autopilot) await db.update(sceneManifest).set({ assetUrl: `/api/projects/${id}/media?asset=${encodeURIComponent(assetId)}`, assetStatus: "READY", licenseStatus: "VERIFIED", updatedAt: new Date().toISOString() }).where(eq(sceneManifest.id, scene.id));
+        created++;
+      }
+      await db.insert(workflowEvents).values({ projectId: id, toStatus: "PRODUCTION_PREP", eventType: "MOTION_VISUALS_CREATED", summary: `${created} animated diagrams, charts and maps created; ${autopilot ? "auto-approved" : "ready for preview"}` });
+      return Response.json({ ok: true, created, autopilot });
     }
     if (payload.action === "REGISTER_LINK") {
       if (!payload.sceneId || !payload.sourceUrl || !/^https?:\/\//.test(payload.sourceUrl)) return Response.json({ error: "A valid scene and source URL are required" }, { status: 400 });
