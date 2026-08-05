@@ -306,7 +306,7 @@ function ProductionStudio({ projectId, setProjectNotice }: { projectId: string; 
 }
 
 type MediaData = {
-  scenes: Array<{ id: string; sceneNumber: number; beat: string; visualIntent: string; mediaStrategy: string; searchQuery: string; assetUrl: string | null; assetStatus: string; licenseStatus: string }>;
+  scenes: Array<{ id: string; sceneNumber: number; startSeconds: number; endSeconds: number; beat: string; visualIntent: string; mediaStrategy: string; searchQuery: string; assetUrl: string | null; assetStatus: string; licenseStatus: string }>;
   assets: Array<{ id: string; sceneId: string; name: string; mimeType: string; sourceType: string; sourceUrl: string | null; storageKey: string | null; licenseType: string; licenseProof: string | null; rightsStatus: string; status: string; sizeBytes: number }>;
   runs: Array<{ id: string; version: number; status: string; assetCoverage: number; licenseCoverage: number; criticResults: string; createdAt: string }>;
   automation: { verificationMode: "AUTOPILOT" | "REVIEW"; minimumConfidence: number; autoBuildAssembly: boolean };
@@ -386,18 +386,82 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
     finally { setWorking(null); }
   }
 
+  async function renderMotionBlob(asset: MediaData["assets"][number], snapshot: MediaData) {
+    if (!("MediaRecorder" in window)) throw new Error("This browser cannot render WebM motion clips");
+    const sourceUrl = asset.storageKey ? `/api/projects/${projectId}/media?asset=${encodeURIComponent(asset.id)}` : asset.sourceUrl;
+    if (!sourceUrl) throw new Error("Motion source could not be loaded");
+    const response = await fetch(sourceUrl, { signal: AbortSignal.timeout(15000) });
+    if (!response.ok) throw new Error("Motion source could not be loaded");
+    const svgUrl = URL.createObjectURL(new Blob([await response.text()], { type: "image/svg+xml" }));
+    const image = new Image();
+    try {
+      await new Promise<void>((resolve, reject) => { image.onload = () => resolve(); image.onerror = () => reject(new Error("Motion SVG could not be decoded")); image.src = svgUrl; });
+      const canvas = document.createElement("canvas"); canvas.width = 1280; canvas.height = 720;
+      const context = canvas.getContext("2d"); if (!context) throw new Error("Video canvas is unavailable");
+      const stream = canvas.captureStream(30);
+      const preferredTypes = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+      const mimeType = preferredTypes.find((type) => MediaRecorder.isTypeSupported(type)) || "";
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_500_000 }) : new MediaRecorder(stream);
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      const finished = new Promise<Blob>((resolve, reject) => { recorder.onstop = () => resolve(new Blob(chunks, { type: "video/webm" })); recorder.onerror = () => reject(new Error("WebM encoder stopped unexpectedly")); });
+      const scene = snapshot.scenes.find((item) => item.id === asset.sceneId);
+      const durationMs = Math.round(Math.min(12, Math.max(5, (scene ? scene.endSeconds - scene.startSeconds : 6))) * 1000);
+      recorder.start(250);
+      await new Promise<void>((resolve) => {
+        const started = performance.now();
+        const draw = (now: number) => { context.fillStyle = "#102e29"; context.fillRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0, canvas.width, canvas.height); if (now - started < durationMs) requestAnimationFrame(draw); else resolve(); };
+        requestAnimationFrame(draw);
+      });
+      recorder.stop(); stream.getTracks().forEach((track) => track.stop());
+      return await finished;
+    } finally { URL.revokeObjectURL(svgUrl); }
+  }
+
+  async function uploadMotionRender(asset: MediaData["assets"][number], snapshot: MediaData) {
+    const blob = await renderMotionBlob(asset, snapshot);
+    const form = new FormData();
+    const name = `${asset.name.replace(/\.svg$/i, "").slice(0, 80)}.webm`;
+    form.set("sceneId", asset.sceneId); form.set("parentAssetId", asset.id); form.set("generatedMotion", "true"); form.set("file", new File([blob], name, { type: "video/webm" }));
+    const response = await fetch(`/api/projects/${projectId}/media`, { method: "POST", body: form });
+    const payload = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) throw new Error(payload.error || "Rendered clip could not be saved");
+  }
+
+  async function renderSingleMotion(asset: MediaData["assets"][number]) {
+    if (!media) return; setWorking(`render:${asset.id}`); setProjectNotice(`Rendering ${asset.name} to a 30fps WebM clip…`);
+    try { await uploadMotionRender(asset, media); await loadMedia(); setProjectNotice("Motion clip rendered, stored and selected for the timeline"); }
+    catch (caught) { setProjectNotice(caught instanceof Error ? caught.message : "Motion render failed safely"); }
+    finally { setWorking(null); }
+  }
+
+  async function renderAllMotion() {
+    if (!media) return;
+    const alreadyRendered = new Set(media.assets.filter((asset) => asset.sourceType === "MOTION_RENDER_WEBM" && asset.status === "APPROVED").map((asset) => asset.sceneId));
+    const sources = media.assets.filter((asset) => asset.sourceType.startsWith("ORIGINAL_MOTION_") && asset.status !== "SUPERSEDED" && !alreadyRendered.has(asset.sceneId)).filter((asset, index, rows) => rows.findIndex((item) => item.sceneId === asset.sceneId) === index);
+    if (!sources.length) { setProjectNotice("No unrendered motion visuals remain"); return; }
+    setWorking("RENDER_ALL_MOTION"); let completed = 0; let failed = 0;
+    for (const [index, asset] of sources.entries()) {
+      setProjectNotice(`Rendering motion clip ${index + 1}/${sources.length} · ${asset.name}`);
+      try { await uploadMotionRender(asset, media); completed++; } catch { failed++; }
+    }
+    await loadMedia(); setWorking(null); setProjectNotice(`Motion render completed · ${completed} clips ready${failed ? ` · ${failed} failed safely` : ""}`);
+  }
+
   if (error) return <section className="workspacePanel productionError"><span>!</span><h2>Media workspace could not load</h2><p>{error}</p><button className="primaryButton" onClick={() => loadMedia().catch((caught: Error) => setError(caught.message))}>Try again</button></section>;
   if (!media) return <section className="workspacePanel voiceLoading"><span>◌</span><p>Preparing media sourcing and assembly controls…</p></section>;
   const latestRun = media.runs[0];
   const approvedCount = media.scenes.filter((scene) => media.assets.some((asset) => asset.sceneId === scene.id && asset.status === "APPROVED" && asset.rightsStatus === "VERIFIED")).length;
   const assetUrl = (asset: MediaData["assets"][number]) => asset.storageKey ? `/api/projects/${projectId}/media?asset=${encodeURIComponent(asset.id)}` : asset.sourceUrl || "";
+  const motionSources = media.assets.filter((asset) => asset.sourceType.startsWith("ORIGINAL_MOTION_") && asset.status !== "SUPERSEDED");
+  const renderedScenes = new Set(media.assets.filter((asset) => asset.sourceType === "MOTION_RENDER_WEBM" && asset.status === "APPROVED").map((asset) => asset.sceneId));
 
   return <div className="mediaWorkspaceLayout">
     <section className="workspacePanel mediaMain">
       <div className="contentHeader"><div><p className="eyebrow">WS-07 · controlled media production</p><h2>Media sourcing & assembly</h2><p>Attach real files or source links, verify usage rights, then select exactly one approved visual for each scene.</p></div><span className={`providerState ${media.gates.assemblyReady ? "connected" : "waiting"}`}><i />{approvedCount}/8 scenes covered</span></div>
       <div className="mediaMetrics"><div><small>Approved coverage</small><strong>{media.gates.assetCoverage}%</strong></div><div><small>Candidate assets</small><strong>{media.assets.length}</strong></div><div><small>Voice locked</small><strong>{media.gates.voice ? "Yes" : "No"}</strong></div><div><small>Assembly versions</small><strong>{media.runs.length}</strong></div></div>
       <section className={`automationControl ${media.automation.verificationMode === "AUTOPILOT" ? "isAuto" : "isReview"}`}><div className="automationIntro"><span>MEDIA DECISION MODE</span><strong>{media.automation.verificationMode === "AUTOPILOT" ? "Autopilot · no human verification required" : "Review mode · human approval retained"}</strong><p>{media.automation.verificationMode === "AUTOPILOT" ? `Frameflow ranks visual fit, accepts only sources scoring at least ${media.automation.minimumConfidence}% rights confidence, records the evidence trail and excludes uncertain candidates.` : "Frameflow proposes ranked candidates; you verify rights and approve the final visual for each scene."}</p></div><div className="modeSelector"><button className={media.automation.verificationMode === "AUTOPILOT" ? "active" : ""} onClick={() => mediaAction("SET_AUTOMATION_MODE", { verificationMode: "AUTOPILOT" })}>Autopilot</button><button className={media.automation.verificationMode === "REVIEW" ? "active" : ""} onClick={() => mediaAction("SET_AUTOMATION_MODE", { verificationMode: "REVIEW" })}>Review mode</button></div>{media.automation.verificationMode === "AUTOPILOT" && <button className="autopilotRun" disabled={working === "AUTO_SOURCE_ALL"} onClick={() => mediaAction("AUTO_SOURCE_ALL")}>{working === "AUTO_SOURCE_ALL" ? "Evaluating every scene…" : media.gates.assemblyReady ? "Run Autopilot again" : "Run full media Autopilot"}</button>}</section>
-      <div className="diagramAutomation motionAutomation"><div><span className="motionBadge">MOTION VISUAL ENGINE</span><strong>Generate animated diagrams, charts & system maps</strong><p>Frameflow chooses the visual grammar from each scene, creates a looping 16:9 motion SVG and keeps it editor-ready. Preview before approval whenever Review mode is enabled.</p></div><button className="primaryButton" disabled={working === "GENERATE_MOTION_VISUALS"} onClick={() => mediaAction("GENERATE_MOTION_VISUALS")}>{working === "GENERATE_MOTION_VISUALS" ? "Generating motion…" : "Generate motion visuals"}</button></div>
+      <div className="diagramAutomation motionAutomation"><div><span className="motionBadge">MOTION RENDER PIPELINE</span><strong>Generate motion visuals, then render editor-ready clips</strong><p>Frameflow creates looping 16:9 SVG motion, captures it at 30fps and stores a WebM clip in the internal media library. {renderedScenes.size}/{motionSources.length || 3} motion scenes rendered.</p></div><div className="motionControls"><button className="secondaryMotionButton" disabled={working === "GENERATE_MOTION_VISUALS" || working === "RENDER_ALL_MOTION"} onClick={() => mediaAction("GENERATE_MOTION_VISUALS")}>{working === "GENERATE_MOTION_VISUALS" ? "Generating…" : "1 · Generate motion"}</button><button className="primaryButton" disabled={!motionSources.length || working === "RENDER_ALL_MOTION"} onClick={renderAllMotion}>{working === "RENDER_ALL_MOTION" ? "Rendering clips…" : "2 · Render all WebM"}</button></div></div>
       <div className="mediaSceneList">{media.scenes.map((scene) => {
         const sceneAssets = media.assets.filter((asset) => asset.sceneId === scene.id);
         const selected = sceneAssets.find((asset) => asset.status === "APPROVED");
@@ -407,7 +471,7 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
             {sceneAssets.length ? sceneAssets.map((asset) => <div className={`assetCandidate ${asset.status.toLowerCase()}`} key={asset.id}>
               <button className="assetPreview" aria-label={`Preview ${asset.name}`} disabled={!assetUrl(asset)} onClick={() => setPreviewMedia({ title: asset.name, url: assetUrl(asset), mimeType: asset.mimeType, sourceType: asset.sourceType })}>{asset.mimeType.startsWith("image/") && assetUrl(asset) ? <span className="assetImage" role="img" aria-label={`${asset.name} preview`} style={{ backgroundImage: `url(${assetUrl(asset)})` }} /> : <span>{asset.mimeType.startsWith("video/") ? "▶" : "↗"}</span>}<em>Preview</em></button>
               <div className="assetInfo"><strong>{asset.name}</strong><p>{asset.sourceType.replaceAll("_", " ")} · {asset.licenseType.replaceAll("_", " ")}</p><div><span className={`rights ${asset.rightsStatus.toLowerCase()}`}>{asset.rightsStatus.replaceAll("_", " ")}</span><span>{asset.status}</span></div></div>
-              <div className="assetActions"><button disabled={!assetUrl(asset)} onClick={() => setPreviewMedia({ title: asset.name, url: assetUrl(asset), mimeType: asset.mimeType, sourceType: asset.sourceType })}>Preview</button>{asset.rightsStatus !== "VERIFIED" && <button disabled={working === asset.id} onClick={() => mediaAction("VERIFY_RIGHTS", { assetId: asset.id })}>Verify rights</button>}{asset.status !== "APPROVED" && <button disabled={working === asset.id || asset.rightsStatus !== "VERIFIED"} onClick={() => mediaAction("APPROVE_ASSET", { assetId: asset.id })}>Approve</button>}</div>
+              <div className="assetActions"><button disabled={!assetUrl(asset)} onClick={() => setPreviewMedia({ title: asset.name, url: assetUrl(asset), mimeType: asset.mimeType, sourceType: asset.sourceType })}>Preview</button>{asset.sourceType.startsWith("ORIGINAL_MOTION_") && asset.status !== "SUPERSEDED" && !renderedScenes.has(asset.sceneId) && <button className="renderAssetButton" disabled={working === `render:${asset.id}` || working === "RENDER_ALL_MOTION"} onClick={() => renderSingleMotion(asset)}>{working === `render:${asset.id}` ? "Rendering…" : "Render WebM"}</button>}{asset.rightsStatus !== "VERIFIED" && <button disabled={working === asset.id} onClick={() => mediaAction("VERIFY_RIGHTS", { assetId: asset.id })}>Verify rights</button>}{asset.status !== "APPROVED" && asset.status !== "SUPERSEDED" && <button disabled={working === asset.id || asset.rightsStatus !== "VERIFIED"} onClick={() => mediaAction("APPROVE_ASSET", { assetId: asset.id })}>Approve</button>}</div>
             </div>) : <div className="noAsset"><span>＋</span><p>No candidate attached yet</p></div>}
           </div><aside className="sourceAssetControls"><small>{scene.mediaStrategy.replaceAll("_", " ")}</small><strong>{scene.searchQuery}</strong><button className="discoverButton" disabled={working === `discover:${scene.id}`} onClick={() => searchAssets(scene.id)}>{working === `discover:${scene.id}` ? "Searching sources…" : discoveries[scene.id] ? "Refresh candidates" : "Find media automatically"}</button><label className="uploadControl">Upload image/video<input type="file" accept="image/*,video/*" onChange={(event) => uploadAsset(scene.id, event.target.files?.[0])} /></label><div className="linkControl"><input type="url" placeholder="Paste licensed source URL" value={linkDrafts[scene.id] || ""} onChange={(event) => setLinkDrafts((current) => ({ ...current, [scene.id]: event.target.value }))}/><button disabled={!linkDrafts[scene.id] || working === scene.id} onClick={() => mediaAction("REGISTER_LINK", { sceneId: scene.id, sourceUrl: linkDrafts[scene.id] })}>Add link</button></div></aside></div>
           {discoveries[scene.id] && <section className="discoveryTray"><div className="discoveryHeader"><div><strong>Asset discovery</strong><span>{discoveries[scene.id].candidates.length} ranked candidates · {discoveries[scene.id].scene.query}</span></div><div className="discoveryFilters">{(["ALL", "FREE", "PAID", "INTERNAL"] as const).map((filter) => <button className={(discoveryFilter[scene.id] || "ALL") === filter ? "active" : ""} key={filter} onClick={() => setDiscoveryFilter((current) => ({ ...current, [scene.id]: filter }))}>{filter}</button>)}</div></div><div className="discoveryGrid">{discoveries[scene.id].candidates.filter((candidate) => (discoveryFilter[scene.id] || "ALL") === "ALL" || candidate.category === discoveryFilter[scene.id]).map((candidate) => <article className="discoveryCard" key={candidate.id}><div className="discoveryThumb">{candidate.thumbnailUrl ? <span style={{ backgroundImage: `url(${candidate.thumbnailUrl})` }} /> : <b>{candidate.mediaType === "CATALOG" ? "↗" : candidate.mediaType === "VIDEO" ? "▶" : "▧"}</b>}<em>{candidate.category}</em></div><div className="discoveryMeta"><small>{candidate.provider} · {candidate.mediaType}</small><strong title={candidate.title}>{candidate.title}</strong><p>{candidate.creator || "Catalog search"} · {candidate.licenseType.replaceAll("_", " ")}</p></div><div className="discoveryActions">{candidate.assetUrl && <button onClick={() => setPreviewMedia({ title: candidate.title, url: candidate.assetUrl!, mimeType: candidate.mediaType === "VIDEO" ? "video/external" : "image/external", sourceType: candidate.provider })}>Preview</button>}<a href={candidate.landingUrl} target="_blank" rel="noreferrer">View source</a>{candidate.category === "PAID" ? <span>Purchase, then upload</span> : <button disabled={working === scene.id} onClick={() => mediaAction("SELECT_DISCOVERY", { sceneId: scene.id, candidate })}>Select candidate</button>}</div></article>)}</div><p className="discoveryNotice">{media.automation.verificationMode === "AUTOPILOT" ? "Autopilot may select only candidates that pass its rights-confidence policy; uncertain results remain excluded." : "Search results are not automatic license approval. Verify the source terms and intended commercial YouTube use before approval."}</p></section>}

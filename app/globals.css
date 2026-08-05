@@ -421,6 +421,10 @@ nav { display: grid; gap: 5px; }
 .diagramAutomation p { margin-top: 5px; color: #62766f; font-size: 8px; line-height: 1.45; }
 .motionAutomation { border-color: #92cdb5; background: linear-gradient(115deg, #dff2e9, #f3faf7); }
 .motionBadge { display: inline-block; margin-bottom: 5px; padding: 3px 6px; border-radius: 10px; color: #246b50; background: #c9eadb; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.motionControls { display: flex; gap: 7px; align-items: center; }
+.motionControls button { white-space: nowrap; }
+.secondaryMotionButton { padding: 9px 10px; border: 1px solid #75ad96; border-radius: 8px; background: white; color: #286b54; font-size: 7px; font-weight: 850; cursor: pointer; }
+.secondaryMotionButton:disabled { opacity: .5; cursor: wait; }
 .mediaSceneList { display: grid; gap: 10px; }
 .mediaScene { border: 1px solid #e0e6e3; border-radius: 12px; overflow: hidden; }
 .mediaScene.covered { border-color: #b7dbc9; }
@@ -453,6 +457,7 @@ nav { display: grid; gap: 5px; }
 .assetActions { display: grid; gap: 5px; }
 .assetActions button { border: 1px solid #cfdad5; border-radius: 7px; padding: 6px 8px; background: white; color: #386b5b; font-size: 7px; font-weight: 750; cursor: pointer; }
 .assetActions button:disabled { opacity: .4; cursor: not-allowed; }
+.assetActions .renderAssetButton { border-color: #79b79d; background: #e2f1ea; color: #1f684e; }
 .noAsset { min-height: 72px; display: grid; place-content: center; justify-items: center; color: #92a09b; border: 1px dashed #d6dfdb; border-radius: 9px; }
 .noAsset span { font-size: 15px; }
 .noAsset p { margin: 5px 0 0; font-size: 8px; }
@@ -542,6 +547,9 @@ nav { display: grid; gap: 5px; }
   .automationControl { grid-template-columns: 1fr; }
   .modeSelector, .autopilotRun { width: 100%; }
   .modeSelector button { flex: 1; }
+  .diagramAutomation { align-items: stretch; flex-direction: column; }
+  .motionControls { width: 100%; }
+  .motionControls button { flex: 1; }
   .discoveryGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .projectList { grid-template-columns: 1fr; }
   .projectCard h3 { min-height: 0; }

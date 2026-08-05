@@ -289,18 +289,34 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const form = await request.formData();
       const file = form.get("file");
       const sceneId = String(form.get("sceneId") || "");
+      const generatedMotion = String(form.get("generatedMotion") || "") === "true";
+      const parentAssetId = String(form.get("parentAssetId") || "");
       if (!(file instanceof File) || !sceneId) return Response.json({ error: "File and scene are required" }, { status: 400 });
       if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return Response.json({ error: "Only image or video files are supported" }, { status: 415 });
       if (file.size > 50 * 1024 * 1024) return Response.json({ error: "File exceeds the 50 MB MVP limit" }, { status: 413 });
       const [scene] = await db.select().from(sceneManifest).where(eq(sceneManifest.id, sceneId)).limit(1);
       if (!scene || scene.projectId !== id) return Response.json({ error: "Scene not found" }, { status: 404 });
+      let parentAsset: typeof mediaAssets.$inferSelect | null = null;
+      if (generatedMotion) {
+        if (!parentAssetId || file.type !== "video/webm") return Response.json({ error: "A WebM render and its motion source are required" }, { status: 400 });
+        const [source] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, parentAssetId)).limit(1);
+        if (!source || source.projectId !== id || source.sceneId !== sceneId || !source.sourceType.startsWith("ORIGINAL_MOTION_") || source.rightsStatus !== "VERIFIED") return Response.json({ error: "Verified motion source not found" }, { status: 409 });
+        parentAsset = source;
+      }
       const env = await runtimeEnv();
       if (!env.BUCKET) return Response.json({ error: "Media storage is unavailable" }, { status: 424 });
       const assetId = `${id}-AST-${crypto.randomUUID()}`;
       const key = `media/${id}/${sceneId}/${assetId}-${safeName(file.name)}`;
-      await env.BUCKET.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type }, customMetadata: { projectId: id, sceneId } });
-      await db.insert(mediaAssets).values({ id: assetId, projectId: id, sceneId, name: file.name, mimeType: file.type, sourceType: "USER_UPLOAD", storageKey: key, licenseType: String(form.get("licenseType") || "OWNED"), licenseProof: String(form.get("licenseProof") || "Uploader ownership confirmation required"), rightsStatus: "PENDING", status: "REVIEW", sizeBytes: file.size });
-      return Response.json({ ok: true, assetId });
+      await env.BUCKET.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type }, customMetadata: { projectId: id, sceneId, generatedMotion: String(generatedMotion) } });
+      if (generatedMotion && parentAsset) {
+        await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(eq(mediaAssets.id, parentAsset.id));
+        await db.insert(mediaAssets).values({ id: assetId, projectId: id, sceneId, name: file.name, mimeType: "video/webm", sourceType: "MOTION_RENDER_WEBM", storageKey: key, licenseType: "CHANNEL_OWNED", licenseProof: JSON.stringify({ renderer: "FRAMEFLOW_BROWSER_RENDER_V1", sourceAssetId: parentAsset.id, format: "WEBM", fps: 30, rights: "INHERITED_CHANNEL_OWNED", renderedAt: new Date().toISOString() }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: file.size });
+        await db.update(sceneManifest).set({ assetUrl: `/api/projects/${id}/media?asset=${encodeURIComponent(assetId)}`, assetStatus: "READY", licenseStatus: "VERIFIED", updatedAt: new Date().toISOString() }).where(eq(sceneManifest.id, sceneId));
+        await db.insert(workflowEvents).values({ projectId: id, toStatus: "PRODUCTION_PREP", eventType: "MOTION_CLIP_RENDERED", summary: `${scene.beat} rendered to a 30fps WebM clip and selected for the timeline` });
+      } else {
+        await db.insert(mediaAssets).values({ id: assetId, projectId: id, sceneId, name: file.name, mimeType: file.type, sourceType: "USER_UPLOAD", storageKey: key, licenseType: String(form.get("licenseType") || "OWNED"), licenseProof: String(form.get("licenseProof") || "Uploader ownership confirmation required"), rightsStatus: "PENDING", status: "REVIEW", sizeBytes: file.size });
+      }
+      return Response.json({ ok: true, assetId, generatedMotion });
     }
 
     const payload = await request.json() as { action?: "GENERATE_DIAGRAMS" | "GENERATE_MOTION_VISUALS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY"; sceneId?: string; assetId?: string; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
