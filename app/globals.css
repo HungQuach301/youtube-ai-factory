@@ -949,6 +949,42 @@ nav { display: grid; gap: 5px; }
 .visualChecks article strong { font-size: 10px; }
 .visualChecks article span { color: #277155; font-size: 8px; font-weight: 900; }
 .visualChecks article p { margin: 5px 0 0; color: #61756e; font-size: 9px; line-height: 1.45; }
+.storyboardGateMetrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.storyboardGateMetrics article { padding: 16px; border-radius: 14px; background: #12382e; color: #fff; }
+.storyboardGateMetrics small, .storyboardGateMetrics strong { display: block; }
+.storyboardGateMetrics small { color: #91c1ae; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+.storyboardGateMetrics strong { margin-top: 7px; font: 26px/1 Georgia, serif; }
+.storyboardGateMetrics strong b { color: #b9d8cc; font: 10px/1.2 var(--font-body), sans-serif; }
+.formatMix, .storyboardManifest, .sourcingPolicy { margin-top: 16px; overflow: hidden; border: 1px solid #dce7e2; border-radius: 14px; background: #fff; }
+.formatMix > header, .storyboardManifest > header, .sourcingPolicy > header { display: flex; justify-content: space-between; gap: 14px; padding: 14px 16px; background: #edf4f1; }
+.formatMix header small, .storyboardManifest header small, .sourcingPolicy header small { color: #2e6d58; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+.formatMix header strong, .storyboardManifest header strong, .sourcingPolicy header strong { font-size: 11px; }
+.formatMix > div { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.formatMix article { display: grid; gap: 5px; padding: 14px; border-right: 1px solid #e5ede9; }
+.formatMix article:last-child { border-right: 0; }
+.formatMix article strong { min-height: 26px; font-size: 9px; line-height: 1.35; }
+.formatMix article span { color: #647971; font-size: 9px; }
+.formatMix article b { color: #277155; font: 20px/1 Georgia, serif; }
+.storyboardManifest > div > article { display: grid; grid-template-columns: 94px minmax(210px, 1.1fr) minmax(250px, 1.3fr) 72px; gap: 14px; align-items: start; padding: 14px 16px; border-top: 1px solid #e5ede9; }
+.beatClock { display: grid; gap: 4px; }
+.beatClock b { color: #2e6d58; font-size: 10px; }
+.beatClock span { font-size: 9px; }
+.beatClock em { color: #75877f; font-size: 8px; font-style: normal; }
+.beatIntent small { display: block; color: #6c7d77; font-size: 8px; }
+.beatIntent strong { display: block; margin-top: 5px; font-size: 10px; line-height: 1.45; }
+.beatIntent p { margin: 6px 0 0; color: #277155; font-size: 8px; font-weight: 800; }
+.beatProduction p { margin: 0 0 5px; color: #5e746c; font-size: 9px; line-height: 1.4; }
+.beatProduction p b { display: inline-block; min-width: 72px; color: #2e6d58; font-size: 8px; }
+.beatProduction small { color: #7a8883; font-size: 8px; }
+.beatFlags { display: grid; justify-items: end; gap: 5px; }
+.beatFlags span { padding: 4px 6px; border-radius: 999px; background: #edf4f1; color: #2e6d58; font-size: 8px; font-weight: 900; }
+.beatFlags b { color: #277155; font-size: 9px; }
+.beatFlags em { color: #73847d; font-size: 8px; font-style: normal; }
+.sourcingPolicy > div { display: grid; grid-template-columns: repeat(4, 1fr); }
+.sourcingPolicy article { padding: 14px 16px; border-right: 1px solid #e5ede9; }
+.sourcingPolicy article:last-child { border-right: 0; }
+.sourcingPolicy article strong { color: #2e6d58; font-size: 9px; }
+.sourcingPolicy article p { margin: 6px 0 0; color: #61756e; font-size: 9px; line-height: 1.45; }
 .scriptBeatMeta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
 .scriptBeatMeta small { margin: 0; }
 .scriptBeatMeta span { color: #2e6d58; font-size: 8px; font-weight: 900; letter-spacing: .07em; }
@@ -1168,6 +1204,12 @@ nav { display: grid; gap: 5px; }
   .visualDirection { align-items: flex-start; flex-direction: column; }
   .visualDirection > div:last-child { justify-content: flex-start; }
   .visualGateMetrics { grid-template-columns: 1fr 1fr; }
+  .storyboardGateMetrics { grid-template-columns: 1fr 1fr; }
+  .formatMix > div, .sourcingPolicy > div { grid-template-columns: 1fr 1fr; }
+  .formatMix article, .sourcingPolicy article { border-right: 0; border-bottom: 1px solid #e5ede9; }
+  .storyboardManifest > div > article { grid-template-columns: 76px 1fr; }
+  .beatProduction { grid-column: 2; }
+  .beatFlags { grid-column: 1; grid-row: 2; justify-items: start; }
   .paletteGrid, .typeGrid, .visualFamilyGrid > div, .visualChecks > div { grid-template-columns: 1fr; }
   .paletteGrid article, .paletteGrid article:nth-child(3n), .typeGrid article, .visualFamilyGrid article, .visualFamilyGrid article:nth-child(2n), .visualChecks article, .visualChecks article:nth-child(2n) { border-right: 0; }
   .coverageTimeline article { grid-template-columns: 78px 1fr; }
