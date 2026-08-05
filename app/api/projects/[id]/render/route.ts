@@ -136,7 +136,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
     }
     const snapshot = await projectSnapshot(id);
-    return Response.json({ ...snapshot, segments: snapshot.segments.map((segment) => ({ ...segment, audioUrl: `/api/projects/${id}/voice?audio=${encodeURIComponent(segment.id)}` })), renders: snapshot.renders.map((render) => ({ ...render, videoUrl: `/api/projects/${id}/render?video=${encodeURIComponent(render.id)}`, downloadUrl: `/api/projects/${id}/render?video=${encodeURIComponent(render.id)}&download=1` })) });
+    return Response.json({ ...snapshot, segments: snapshot.segments.map((segment) => ({ ...segment, audioUrl: `/api/projects/${id}/voice?audio=${encodeURIComponent(segment.id)}` })), renders: snapshot.renders.map((render) => { const gates = JSON.parse(render.gateResults) as Array<{ gate?: string; value?: string }>; return { ...render, voiceSignature: gates.find((gate) => gate.gate === "voiceSignature")?.value || null, videoUrl: `/api/projects/${id}/render?video=${encodeURIComponent(render.id)}`, downloadUrl: `/api/projects/${id}/render?video=${encodeURIComponent(render.id)}&download=1` }; }) });
   } catch (error) {
     console.error("Final composer GET failed", error);
     return Response.json({ error: "Final composer could not be loaded" }, { status: 500 });
@@ -182,7 +182,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const snapshot = await projectSnapshot(id); const gateResults = [
       { gate: "Voice", passed: snapshot.gates.voiceReady }, { gate: "Media", passed: snapshot.gates.mediaReady }, { gate: "Rights", passed: snapshot.gates.rightsReady }, { gate: "Motion", passed: snapshot.gates.motionReady }, { gate: "Assembly", passed: snapshot.gates.assemblyReady },
     ];
-    const optimizedGateResults = snapshot.optimized && payload.renderMode === "OPTIMIZED_V2" ? Object.entries((snapshot.optimized as { gates: Record<string, boolean> }).gates).map(([gate, passed]) => ({ gate, passed })) : []; const activeGateResults = optimizedGateResults.length ? optimizedGateResults : gateResults;
+    const optimizedGateResults: Array<{ gate: string; passed: boolean; value?: string }> = snapshot.optimized && payload.renderMode === "OPTIMIZED_V2" ? Object.entries((snapshot.optimized as { gates: Record<string, boolean> }).gates).map(([gate, passed]) => ({ gate, passed })) : []; if (snapshot.optimized && payload.renderMode === "OPTIMIZED_V2") optimizedGateResults.push({ gate: "voiceSignature", passed: true, value: (snapshot.optimized as { voiceIdentity: { signature: string } }).voiceIdentity.signature }); const activeGateResults = optimizedGateResults.length ? optimizedGateResults : gateResults;
     if (activeGateResults.some((gate) => !gate.passed)) return Response.json({ error: `Final render gate blocked: ${activeGateResults.filter((gate) => !gate.passed).map((gate) => gate.gate).join(", ")}` }, { status: 409 });
     const bucket = (await runtimeEnv()).BUCKET; if (!bucket) return Response.json({ error: "Video storage is unavailable" }, { status: 424 });
     const parts: Uint8Array[] = []; const keys: string[] = []; let total = 0;
