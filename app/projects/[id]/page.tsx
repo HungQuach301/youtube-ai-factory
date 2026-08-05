@@ -317,7 +317,7 @@ type MediaData = {
   scenes: Array<{ id: string; sceneNumber: number; startSeconds: number; endSeconds: number; beat: string; visualIntent: string; mediaStrategy: string; searchQuery: string; assetUrl: string | null; assetStatus: string; licenseStatus: string }>;
   assets: Array<{ id: string; sceneId: string; name: string; mimeType: string; sourceType: string; sourceUrl: string | null; storageKey: string | null; licenseType: string; licenseProof: string | null; rightsStatus: string; status: string; sizeBytes: number }>;
   runs: Array<{ id: string; version: number; status: string; assetCoverage: number; licenseCoverage: number; criticResults: string; createdAt: string }>;
-  sourceConnectors: Array<{ id: string; name: string; category: "FREE" | "PAID" | "OWNED"; status: "CONNECTED" | "KEY_REQUIRED" | "CONFIG_REQUIRED" | "OAUTH_SETUP" | "BLOCKED"; capability: string; nextAction: string }>;
+  sourceConnectors: Array<{ id: string; name: string; category: "FREE" | "PAID" | "OWNED"; status: "CONNECTED" | "KEY_REQUIRED" | "CONFIG_REQUIRED" | "OAUTH_SETUP" | "BLOCKED"; capability: string; nextAction: string; requiredKeys: string[]; securityModel: string }>;
   automation: { verificationMode: "AUTOPILOT" | "REVIEW"; minimumConfidence: number; autoBuildAssembly: boolean };
   gates: { voice: boolean; assetCoverage: number; rightsCoverage: number; assemblyReady: boolean };
 };
@@ -336,6 +336,8 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
   const [discoveryFilter, setDiscoveryFilter] = useState<Record<string, "ALL" | "FREE" | "PAID" | "INTERNAL">>({});
   const [previewMedia, setPreviewMedia] = useState<PreviewMedia | null>(null);
   const [renderProgress, setRenderProgress] = useState<RenderProgress | null>(null);
+  const [providerSettingsOpen, setProviderSettingsOpen] = useState(false);
+  const [providerTests, setProviderTests] = useState<Record<string, { status: string; latencyMs: number; message: string }>>({});
 
   const loadMedia = useCallback(async () => {
     setError(null);
@@ -379,6 +381,19 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
       setDiscoveries((current) => ({ ...current, [sceneId]: payload }));
       setProjectNotice(`${payload.candidates.length} candidates found · rights verification remains required`);
     } catch (caught) { setProjectNotice(caught instanceof Error ? caught.message : "Asset search failed safely"); }
+    finally { setWorking(null); }
+  }
+
+  async function testProvider(providerId: string) {
+    setWorking(`provider:${providerId}`); setProjectNotice(`Testing ${providerId.replaceAll("_", " ")} from the protected server…`);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/media?providerHealth=${encodeURIComponent(providerId)}`, { signal: AbortSignal.timeout(15000) });
+      const payload = await response.json().catch(() => ({})) as { status?: string; latencyMs?: number; message?: string };
+      if (!response.ok) throw new Error(payload.message || "Provider test failed");
+      const result = { status: payload.status || "FAILED", latencyMs: payload.latencyMs || 0, message: payload.message || "No response" };
+      setProviderTests((current) => ({ ...current, [providerId]: result }));
+      setProjectNotice(`${providerId.replaceAll("_", " ")} · ${result.status.replaceAll("_", " ")} · ${result.message}`);
+    } catch (caught) { setProjectNotice(caught instanceof Error ? caught.message : "Provider test failed safely"); }
     finally { setWorking(null); }
   }
 
@@ -488,7 +503,7 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
 
   return <div className="mediaWorkspaceLayout">
     <section className="workspacePanel mediaMain">
-      <div className="contentHeader"><div><p className="eyebrow">WS-07 · unified source control</p><h2>Asset Source Hub</h2><p>Search free and paid providers, import your own media, preserve rights evidence, then bind one approved visual to every scene.</p></div><span className={`providerState ${connectedSources >= 2 ? "connected" : "waiting"}`}><i />{connectedSources}/{media.sourceConnectors.length} sources ready</span></div>
+      <div className="contentHeader"><div><p className="eyebrow">WS-07 · unified source control</p><h2>Asset Source Hub</h2><p>Search free and paid providers, import your own media, preserve rights evidence, then bind one approved visual to every scene.</p></div><div className="sourceHubActions"><span className={`providerState ${connectedSources >= 2 ? "connected" : "waiting"}`}><i />{connectedSources}/{media.sourceConnectors.length} sources ready</span><button onClick={() => setProviderSettingsOpen((open) => !open)}>{providerSettingsOpen ? "Close settings" : "Provider settings"}</button></div></div>
       <section className="assetSourceHub">
         <header><div><span>SOURCE CONNECTIONS</span><strong>One search surface · explicit licensing state</strong></div><p>Connect → search or import → rank → verify rights → select → render</p></header>
         <div className="sourceConnectorGrid">{media.sourceConnectors.map((source) => <article className={`sourceConnectorCard ${source.status.toLowerCase()}`} key={source.id}>
@@ -497,6 +512,16 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
         </article>)}</div>
         <footer><strong>Personal credibility media belongs here.</strong><span>Upload your own face, office, documents or product footage from the relevant scene card; every file stays private and receives its own provenance record.</span></footer>
       </section>
+      {providerSettingsOpen && <section className="providerSettingsPanel">
+        <header><div><span>PROTECTED PROVIDER SETTINGS</span><strong>Secrets stay server-side</strong><p>Connection tests run from the production server. Key names are visible; secret values are never returned to this page.</p></div><b>{connectedSources}/{media.sourceConnectors.length} operational</b></header>
+        <div>{media.sourceConnectors.map((source) => { const test = providerTests[source.id]; return <article key={source.id}>
+          <div className="providerSettingIdentity"><span>{source.name.slice(0, 1)}</span><div><strong>{source.name}</strong><small>{source.securityModel}</small></div></div>
+          <div className="providerKeyList"><small>REQUIRED CONFIGURATION</small>{source.requiredKeys.length ? source.requiredKeys.map((key) => <code key={key}>{key}</code>) : <code>NO SECRET REQUIRED</code>}</div>
+          <div className="providerTestResult"><span className={(test?.status || source.status).toLowerCase()}>{(test?.status || source.status).replaceAll("_", " ")}</span><small>{test ? `${test.message}${test.latencyMs ? ` · ${test.latencyMs}ms` : ""}` : source.nextAction}</small></div>
+          <button disabled={working === `provider:${source.id}`} onClick={() => testProvider(source.id)}>{working === `provider:${source.id}` ? "Testing…" : "Test connection"}</button>
+        </article>; })}</div>
+        <footer><strong>Configuration rule:</strong><span>Do not paste API secrets into project data, source links, or browser fields. Add them only as protected production secrets, then redeploy once so the new environment revision becomes active.</span></footer>
+      </section>}
       <div className="mediaMetrics"><div><small>Approved coverage</small><strong>{media.gates.assetCoverage}%</strong></div><div><small>Candidate assets</small><strong>{media.assets.length}</strong></div><div><small>Voice locked</small><strong>{media.gates.voice ? "Yes" : "No"}</strong></div><div><small>Assembly versions</small><strong>{media.runs.length}</strong></div></div>
       <section className={`automationControl ${media.automation.verificationMode === "AUTOPILOT" ? "isAuto" : "isReview"}`}><div className="automationIntro"><span>MEDIA DECISION MODE</span><strong>{media.automation.verificationMode === "AUTOPILOT" ? "Autopilot · no human verification required" : "Review mode · human approval retained"}</strong><p>{media.automation.verificationMode === "AUTOPILOT" ? `Frameflow ranks visual fit, accepts only sources scoring at least ${media.automation.minimumConfidence}% rights confidence, records the evidence trail and excludes uncertain candidates.` : "Frameflow proposes ranked candidates; you verify rights and approve the final visual for each scene."}</p></div><div className="modeSelector"><button className={media.automation.verificationMode === "AUTOPILOT" ? "active" : ""} onClick={() => mediaAction("SET_AUTOMATION_MODE", { verificationMode: "AUTOPILOT" })}>Autopilot</button><button className={media.automation.verificationMode === "REVIEW" ? "active" : ""} onClick={() => mediaAction("SET_AUTOMATION_MODE", { verificationMode: "REVIEW" })}>Review mode</button></div>{media.automation.verificationMode === "AUTOPILOT" && <button className="autopilotRun" disabled={working === "AUTO_SOURCE_ALL"} onClick={() => mediaAction("AUTO_SOURCE_ALL")}>{working === "AUTO_SOURCE_ALL" ? "Evaluating every scene…" : media.gates.assemblyReady ? "Run Autopilot again" : "Run full media Autopilot"}</button>}</section>
       <div className="diagramAutomation motionAutomation"><div><span className="motionBadge">MOTION RENDER PIPELINE</span><strong>Generate motion visuals, then render editor-ready clips</strong><p>Frameflow creates looping 16:9 SVG motion, captures it at 30fps and stores a WebM clip in the internal media library. {renderedScenes.size}/{motionSources.length || 3} motion scenes rendered. Motion clips are silent until narration is added by Full Video Composer.</p></div><div className="motionControls"><button className="secondaryMotionButton" disabled={working === "GENERATE_MOTION_VISUALS" || working === "RENDER_ALL_MOTION"} onClick={() => mediaAction("GENERATE_MOTION_VISUALS")}>{working === "GENERATE_MOTION_VISUALS" ? "Generating…" : "1 · Generate motion"}</button><button className="primaryButton" disabled={!motionSources.length || working === "RENDER_ALL_MOTION"} onClick={renderAllMotion}>{working === "RENDER_ALL_MOTION" ? `Rendering ${renderProgress?.current || 1}/${renderProgress?.total || motionSources.length}…` : renderedScenes.size ? "2 · Re-render all WebM" : "2 · Render all WebM"}</button></div></div>

@@ -419,6 +419,35 @@ nav { display: grid; gap: 5px; }
 .sourceConnectorCard > small { display: block; margin-top: 7px; color: #2f7259; font-size: 6px; font-weight: 850; }
 .assetSourceHub > footer { display: flex; gap: 7px; padding: 10px 13px; border-top: 1px solid #dce8e3; color: #63776f; background: rgba(255,255,255,.7); font-size: 7px; line-height: 1.45; }
 .assetSourceHub > footer strong { color: #245f4b; white-space: nowrap; }
+.sourceHubActions { display: grid; justify-items: end; gap: 7px; }
+.sourceHubActions > button { padding: 7px 10px; border: 1px solid #8bbda8; border-radius: 8px; background: white; color: #27674f; font-size: 7px; font-weight: 850; cursor: pointer; }
+.providerSettingsPanel { margin: 12px 0 0; overflow: hidden; border: 1px solid #a9cfc0; border-radius: 12px; background: #f9fcfa; box-shadow: 0 12px 30px rgba(20,61,51,.08); }
+.providerSettingsPanel > header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 15px; border-bottom: 1px solid #d8e7e0; }
+.providerSettingsPanel > header span, .providerSettingsPanel > header strong, .providerSettingsPanel > header p { display: block; margin: 0; }
+.providerSettingsPanel > header span { color: #3f8067; font-size: 6px; font-weight: 900; letter-spacing: .09em; }
+.providerSettingsPanel > header strong { margin-top: 4px; color: #173f35; font-size: 11px; }
+.providerSettingsPanel > header p { margin-top: 4px; color: #73827c; font-size: 7px; }
+.providerSettingsPanel > header b { color: #1e6049; font: 600 15px/1 Georgia, serif; white-space: nowrap; }
+.providerSettingsPanel > div { display: grid; }
+.providerSettingsPanel article { display: grid; grid-template-columns: minmax(170px, 1.1fr) minmax(210px, 1.25fr) minmax(190px, 1fr) auto; gap: 12px; align-items: center; padding: 11px 14px; border-bottom: 1px solid #e3ebe7; background: white; }
+.providerSettingIdentity { display: flex; gap: 9px; align-items: center; }
+.providerSettingIdentity > span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; color: #8bd5b5; background: #173e35; font: 700 12px/1 Georgia, serif; }
+.providerSettingIdentity strong, .providerSettingIdentity small { display: block; }
+.providerSettingIdentity strong { font-size: 9px; }
+.providerSettingIdentity small { margin-top: 3px; color: #7b8983; font-size: 6px; line-height: 1.35; }
+.providerKeyList { display: flex; flex-wrap: wrap; gap: 4px; }
+.providerKeyList small { flex-basis: 100%; color: #82918b; font-size: 5px; font-weight: 900; letter-spacing: .06em; }
+.providerKeyList code { padding: 4px 5px; border-radius: 5px; color: #345e50; background: #edf4f1; font-size: 6px; }
+.providerTestResult span, .providerTestResult small { display: block; }
+.providerTestResult span { width: fit-content; padding: 4px 6px; border-radius: 10px; color: #8b642e; background: #faecd8; font-size: 5px; font-weight: 900; }
+.providerTestResult span.connected { color: #246b50; background: #ddf1e7; }
+.providerTestResult span.failed, .providerTestResult span.blocked { color: #9b433e; background: #f9e3e0; }
+.providerTestResult span.oauth_setup { color: #336a7c; background: #e0eff4; }
+.providerTestResult small { margin-top: 4px; color: #7b8983; font-size: 6px; line-height: 1.35; }
+.providerSettingsPanel article > button { padding: 7px 8px; border: 1px solid #91bca9; border-radius: 7px; background: #edf6f2; color: #27674f; font-size: 6px; font-weight: 850; cursor: pointer; white-space: nowrap; }
+.providerSettingsPanel article > button:disabled { opacity: .55; cursor: wait; }
+.providerSettingsPanel > footer { display: flex; gap: 6px; padding: 10px 14px; color: #6e7d77; background: #eef6f2; font-size: 7px; line-height: 1.45; }
+.providerSettingsPanel > footer strong { color: #245f4b; white-space: nowrap; }
 .mediaMetrics { display: grid; grid-template-columns: repeat(4, 1fr); margin: 14px 0; border: 1px solid #e3e8e5; border-radius: 10px; overflow: hidden; }
 .mediaMetrics > div { padding: 12px; border-right: 1px solid #e8ecea; }
 .mediaMetrics > div:last-child { border: 0; }
@@ -1277,6 +1306,8 @@ nav { display: grid; gap: 5px; }
   .metricGrid { grid-template-columns: repeat(2, 1fr); }
   .automationControl { grid-template-columns: 1fr; }
   .sourceConnectorGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .providerSettingsPanel article { grid-template-columns: 1fr 1fr; }
+  .providerSettingsPanel article > button { width: 100%; }
   .modeSelector, .autopilotRun { width: 100%; }
   .modeSelector button { flex: 1; }
   .diagramAutomation { align-items: stretch; flex-direction: column; }
@@ -1358,6 +1389,10 @@ nav { display: grid; gap: 5px; }
   .mediaMetrics { grid-template-columns: repeat(2, 1fr); }
   .assetSourceHub > header, .assetSourceHub > footer { align-items: flex-start; flex-direction: column; }
   .sourceConnectorGrid { grid-template-columns: 1fr; }
+  .sourceHubActions { justify-items: stretch; }
+  .sourceHubActions > button { width: 100%; }
+  .providerSettingsPanel > header, .providerSettingsPanel > footer { align-items: flex-start; flex-direction: column; }
+  .providerSettingsPanel article { grid-template-columns: 1fr; }
   .composerMetrics, .composerTimeline { grid-template-columns: repeat(2, 1fr); }
   .referenceMetrics { grid-template-columns: repeat(2, 1fr); }
   .referenceGrid { grid-template-columns: 1fr; }

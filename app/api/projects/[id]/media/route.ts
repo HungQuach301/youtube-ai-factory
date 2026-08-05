@@ -119,6 +119,29 @@ async function fetchJson(url: string, headers?: Record<string, string>) {
   return response.json() as Promise<any>;
 }
 
+async function providerHealth(provider: string) {
+  const env = await runtimeEnv();
+  const startedAt = Date.now();
+  try {
+    if (provider === "owned") return { provider, status: env.BUCKET ? "CONNECTED" : "BLOCKED", latencyMs: Date.now() - startedAt, message: env.BUCKET ? "Private media storage is available" : "Private media storage binding is missing" };
+    if (provider === "openverse") await fetchJson("https://api.openverse.org/v1/images/?q=money&page_size=1");
+    else if (provider === "pexels") {
+      if (!env.PEXELS_API_KEY) return { provider, status: "KEY_REQUIRED", latencyMs: 0, message: "PEXELS_API_KEY is not configured" };
+      await fetchJson("https://api.pexels.com/v1/curated?per_page=1", { Authorization: env.PEXELS_API_KEY });
+    } else if (provider === "pixabay") {
+      if (!env.PIXABAY_API_KEY) return { provider, status: "KEY_REQUIRED", latencyMs: 0, message: "PIXABAY_API_KEY is not configured" };
+      await fetchJson(`https://pixabay.com/api/?key=${encodeURIComponent(env.PIXABAY_API_KEY)}&q=money&per_page=3&safesearch=true`);
+    } else if (provider === "shutterstock") {
+      if (!env.SHUTTERSTOCK_CONSUMER_KEY || !env.SHUTTERSTOCK_CONSUMER_SECRET) return { provider, status: "KEY_REQUIRED", latencyMs: 0, message: "Shutterstock consumer credentials are not configured" };
+      await fetchJson("https://api.shutterstock.com/v2/images/search?query=money&per_page=1&view=minimal", { Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}` });
+    } else if (provider === "google_drive") return { provider, status: env.GOOGLE_DRIVE_CLIENT_ID ? "OAUTH_SETUP" : "CONFIG_REQUIRED", latencyMs: 0, message: env.GOOGLE_DRIVE_CLIENT_ID ? "OAuth callback and Picker still need to be completed" : "Google Drive OAuth client ID is not configured" };
+    else return { provider, status: "UNKNOWN", latencyMs: 0, message: "Unknown provider" };
+    return { provider, status: "CONNECTED", latencyMs: Date.now() - startedAt, message: "Server-side connection test passed" };
+  } catch (error) {
+    return { provider, status: "FAILED", latencyMs: Date.now() - startedAt, message: error instanceof Error ? error.message : "Provider connection test failed" };
+  }
+}
+
 async function discoverAssets(projectId: string, sceneId: string) {
   const db = await getDb();
   const [scene] = await db.select().from(sceneManifest).where(eq(sceneManifest.id, sceneId)).limit(1);
@@ -293,6 +316,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     await ensureMediaSchema();
     const db = await getDb();
     const url = new URL(request.url);
+    const healthProvider = url.searchParams.get("providerHealth");
+    if (healthProvider) return Response.json(await providerHealth(healthProvider));
     const discoverSceneId = url.searchParams.get("discover");
     if (discoverSceneId) return Response.json(await discoverAssets(id, discoverSceneId));
     const assetId = url.searchParams.get("asset");
@@ -334,12 +359,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const coveredScenes = scenes.filter((scene) => approved.some((asset) => asset.sceneId === scene.id && asset.rightsStatus === "VERIFIED")).length;
     const env = await runtimeEnv();
     const sourceConnectors = [
-      { id: "owned", name: "Owned Media Vault", category: "OWNED", status: env.BUCKET ? "CONNECTED" : "BLOCKED", capability: "Upload personal images and videos into private object storage with a per-asset rights ledger.", nextAction: env.BUCKET ? "Ready · assign media from any scene" : "Storage binding required" },
-      { id: "openverse", name: "Openverse", category: "FREE", status: "CONNECTED", capability: "Commercially reusable image discovery with creator and license metadata.", nextAction: "Ready · no key required" },
-      { id: "pexels", name: "Pexels", category: "FREE", status: env.PEXELS_API_KEY ? "CONNECTED" : "KEY_REQUIRED", capability: "Landscape photo and video search with direct preview candidates.", nextAction: env.PEXELS_API_KEY ? "Ready for unified search" : "Add PEXELS_API_KEY" },
-      { id: "pixabay", name: "Pixabay", category: "FREE", status: env.PIXABAY_API_KEY ? "CONNECTED" : "KEY_REQUIRED", capability: "Photo and video search with commercial-use license references.", nextAction: env.PIXABAY_API_KEY ? "Ready for unified search" : "Add PIXABAY_API_KEY" },
-      { id: "shutterstock", name: "Shutterstock", category: "PAID", status: env.SHUTTERSTOCK_CONSUMER_KEY && env.SHUTTERSTOCK_CONSUMER_SECRET ? "CONNECTED" : "KEY_REQUIRED", capability: "Paid image and footage search; previews remain unlicensed until purchase evidence is attached.", nextAction: env.SHUTTERSTOCK_CONSUMER_KEY && env.SHUTTERSTOCK_CONSUMER_SECRET ? "Search ready · license handoff retained" : "Add consumer key + secret" },
-      { id: "google_drive", name: "Google Drive", category: "OWNED", status: env.GOOGLE_DRIVE_CLIENT_ID ? "OAUTH_SETUP" : "CONFIG_REQUIRED", capability: "Import selected personal files through Picker without exposing the whole Drive.", nextAction: env.GOOGLE_DRIVE_CLIENT_ID ? "Complete OAuth callback and Picker" : "Add Drive OAuth client ID" },
+      { id: "owned", name: "Owned Media Vault", category: "OWNED", status: env.BUCKET ? "CONNECTED" : "BLOCKED", capability: "Upload personal images and videos into private object storage with a per-asset rights ledger.", nextAction: env.BUCKET ? "Ready · assign media from any scene" : "Storage binding required", requiredKeys: [], securityModel: "Private object storage · per-asset provenance" },
+      { id: "openverse", name: "Openverse", category: "FREE", status: "CONNECTED", capability: "Commercially reusable image discovery with creator and license metadata.", nextAction: "Ready · no key required", requiredKeys: [], securityModel: "Public API · license metadata retained" },
+      { id: "pexels", name: "Pexels", category: "FREE", status: env.PEXELS_API_KEY ? "CONNECTED" : "KEY_REQUIRED", capability: "Landscape photo and video search with direct preview candidates.", nextAction: env.PEXELS_API_KEY ? "Ready for unified search" : "Add PEXELS_API_KEY", requiredKeys: ["PEXELS_API_KEY"], securityModel: "Protected server secret · never sent to browser" },
+      { id: "pixabay", name: "Pixabay", category: "FREE", status: env.PIXABAY_API_KEY ? "CONNECTED" : "KEY_REQUIRED", capability: "Photo and video search with commercial-use license references.", nextAction: env.PIXABAY_API_KEY ? "Ready for unified search" : "Add PIXABAY_API_KEY", requiredKeys: ["PIXABAY_API_KEY"], securityModel: "Protected server secret · never sent to browser" },
+      { id: "shutterstock", name: "Shutterstock", category: "PAID", status: env.SHUTTERSTOCK_CONSUMER_KEY && env.SHUTTERSTOCK_CONSUMER_SECRET ? "CONNECTED" : "KEY_REQUIRED", capability: "Paid image and footage search; previews remain unlicensed until purchase evidence is attached.", nextAction: env.SHUTTERSTOCK_CONSUMER_KEY && env.SHUTTERSTOCK_CONSUMER_SECRET ? "Search ready · license handoff retained" : "Add consumer key + secret", requiredKeys: ["SHUTTERSTOCK_CONSUMER_KEY", "SHUTTERSTOCK_CONSUMER_SECRET"], securityModel: "Protected server secrets · purchase proof required" },
+      { id: "google_drive", name: "Google Drive", category: "OWNED", status: env.GOOGLE_DRIVE_CLIENT_ID ? "OAUTH_SETUP" : "CONFIG_REQUIRED", capability: "Import selected personal files through Picker without exposing the whole Drive.", nextAction: env.GOOGLE_DRIVE_CLIENT_ID ? "Complete OAuth callback and Picker" : "Add Drive OAuth client ID", requiredKeys: ["GOOGLE_DRIVE_CLIENT_ID"], securityModel: "OAuth + Picker · file-scoped access only" },
     ];
     return Response.json({ scenes, assets, runs, sourceConnectors, automation: settingsRows[0] || { verificationMode: "AUTOPILOT", minimumConfidence: 85, autoBuildAssembly: true }, gates: { voice: segments.length > 0 && segments.every((segment) => segment.status === "APPROVED" && segment.audioKey), assetCoverage: scenes.length ? Math.round(coveredScenes / scenes.length * 100) : 0, rightsCoverage: assets.length ? Math.round(verified.length / assets.length * 100) : 0, assemblyReady: scenes.length > 0 && coveredScenes === scenes.length } });
   } catch (error) {
