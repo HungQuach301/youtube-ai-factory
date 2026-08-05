@@ -5,8 +5,9 @@ import { assemblyRuns, mediaAssets, mediaAutomationSettings, narrationSegments, 
 type RuntimeD1 = { prepare(sql: string): { run(): Promise<unknown> } };
 type RuntimeBucket = {
   put(key: string, value: ArrayBuffer | Uint8Array, options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<unknown>;
+  delete(keys: string | string[]): Promise<unknown>;
   head(key: string): Promise<{ size: number; httpMetadata?: { contentType?: string } } | null>;
-  get(key: string, options?: { range?: { offset: number; length: number } }): Promise<{ body: ReadableStream; size: number; httpMetadata?: { contentType?: string } } | null>;
+  get(key: string, options?: { range?: { offset: number; length: number } }): Promise<{ body: ReadableStream; arrayBuffer?: () => Promise<ArrayBuffer>; size: number; httpMetadata?: { contentType?: string } } | null>;
 };
 type RuntimeEnv = { DB?: RuntimeD1; BUCKET?: RuntimeBucket; PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string };
 
@@ -82,6 +83,27 @@ function diagramSvg(beat: string) {
 }
 
 function safeName(name: string) { return name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 100); }
+
+function safeUploadId(value: string) { return /^[a-zA-Z0-9-]{12,80}$/.test(value); }
+
+async function storeMotionRender(projectId: string, sceneId: string, parentAssetId: string, name: string, bytes: Uint8Array) {
+  const db = await getDb();
+  const [scene] = await db.select().from(sceneManifest).where(eq(sceneManifest.id, sceneId)).limit(1);
+  if (!scene || scene.projectId !== projectId) throw new Error("SCENE_NOT_FOUND");
+  const [parentAsset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, parentAssetId)).limit(1);
+  if (!parentAsset || parentAsset.projectId !== projectId || parentAsset.sceneId !== sceneId || !parentAsset.sourceType.startsWith("ORIGINAL_MOTION_") || parentAsset.rightsStatus !== "VERIFIED") throw new Error("MOTION_SOURCE_NOT_FOUND");
+  const env = await runtimeEnv();
+  if (!env.BUCKET) throw new Error("MEDIA_STORAGE_UNAVAILABLE");
+  const assetId = `${projectId}-AST-${crypto.randomUUID()}`;
+  const key = `media/${projectId}/${sceneId}/${assetId}-${safeName(name)}`;
+  await env.BUCKET.put(key, bytes, { httpMetadata: { contentType: "video/webm" }, customMetadata: { projectId, sceneId, generatedMotion: "true" } });
+  await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(and(eq(mediaAssets.projectId, projectId), eq(mediaAssets.sceneId, sceneId), eq(mediaAssets.sourceType, "MOTION_RENDER_WEBM")));
+  await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(eq(mediaAssets.id, parentAsset.id));
+  await db.insert(mediaAssets).values({ id: assetId, projectId, sceneId, name, mimeType: "video/webm", sourceType: "MOTION_RENDER_WEBM", storageKey: key, licenseType: "CHANNEL_OWNED", licenseProof: JSON.stringify({ renderer: "FRAMEFLOW_BROWSER_RENDER_V2_CHUNKED", sourceAssetId: parentAsset.id, format: "WEBM", fps: 30, rights: "INHERITED_CHANNEL_OWNED", renderedAt: new Date().toISOString() }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: bytes.byteLength });
+  await db.update(sceneManifest).set({ assetUrl: `/api/projects/${projectId}/media?asset=${encodeURIComponent(assetId)}`, assetStatus: "READY", licenseStatus: "VERIFIED", updatedAt: new Date().toISOString() }).where(eq(sceneManifest.id, sceneId));
+  await db.insert(workflowEvents).values({ projectId, toStatus: "PRODUCTION_PREP", eventType: "MOTION_CLIP_RENDERED", summary: `${scene.beat} rendered to a 30fps WebM clip and selected for the timeline` });
+  return assetId;
+}
 
 function cleanText(value: unknown, fallback = "Untitled asset") {
   return String(value || fallback).replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 240);
@@ -301,6 +323,18 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const { id } = await context.params;
     await ensureMediaSchema();
     const db = await getDb();
+    const requestUrl = new URL(request.url);
+    if (requestUrl.searchParams.get("motionUpload") === "part") {
+      const uploadId = requestUrl.searchParams.get("uploadId") || "";
+      const part = Number(requestUrl.searchParams.get("part"));
+      if (!safeUploadId(uploadId) || !Number.isInteger(part) || part < 0 || part > 200) return Response.json({ error: "Invalid motion upload part" }, { status: 400 });
+      const bytes = new Uint8Array(await request.arrayBuffer());
+      if (!bytes.byteLength || bytes.byteLength > 700 * 1024) return Response.json({ error: "Motion upload part must be between 1 byte and 700 KB" }, { status: 413 });
+      const env = await runtimeEnv();
+      if (!env.BUCKET) return Response.json({ error: "Media storage is unavailable" }, { status: 424 });
+      await env.BUCKET.put(`motion-uploads/${id}/${uploadId}/${part}.part`, bytes, { httpMetadata: { contentType: "application/octet-stream" }, customMetadata: { projectId: id, uploadId, part: String(part) } });
+      return Response.json({ ok: true, part });
+    }
     if (request.headers.get("content-type")?.includes("multipart/form-data")) {
       const form = await request.formData();
       const file = form.get("file");
@@ -321,22 +355,36 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       }
       const env = await runtimeEnv();
       if (!env.BUCKET) return Response.json({ error: "Media storage is unavailable" }, { status: 424 });
+      if (generatedMotion && parentAsset) {
+        const generatedAssetId = await storeMotionRender(id, sceneId, parentAsset.id, file.name, new Uint8Array(await file.arrayBuffer()));
+        return Response.json({ ok: true, assetId: generatedAssetId, generatedMotion: true });
+      }
       const assetId = `${id}-AST-${crypto.randomUUID()}`;
       const key = `media/${id}/${sceneId}/${assetId}-${safeName(file.name)}`;
       await env.BUCKET.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type }, customMetadata: { projectId: id, sceneId, generatedMotion: String(generatedMotion) } });
-      if (generatedMotion && parentAsset) {
-        await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(and(eq(mediaAssets.projectId, id), eq(mediaAssets.sceneId, sceneId), eq(mediaAssets.sourceType, "MOTION_RENDER_WEBM")));
-        await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(eq(mediaAssets.id, parentAsset.id));
-        await db.insert(mediaAssets).values({ id: assetId, projectId: id, sceneId, name: file.name, mimeType: "video/webm", sourceType: "MOTION_RENDER_WEBM", storageKey: key, licenseType: "CHANNEL_OWNED", licenseProof: JSON.stringify({ renderer: "FRAMEFLOW_BROWSER_RENDER_V1", sourceAssetId: parentAsset.id, format: "WEBM", fps: 30, rights: "INHERITED_CHANNEL_OWNED", renderedAt: new Date().toISOString() }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: file.size });
-        await db.update(sceneManifest).set({ assetUrl: `/api/projects/${id}/media?asset=${encodeURIComponent(assetId)}`, assetStatus: "READY", licenseStatus: "VERIFIED", updatedAt: new Date().toISOString() }).where(eq(sceneManifest.id, sceneId));
-        await db.insert(workflowEvents).values({ projectId: id, toStatus: "PRODUCTION_PREP", eventType: "MOTION_CLIP_RENDERED", summary: `${scene.beat} rendered to a 30fps WebM clip and selected for the timeline` });
-      } else {
-        await db.insert(mediaAssets).values({ id: assetId, projectId: id, sceneId, name: file.name, mimeType: file.type, sourceType: "USER_UPLOAD", storageKey: key, licenseType: String(form.get("licenseType") || "OWNED"), licenseProof: String(form.get("licenseProof") || "Uploader ownership confirmation required"), rightsStatus: "PENDING", status: "REVIEW", sizeBytes: file.size });
-      }
+      await db.insert(mediaAssets).values({ id: assetId, projectId: id, sceneId, name: file.name, mimeType: file.type, sourceType: "USER_UPLOAD", storageKey: key, licenseType: String(form.get("licenseType") || "OWNED"), licenseProof: String(form.get("licenseProof") || "Uploader ownership confirmation required"), rightsStatus: "PENDING", status: "REVIEW", sizeBytes: file.size });
       return Response.json({ ok: true, assetId, generatedMotion });
     }
 
-    const payload = await request.json() as { action?: "GENERATE_DIAGRAMS" | "GENERATE_MOTION_VISUALS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY"; sceneId?: string; assetId?: string; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
+    const payload = await request.json() as { action?: "GENERATE_DIAGRAMS" | "GENERATE_MOTION_VISUALS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY" | "FINALIZE_MOTION_UPLOAD"; sceneId?: string; assetId?: string; parentAssetId?: string; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
+    if (payload.action === "FINALIZE_MOTION_UPLOAD") {
+      const uploadId = payload.uploadId || ""; const chunkCount = Number(payload.chunkCount); const sceneId = payload.sceneId || ""; const parentAssetId = payload.parentAssetId || "";
+      if (!safeUploadId(uploadId) || !Number.isInteger(chunkCount) || chunkCount < 1 || chunkCount > 200 || !sceneId || !parentAssetId) return Response.json({ error: "Invalid motion upload manifest" }, { status: 400 });
+      const env = await runtimeEnv(); if (!env.BUCKET) return Response.json({ error: "Media storage is unavailable" }, { status: 424 });
+      const parts: Uint8Array[] = []; let total = 0; const partKeys: string[] = [];
+      for (let part = 0; part < chunkCount; part++) {
+        const key = `motion-uploads/${id}/${uploadId}/${part}.part`; const object = await env.BUCKET.get(key);
+        if (!object) return Response.json({ error: `Motion upload part ${part + 1}/${chunkCount} is missing` }, { status: 409 });
+        const buffer = object.arrayBuffer ? await object.arrayBuffer() : await new Response(object.body).arrayBuffer();
+        const bytes = new Uint8Array(buffer); parts.push(bytes); total += bytes.byteLength; partKeys.push(key);
+      }
+      if (payload.sizeBytes && total !== payload.sizeBytes) return Response.json({ error: "Motion upload size check failed" }, { status: 409 });
+      if (total > 50 * 1024 * 1024) return Response.json({ error: "Rendered clip exceeds the 50 MB MVP limit" }, { status: 413 });
+      const joined = new Uint8Array(total); let offset = 0; for (const part of parts) { joined.set(part, offset); offset += part.byteLength; }
+      const assetId = await storeMotionRender(id, sceneId, parentAssetId, safeName(payload.fileName || "motion.webm"), joined);
+      await env.BUCKET.delete(partKeys);
+      return Response.json({ ok: true, assetId, generatedMotion: true });
+    }
     if (payload.action === "SET_AUTOMATION_MODE") {
       if (!payload.verificationMode || !["AUTOPILOT", "REVIEW"].includes(payload.verificationMode)) return Response.json({ error: "Invalid verification mode" }, { status: 400 });
       await db.insert(mediaAutomationSettings).values({ projectId: id, verificationMode: payload.verificationMode, minimumConfidence: 85, autoBuildAssembly: true, updatedAt: new Date().toISOString() }).onConflictDoUpdate({ target: mediaAutomationSettings.projectId, set: { verificationMode: payload.verificationMode, updatedAt: new Date().toISOString() } });

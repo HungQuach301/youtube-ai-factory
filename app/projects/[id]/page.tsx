@@ -430,20 +430,26 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
     } finally { URL.revokeObjectURL(svgUrl); }
   }
 
-  async function uploadMotionRender(asset: MediaData["assets"][number], snapshot: MediaData, onProgress?: (percent: number) => void) {
-    const blob = await renderMotionBlob(asset, snapshot, onProgress);
-    const form = new FormData();
+  async function uploadMotionRender(asset: MediaData["assets"][number], snapshot: MediaData, onProgress?: (percent: number, phase: "RENDER" | "UPLOAD") => void) {
+    const blob = await renderMotionBlob(asset, snapshot, (percent) => onProgress?.(Math.round(percent * .8), "RENDER"));
     const name = `${asset.name.replace(/\.svg$/i, "").slice(0, 80)}.webm`;
-    form.set("sceneId", asset.sceneId); form.set("parentAssetId", asset.id); form.set("generatedMotion", "true"); form.set("file", new File([blob], name, { type: "video/webm" }));
-    const response = await fetch(`/api/projects/${projectId}/media`, { method: "POST", body: form });
+    const uploadId = crypto.randomUUID(); const chunkSize = 512 * 1024; const chunkCount = Math.ceil(blob.size / chunkSize);
+    for (let part = 0; part < chunkCount; part++) {
+      const response = await fetch(`/api/projects/${projectId}/media?motionUpload=part&uploadId=${encodeURIComponent(uploadId)}&part=${part}`, { method: "POST", headers: { "content-type": "application/octet-stream" }, body: blob.slice(part * chunkSize, Math.min(blob.size, (part + 1) * chunkSize)) });
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(payload.error || `Upload part ${part + 1}/${chunkCount} failed`);
+      onProgress?.(80 + Math.round((part + 1) / chunkCount * 18), "UPLOAD");
+    }
+    const response = await fetch(`/api/projects/${projectId}/media`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "FINALIZE_MOTION_UPLOAD", uploadId, chunkCount, sceneId: asset.sceneId, parentAssetId: asset.id, fileName: name, sizeBytes: blob.size }) });
     const payload = await response.json().catch(() => ({})) as { error?: string };
     if (!response.ok) throw new Error(payload.error || "Rendered clip could not be saved");
+    onProgress?.(100, "UPLOAD");
   }
 
   async function renderSingleMotion(asset: MediaData["assets"][number]) {
     if (!media) return; setWorking(`render:${asset.id}`); setProjectNotice(`Rendering ${asset.name} to a 30fps WebM clip…`);
     setRenderProgress({ status: "RUNNING", current: 1, total: 1, percent: 0, label: asset.name, message: "Preparing motion canvas" });
-    try { await uploadMotionRender(asset, media, (percent) => setRenderProgress({ status: "RUNNING", current: 1, total: 1, percent, label: asset.name, message: percent < 100 ? "Capturing 30fps WebM" : "Uploading rendered clip" })); await loadMedia(); setRenderProgress({ status: "DONE", current: 1, total: 1, percent: 100, label: asset.name, message: "Clip stored and selected for the timeline" }); setProjectNotice("Motion clip rendered, stored and selected for the timeline"); }
+    try { await uploadMotionRender(asset, media, (percent, phase) => setRenderProgress({ status: "RUNNING", current: 1, total: 1, percent, label: asset.name, message: phase === "RENDER" ? "Capturing 30fps WebM" : "Uploading in safe-size parts" })); await loadMedia(); setRenderProgress({ status: "DONE", current: 1, total: 1, percent: 100, label: asset.name, message: "Clip stored and selected for the timeline" }); setProjectNotice("Motion clip rendered, stored and selected for the timeline"); }
     catch (caught) { const message = caught instanceof Error ? caught.message : "Motion render failed safely"; setRenderProgress({ status: "ERROR", current: 1, total: 1, percent: 0, label: asset.name, message }); setProjectNotice(message); }
     finally { setWorking(null); }
   }
@@ -452,13 +458,13 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
     if (!media) return;
     const sources = media.assets.filter((asset) => asset.sourceType.startsWith("ORIGINAL_MOTION_")).filter((asset, index, rows) => rows.findIndex((item) => item.sceneId === asset.sceneId) === index);
     if (!sources.length) { setProjectNotice("Generate motion visuals before rendering WebM clips"); return; }
-    setWorking("RENDER_ALL_MOTION"); let completed = 0; let failed = 0;
+    setWorking("RENDER_ALL_MOTION"); let completed = 0; const failures: string[] = [];
     for (const [index, asset] of sources.entries()) {
       setProjectNotice(`Rendering motion clip ${index + 1}/${sources.length} · ${asset.name}`);
       setRenderProgress({ status: "RUNNING", current: index + 1, total: sources.length, percent: 0, label: asset.name, message: "Preparing motion canvas" });
-      try { await uploadMotionRender(asset, media, (percent) => setRenderProgress({ status: "RUNNING", current: index + 1, total: sources.length, percent, label: asset.name, message: percent < 100 ? "Capturing 30fps WebM" : "Uploading rendered clip" })); completed++; } catch { failed++; }
+      try { await uploadMotionRender(asset, media, (percent, phase) => setRenderProgress({ status: "RUNNING", current: index + 1, total: sources.length, percent, label: asset.name, message: phase === "RENDER" ? "Capturing 30fps WebM" : "Uploading in safe-size parts" })); completed++; } catch (caught) { failures.push(`${asset.name}: ${caught instanceof Error ? caught.message : "Unknown render error"}`); }
     }
-    await loadMedia(); setWorking(null); setRenderProgress({ status: failed ? "ERROR" : "DONE", current: sources.length, total: sources.length, percent: 100, label: `${completed} clips ready`, message: failed ? `${failed} clip(s) failed safely · run render again to retry` : "All motion clips stored and selected" }); setProjectNotice(`Motion render completed · ${completed} clips ready${failed ? ` · ${failed} failed safely` : ""}`);
+    await loadMedia(); setWorking(null); setRenderProgress({ status: failures.length ? "ERROR" : "DONE", current: sources.length, total: sources.length, percent: 100, label: `${completed} clips ready`, message: failures.length ? `${failures.length} failed · ${failures[0]}` : "All motion clips stored and selected" }); setProjectNotice(`Motion render completed · ${completed} clips ready${failures.length ? ` · ${failures.length} failed: ${failures[0]}` : ""}`);
   }
 
   if (error) return <section className="workspacePanel productionError"><span>!</span><h2>Media workspace could not load</h2><p>{error}</p><button className="primaryButton" onClick={() => loadMedia().catch((caught: Error) => setError(caught.message))}>Try again</button></section>;
