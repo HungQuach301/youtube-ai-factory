@@ -404,6 +404,17 @@ nav { display: grid; gap: 5px; }
 .mediaMetrics small, .mediaMetrics strong { display: block; }
 .mediaMetrics small { color: #89948f; font-size: 7px; text-transform: uppercase; letter-spacing: .07em; }
 .mediaMetrics strong { margin-top: 5px; font: 600 14px/1 Georgia, serif; }
+.automationControl { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: center; margin-bottom: 13px; padding: 15px; border: 1px solid #c9ddd4; border-radius: 11px; background: #f4f8f6; }
+.automationControl.isAuto { border-color: #73ad94; background: linear-gradient(120deg, #e3f3eb, #f7fbf9); box-shadow: inset 3px 0 #2e7c5e; }
+.automationIntro span, .automationIntro strong { display: block; }
+.automationIntro span { color: #52816e; font-size: 6px; font-weight: 900; letter-spacing: .09em; }
+.automationIntro strong { margin-top: 4px; color: #173f35; font-size: 10px; }
+.automationIntro p { max-width: 570px; margin: 5px 0 0; color: #6d7d76; font-size: 7px; line-height: 1.45; }
+.modeSelector { display: flex; padding: 3px; border: 1px solid #d2ddd8; border-radius: 8px; background: white; }
+.modeSelector button { padding: 7px 8px; border: 0; border-radius: 6px; background: transparent; color: #71817a; font-size: 6px; font-weight: 850; cursor: pointer; }
+.modeSelector button.active { background: #1f5f49; color: white; }
+.autopilotRun { min-width: 142px; padding: 10px 12px; border: 0; border-radius: 8px; background: #173e35; color: white; font-size: 7px; font-weight: 850; cursor: pointer; box-shadow: 0 5px 14px rgba(23,62,53,.16); }
+.autopilotRun:disabled { opacity: .6; cursor: wait; }
 .diagramAutomation { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 13px; padding: 15px; border: 1px solid #cde1d8; border-radius: 11px; background: #eaf4ef; }
 .diagramAutomation strong, .diagramAutomation p { display: block; margin: 0; }
 .diagramAutomation strong { font-size: 10px; }
@@ -511,6 +522,9 @@ nav { display: grid; gap: 5px; }
   .topbar { align-items: flex-start; }
   .secondaryButton { display: none; }
   .metricGrid { grid-template-columns: repeat(2, 1fr); }
+  .automationControl { grid-template-columns: 1fr; }
+  .modeSelector, .autopilotRun { width: 100%; }
+  .modeSelector button { flex: 1; }
   .discoveryGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .projectList { grid-template-columns: 1fr; }
   .projectCard h3 { min-height: 0; }

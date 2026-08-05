@@ -1,6 +1,6 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
-import { assemblyRuns, mediaAssets, narrationSegments, sceneManifest, videoProjects, workflowEvents } from "../../../../../db/schema";
+import { assemblyRuns, mediaAssets, mediaAutomationSettings, narrationSegments, sceneManifest, videoProjects, workflowEvents } from "../../../../../db/schema";
 
 type RuntimeD1 = { prepare(sql: string): { run(): Promise<unknown> } };
 type RuntimeBucket = {
@@ -41,6 +41,11 @@ async function ensureMediaSchema() {
         status text DEFAULT 'READY_FOR_RENDER' NOT NULL, manifest_json text NOT NULL,
         asset_coverage integer DEFAULT 0 NOT NULL, license_coverage integer DEFAULT 0 NOT NULL,
         critic_results text NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )`).run();
+      await env.DB.prepare(`CREATE TABLE IF NOT EXISTS media_automation_settings (
+        project_id text PRIMARY KEY NOT NULL, verification_mode text DEFAULT 'AUTOPILOT' NOT NULL,
+        minimum_confidence integer DEFAULT 85 NOT NULL, auto_build_assembly integer DEFAULT 1 NOT NULL,
+        updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
       )`).run();
     })().catch((error) => { mediaSchemaReady = null; throw error; });
   }
@@ -123,6 +128,75 @@ async function discoverAssets(projectId: string, sceneId: string) {
   return { scene: { id: scene.id, query }, providerStatus, candidates: [...internal, ...pexels, ...pixabay, ...openverse, ...paid].sort((a, b) => b.score - a.score) };
 }
 
+function automationConfidence(candidate: DiscoveryCandidate) {
+  if (candidate.category === "INTERNAL") return 100;
+  if (candidate.provider === "Pexels" || candidate.provider === "Pixabay") return 96;
+  if (candidate.provider === "Openverse") {
+    const license = candidate.licenseType.toLowerCase();
+    if (license === "cc0" || license === "pdm") return 95;
+    if (license.includes("by") && !license.includes("nc")) return 88;
+  }
+  return 0;
+}
+
+async function runMediaAutopilot(projectId: string) {
+  const db = await getDb();
+  const env = await runtimeEnv();
+  const [scenes, existing, settingsRows] = await Promise.all([
+    db.select().from(sceneManifest).where(eq(sceneManifest.projectId, projectId)).orderBy(asc(sceneManifest.sceneNumber)),
+    db.select().from(mediaAssets).where(eq(mediaAssets.projectId, projectId)),
+    db.select().from(mediaAutomationSettings).where(eq(mediaAutomationSettings.projectId, projectId)).limit(1),
+  ]);
+  const settings = settingsRows[0] || { verificationMode: "AUTOPILOT", minimumConfidence: 85, autoBuildAssembly: true };
+  if (settings.verificationMode !== "AUTOPILOT") throw new Error("AUTOPILOT_NOT_ENABLED");
+  const covered = new Set(existing.filter((asset) => asset.status === "APPROVED" && asset.rightsStatus === "VERIFIED").map((asset) => asset.sceneId));
+  const decisions: Array<Record<string, unknown>> = [];
+
+  for (const scene of scenes) {
+    if (covered.has(scene.id)) continue;
+    if (scene.mediaStrategy === "DIAGRAM") {
+      if (!env.BUCKET) { decisions.push({ sceneId: scene.id, sceneNumber: scene.sceneNumber, status: "EXCEPTION", reason: "Media storage unavailable" }); continue; }
+      const assetId = `${projectId}-AST-DIAGRAM-${scene.sceneNumber}`;
+      const key = `media/${projectId}/${scene.id}/${assetId}.svg`;
+      await env.BUCKET.put(key, new TextEncoder().encode(diagramSvg(scene.beat)), { httpMetadata: { contentType: "image/svg+xml" }, customMetadata: { projectId, sceneId: scene.id } });
+      await db.insert(mediaAssets).values({ id: assetId, projectId, sceneId: scene.id, name: `${scene.beat}.svg`, mimeType: "image/svg+xml", sourceType: "ORIGINAL_DIAGRAM", storageKey: key, licenseType: "CHANNEL_OWNED", licenseProof: JSON.stringify({ policy: "FRAMEFLOW_AUTOPILOT_V1", confidence: 100, decision: "AUTO_VERIFIED", basis: "Channel-owned original diagram" }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: 0 }).onConflictDoNothing();
+      await db.update(sceneManifest).set({ assetUrl: `/api/projects/${projectId}/media?asset=${encodeURIComponent(assetId)}`, assetStatus: "READY", licenseStatus: "VERIFIED", updatedAt: new Date().toISOString() }).where(eq(sceneManifest.id, scene.id));
+      covered.add(scene.id); decisions.push({ sceneId: scene.id, sceneNumber: scene.sceneNumber, status: "AUTO_APPROVED", provider: "Frameflow", confidence: 100 });
+      continue;
+    }
+
+    const discovery = await discoverAssets(projectId, scene.id);
+    const ranked = discovery.candidates.map((candidate) => ({ candidate, confidence: automationConfidence(candidate) }))
+      .filter(({ candidate, confidence }) => candidate.category !== "PAID" && confidence >= settings.minimumConfidence && Boolean(candidate.assetUrl || candidate.sourceAssetId))
+      .sort((a, b) => (b.confidence + b.candidate.score) - (a.confidence + a.candidate.score));
+    const selected = ranked[0];
+    if (!selected) { decisions.push({ sceneId: scene.id, sceneNumber: scene.sceneNumber, status: "EXCEPTION", reason: "No candidate passed the automatic rights policy" }); continue; }
+    const candidate = selected.candidate;
+    let sourceUrl = candidate.assetUrl || candidate.landingUrl;
+    let storageKey: string | null = null;
+    let sourceType = "AUTOPILOT_FREE_STOCK";
+    if (candidate.category === "INTERNAL" && candidate.sourceAssetId) {
+      const [source] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, candidate.sourceAssetId)).limit(1);
+      if (!source || source.rightsStatus !== "VERIFIED") { decisions.push({ sceneId: scene.id, sceneNumber: scene.sceneNumber, status: "EXCEPTION", reason: "Internal rights evidence changed" }); continue; }
+      sourceUrl = source.sourceUrl; storageKey = source.storageKey; sourceType = "AUTOPILOT_INTERNAL_REUSE";
+    }
+    const assetId = `${projectId}-AST-AUTO-${crypto.randomUUID()}`;
+    const attribution = candidate.creator && candidate.provider === "Openverse" ? `${candidate.title} — ${candidate.creator} (${candidate.licenseType})` : null;
+    const proof = JSON.stringify({ policy: "FRAMEFLOW_AUTOPILOT_V1", decision: "AUTO_VERIFIED", confidence: selected.confidence, provider: candidate.provider, landingUrl: candidate.landingUrl, licenseType: candidate.licenseType, licenseUrl: candidate.licenseUrl, creator: candidate.creator, attribution, evaluatedAt: new Date().toISOString() });
+    await db.insert(mediaAssets).values({ id: assetId, projectId, sceneId: scene.id, name: cleanText(candidate.title), mimeType: candidate.mediaType === "VIDEO" ? "video/external" : "image/external", sourceType, sourceUrl, storageKey, licenseType: cleanText(candidate.licenseType), licenseProof: proof, rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: 0 });
+    const assetUrl = storageKey ? `/api/projects/${projectId}/media?asset=${encodeURIComponent(assetId)}` : sourceUrl;
+    await db.update(sceneManifest).set({ assetUrl, assetStatus: "READY", licenseStatus: "VERIFIED", updatedAt: new Date().toISOString() }).where(eq(sceneManifest.id, scene.id));
+    covered.add(scene.id); decisions.push({ sceneId: scene.id, sceneNumber: scene.sceneNumber, status: "AUTO_APPROVED", provider: candidate.provider, confidence: selected.confidence, candidateId: candidate.id });
+  }
+  const exceptions = decisions.filter((decision) => decision.status === "EXCEPTION").length;
+  let assembly: { id: string; version: number } | null = null;
+  if (!exceptions && settings.autoBuildAssembly) {
+    try { assembly = await buildAssembly(projectId); } catch (error) { if (!(error instanceof Error && error.message === "VOICE_GATE_BLOCKED")) throw error; }
+  }
+  await db.insert(workflowEvents).values({ projectId, toStatus: assembly ? "ASSEMBLY_READY" : "PRODUCTION_PREP", eventType: exceptions ? "MEDIA_AUTOPILOT_EXCEPTION" : "MEDIA_AUTOPILOT_COMPLETED", summary: `Autopilot approved ${decisions.length - exceptions} scenes; ${exceptions} exceptions; ${assembly ? `assembly v${assembly.version} built` : "assembly pending"}` });
+  return { decisions, exceptions, assembly, mode: settings.verificationMode };
+}
+
 async function buildAssembly(projectId: string) {
   const db = await getDb();
   const [scenes, assets, segments, runs] = await Promise.all([
@@ -170,11 +244,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       if (!object) return new Response("Asset not found", { status: 404 });
       return new Response(object.body, { headers: { "content-type": object.httpMetadata?.contentType || asset.mimeType, "cache-control": "private, max-age=3600" } });
     }
-    const [scenes, assets, runs, segments] = await Promise.all([
+    const [scenes, assets, runs, segments, settingsRows] = await Promise.all([
       db.select().from(sceneManifest).where(eq(sceneManifest.projectId, id)).orderBy(asc(sceneManifest.sceneNumber)),
       db.select().from(mediaAssets).where(eq(mediaAssets.projectId, id)).orderBy(desc(mediaAssets.createdAt)),
       db.select().from(assemblyRuns).where(eq(assemblyRuns.projectId, id)).orderBy(desc(assemblyRuns.version)),
       db.select().from(narrationSegments).where(eq(narrationSegments.projectId, id)).orderBy(asc(narrationSegments.position)),
+      db.select().from(mediaAutomationSettings).where(eq(mediaAutomationSettings.projectId, id)).limit(1),
     ]);
     if (url.searchParams.get("download") === "latest") {
       if (!runs[0]) return Response.json({ error: "Build an assembly plan first" }, { status: 404 });
@@ -183,7 +258,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const approved = assets.filter((asset) => asset.status === "APPROVED");
     const verified = assets.filter((asset) => asset.rightsStatus === "VERIFIED");
     const coveredScenes = scenes.filter((scene) => approved.some((asset) => asset.sceneId === scene.id && asset.rightsStatus === "VERIFIED")).length;
-    return Response.json({ scenes, assets, runs, gates: { voice: segments.length > 0 && segments.every((segment) => segment.status === "APPROVED" && segment.audioKey), assetCoverage: scenes.length ? Math.round(coveredScenes / scenes.length * 100) : 0, rightsCoverage: assets.length ? Math.round(verified.length / assets.length * 100) : 0, assemblyReady: scenes.length > 0 && coveredScenes === scenes.length } });
+    return Response.json({ scenes, assets, runs, automation: settingsRows[0] || { verificationMode: "AUTOPILOT", minimumConfidence: 85, autoBuildAssembly: true }, gates: { voice: segments.length > 0 && segments.every((segment) => segment.status === "APPROVED" && segment.audioKey), assetCoverage: scenes.length ? Math.round(coveredScenes / scenes.length * 100) : 0, rightsCoverage: assets.length ? Math.round(verified.length / assets.length * 100) : 0, assemblyReady: scenes.length > 0 && coveredScenes === scenes.length } });
   } catch (error) {
     console.error("Media workspace GET failed", error);
     return Response.json({ error: "Media workspace could not be loaded" }, { status: 500 });
@@ -213,7 +288,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ ok: true, assetId });
     }
 
-    const payload = await request.json() as { action?: "GENERATE_DIAGRAMS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY"; sceneId?: string; assetId?: string; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate };
+    const payload = await request.json() as { action?: "GENERATE_DIAGRAMS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY"; sceneId?: string; assetId?: string; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
+    if (payload.action === "SET_AUTOMATION_MODE") {
+      if (!payload.verificationMode || !["AUTOPILOT", "REVIEW"].includes(payload.verificationMode)) return Response.json({ error: "Invalid verification mode" }, { status: 400 });
+      await db.insert(mediaAutomationSettings).values({ projectId: id, verificationMode: payload.verificationMode, minimumConfidence: 85, autoBuildAssembly: true, updatedAt: new Date().toISOString() }).onConflictDoUpdate({ target: mediaAutomationSettings.projectId, set: { verificationMode: payload.verificationMode, updatedAt: new Date().toISOString() } });
+      await db.insert(workflowEvents).values({ projectId: id, toStatus: "PRODUCTION_PREP", eventType: "MEDIA_AUTOMATION_MODE_CHANGED", summary: `Media verification mode changed to ${payload.verificationMode}` });
+      return Response.json({ ok: true, verificationMode: payload.verificationMode });
+    }
+    if (payload.action === "AUTO_SOURCE_ALL") return Response.json({ ok: true, ...(await runMediaAutopilot(id)) });
     if (payload.action === "GENERATE_DIAGRAMS") {
       const env = await runtimeEnv();
       if (!env.BUCKET) return Response.json({ error: "Media storage is unavailable" }, { status: 424 });

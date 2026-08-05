@@ -207,3 +207,11 @@ export const assemblyRuns = sqliteTable("assembly_runs", {
   criticResults: text("critic_results").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const mediaAutomationSettings = sqliteTable("media_automation_settings", {
+  projectId: text("project_id").primaryKey(),
+  verificationMode: text("verification_mode").notNull().default("AUTOPILOT"),
+  minimumConfidence: integer("minimum_confidence").notNull().default(85),
+  autoBuildAssembly: integer("auto_build_assembly", { mode: "boolean" }).notNull().default(true),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
