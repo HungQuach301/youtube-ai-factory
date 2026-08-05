@@ -212,7 +212,7 @@ export default function Home() {
             <span className="channelAvatar">HS</span>
             <div><strong>Hidden Systems</strong><span>Behind Money · US</span></div>
           </div>
-          <button className="navItem"><span>⚙</span>Workspace settings</button>
+          <a className="navItem" href="/settings"><span>⚙</span>Factory settings</a>
         </div>
       </aside>
 
