@@ -873,6 +873,49 @@ nav { display: grid; gap: 5px; }
 .microQa article p, .microQa footer p { margin: 7px 0 0; color: #526c62; font-size: 11px; line-height: 1.45; }
 .microQa footer { padding: 13px 16px; }
 .microQa footer span { color: #1c5946; font-size: 11px; font-weight: 800; }
+.depthGateBlocker { margin: 18px 24px 0; padding: 16px 18px; border: 1px solid #e8b979; border-radius: 13px; background: #fff7e9; }
+.depthGateBlocker span { display: block; color: #9a5d13; font-size: 10px; font-weight: 900; letter-spacing: .12em; }
+.depthGateBlocker strong { display: block; margin-top: 5px; color: #4d3518; }
+.depthGateBlocker p { margin: 6px 0 0; color: #765b38; font-size: 12px; line-height: 1.55; }
+.depthGateMetrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0; }
+.depthGateMetrics article { padding: 14px; border-radius: 12px; background: #143d31; color: #fff; }
+.depthGateMetrics small { display: block; color: #99c6b4; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.depthGateMetrics strong { display: block; margin-top: 5px; font-size: 24px; }
+.depthGateMetrics strong b { margin-left: 4px; color: #a9c9bd; font-size: 10px; }
+.sourceLibrary, .evidenceMatrix { margin: 16px 0; border: 1px solid #d9e5df; border-radius: 13px; background: #fff; overflow: hidden; }
+.sourceLibrary summary, .evidenceMatrix summary { padding: 14px 16px; color: #234c3e; font-size: 12px; font-weight: 800; cursor: pointer; }
+.sourceLibrary > div { display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid #e3ebe7; }
+.sourceLibrary a { padding: 14px 16px; border-right: 1px solid #e8eeeb; border-bottom: 1px solid #e8eeeb; color: inherit; text-decoration: none; }
+.sourceLibrary a:hover { background: #f0f7f4; }
+.sourceLibrary a span { display: block; color: #55806f; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.sourceLibrary a strong { display: block; margin-top: 5px; font-size: 12px; line-height: 1.4; }
+.sourceLibrary a p { margin: 5px 0 0; color: #6b7e76; font-size: 10px; }
+.depthMatrix, .claimBeatMap, .contradictionPanel { margin-top: 16px; border: 1px solid #dbe6e1; border-radius: 13px; overflow: hidden; background: #fff; }
+.depthMatrix > header, .claimBeatMap > header, .contradictionPanel > header { display: flex; justify-content: space-between; gap: 20px; padding: 14px 16px; background: #edf5f1; }
+.depthMatrix header small, .claimBeatMap header small, .contradictionPanel header small { color: #4b7565; font-size: 9px; font-weight: 900; letter-spacing: .1em; }
+.depthMatrix header strong, .claimBeatMap header strong, .contradictionPanel header strong { font-size: 12px; }
+.depthMatrix > div { display: grid; grid-template-columns: repeat(2, 1fr); }
+.depthMatrix article { display: grid; grid-template-columns: 36px 1fr auto; gap: 9px; align-items: center; padding: 13px 16px; border-right: 1px solid #e8eeeb; border-bottom: 1px solid #e8eeeb; }
+.depthMatrix article span { padding: 4px; border-radius: 5px; background: #fce7df; color: #9a3f28; font-size: 9px; font-weight: 900; text-align: center; }
+.depthMatrix article strong, .depthMatrix article b { font-size: 11px; }
+.depthMatrix article p { grid-column: 2; margin: 0; color: #73837c; font-size: 10px; }
+.depthMatrix article > b { color: #28735a; }
+.evidenceMatrix > article { padding: 13px 16px; border-top: 1px solid #e8eeeb; }
+.evidenceMatrix article header { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: start; }
+.evidenceMatrix article header span { color: #4c7565; font-size: 10px; font-weight: 900; }
+.evidenceMatrix article header strong { font-size: 11px; line-height: 1.45; }
+.evidenceMatrix article header b { color: #28735a; font-size: 9px; }
+.evidenceMatrix article p { margin: 5px 0 0 38px; color: #6b7c75; font-size: 10px; }
+.claimBeatMap > div { display: grid; grid-template-columns: repeat(2, 1fr); }
+.claimBeatMap article { position: relative; padding: 14px 54px 14px 16px; border-right: 1px solid #e8eeeb; border-bottom: 1px solid #e8eeeb; }
+.claimBeatMap article strong { font-size: 11px; }
+.claimBeatMap article p { margin: 5px 0 0; color: #6b7d75; font-size: 10px; line-height: 1.45; }
+.claimBeatMap article span { position: absolute; top: 14px; right: 14px; color: #2c6c57; font-size: 9px; font-weight: 800; }
+.contradictionPanel > article { padding: 14px 16px; border-top: 1px solid #e6ede9; }
+.contradictionPanel article div { display: flex; justify-content: space-between; gap: 16px; }
+.contradictionPanel article strong { font-size: 11px; }
+.contradictionPanel article span { color: #28735a; font-size: 9px; font-weight: 900; }
+.contradictionPanel article p { margin: 6px 0 0; color: #62766d; font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 1160px) {
   .contentGrid { grid-template-columns: 1fr; }
@@ -949,6 +992,8 @@ nav { display: grid; gap: 5px; }
   .contractGrid { grid-template-columns: repeat(2, 1fr); }
   .candidateTournament { grid-template-columns: 1fr; }
   .microQa > div { grid-template-columns: repeat(2, 1fr); }
+  .depthGateMetrics { grid-template-columns: repeat(2, 1fr); }
+  .sourceLibrary > div, .depthMatrix > div, .claimBeatMap > div { grid-template-columns: 1fr; }
   .mediaSceneBody { grid-template-columns: 1fr; }
   .audioReview { grid-template-columns: 1fr; }
 }
@@ -1010,6 +1055,7 @@ nav { display: grid; gap: 5px; }
   .outlineActs article > div > p { grid-column: 1 / -1; }
   .scriptArtifact { padding: 22px 18px; }
   .microQa > div { grid-template-columns: 1fr; }
+  .depthGateMetrics { grid-template-columns: 1fr 1fr; }
   .gapTableHead { display: none; }
   .gapTable article { grid-template-columns: 1fr 46px 58px; }
   .gapTable article > p { grid-column: 1 / -1; grid-row: 2; }
