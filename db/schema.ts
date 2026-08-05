@@ -215,3 +215,20 @@ export const mediaAutomationSettings = sqliteTable("media_automation_settings", 
   autoBuildAssembly: integer("auto_build_assembly", { mode: "boolean" }).notNull().default(true),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const videoRenders = sqliteTable("video_renders", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  version: integer("version").notNull(),
+  name: text("name").notNull(),
+  storageKey: text("storage_key").notNull(),
+  mimeType: text("mime_type").notNull().default("video/webm"),
+  sizeBytes: integer("size_bytes").notNull().default(0),
+  durationSeconds: real("duration_seconds").notNull().default(0),
+  width: integer("width").notNull().default(1280),
+  height: integer("height").notNull().default(720),
+  fps: integer("fps").notNull().default(30),
+  status: text("status").notNull().default("READY"),
+  gateResults: text("gate_results").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

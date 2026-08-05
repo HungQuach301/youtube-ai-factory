@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
-type Tab = "brief" | "evidence" | "script" | "critics" | "voice" | "production" | "media" | "history";
+type Tab = "brief" | "evidence" | "script" | "critics" | "voice" | "production" | "media" | "composer" | "history";
 type Workspace = {
   project: { id: string; title: string; pillar: string; status: string; progress: number; spentUsd: number; budgetUsd: number };
   brief: { targetViewer: string; centralQuestion: string; viewerPromise: string; uniqueAngle: string; format: string; riskNote: string; status: string };
@@ -22,6 +22,7 @@ const tabs: Array<{ key: Tab; label: string }> = [
   { key: "voice", label: "Voice studio" },
   { key: "production", label: "Storyboard & export" },
   { key: "media", label: "Media & assembly" },
+  { key: "composer", label: "Final composer" },
   { key: "history", label: "History" },
 ];
 
@@ -77,7 +78,7 @@ export default function ProjectWorkspace() {
   }, [latest]);
   const currentCritics = data?.critics.filter((critic) => critic.scriptVersionId === latest?.id) || [];
   const supportedClaims = data?.claims.filter((claim) => claim.status === "SUPPORTED").length || 0;
-  const currentStageIndex = data?.project.status === "ASSEMBLY_READY" ? 5 : data?.project.status === "PRODUCTION_PREP" ? 5 : data?.project.status === "STORYBOARDING" ? 3 : data?.project.status === "VOICE_PRODUCTION" ? 4 : data?.project.status === "SCRIPTING" ? 2 : data?.project.status === "RESEARCHING" ? 1 : 0;
+  const currentStageIndex = data?.project.status === "RENDER_READY" ? 6 : data?.project.status === "ASSEMBLY_READY" ? 5 : data?.project.status === "PRODUCTION_PREP" ? 5 : data?.project.status === "STORYBOARDING" ? 3 : data?.project.status === "VOICE_PRODUCTION" ? 4 : data?.project.status === "SCRIPTING" ? 2 : data?.project.status === "RESEARCHING" ? 1 : 0;
 
   if (!data) {
     return <main className="projectLoading"><span className="loadingMark">F</span><h1>{notice}</h1><button onClick={() => { window.location.href = "/"; }}>Return to command center</button></main>;
@@ -102,10 +103,10 @@ export default function ProjectWorkspace() {
       <section className="projectBody">
         <div className="projectNotice" role="status"><span>✓</span>{notice}</div>
         <div className="workspaceSummary">
-          <div><small>Current gate</small><strong>{currentStageIndex >= 5 ? "Production asset readiness" : currentStageIndex >= 3 ? "Storyboard approval" : "Script quality review"}</strong></div>
+          <div><small>Current gate</small><strong>{currentStageIndex >= 6 ? "Final playback QA" : currentStageIndex >= 5 ? "Production asset readiness" : currentStageIndex >= 3 ? "Storyboard approval" : "Script quality review"}</strong></div>
           <div><small>Evidence coverage</small><strong>{supportedClaims}/{data.claims.length} claims passed</strong></div>
           <div><small>Latest version</small><strong>Script v{latest?.version || 1}</strong></div>
-          <div><small>Next unlock</small><strong>{currentStageIndex >= 5 ? "Final video assembly" : currentStageIndex >= 3 ? "Editor export package" : "Storyboard generation"}</strong></div>
+          <div><small>Next unlock</small><strong>{currentStageIndex >= 6 ? "Publishing package" : currentStageIndex >= 5 ? "Final video assembly" : currentStageIndex >= 3 ? "Editor export package" : "Storyboard generation"}</strong></div>
         </div>
 
         <nav className="projectTabs" aria-label="Project workspace sections">
@@ -120,6 +121,7 @@ export default function ProjectWorkspace() {
           {tab === "voice" && <VoiceStudio projectId={id} setProjectNotice={setNotice} />}
           {tab === "production" && <ProductionStudio projectId={id} setProjectNotice={setNotice} />}
           {tab === "media" && <MediaStudio projectId={id} setProjectNotice={setNotice} />}
+          {tab === "composer" && <FinalComposer projectId={id} setProjectNotice={setNotice} />}
           {tab === "history" && <HistoryView events={data.events} />}
         </div>
       </section>
@@ -505,6 +507,135 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
       <section className="workspacePanel assemblyPackage"><div className="sideTitle"><p className="eyebrow">Editor timeline</p><h3>Assembly package</h3></div>{latestRun ? <><div className="assemblyScore"><strong>{latestRun.assetCoverage}%</strong><span>coverage passed</span></div><a className="downloadPackage" href={`/api/projects/${projectId}/media?download=latest`}>↓ Download assembly v{latestRun.version}</a><p>Includes selected visuals, narration URLs, caption timings and four critic decisions.</p></> : <p>The package unlocks only after all eight scenes pass asset and rights gates.</p>}</section>
     </aside>
     {previewMedia && <div className="mediaPreviewOverlay" role="dialog" aria-modal="true" aria-label={`Preview ${previewMedia.title}`} onClick={() => setPreviewMedia(null)}><section className="mediaPreviewModal" onClick={(event) => event.stopPropagation()}><header><div><span>ASSET PREVIEW</span><strong>{previewMedia.title}</strong><p>{previewMedia.sourceType.replaceAll("_", " ")}</p></div><button aria-label="Close preview" onClick={() => setPreviewMedia(null)}>×</button></header><div className="mediaPreviewStage">{previewMedia.sourceType === "MOTION_RENDER_WEBM" && <span className="silentClipBadge">MOTION-ONLY · AUDIO ADDED IN FINAL COMPOSER</span>}{previewMedia.mimeType.startsWith("video/") ? <video src={previewMedia.url} controls autoPlay loop playsInline preload="auto" /> : previewMedia.mimeType === "image/svg+xml" || previewMedia.sourceType.includes("MOTION") ? <object data={previewMedia.url} type="image/svg+xml" aria-label={previewMedia.title} /> : <img src={previewMedia.url} alt={previewMedia.title} />}</div><footer><span>{previewMedia.sourceType === "MOTION_RENDER_WEBM" ? "This clip is intentionally silent · ElevenLabs narration is added in Full Video Composer" : previewMedia.sourceType.includes("MOTION") ? "Animation loops automatically · 16:9 editor-ready" : "Preview only · source rights policy still applies"}</span><a href={previewMedia.url} target="_blank" rel="noreferrer">Open full asset ↗</a></footer></section></div>}
+  </div>;
+}
+
+type ComposerData = {
+  scenes: Array<{ id: string; sceneNumber: number; startSeconds: number; endSeconds: number; beat: string; asset: null | { id: string; name: string; mimeType: string; sourceType: string; url: string; rightsStatus: string } }>;
+  segments: Array<{ id: string; position: number; label: string; status: string; durationSeconds: number | null; audioKey: string | null; audioUrl: string }>;
+  assemblies: Array<{ id: string; version: number; status: string }>;
+  renders: Array<{ id: string; version: number; name: string; sizeBytes: number; durationSeconds: number; width: number; height: number; fps: number; status: string; videoUrl: string; downloadUrl: string; createdAt: string }>;
+  gates: { voiceReady: boolean; mediaReady: boolean; rightsReady: boolean; motionReady: boolean; assemblyReady: boolean };
+  totalDuration: number;
+};
+
+type ComposerProgress = { status: "IDLE" | "RUNNING" | "DONE" | "ERROR"; percent: number; phase: string; message: string };
+type LoadedVisual = { kind: "image"; source: HTMLImageElement; objectUrl: string } | { kind: "video"; source: HTMLVideoElement; objectUrl: string };
+
+function FinalComposer({ projectId, setProjectNotice }: { projectId: string; setProjectNotice: (message: string) => void }) {
+  const [composer, setComposer] = useState<ComposerData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ComposerProgress>({ status: "IDLE", percent: 0, phase: "READY", message: "Waiting for all production gates" });
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const loadComposer = useCallback(async () => {
+    const response = await fetch(`/api/projects/${projectId}/render`, { signal: AbortSignal.timeout(20000) });
+    const payload = await response.json().catch(() => ({})) as ComposerData & { error?: string };
+    if (!response.ok) throw new Error(payload.error || "Final composer could not be loaded");
+    setComposer(payload); setError(null);
+  }, [projectId]);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/projects/${projectId}/render`, { signal: AbortSignal.timeout(20000) })
+      .then(async (response) => { const payload = await response.json().catch(() => ({})) as ComposerData & { error?: string }; if (!response.ok) throw new Error(payload.error || "Final composer could not be loaded"); return payload; })
+      .then((payload) => { if (active) { setComposer(payload); setError(null); } })
+      .catch((caught: Error) => { if (active) { setError(caught.message); setProjectNotice(caught.message); } });
+    return () => { active = false; };
+  }, [projectId, setProjectNotice]);
+
+  async function loadVisual(scene: ComposerData["scenes"][number]) {
+    if (!scene.asset) throw new Error(`Scene ${scene.sceneNumber} has no approved visual`);
+    const response = await fetch(scene.asset.url, { signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`Scene ${scene.sceneNumber} visual could not be loaded`);
+    const blob = await response.blob(); const objectUrl = URL.createObjectURL(blob);
+    if (scene.asset.mimeType.startsWith("video/") || blob.type.startsWith("video/")) {
+      const video = document.createElement("video"); video.src = objectUrl; video.muted = true; video.loop = true; video.playsInline = true; video.preload = "auto";
+      await new Promise<void>((resolve, reject) => { video.onloadeddata = () => resolve(); video.onerror = () => reject(new Error(`Scene ${scene.sceneNumber} video could not be decoded`)); });
+      return { kind: "video" as const, source: video, objectUrl };
+    }
+    const image = new Image(); await new Promise<void>((resolve, reject) => { image.onload = () => resolve(); image.onerror = () => reject(new Error(`Scene ${scene.sceneNumber} image could not be decoded`)); image.src = objectUrl; });
+    return { kind: "image" as const, source: image, objectUrl };
+  }
+
+  function drawCover(context: CanvasRenderingContext2D, source: CanvasImageSource, sourceWidth: number, sourceHeight: number, scale = 1) {
+    const canvas = context.canvas; const base = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight) * scale; const width = sourceWidth * base; const height = sourceHeight * base;
+    context.drawImage(source, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+  }
+
+  async function renderFinalVideo() {
+    if (!composer || progress.status === "RUNNING") return;
+    const failedGates = Object.entries(composer.gates).filter(([, passed]) => !passed).map(([gate]) => gate.replace("Ready", ""));
+    if (failedGates.length) { setProjectNotice(`Final render blocked: ${failedGates.join(", ")}`); return; }
+    if (!("MediaRecorder" in window) || !("AudioContext" in window)) { setProjectNotice("This browser cannot compose the final WebM video"); return; }
+    const canvas = canvasRef.current; const context = canvas?.getContext("2d"); if (!canvas || !context) return;
+    setProgress({ status: "RUNNING", percent: 1, phase: "PRELOAD", message: "Loading approved visuals and narration" }); setProjectNotice("Full Video Composer is preparing the approved timeline…");
+    const loadedVisuals = new Map<string, LoadedVisual>(); let audioContext: AudioContext | null = null;
+    try {
+      audioContext = new AudioContext(); await audioContext.resume();
+      for (const [index, scene] of composer.scenes.entries()) { loadedVisuals.set(scene.id, await loadVisual(scene)); setProgress({ status: "RUNNING", percent: 2 + Math.round((index + 1) / composer.scenes.length * 8), phase: "PRELOAD", message: `Loaded scene ${index + 1}/${composer.scenes.length}` }); }
+      const destination = audioContext.createMediaStreamDestination();
+      const audioBuffers: AudioBuffer[] = [];
+      for (const [index, segment] of composer.segments.entries()) {
+        const response = await fetch(segment.audioUrl, { signal: AbortSignal.timeout(30000) }); if (!response.ok) throw new Error(`Narration segment ${index + 1} could not be loaded`);
+        audioBuffers.push(await audioContext.decodeAudioData(await response.arrayBuffer()));
+      }
+      const canvasStream = canvas.captureStream(30); const combined = new MediaStream([...canvasStream.getVideoTracks(), ...destination.stream.getAudioTracks()]);
+      const mimeType = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((type) => MediaRecorder.isTypeSupported(type)) || "";
+      const recorder = mimeType ? new MediaRecorder(combined, { mimeType, videoBitsPerSecond: 3_200_000, audioBitsPerSecond: 128_000 }) : new MediaRecorder(combined);
+      const chunks: BlobPart[] = []; recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+      const finished = new Promise<Blob>((resolve, reject) => { recorder.onstop = () => resolve(new Blob(chunks, { type: "video/webm" })); recorder.onerror = () => reject(new Error("The browser encoder stopped unexpectedly")); });
+      for (const visual of loadedVisuals.values()) if (visual.kind === "video") await visual.source.play().catch(() => undefined);
+      const leadSeconds = .15; const renderSeconds = Math.max(composer.totalDuration, audioBuffers.reduce((sum, buffer) => sum + buffer.duration, 0) + leadSeconds); const totalMs = Math.max(1000, renderSeconds * 1000); let audioCursor = leadSeconds; const audioSources: AudioBufferSourceNode[] = [];
+      for (const buffer of audioBuffers) { const source = audioContext.createBufferSource(); source.buffer = buffer; source.connect(destination); source.start(audioContext.currentTime + audioCursor); audioCursor += buffer.duration; audioSources.push(source); }
+      recorder.start(500); const started = performance.now();
+      await new Promise<void>((resolve) => {
+        const draw = (now: number) => {
+          const elapsed = Math.min(totalMs, now - started); const seconds = elapsed / 1000; const scene = composer.scenes.find((item) => seconds >= item.startSeconds && seconds < item.endSeconds) || composer.scenes[composer.scenes.length - 1]; const visual = loadedVisuals.get(scene.id);
+          context.fillStyle = "#081d18"; context.fillRect(0, 0, canvas.width, canvas.height);
+          if (visual?.kind === "video" && visual.source.videoWidth) drawCover(context, visual.source, visual.source.videoWidth, visual.source.videoHeight, 1.01);
+          if (visual?.kind === "image" && visual.source.naturalWidth) { const sceneLength = Math.max(1, scene.endSeconds - scene.startSeconds); const local = Math.max(0, seconds - scene.startSeconds) / sceneLength; drawCover(context, visual.source, visual.source.naturalWidth, visual.source.naturalHeight, 1.02 + local * .035); }
+          const shade = context.createLinearGradient(0, 0, 0, canvas.height); shade.addColorStop(0, "rgba(5,20,17,.04)"); shade.addColorStop(.72, "rgba(5,20,17,.06)"); shade.addColorStop(1, "rgba(5,20,17,.58)"); context.fillStyle = shade; context.fillRect(0, 0, canvas.width, canvas.height);
+          context.fillStyle = "rgba(8,29,24,.78)"; context.fillRect(34, 646, 520, 42); context.fillStyle = "#8bd5b5"; context.font = "700 16px Arial"; context.fillText(`SCENE ${String(scene.sceneNumber).padStart(2, "0")}  ·  ${scene.beat.toUpperCase()}`, 52, 673);
+          const percent = 10 + Math.round(elapsed / totalMs * 70); setProgress({ status: "RUNNING", percent, phase: "COMPOSING", message: `Scene ${scene.sceneNumber}/${composer.scenes.length} · ${formatTime(seconds)} / ${formatTime(composer.totalDuration)}` });
+          if (elapsed < totalMs) requestAnimationFrame(draw); else resolve();
+        }; requestAnimationFrame(draw);
+      });
+      audioSources.forEach((source) => { try { source.stop(); } catch { /* already ended */ } }); recorder.stop(); combined.getTracks().forEach((track) => track.stop()); const blob = await finished;
+      if (blob.size < 1024) throw new Error("The browser produced an empty final video");
+      const uploadId = crypto.randomUUID(); const chunkSize = 512 * 1024; const chunkCount = Math.ceil(blob.size / chunkSize);
+      for (let part = 0; part < chunkCount; part++) {
+        const response = await fetch(`/api/projects/${projectId}/render?upload=part&uploadId=${encodeURIComponent(uploadId)}&part=${part}`, { method: "POST", headers: { "content-type": "application/octet-stream" }, body: blob.slice(part * chunkSize, Math.min(blob.size, (part + 1) * chunkSize)) });
+        const payload = await response.json().catch(() => ({})) as { error?: string }; if (!response.ok) throw new Error(payload.error || `Final upload part ${part + 1}/${chunkCount} failed`);
+        setProgress({ status: "RUNNING", percent: 80 + Math.round((part + 1) / chunkCount * 18), phase: "UPLOADING", message: `Stored part ${part + 1}/${chunkCount}` });
+      }
+      const response = await fetch(`/api/projects/${projectId}/render`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "FINALIZE_VIDEO", uploadId, chunkCount, fileName: `${projectId}-final.webm`, sizeBytes: blob.size, durationSeconds: renderSeconds, width: canvas.width, height: canvas.height, fps: 30 }) });
+      const payload = await response.json().catch(() => ({})) as { error?: string; version?: number }; if (!response.ok) throw new Error(payload.error || "Final video could not be stored");
+      await loadComposer(); setProgress({ status: "DONE", percent: 100, phase: "READY", message: `Final video v${payload.version || ""} includes approved visuals and narration` }); setProjectNotice("Final video is ready for playback review and download");
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Final composition failed safely"; setProgress({ status: "ERROR", percent: 0, phase: "STOPPED", message }); setProjectNotice(message);
+    } finally {
+      for (const visual of loadedVisuals.values()) { if (visual.kind === "video") visual.source.pause(); URL.revokeObjectURL(visual.objectUrl); }
+      if (audioContext) await audioContext.close().catch(() => undefined);
+    }
+  }
+
+  if (error) return <section className="workspacePanel productionError"><span>!</span><h2>Final composer could not load</h2><p>{error}</p><button className="primaryButton" onClick={() => loadComposer().catch((caught: Error) => setError(caught.message))}>Try again</button></section>;
+  if (!composer) return <section className="workspacePanel voiceLoading"><span>◌</span><p>Preparing final video composer…</p></section>;
+  const latest = composer.renders[0]; const allPassed = Object.values(composer.gates).every(Boolean);
+  const gates = [{ key: "voiceReady", label: "Approved ElevenLabs narration" }, { key: "mediaReady", label: "8/8 scenes have selected visuals" }, { key: "rightsReady", label: "Usage rights verified" }, { key: "motionReady", label: "Motion scenes rendered to WebM" }, { key: "assemblyReady", label: "Assembly critics passed" }] as const;
+  return <div className="composerLayout">
+    <section className="workspacePanel composerMain">
+      <div className="contentHeader"><div><p className="eyebrow">WS-08 · final video production</p><h2>Full Video Composer</h2><p>Combines approved visual scenes with the locked ElevenLabs narration, records a synchronized 720p/30fps master and stores it in the project.</p></div><span className={`providerState ${allPassed ? "connected" : "waiting"}`}><i />{allPassed ? "Ready to compose" : "Waiting at gate"}</span></div>
+      <div className="composerMetrics"><div><small>Runtime</small><strong>{formatTime(composer.totalDuration)}</strong></div><div><small>Scenes</small><strong>{composer.scenes.length}</strong></div><div><small>Voice tracks</small><strong>{composer.segments.length}</strong></div><div><small>Final renders</small><strong>{composer.renders.length}</strong></div></div>
+      <div className="composerStage"><canvas className={latest && progress.status !== "RUNNING" ? "composerCanvasHidden" : ""} ref={canvasRef} width="1280" height="720" aria-label="Final composition preview canvas" />{latest && progress.status !== "RUNNING" && <video key={latest.id} src={latest.videoUrl} controls preload="metadata" playsInline />}{!latest && progress.status !== "RUNNING" && <div className="composerPlaceholder"><span>▶</span><strong>Final master not rendered yet</strong><p>Pass all five gates, then keep this tab open during the real-time composition.</p></div>}</div>
+      <section className={`composerProgress ${progress.status.toLowerCase()}`} aria-live="polite"><div><span>{progress.phase}</span><strong>{progress.message}</strong></div><b>{progress.percent}%</b><i><em style={{ width: `${progress.percent}%` }} /></i></section>
+      <div className="composerTimeline">{composer.scenes.map((scene) => <article key={scene.id}><div><span>{String(scene.sceneNumber).padStart(2, "0")}</span><i /></div><strong>{scene.beat}</strong><p>{formatTime(scene.startSeconds)}–{formatTime(scene.endSeconds)} · {scene.asset?.sourceType.replaceAll("_", " ") || "No visual"}</p></article>)}</div>
+    </section>
+    <aside className="composerRail">
+      <section className="workspacePanel gateChecklist"><div className="sideTitle"><p className="eyebrow">Final render gate</p><h3>Five production checks</h3></div><ul>{gates.map((gate) => <li key={gate.key} className={composer.gates[gate.key] ? "done" : ""}>{gate.label}</li>)}</ul><button className="primaryButton" disabled={!allPassed || progress.status === "RUNNING"} onClick={renderFinalVideo}>{progress.status === "RUNNING" ? `${progress.phase.toLowerCase()}…` : latest ? "Render new final version" : "Compose final video"}</button><small className="composerWarning">Composition runs in real time (~{Math.ceil(composer.totalDuration)} seconds). Keep this tab open.</small></section>
+      <section className="workspacePanel finalMaster"><div className="sideTitle"><p className="eyebrow">Master output</p><h3>{latest ? `Final video v${latest.version}` : "Awaiting first render"}</h3></div>{latest ? <><div className="masterState"><span>✓</span><div><strong>Playback-ready WebM</strong><p>{latest.width}×{latest.height} · {latest.fps}fps · {(latest.sizeBytes / 1024 / 1024).toFixed(1)} MB</p></div></div><a className="downloadPackage" href={latest.downloadUrl}>↓ Download final video</a><p>Includes synchronized channel visuals and ElevenLabs narration. Review playback before publishing.</p></> : <p>The final master appears here after the five gates pass and composition completes.</p>}</section>
+    </aside>
   </div>;
 }
 

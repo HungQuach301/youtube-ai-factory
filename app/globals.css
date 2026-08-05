@@ -531,6 +531,48 @@ nav { display: grid; gap: 5px; }
 .assemblyScore strong { font: 600 28px/1 Georgia, serif; color: #286a54; }
 .assemblyScore span { color: #7b8984; font-size: 8px; }
 
+/* Final video composer */
+.composerLayout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; align-items: start; }
+.composerMain { padding: 20px; min-width: 0; }
+.composerMetrics { display: grid; grid-template-columns: repeat(4, 1fr); margin: 17px 0; border: 1px solid #e4eae7; border-radius: 10px; overflow: hidden; }
+.composerMetrics > div { padding: 12px; border-right: 1px solid #e4eae7; background: #fbfcfb; }
+.composerMetrics > div:last-child { border-right: 0; }
+.composerMetrics small, .composerMetrics strong { display: block; }
+.composerMetrics small { color: #81908a; font-size: 6px; text-transform: uppercase; letter-spacing: .08em; }
+.composerMetrics strong { margin-top: 5px; color: #173e35; font: 600 18px/1 Georgia, serif; }
+.composerStage { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #081d18; box-shadow: inset 0 0 0 1px rgba(139,213,181,.14); }
+.composerStage canvas, .composerStage video { width: 100%; height: 100%; display: block; object-fit: contain; background: #081d18; }
+.composerCanvasHidden { visibility: hidden; position: absolute; inset: 0; }
+.composerPlaceholder { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; text-align: center; color: white; pointer-events: none; }
+.composerPlaceholder span { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 14px; border: 1px solid rgba(139,213,181,.42); border-radius: 50%; background: rgba(139,213,181,.12); color: #8bd5b5; font-size: 17px; }
+.composerPlaceholder strong { font: 600 20px/1.2 Georgia, serif; }
+.composerPlaceholder p { width: min(430px, 80%); margin-top: 7px; color: #91afa5; font-size: 8px; line-height: 1.5; }
+.composerProgress { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; align-items: center; margin-top: 12px; padding: 12px 14px; border: 1px solid #dde8e3; border-radius: 10px; background: #f8fbf9; }
+.composerProgress > div span, .composerProgress > div strong { display: block; }
+.composerProgress > div span { color: #528171; font-size: 6px; font-weight: 900; letter-spacing: .1em; }
+.composerProgress > div strong { margin-top: 4px; color: #27483f; font-size: 8px; }
+.composerProgress > b { color: #286a54; font: 600 18px/1 Georgia, serif; }
+.composerProgress > i { grid-column: 1 / -1; height: 4px; overflow: hidden; border-radius: 5px; background: #e0e9e5; }
+.composerProgress > i em { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2a8063, #8bd5b5); transition: width .22s ease; }
+.composerProgress.error { border-color: #e8c5a3; background: #fff9f2; }
+.composerProgress.error > div span, .composerProgress.error > b { color: #a76025; }
+.composerTimeline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.composerTimeline article { min-width: 0; padding: 10px; border: 1px solid #e3e9e6; border-radius: 9px; background: white; }
+.composerTimeline article > div { display: flex; align-items: center; gap: 7px; }
+.composerTimeline article > div span { color: #286a54; font-size: 7px; font-weight: 900; }
+.composerTimeline article > div i { flex: 1; height: 2px; background: linear-gradient(90deg, #8bd5b5, #d8eae2); }
+.composerTimeline strong { display: block; overflow: hidden; margin-top: 8px; color: #213f37; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.composerTimeline p { overflow: hidden; margin-top: 4px; color: #84918c; font-size: 6px; text-overflow: ellipsis; white-space: nowrap; }
+.composerRail { display: grid; gap: 10px; }
+.composerRail .workspacePanel { padding: 16px; }
+.composerWarning { display: block; margin-top: 9px; color: #85928d; font-size: 7px; line-height: 1.45; }
+.finalMaster > p { color: #7d8985; font-size: 8px; line-height: 1.55; }
+.masterState { display: grid; grid-template-columns: 30px 1fr; gap: 9px; align-items: center; margin: 13px 0; }
+.masterState > span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: #dff3e9; color: #277257; font-size: 11px; font-weight: 900; }
+.masterState strong, .masterState p { display: block; }
+.masterState strong { color: #23473d; font-size: 8px; }
+.masterState p { margin-top: 3px; color: #83918c; font-size: 6px; }
+
 @media (max-width: 1160px) {
   .contentGrid { grid-template-columns: 1fr; }
   .rightRail { grid-template-columns: repeat(3, 1fr); }
@@ -541,6 +583,8 @@ nav { display: grid; gap: 5px; }
   .productionRail { grid-template-columns: repeat(3, 1fr); }
   .mediaWorkspaceLayout { grid-template-columns: 1fr; }
   .mediaRail { grid-template-columns: repeat(3, 1fr); }
+  .composerLayout { grid-template-columns: 1fr; }
+  .composerRail { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 840px) {
@@ -587,6 +631,7 @@ nav { display: grid; gap: 5px; }
   .voiceSideRail { grid-template-columns: 1fr; }
   .productionRail { grid-template-columns: 1fr; }
   .mediaRail { grid-template-columns: 1fr; }
+  .composerRail { grid-template-columns: 1fr; }
   .mediaSceneBody { grid-template-columns: 1fr; }
   .audioReview { grid-template-columns: 1fr; }
 }
@@ -625,6 +670,7 @@ nav { display: grid; gap: 5px; }
   .sourcePlan { grid-template-columns: 1fr; }
   .sceneContent header { align-items: flex-start; flex-direction: column; }
   .mediaMetrics { grid-template-columns: repeat(2, 1fr); }
+  .composerMetrics, .composerTimeline { grid-template-columns: repeat(2, 1fr); }
   .diagramAutomation { align-items: flex-start; flex-direction: column; }
   .mediaScene > header { grid-template-columns: 34px 1fr; }
   .coverageTag { grid-column: 2; justify-self: start; }

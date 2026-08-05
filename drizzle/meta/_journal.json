@@ -43,6 +43,13 @@
       "when": 1785890732581,
       "tag": "0005_lovely_phantom_reporter",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1785905813704,
+      "tag": "0006_wild_killraven",
+      "breakpoints": true
     }
   ]
 }
