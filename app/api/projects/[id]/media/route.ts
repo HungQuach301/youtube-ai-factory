@@ -151,7 +151,7 @@ async function providerHealth(provider: string) {
       await fetchJson(`https://pixabay.com/api/?key=${encodeURIComponent(env.PIXABAY_API_KEY)}&q=money&per_page=3&safesearch=true`);
     } else if (provider === "shutterstock") {
       if (!env.SHUTTERSTOCK_CONSUMER_KEY || !env.SHUTTERSTOCK_CONSUMER_SECRET) return { provider, status: "KEY_REQUIRED", latencyMs: 0, message: "Shutterstock consumer credentials are not configured" };
-      await fetchJson("https://api.shutterstock.com/v2/images/search?query=money&per_page=1&view=minimal", { Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}` });
+      await fetchJson("https://api.shutterstock.com/v2/images/search?query=money&page=1&per_page=5&view=minimal", { Accept: "application/json", "User-Agent": "Frameflow-YouTube-Factory/1.0", Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}` });
     } else if (provider === "google_drive") return { provider, status: env.GOOGLE_DRIVE_CLIENT_ID ? "OAUTH_SETUP" : "CONFIG_REQUIRED", latencyMs: 0, message: env.GOOGLE_DRIVE_CLIENT_ID ? "OAuth callback and Picker still need to be completed" : "Google Drive OAuth client ID is not configured" };
     else return { provider, status: "UNKNOWN", latencyMs: 0, message: "Unknown provider" };
     return { provider, status: "CONNECTED", latencyMs: Date.now() - startedAt, message: "Server-side connection test passed" };
@@ -245,8 +245,8 @@ async function discoverAssets(projectId: string, sceneId: string) {
   ]).catch(() => [] as DiscoveryCandidate[]) : Promise.resolve([] as DiscoveryCandidate[]);
 
   const shutterstockTask = shutterstockConnected ? Promise.all([
-    fetchJson(`https://api.shutterstock.com/v2/images/search?query=${encodeURIComponent(query)}&orientation=horizontal&per_page=4&view=minimal`, { Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}` }),
-    fetchJson(`https://api.shutterstock.com/v2/videos/search?query=${encodeURIComponent(query)}&per_page=3&view=minimal`, { Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}` }),
+    fetchJson(`https://api.shutterstock.com/v2/images/search?query=${encodeURIComponent(query)}&orientation=horizontal&page=1&per_page=5&view=minimal`, { Accept: "application/json", "User-Agent": "Frameflow-YouTube-Factory/1.0", Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}` }),
+    fetchJson(`https://api.shutterstock.com/v2/videos/search?query=${encodeURIComponent(query)}&page=1&per_page=5&view=minimal`, { Accept: "application/json", "User-Agent": "Frameflow-YouTube-Factory/1.0", Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}` }),
   ]).then(([images, videos]) => [
     ...(images.data || []).map((item: any, index: number): DiscoveryCandidate => ({
       id: `shutterstock-image:${item.id}`, provider: "Shutterstock", category: "PAID", title: cleanText(item.description, `Shutterstock image ${item.id}`), mediaType: "IMAGE",

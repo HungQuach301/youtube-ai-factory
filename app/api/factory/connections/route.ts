@@ -42,6 +42,14 @@ async function fetchChecked(url: string, headers?: Record<string, string>) {
   if (!response.ok) throw new Error(`Provider returned ${response.status}`);
 }
 
+function shutterstockHeaders(env: RuntimeEnv) {
+  return {
+    Accept: "application/json",
+    "User-Agent": "Frameflow-YouTube-Factory/1.0",
+    Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}`,
+  };
+}
+
 async function testConnection(provider: string) {
   const { env, connections } = await connectionCatalog();
   const connection = connections.find((item) => item.id === provider);
@@ -54,7 +62,7 @@ async function testConnection(provider: string) {
     else if (provider === "openverse") await fetchChecked("https://api.openverse.org/v1/images/?q=money&page_size=1");
     else if (provider === "pexels") await fetchChecked("https://api.pexels.com/v1/curated?per_page=1", { Authorization: env.PEXELS_API_KEY || "" });
     else if (provider === "pixabay") await fetchChecked(`https://pixabay.com/api/?key=${encodeURIComponent(env.PIXABAY_API_KEY || "")}&q=money&per_page=3&safesearch=true`);
-    else if (provider === "shutterstock") await fetchChecked("https://api.shutterstock.com/v2/images/search?query=money&per_page=1&view=minimal", { Authorization: `Basic ${btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`)}` });
+    else if (provider === "shutterstock") await fetchChecked("https://api.shutterstock.com/v2/images/search?query=money&page=1&per_page=5&view=minimal", shutterstockHeaders(env));
     else if (provider === "youtube") await fetchChecked(`https://www.googleapis.com/youtube/v3/videos?part=id&id=dQw4w9WgXcQ&key=${encodeURIComponent(env.YOUTUBE_API_KEY || "")}`);
     return { provider, status: "CONNECTED", latencyMs: Date.now() - startedAt, message: provider === "database" || provider === "owned_vault" ? "Factory binding is available" : "Server-side connection test passed" };
   } catch (error) {
