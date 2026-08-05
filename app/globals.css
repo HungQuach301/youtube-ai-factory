@@ -897,6 +897,58 @@ nav { display: grid; gap: 5px; }
 .scriptGateMetrics small { color: #91c1ae; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
 .scriptGateMetrics strong { margin-top: 7px; font: 26px/1 Georgia, serif; }
 .scriptGateMetrics strong b { color: #b9d8cc; font: 10px/1.2 var(--font-body), sans-serif; }
+.visualDirection { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 22px; margin-bottom: 14px; border-radius: 16px; background: #0d2e26; color: #f5f3ea; }
+.visualDirection small { color: #72d6aa; font-size: 9px; font-weight: 900; letter-spacing: .1em; }
+.visualDirection h4 { margin: 7px 0 5px; font: 30px/1.1 Georgia, serif; }
+.visualDirection p { max-width: 650px; margin: 0; color: #bce8d4; font-size: 12px; line-height: 1.55; }
+.visualDirection > div:last-child { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.visualDirection span { padding: 6px 9px; border: 1px solid #315f52; border-radius: 999px; color: #bce8d4; font-size: 9px; }
+.visualGateMetrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.visualGateMetrics article { padding: 16px; border-radius: 14px; background: #12382e; color: #fff; }
+.visualGateMetrics small, .visualGateMetrics strong { display: block; }
+.visualGateMetrics small { color: #91c1ae; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+.visualGateMetrics strong { margin-top: 7px; font: 26px/1 Georgia, serif; }
+.visualGateMetrics strong b { color: #b9d8cc; font: 10px/1.2 var(--font-body), sans-serif; }
+.visualTokens, .visualFamilyGrid, .coverageTimeline, .visualChecks { margin-top: 16px; overflow: hidden; border: 1px solid #dce7e2; border-radius: 14px; background: #fff; }
+.visualTokens > header, .visualFamilyGrid > header, .coverageTimeline > header, .visualChecks > header { display: flex; justify-content: space-between; gap: 14px; padding: 14px 16px; background: #edf4f1; }
+.visualTokens header small, .visualFamilyGrid > header small, .coverageTimeline > header small, .visualChecks > header small { color: #2e6d58; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+.visualTokens header strong, .visualFamilyGrid > header strong, .coverageTimeline > header strong, .visualChecks > header strong { font-size: 11px; }
+.paletteGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.paletteGrid article { display: grid; grid-template-columns: 46px 1fr; gap: 12px; padding: 14px; border-right: 1px solid #e5ede9; border-bottom: 1px solid #e5ede9; }
+.paletteGrid article:nth-child(3n) { border-right: 0; }
+.paletteGrid i { width: 46px; height: 46px; border: 1px solid #d9e3de; border-radius: 12px; }
+.paletteGrid strong, .paletteGrid code { display: block; font-size: 10px; }
+.paletteGrid code { margin-top: 3px; color: #698078; }
+.paletteGrid p { margin: 6px 0; color: #526a61; font-size: 9px; line-height: 1.35; }
+.paletteGrid span { color: #277155; font-size: 8px; font-weight: 800; }
+.typeGrid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.typeGrid article { padding: 15px; border-right: 1px solid #e5ede9; }
+.typeGrid article:last-child { border-right: 0; }
+.typeGrid small, .typeGrid strong { display: block; }
+.typeGrid small { color: #698078; font-size: 9px; }
+.typeGrid strong { margin-top: 5px; font: 18px/1.2 Georgia, serif; }
+.typeGrid p { margin: 4px 0 0; color: #526a61; font-size: 10px; }
+.visualFamilyGrid > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.visualFamilyGrid article { padding: 16px; border-right: 1px solid #e5ede9; border-bottom: 1px solid #e5ede9; }
+.visualFamilyGrid article:nth-child(2n) { border-right: 0; }
+.visualFamilyGrid article header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.visualFamilyGrid article header span { color: #277155; font-size: 8px; font-weight: 900; }
+.visualFamilyGrid article p { min-height: 34px; margin: 8px 0 10px; color: #536a62; font-size: 10px; line-height: 1.5; }
+.visualFamilyGrid article small { display: block; margin-top: 6px; color: #6b7c76; font-size: 9px; line-height: 1.4; }
+.visualFamilyGrid article small b { display: inline-block; min-width: 52px; color: #2e6d58; font-size: 8px; }
+.coverageTimeline article { display: grid; grid-template-columns: 90px 1.1fr 1fr 82px; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid #e5ede9; }
+.coverageTimeline article b { color: #2e6d58; font-size: 10px; }
+.coverageTimeline article strong { font-size: 11px; }
+.coverageTimeline article p { margin: 0; color: #657871; font-size: 9px; }
+.coverageTimeline article p span { color: #154d3d; font-weight: 900; }
+.coverageTimeline article em { color: #277155; font-size: 9px; font-style: normal; font-weight: 800; }
+.visualChecks > div { display: grid; grid-template-columns: repeat(2, 1fr); }
+.visualChecks article { padding: 14px 16px; border-right: 1px solid #e5ede9; border-bottom: 1px solid #e5ede9; }
+.visualChecks article:nth-child(2n) { border-right: 0; }
+.visualChecks article > div { display: flex; justify-content: space-between; gap: 10px; }
+.visualChecks article strong { font-size: 10px; }
+.visualChecks article span { color: #277155; font-size: 8px; font-weight: 900; }
+.visualChecks article p { margin: 5px 0 0; color: #61756e; font-size: 9px; line-height: 1.45; }
 .scriptBeatMeta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
 .scriptBeatMeta small { margin: 0; }
 .scriptBeatMeta span { color: #2e6d58; font-size: 8px; font-weight: 900; letter-spacing: .07em; }
@@ -1113,6 +1165,13 @@ nav { display: grid; gap: 5px; }
   .retentionSpine article:last-child { border-bottom: 0; }
   .scriptArtifact { padding: 22px 18px; }
   .scriptGateMetrics { grid-template-columns: 1fr 1fr; }
+  .visualDirection { align-items: flex-start; flex-direction: column; }
+  .visualDirection > div:last-child { justify-content: flex-start; }
+  .visualGateMetrics { grid-template-columns: 1fr 1fr; }
+  .paletteGrid, .typeGrid, .visualFamilyGrid > div, .visualChecks > div { grid-template-columns: 1fr; }
+  .paletteGrid article, .paletteGrid article:nth-child(3n), .typeGrid article, .visualFamilyGrid article, .visualFamilyGrid article:nth-child(2n), .visualChecks article, .visualChecks article:nth-child(2n) { border-right: 0; }
+  .coverageTimeline article { grid-template-columns: 78px 1fr; }
+  .coverageTimeline article p, .coverageTimeline article em { grid-column: 2; }
   .scriptBeatMeta { align-items: flex-start; flex-direction: column; }
   .scriptLedger > div, .scriptLedger.terminology > div { grid-template-columns: 1fr; }
   .scriptLedger article, .scriptLedger.terminology article:nth-child(2) { border-right: 0; border-bottom: 1px solid #e5ede9; }
