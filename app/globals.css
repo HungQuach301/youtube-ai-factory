@@ -646,6 +646,92 @@ nav { display: grid; gap: 5px; }
 .originalityPolicy li::before { content: "✓"; position: absolute; left: 0; color: #2d8064; font-weight: 900; }
 .originalityPolicy small { color: #87938f; font-size: 6px; line-height: 1.45; }
 
+/* Continuous quality & optimization system */
+.optimizationLayout { display: grid; grid-template-columns: minmax(0, 1fr) 294px; gap: 12px; align-items: start; }
+.optimizationMain { min-width: 0; padding: 20px; }
+.qualityByDesign { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 14px 0 12px; padding: 15px 17px; border-radius: 11px; background: linear-gradient(120deg, #0f3a30, #205b49); color: white; }
+.qualityByDesign span { color: #8fd5b8; font-size: 6px; font-weight: 900; letter-spacing: .09em; }
+.qualityByDesign strong { display: block; margin-top: 4px; font: 600 18px/1.15 Georgia, serif; }
+.qualityByDesign p { margin-top: 5px; color: #afd0c3; font-size: 7px; line-height: 1.45; }
+.qualityByDesign > b { flex: 0 0 auto; padding: 8px 10px; border: 1px solid rgba(255,255,255,.22); border-radius: 16px; color: #c9efdf; font-size: 7px; }
+.optimizationStart { display: grid; min-height: 330px; margin-top: 14px; place-content: center; justify-items: center; border: 1px dashed #cbdcd5; border-radius: 12px; background: #fbfdfc; text-align: center; }
+.optimizationStart > span { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 50%; background: #dff1e9; color: #287156; font-size: 22px; }
+.optimizationStart h3 { margin-top: 13px; color: #21493d; font: 600 21px/1.1 Georgia, serif; }
+.optimizationStart p { max-width: 550px; margin: 7px 0 16px; color: #788983; font-size: 8px; line-height: 1.55; }
+.optimizationMetrics { display: grid; grid-template-columns: repeat(5, 1fr); margin: 13px 0; overflow: hidden; border: 1px solid #dfe8e4; border-radius: 10px; }
+.optimizationMetrics > div { min-width: 0; padding: 11px; border-right: 1px solid #e5ebe8; background: #fbfcfb; }
+.optimizationMetrics > div:last-child { border-right: 0; }
+.optimizationMetrics small, .optimizationMetrics strong { display: block; }
+.optimizationMetrics small { color: #7e8f88; font-size: 6px; text-transform: uppercase; letter-spacing: .07em; }
+.optimizationMetrics strong { margin-top: 5px; color: #214c3e; font: 600 19px/1 Georgia, serif; }
+.optimizationMetrics strong span { margin-left: 3px; color: #8e9c97; font: 700 6px/1 sans-serif; }
+.stageContractMap, .activeContract, .tournamentResults { margin-top: 13px; overflow: hidden; border: 1px solid #dfe8e4; border-radius: 11px; }
+.optimizationSectionTitle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: #f0f6f3; }
+.optimizationSectionTitle small { color: #4f806d; font-size: 6px; font-weight: 900; letter-spacing: .08em; }
+.optimizationSectionTitle h3 { margin-top: 3px; color: #23493d; font: 600 17px/1 Georgia, serif; }
+.optimizationSectionTitle > span { max-width: 280px; padding: 5px 8px; border-radius: 12px; background: #dfeee8; color: #2b6d58; font-size: 6px; font-weight: 800; text-align: right; }
+.contractGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; padding: 11px; }
+.contractGrid article { position: relative; min-width: 0; padding: 9px; border: 1px solid #e2e9e6; border-radius: 8px; background: white; }
+.contractGrid article.current { border-color: #52a181; box-shadow: 0 0 0 2px rgba(82,161,129,.12); }
+.contractGrid article.invalidated { background: #f7f8f7; opacity: .58; }
+.contractGrid article.passed_reused, .contractGrid article.handoff_ready { border-color: #cbe5d9; background: #f8fcfa; }
+.contractGrid article.repair_required, .contractGrid article.escalated { border-color: #e7c5b8; background: #fff9f7; }
+.contractGrid article header { display: flex; align-items: center; justify-content: space-between; }
+.contractGrid article header span { color: #4b856d; font-size: 6px; font-weight: 900; }
+.contractGrid article header b { color: #286c55; font: 600 13px/1 Georgia, serif; }
+.contractGrid article > strong { display: block; min-height: 25px; margin-top: 6px; color: #29493f; font-size: 7px; line-height: 1.35; }
+.contractGrid article > p { display: -webkit-box; min-height: 30px; overflow: hidden; margin-top: 4px; color: #84918c; font-size: 5px; line-height: 1.4; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
+.contractGrid article > footer { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e8edeb; color: #71837c; font-size: 5px; font-weight: 800; text-transform: uppercase; }
+.contractBody { display: grid; grid-template-columns: .95fr 1.45fr; gap: 12px; padding: 13px; }
+.contractObjective { padding: 13px; border-radius: 9px; background: #153f34; color: white; }
+.contractObjective > strong { font: 600 15px/1.35 Georgia, serif; }
+.contractObjective > p { margin-top: 10px; color: #b7d1c7; font-size: 6px; line-height: 1.45; }
+.contractObjective > p b { display: block; margin-bottom: 3px; color: #84d2b1; font-size: 5px; letter-spacing: .07em; text-transform: uppercase; }
+.contractObjective > div { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 11px; }
+.contractObjective > div span { padding: 4px 6px; border: 1px solid rgba(139,213,181,.25); border-radius: 10px; color: #bce6d4; font-size: 5px; }
+.contractChecks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.contractChecks article { padding: 11px; border: 1px solid #e2e9e6; border-radius: 8px; }
+.contractChecks article small { color: #4f806d; font-size: 5px; font-weight: 900; letter-spacing: .07em; }
+.contractChecks article p { margin-top: 7px; color: #64776f; font-size: 6px; line-height: 1.4; }
+.optimizationActions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; border-top: 1px solid #e4eae7; background: #fafcfb; }
+.optimizationActions > p { max-width: 390px; color: #7c8c86; font-size: 6px; line-height: 1.45; }
+.optimizationActions > div { display: flex; gap: 7px; }
+.candidateTournament { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 11px; }
+.candidateTournament article { min-width: 0; padding: 11px; border: 1px solid #e1e9e5; border-radius: 9px; background: white; }
+.candidateTournament article.champion { border-color: #72bd9d; background: #f6fcf9; box-shadow: 0 0 0 2px rgba(114,189,157,.1); }
+.candidateTournament article header { display: flex; align-items: center; justify-content: space-between; }
+.candidateTournament article header span { padding: 4px 6px; border-radius: 9px; background: #edf2f0; color: #6c7f77; font-size: 5px; font-weight: 900; }
+.candidateTournament article.champion header span { background: #dff2e9; color: #277258; }
+.candidateTournament article header b { color: #276d55; font: 600 17px/1 Georgia, serif; }
+.candidateTournament article > strong { display: block; margin-top: 8px; color: #284a40; font-size: 8px; }
+.candidateTournament article > p { min-height: 38px; margin-top: 5px; color: #74857f; font-size: 6px; line-height: 1.45; }
+.candidateTournament article > div { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-top: 8px; }
+.candidateTournament article > div small { display: flex; align-items: center; justify-content: space-between; padding: 5px; border-radius: 5px; background: #f1f5f3; color: #64776f; font-size: 5px; }
+.candidateTournament article > div b { color: #276e56; font-size: 6px; }
+.candidateTournament article > footer { margin-top: 8px; }
+.candidateTournament article > footer em { display: block; margin-top: 3px; color: #9a684c; font-size: 5px; font-style: normal; }
+.tournamentDecision { margin: 0 11px 11px; padding: 12px 14px; border-radius: 9px; background: #153f34; color: white; }
+.tournamentDecision span { color: #82cfae; font-size: 5px; font-weight: 900; letter-spacing: .08em; }
+.tournamentDecision strong { display: block; margin-top: 4px; font: 600 17px/1.1 Georgia, serif; }
+.tournamentDecision p { margin-top: 5px; color: #b7d1c7; font-size: 6px; }
+.tournamentDecision small { display: block; margin-top: 7px; color: #88b8a5; font-size: 5px; }
+.optimizationRail { display: grid; gap: 10px; }
+.optimizationRail .workspacePanel { padding: 16px; }
+.issueLedger > p, .qualityMemory > p { color: #788984; font-size: 7px; line-height: 1.5; }
+.issueLedger article { padding: 10px 0; border-top: 1px solid #e6ece9; }
+.issueLedger article header { display: flex; align-items: center; justify-content: space-between; }
+.issueLedger article header span { padding: 3px 5px; border-radius: 6px; background: #f5dfd7; color: #9d4b2d; font-size: 5px; font-weight: 900; }
+.issueLedger article header span.p1 { background: #fff0d2; color: #96651d; }
+.issueLedger article header b { color: #71817b; font-size: 5px; }
+.issueLedger article > strong { display: block; margin-top: 6px; color: #2a4a40; font-size: 7px; }
+.issueLedger article > p { margin-top: 4px; color: #7a8984; font-size: 6px; line-height: 1.45; }
+.issueLedger details { margin-top: 7px; }
+.issueLedger summary { color: #2e725b; font-size: 6px; font-weight: 800; cursor: pointer; }
+.issueLedger details small { display: block; margin-top: 6px; color: #7a8984; font-size: 5px; line-height: 1.45; }
+.issueLedger details small b { display: block; color: #425f55; font-size: 5px; text-transform: uppercase; }
+.loopGuard ul { margin: 11px 0 0; padding-left: 16px; color: #536d63; font-size: 7px; line-height: 1.75; }
+.qualityMemory small { display: block; margin-top: 10px; color: #87958f; font-size: 6px; }
+
 /* Universal quality gate */
 .qualityLayout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 12px; align-items: start; }
 .qualityMain { min-width: 0; padding: 20px; }
@@ -760,6 +846,9 @@ nav { display: grid; gap: 5px; }
   .referenceRail { grid-template-columns: repeat(3, 1fr); }
   .qualityLayout { grid-template-columns: 1fr; }
   .qualityRail { grid-template-columns: repeat(2, 1fr); }
+  .optimizationLayout { grid-template-columns: 1fr; }
+  .optimizationRail { grid-template-columns: repeat(3, 1fr); }
+  .contractGrid { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 840px) {
@@ -811,6 +900,10 @@ nav { display: grid; gap: 5px; }
   .qualityRail { grid-template-columns: 1fr; }
   .hardGateGrid { grid-template-columns: repeat(2, 1fr); }
   .perceivedQuality { grid-template-columns: 1fr; }
+  .optimizationRail { grid-template-columns: 1fr; }
+  .contractBody { grid-template-columns: 1fr; }
+  .contractGrid { grid-template-columns: repeat(2, 1fr); }
+  .candidateTournament { grid-template-columns: 1fr; }
   .mediaSceneBody { grid-template-columns: 1fr; }
   .audioReview { grid-template-columns: 1fr; }
 }
@@ -860,6 +953,12 @@ nav { display: grid; gap: 5px; }
   .rubricHead { display: none; }
   .rubricTable article { grid-template-columns: 1fr 42px 42px; }
   .rubricTable article > p { grid-column: 1 / -1; grid-row: 2; }
+  .optimizationMetrics { grid-template-columns: repeat(2, 1fr); }
+  .qualityByDesign, .optimizationActions { align-items: flex-start; flex-direction: column; }
+  .optimizationActions > div { width: 100%; flex-direction: column; }
+  .optimizationActions > div button { width: 100%; }
+  .contractChecks { grid-template-columns: 1fr; }
+  .contractGrid { grid-template-columns: 1fr; }
   .gapTableHead { display: none; }
   .gapTable article { grid-template-columns: 1fr 46px 58px; }
   .gapTable article > p { grid-column: 1 / -1; grid-row: 2; }

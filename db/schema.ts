@@ -304,3 +304,41 @@ export const qualityGateRuns = sqliteTable("quality_gate_runs", {
   repairPlanJson: text("repair_plan_json").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const optimizationSettings = sqliteTable("optimization_settings", {
+  projectId: text("project_id").primaryKey(),
+  mode: text("mode").notNull().default("AUTOPILOT"),
+  maximumAttempts: integer("maximum_attempts").notNull().default(3),
+  minimumImprovement: integer("minimum_improvement").notNull().default(3),
+  maximumWaveStages: integer("maximum_wave_stages").notNull().default(4),
+  regressionTolerance: integer("regression_tolerance").notNull().default(5),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const optimizationCycles = sqliteTable("optimization_cycles", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  version: integer("version").notNull(),
+  status: text("status").notNull().default("ACTIVE"),
+  activeStage: text("active_stage").notNull(),
+  stageStateJson: text("stage_state_json").notNull(),
+  issueLedgerJson: text("issue_ledger_json").notNull(),
+  learningJson: text("learning_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const optimizationStageRuns = sqliteTable("optimization_stage_runs", {
+  id: text("id").primaryKey(),
+  cycleId: text("cycle_id").notNull(),
+  projectId: text("project_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  attempt: integer("attempt").notNull().default(1),
+  status: text("status").notNull(),
+  threshold: integer("threshold").notNull(),
+  score: integer("score").notNull().default(0),
+  contractJson: text("contract_json").notNull(),
+  candidatesJson: text("candidates_json").notNull(),
+  decisionJson: text("decision_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
