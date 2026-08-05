@@ -232,3 +232,46 @@ export const videoRenders = sqliteTable("video_renders", {
   gateResults: text("gate_results").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const referenceVideos = sqliteTable("reference_videos", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  youtubeVideoId: text("youtube_video_id").notNull(),
+  url: text("url").notNull(),
+  title: text("title").notNull(),
+  channelName: text("channel_name").notNull(),
+  referenceGroup: text("reference_group").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  publishedAt: text("published_at"),
+  durationSeconds: integer("duration_seconds").notNull().default(0),
+  viewCount: integer("view_count").notNull().default(0),
+  likeCount: integer("like_count").notNull().default(0),
+  commentCount: integer("comment_count").notNull().default(0),
+  referenceScore: integer("reference_score").notNull().default(0),
+  insightJson: text("insight_json").notNull(),
+  status: text("status").notNull().default("INCLUDED"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const referenceBenchmarkRuns = sqliteTable("reference_benchmark_runs", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  version: integer("version").notNull(),
+  status: text("status").notNull().default("READY"),
+  decision: text("decision").notNull(),
+  compositeScore: integer("composite_score").notNull().default(0),
+  gapMatrixJson: text("gap_matrix_json").notNull(),
+  criticResultsJson: text("critic_results_json").notNull(),
+  recommendationsJson: text("recommendations_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const referenceSettings = sqliteTable("reference_settings", {
+  projectId: text("project_id").primaryKey(),
+  verificationMode: text("verification_mode").notNull().default("AUTOPILOT"),
+  minimumScore: integer("minimum_score").notNull().default(75),
+  market: text("market").notNull().default("US"),
+  language: text("language").notNull().default("en"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

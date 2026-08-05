@@ -573,6 +573,79 @@ nav { display: grid; gap: 5px; }
 .masterState strong { color: #23473d; font-size: 8px; }
 .masterState p { margin-top: 3px; color: #83918c; font-size: 6px; }
 
+/* Reference intelligence */
+.referenceLayout { display: grid; grid-template-columns: minmax(0, 1fr) 278px; gap: 12px; align-items: start; }
+.referenceMain { padding: 20px; min-width: 0; }
+.referenceMetrics { display: grid; grid-template-columns: repeat(5, 1fr); margin: 16px 0 12px; overflow: hidden; border: 1px solid #e3e9e6; border-radius: 10px; }
+.referenceMetrics > div { padding: 11px; border-right: 1px solid #e3e9e6; background: #fbfcfb; }
+.referenceMetrics > div:last-child { border-right: 0; }
+.referenceMetrics small, .referenceMetrics strong { display: block; }
+.referenceMetrics small { color: #81908a; font-size: 6px; text-transform: uppercase; letter-spacing: .07em; }
+.referenceMetrics strong { margin-top: 5px; color: #1f4b3f; font: 600 19px/1 Georgia, serif; }
+.referenceActions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 13px; }
+.referenceEmpty { display: grid; min-height: 220px; place-content: center; justify-items: center; border: 1px dashed #cfddd7; border-radius: 12px; text-align: center; }
+.referenceEmpty span { color: #4e9278; font-size: 28px; }
+.referenceEmpty strong { margin-top: 8px; color: #23483e; font: 600 18px/1.2 Georgia, serif; }
+.referenceEmpty p { max-width: 430px; margin-top: 6px; color: #81908a; font-size: 8px; line-height: 1.5; }
+.referenceGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.referenceCard { overflow: hidden; border: 1px solid #e1e8e5; border-radius: 10px; background: white; }
+.referenceCard.excluded { opacity: .47; filter: grayscale(.6); }
+.referenceThumb { position: relative; display: block; aspect-ratio: 16 / 8.4; overflow: hidden; background: #102e29; }
+.referenceThumb > span { position: absolute; inset: 0; background-position: center; background-size: cover; transition: transform .25s ease; }
+.referenceThumb:hover > span { transform: scale(1.025); }
+.referenceThumb em, .referenceThumb b { position: absolute; z-index: 1; top: 8px; padding: 5px 7px; border-radius: 12px; background: rgba(8,29,24,.84); color: #b7ead4; font-size: 6px; font-style: normal; font-weight: 900; letter-spacing: .06em; }
+.referenceThumb em { left: 8px; }
+.referenceThumb b { right: 8px; color: white; font-size: 8px; }
+.referenceMeta { padding: 11px 12px 9px; }
+.referenceMeta > small { display: block; color: #4e826f; font-size: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
+.referenceMeta > strong { display: -webkit-box; min-height: 29px; overflow: hidden; margin-top: 5px; color: #213e36; font-size: 9px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.referenceMeta > p { margin-top: 6px; color: #72827c; font-size: 7px; line-height: 1.45; }
+.referenceMeta > p b { color: #2a6e58; }
+.referenceMeta blockquote { margin: 7px 0 0; padding-left: 8px; border-left: 2px solid #b9ddce; color: #788780; font-size: 7px; line-height: 1.45; }
+.referenceCard > footer { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-top: 1px solid #edf1ef; }
+.referenceCard > footer span { color: #87938f; font-size: 6px; }
+.referenceCard > footer button { border: 0; background: transparent; color: #2c755d; font-size: 7px; font-weight: 800; cursor: pointer; }
+.benchmarkResults { margin-top: 15px; overflow: hidden; border: 1px solid #dbe7e2; border-radius: 12px; }
+.benchmarkHeader { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; background: #113b31; color: white; }
+.benchmarkHeader div > span { color: #8bd5b5; font-size: 6px; font-weight: 900; letter-spacing: .09em; }
+.benchmarkHeader div > strong { display: block; margin-top: 4px; font: 600 19px/1 Georgia, serif; }
+.benchmarkHeader div > p { margin-top: 4px; color: #9ebeb3; font-size: 7px; }
+.benchmarkDecision { padding: 7px 10px; border: 1px solid rgba(139,213,181,.35); border-radius: 15px; color: #b7ead4; font-size: 7px; }
+.gapTableHead, .gapTable article { display: grid; grid-template-columns: 1.05fr 2fr 50px 64px; gap: 10px; align-items: center; }
+.gapTableHead { padding: 8px 13px; background: #eef5f2; color: #698078; font-size: 6px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.gapTable article { padding: 11px 13px; border-top: 1px solid #e8eeeb; }
+.gapTable article:first-of-type { border-top: 0; }
+.gapTable article strong, .gapTable article small, .gapTable article p, .gapTable article em { display: block; }
+.gapTable article strong { color: #24463c; font-size: 8px; }
+.gapTable article small { margin-top: 3px; color: #86928e; font-size: 6px; line-height: 1.4; }
+.gapTable article p { color: #536861; font-size: 7px; line-height: 1.45; }
+.gapTable article p em { margin-top: 4px; color: #2d745d; font-style: normal; font-weight: 800; }
+.gapTable article > b { color: #286a54; font: 600 17px/1 Georgia, serif; text-align: center; }
+.gapTable article > span { padding: 5px 7px; border-radius: 12px; font-size: 6px; font-weight: 900; text-align: center; }
+.gapTable .pass { background: #e3f3eb; color: #267155; }
+.gapTable .watch { background: #fff2d9; color: #9a691d; }
+.gapTable .revise { background: #f9e5dd; color: #9b4b2d; }
+.referenceRail { display: grid; gap: 10px; }
+.referenceRail .workspacePanel { padding: 16px; }
+.referenceDecision > p, .benchmarkNext > p { color: #7c8a85; font-size: 8px; line-height: 1.5; }
+.referenceScore { display: flex; align-items: baseline; margin: 13px 0; }
+.referenceScore strong { color: #286a54; font: 600 35px/1 Georgia, serif; }
+.referenceScore span { color: #7e8b86; font-size: 8px; }
+.referenceDecision ul { list-style: none; margin: 0 0 13px; padding: 0; }
+.referenceDecision li { padding: 9px 0; border-top: 1px solid #e8edeb; }
+.referenceDecision li > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.referenceDecision li strong { color: #29483f; font-size: 7px; }
+.referenceDecision li span { padding: 3px 5px; border-radius: 8px; background: #e3f3eb; color: #277156; font-size: 5px; font-weight: 900; }
+.referenceDecision li span.revise { background: #f8e4dd; color: #9b4b2d; }
+.referenceDecision li p { margin-top: 4px; color: #83908b; font-size: 6px; line-height: 1.4; }
+.benchmarkNext ol { margin: 11px 0 14px; padding-left: 16px; color: #52675f; font-size: 7px; line-height: 1.6; }
+.benchmarkNext h4 { margin: 0 0 7px; color: #2a584a; font-size: 7px; text-transform: uppercase; letter-spacing: .07em; }
+.benchmarkNext > p { margin-top: 5px; padding: 7px 8px; border-radius: 7px; background: #f0f6f3; color: #2c5c4c; font-weight: 700; }
+.originalityPolicy ul { list-style: none; margin: 11px 0; padding: 0; }
+.originalityPolicy li { position: relative; padding: 6px 0 6px 17px; color: #567068; font-size: 7px; }
+.originalityPolicy li::before { content: "✓"; position: absolute; left: 0; color: #2d8064; font-weight: 900; }
+.originalityPolicy small { color: #87938f; font-size: 6px; line-height: 1.45; }
+
 @media (max-width: 1160px) {
   .contentGrid { grid-template-columns: 1fr; }
   .rightRail { grid-template-columns: repeat(3, 1fr); }
@@ -585,6 +658,8 @@ nav { display: grid; gap: 5px; }
   .mediaRail { grid-template-columns: repeat(3, 1fr); }
   .composerLayout { grid-template-columns: 1fr; }
   .composerRail { grid-template-columns: repeat(2, 1fr); }
+  .referenceLayout { grid-template-columns: 1fr; }
+  .referenceRail { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 840px) {
@@ -632,6 +707,7 @@ nav { display: grid; gap: 5px; }
   .productionRail { grid-template-columns: 1fr; }
   .mediaRail { grid-template-columns: 1fr; }
   .composerRail { grid-template-columns: 1fr; }
+  .referenceRail { grid-template-columns: 1fr; }
   .mediaSceneBody { grid-template-columns: 1fr; }
   .audioReview { grid-template-columns: 1fr; }
 }
@@ -671,6 +747,11 @@ nav { display: grid; gap: 5px; }
   .sceneContent header { align-items: flex-start; flex-direction: column; }
   .mediaMetrics { grid-template-columns: repeat(2, 1fr); }
   .composerMetrics, .composerTimeline { grid-template-columns: repeat(2, 1fr); }
+  .referenceMetrics { grid-template-columns: repeat(2, 1fr); }
+  .referenceGrid { grid-template-columns: 1fr; }
+  .gapTableHead { display: none; }
+  .gapTable article { grid-template-columns: 1fr 46px 58px; }
+  .gapTable article > p { grid-column: 1 / -1; grid-row: 2; }
   .diagramAutomation { align-items: flex-start; flex-direction: column; }
   .mediaScene > header { grid-template-columns: 34px 1fr; }
   .coverageTag { grid-column: 2; justify-self: start; }

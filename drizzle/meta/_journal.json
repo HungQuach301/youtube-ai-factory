@@ -50,6 +50,13 @@
       "when": 1785905813704,
       "tag": "0006_wild_killraven",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1785914791833,
+      "tag": "0007_early_forge",
+      "breakpoints": true
     }
   ]
 }
