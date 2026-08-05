@@ -891,6 +891,28 @@ nav { display: grid; gap: 5px; }
 .scriptArtifact article { padding: 18px 0; border-bottom: 1px solid #edf1ef; }
 .scriptArtifact article:last-child { border: 0; }
 .scriptArtifact article p { margin: 0; color: #263b33; font-family: var(--font-serif); font-size: 16px; line-height: 1.8; }
+.scriptGateMetrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.scriptGateMetrics article { padding: 16px; border-radius: 14px; background: #12382e; color: #fff; }
+.scriptGateMetrics small, .scriptGateMetrics strong { display: block; }
+.scriptGateMetrics small { color: #91c1ae; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+.scriptGateMetrics strong { margin-top: 7px; font: 26px/1 Georgia, serif; }
+.scriptGateMetrics strong b { color: #b9d8cc; font: 10px/1.2 var(--font-body), sans-serif; }
+.scriptBeatMeta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.scriptBeatMeta small { margin: 0; }
+.scriptBeatMeta span { color: #2e6d58; font-size: 8px; font-weight: 900; letter-spacing: .07em; }
+.scriptLedger { max-width: 820px; margin: 16px auto 0; overflow: hidden; border: 1px solid #dce7e2; border-radius: 14px; background: #fff; }
+.scriptLedger > header { display: flex; justify-content: space-between; gap: 12px; padding: 14px 16px; background: #edf4f1; }
+.scriptLedger header small { color: #2e6d58; font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+.scriptLedger header strong { font-size: 11px; }
+.scriptLedger > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.scriptLedger article { display: grid; gap: 6px; padding: 14px 16px; border-right: 1px solid #e5ede9; }
+.scriptLedger article:last-child { border-right: 0; }
+.scriptLedger article strong { font-size: 11px; }
+.scriptLedger article p { margin: 0; color: #61756e; font-size: 10px; line-height: 1.45; }
+.scriptLedger article span { color: #277155; font-size: 9px; font-weight: 900; }
+.scriptLedger.terminology > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.scriptLedger.terminology article:nth-child(2) { border-right: 0; }
+.scriptLedger.terminology article:nth-child(n+3) { border-top: 1px solid #e5ede9; }
 .microQa { margin: 0 24px 24px; border: 1px solid #b9d7ca; border-radius: 14px; background: #eef7f3; overflow: hidden; }
 .microQa > header { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; background: #dceee6; }
 .microQa header small, .microQa header strong { display: block; }
@@ -1090,6 +1112,11 @@ nav { display: grid; gap: 5px; }
   .retentionSpine article { border-right: 0; border-bottom: 1px solid #e5ede9; }
   .retentionSpine article:last-child { border-bottom: 0; }
   .scriptArtifact { padding: 22px 18px; }
+  .scriptGateMetrics { grid-template-columns: 1fr 1fr; }
+  .scriptBeatMeta { align-items: flex-start; flex-direction: column; }
+  .scriptLedger > div, .scriptLedger.terminology > div { grid-template-columns: 1fr; }
+  .scriptLedger article, .scriptLedger.terminology article:nth-child(2) { border-right: 0; border-bottom: 1px solid #e5ede9; }
+  .scriptLedger article:last-child { border-bottom: 0; }
   .microQa > div { grid-template-columns: 1fr; }
   .depthGateMetrics { grid-template-columns: 1fr 1fr; }
   .gapTableHead { display: none; }
