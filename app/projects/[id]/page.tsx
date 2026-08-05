@@ -312,11 +312,16 @@ type MediaData = {
   gates: { voice: boolean; assetCoverage: number; rightsCoverage: number; assemblyReady: boolean };
 };
 
+type DiscoveryCandidate = { id: string; provider: string; category: "FREE" | "PAID" | "INTERNAL"; title: string; mediaType: "IMAGE" | "VIDEO" | "CATALOG"; thumbnailUrl: string | null; assetUrl: string | null; landingUrl: string; licenseType: string; licenseUrl: string | null; creator: string | null; sourceAssetId?: string; score: number };
+type DiscoveryResult = { scene: { id: string; query: string }; providerStatus: Record<string, string>; candidates: DiscoveryCandidate[] };
+
 function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setProjectNotice: (message: string) => void }) {
   const [media, setMedia] = useState<MediaData | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [linkDrafts, setLinkDrafts] = useState<Record<string, string>>({});
+  const [discoveries, setDiscoveries] = useState<Record<string, DiscoveryResult>>({});
+  const [discoveryFilter, setDiscoveryFilter] = useState<Record<string, "ALL" | "FREE" | "PAID" | "INTERNAL">>({});
 
   const loadMedia = useCallback(async () => {
     setError(null);
@@ -334,9 +339,9 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
     return () => { active = false; };
   }, [projectId, setProjectNotice]);
 
-  async function mediaAction(action: "GENERATE_DIAGRAMS" | "REGISTER_LINK" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY", input: { sceneId?: string; assetId?: string; sourceUrl?: string } = {}) {
+  async function mediaAction(action: "GENERATE_DIAGRAMS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY", input: { sceneId?: string; assetId?: string; sourceUrl?: string; candidate?: DiscoveryCandidate } = {}) {
     setWorking(input.assetId || input.sceneId || action);
-    const labels = { GENERATE_DIAGRAMS: "Creating channel-owned diagrams…", REGISTER_LINK: "Registering media candidate…", VERIFY_RIGHTS: "Recording human rights verification…", APPROVE_ASSET: "Approving asset for the timeline…", BUILD_ASSEMBLY: "Running assembly critics and building the timeline…" };
+    const labels = { GENERATE_DIAGRAMS: "Creating channel-owned diagrams…", REGISTER_LINK: "Registering media candidate…", SELECT_DISCOVERY: "Adding the selected candidate to rights review…", VERIFY_RIGHTS: "Recording human rights verification…", APPROVE_ASSET: "Approving asset for the timeline…", BUILD_ASSEMBLY: "Running assembly critics and building the timeline…" };
     setProjectNotice(labels[action]);
     try {
       const response = await fetch(`/api/projects/${projectId}/media`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...input, licenseType: action === "REGISTER_LINK" ? "SOURCE_LICENSE" : undefined, licenseProof: action === "VERIFY_RIGHTS" ? "Human verified source terms and intended YouTube use" : undefined }) });
@@ -346,6 +351,18 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
       if (input.sceneId) setLinkDrafts((current) => ({ ...current, [input.sceneId!]: "" }));
       setProjectNotice(action === "BUILD_ASSEMBLY" ? "Assembly gate passed · render package is ready" : "Media workspace updated");
     } catch (caught) { setProjectNotice(caught instanceof Error && caught.message.includes("GATE_BLOCKED") ? "Assembly is blocked until every scene has one rights-verified asset" : caught instanceof Error ? caught.message : "Media action failed safely"); }
+    finally { setWorking(null); }
+  }
+
+  async function searchAssets(sceneId: string) {
+    setWorking(`discover:${sceneId}`); setProjectNotice("Searching free, paid and verified internal sources…");
+    try {
+      const response = await fetch(`/api/projects/${projectId}/media?discover=${encodeURIComponent(sceneId)}`, { signal: AbortSignal.timeout(15000) });
+      const payload = await response.json().catch(() => ({})) as DiscoveryResult & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Asset search could not be completed");
+      setDiscoveries((current) => ({ ...current, [sceneId]: payload }));
+      setProjectNotice(`${payload.candidates.length} candidates found · rights verification remains required`);
+    } catch (caught) { setProjectNotice(caught instanceof Error ? caught.message : "Asset search failed safely"); }
     finally { setWorking(null); }
   }
 
@@ -381,11 +398,12 @@ function MediaStudio({ projectId, setProjectNotice }: { projectId: string; setPr
           <header><span>{String(scene.sceneNumber).padStart(2, "0")}</span><div><strong>{scene.beat}</strong><p>{scene.visualIntent}</p></div><span className={`coverageTag ${selected ? "ready" : "missing"}`}>{selected ? "✓ Covered" : "Needs asset"}</span></header>
           <div className="mediaSceneBody"><div className="assetCandidates">
             {sceneAssets.length ? sceneAssets.map((asset) => <div className={`assetCandidate ${asset.status.toLowerCase()}`} key={asset.id}>
-              <div className="assetPreview">{asset.storageKey && asset.mimeType.startsWith("image/") ? <span className="assetImage" role="img" aria-label={`${asset.name} preview`} style={{ backgroundImage: `url(/api/projects/${projectId}/media?asset=${encodeURIComponent(asset.id)})` }} /> : <span>{asset.mimeType.startsWith("video/") ? "▶" : "↗"}</span>}</div>
+              <div className="assetPreview">{asset.mimeType.startsWith("image/") && (asset.storageKey || asset.sourceUrl) ? <span className="assetImage" role="img" aria-label={`${asset.name} preview`} style={{ backgroundImage: `url(${asset.storageKey ? `/api/projects/${projectId}/media?asset=${encodeURIComponent(asset.id)}` : asset.sourceUrl})` }} /> : <span>{asset.mimeType.startsWith("video/") ? "▶" : "↗"}</span>}</div>
               <div className="assetInfo"><strong>{asset.name}</strong><p>{asset.sourceType.replaceAll("_", " ")} · {asset.licenseType.replaceAll("_", " ")}</p><div><span className={`rights ${asset.rightsStatus.toLowerCase()}`}>{asset.rightsStatus.replaceAll("_", " ")}</span><span>{asset.status}</span></div></div>
               <div className="assetActions">{asset.rightsStatus !== "VERIFIED" && <button disabled={working === asset.id} onClick={() => mediaAction("VERIFY_RIGHTS", { assetId: asset.id })}>Verify rights</button>}{asset.status !== "APPROVED" && <button disabled={working === asset.id || asset.rightsStatus !== "VERIFIED"} onClick={() => mediaAction("APPROVE_ASSET", { assetId: asset.id })}>Approve</button>}</div>
             </div>) : <div className="noAsset"><span>＋</span><p>No candidate attached yet</p></div>}
-          </div><aside className="sourceAssetControls"><small>{scene.mediaStrategy.replaceAll("_", " ")}</small><strong>{scene.searchQuery}</strong><label className="uploadControl">Upload image/video<input type="file" accept="image/*,video/*" onChange={(event) => uploadAsset(scene.id, event.target.files?.[0])} /></label><div className="linkControl"><input type="url" placeholder="Paste licensed source URL" value={linkDrafts[scene.id] || ""} onChange={(event) => setLinkDrafts((current) => ({ ...current, [scene.id]: event.target.value }))}/><button disabled={!linkDrafts[scene.id] || working === scene.id} onClick={() => mediaAction("REGISTER_LINK", { sceneId: scene.id, sourceUrl: linkDrafts[scene.id] })}>Add link</button></div></aside></div>
+          </div><aside className="sourceAssetControls"><small>{scene.mediaStrategy.replaceAll("_", " ")}</small><strong>{scene.searchQuery}</strong><button className="discoverButton" disabled={working === `discover:${scene.id}`} onClick={() => searchAssets(scene.id)}>{working === `discover:${scene.id}` ? "Searching sources…" : discoveries[scene.id] ? "Refresh candidates" : "Find media automatically"}</button><label className="uploadControl">Upload image/video<input type="file" accept="image/*,video/*" onChange={(event) => uploadAsset(scene.id, event.target.files?.[0])} /></label><div className="linkControl"><input type="url" placeholder="Paste licensed source URL" value={linkDrafts[scene.id] || ""} onChange={(event) => setLinkDrafts((current) => ({ ...current, [scene.id]: event.target.value }))}/><button disabled={!linkDrafts[scene.id] || working === scene.id} onClick={() => mediaAction("REGISTER_LINK", { sceneId: scene.id, sourceUrl: linkDrafts[scene.id] })}>Add link</button></div></aside></div>
+          {discoveries[scene.id] && <section className="discoveryTray"><div className="discoveryHeader"><div><strong>Asset discovery</strong><span>{discoveries[scene.id].candidates.length} ranked candidates · {discoveries[scene.id].scene.query}</span></div><div className="discoveryFilters">{(["ALL", "FREE", "PAID", "INTERNAL"] as const).map((filter) => <button className={(discoveryFilter[scene.id] || "ALL") === filter ? "active" : ""} key={filter} onClick={() => setDiscoveryFilter((current) => ({ ...current, [scene.id]: filter }))}>{filter}</button>)}</div></div><div className="discoveryGrid">{discoveries[scene.id].candidates.filter((candidate) => (discoveryFilter[scene.id] || "ALL") === "ALL" || candidate.category === discoveryFilter[scene.id]).map((candidate) => <article className="discoveryCard" key={candidate.id}><div className="discoveryThumb">{candidate.thumbnailUrl ? <span style={{ backgroundImage: `url(${candidate.thumbnailUrl})` }} /> : <b>{candidate.mediaType === "CATALOG" ? "↗" : candidate.mediaType === "VIDEO" ? "▶" : "▧"}</b>}<em>{candidate.category}</em></div><div className="discoveryMeta"><small>{candidate.provider} · {candidate.mediaType}</small><strong title={candidate.title}>{candidate.title}</strong><p>{candidate.creator || "Catalog search"} · {candidate.licenseType.replaceAll("_", " ")}</p></div><div className="discoveryActions"><a href={candidate.landingUrl} target="_blank" rel="noreferrer">View source</a>{candidate.category === "PAID" ? <span>Purchase, then upload</span> : <button disabled={working === scene.id} onClick={() => mediaAction("SELECT_DISCOVERY", { sceneId: scene.id, candidate })}>Select candidate</button>}</div></article>)}</div><p className="discoveryNotice">Search results are not automatic license approval. Verify the source terms and intended commercial YouTube use before approval.</p></section>}
         </article>;
       })}</div>
     </section>

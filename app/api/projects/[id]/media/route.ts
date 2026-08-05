@@ -7,7 +7,14 @@ type RuntimeBucket = {
   put(key: string, value: ArrayBuffer | Uint8Array, options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<unknown>;
   get(key: string): Promise<{ body: ReadableStream; httpMetadata?: { contentType?: string } } | null>;
 };
-type RuntimeEnv = { DB?: RuntimeD1; BUCKET?: RuntimeBucket };
+type RuntimeEnv = { DB?: RuntimeD1; BUCKET?: RuntimeBucket; PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string };
+
+type DiscoveryCandidate = {
+  id: string; provider: string; category: "FREE" | "PAID" | "INTERNAL"; title: string;
+  mediaType: "IMAGE" | "VIDEO" | "CATALOG"; thumbnailUrl: string | null; assetUrl: string | null;
+  landingUrl: string; licenseType: string; licenseUrl: string | null; creator: string | null;
+  sourceAssetId?: string; score: number;
+};
 
 let mediaSchemaReady: Promise<void> | null = null;
 
@@ -55,6 +62,67 @@ function diagramSvg(beat: string) {
 
 function safeName(name: string) { return name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 100); }
 
+function cleanText(value: unknown, fallback = "Untitled asset") {
+  return String(value || fallback).replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 240);
+}
+
+async function fetchJson(url: string, headers?: Record<string, string>) {
+  const response = await fetch(url, { headers, signal: AbortSignal.timeout(7000) });
+  if (!response.ok) throw new Error(`Provider returned ${response.status}`);
+  return response.json() as Promise<any>;
+}
+
+async function discoverAssets(projectId: string, sceneId: string) {
+  const db = await getDb();
+  const [scene] = await db.select().from(sceneManifest).where(eq(sceneManifest.id, sceneId)).limit(1);
+  if (!scene || scene.projectId !== projectId) throw new Error("SCENE_NOT_FOUND");
+  const query = cleanText(scene.searchQuery, scene.visualIntent).slice(0, 120);
+  const env = await runtimeEnv();
+  const providerStatus = { openverse: "CONNECTED", pexels: env.PEXELS_API_KEY ? "CONNECTED" : "KEY_REQUIRED", pixabay: env.PIXABAY_API_KEY ? "CONNECTED" : "KEY_REQUIRED", paidCatalogs: "HANDOFF" };
+
+  const openverseTask = fetchJson(`https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&license_type=commercial&page_size=6`).then((data) =>
+    (Array.isArray(data.results) ? data.results : []).map((item: any, index: number): DiscoveryCandidate => ({
+      id: `openverse:${cleanText(item.id, String(index))}`, provider: "Openverse", category: "FREE", title: cleanText(item.title), mediaType: "IMAGE",
+      thumbnailUrl: typeof item.thumbnail === "string" ? item.thumbnail : null, assetUrl: typeof item.url === "string" ? item.url : null,
+      landingUrl: typeof item.foreign_landing_url === "string" ? item.foreign_landing_url : "https://openverse.org/",
+      licenseType: cleanText(item.license, "OPEN_LICENSE").toUpperCase(), licenseUrl: typeof item.license_url === "string" ? item.license_url : null,
+      creator: item.creator ? cleanText(item.creator) : null, score: 94 - index,
+    }))
+  ).catch(() => [] as DiscoveryCandidate[]);
+
+  const pexelsTask = env.PEXELS_API_KEY ? Promise.all([
+    fetchJson(`https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&orientation=landscape&per_page=4`, { Authorization: env.PEXELS_API_KEY }),
+    fetchJson(`https://api.pexels.com/v1/videos/search?query=${encodeURIComponent(query)}&orientation=landscape&per_page=3`, { Authorization: env.PEXELS_API_KEY }),
+  ]).then(([photos, videos]) => [
+    ...(photos.photos || []).map((item: any, index: number): DiscoveryCandidate => ({ id: `pexels-photo:${item.id}`, provider: "Pexels", category: "FREE", title: cleanText(item.alt, `Pexels photo ${item.id}`), mediaType: "IMAGE", thumbnailUrl: item.src?.medium || null, assetUrl: item.src?.original || null, landingUrl: item.url, licenseType: "PEXELS_LICENSE", licenseUrl: "https://www.pexels.com/license/", creator: cleanText(item.photographer, "Unknown"), score: 92 - index })),
+    ...(videos.videos || []).map((item: any, index: number): DiscoveryCandidate => ({ id: `pexels-video:${item.id}`, provider: "Pexels", category: "FREE", title: `Pexels video ${item.id}`, mediaType: "VIDEO", thumbnailUrl: item.image || null, assetUrl: (item.video_files || []).sort((a: any, b: any) => (b.width || 0) - (a.width || 0))[0]?.link || null, landingUrl: item.url, licenseType: "PEXELS_LICENSE", licenseUrl: "https://www.pexels.com/license/", creator: cleanText(item.user?.name, "Unknown"), score: 91 - index })),
+  ]).catch(() => [] as DiscoveryCandidate[]) : Promise.resolve([] as DiscoveryCandidate[]);
+
+  const pixabayTask = env.PIXABAY_API_KEY ? Promise.all([
+    fetchJson(`https://pixabay.com/api/?key=${encodeURIComponent(env.PIXABAY_API_KEY)}&q=${encodeURIComponent(query)}&image_type=photo&orientation=horizontal&safesearch=true&per_page=4`),
+    fetchJson(`https://pixabay.com/api/videos/?key=${encodeURIComponent(env.PIXABAY_API_KEY)}&q=${encodeURIComponent(query)}&safesearch=true&per_page=3`),
+  ]).then(([photos, videos]) => [
+    ...(photos.hits || []).map((item: any, index: number): DiscoveryCandidate => ({ id: `pixabay-photo:${item.id}`, provider: "Pixabay", category: "FREE", title: cleanText(item.tags, `Pixabay image ${item.id}`), mediaType: "IMAGE", thumbnailUrl: item.webformatURL || null, assetUrl: item.largeImageURL || item.webformatURL || null, landingUrl: item.pageURL, licenseType: "PIXABAY_CONTENT_LICENSE", licenseUrl: "https://pixabay.com/service/license-summary/", creator: cleanText(item.user, "Unknown"), score: 90 - index })),
+    ...(videos.hits || []).map((item: any, index: number): DiscoveryCandidate => ({ id: `pixabay-video:${item.id}`, provider: "Pixabay", category: "FREE", title: cleanText(item.tags, `Pixabay video ${item.id}`), mediaType: "VIDEO", thumbnailUrl: item.videos?.medium?.thumbnail || null, assetUrl: item.videos?.large?.url || item.videos?.medium?.url || null, landingUrl: item.pageURL, licenseType: "PIXABAY_CONTENT_LICENSE", licenseUrl: "https://pixabay.com/service/license-summary/", creator: cleanText(item.user, "Unknown"), score: 89 - index })),
+  ]).catch(() => [] as DiscoveryCandidate[]) : Promise.resolve([] as DiscoveryCandidate[]);
+
+  const [openverse, pexels, pixabay, internalRows] = await Promise.all([
+    openverseTask, pexelsTask, pixabayTask,
+    db.select().from(mediaAssets).where(eq(mediaAssets.rightsStatus, "VERIFIED")).orderBy(desc(mediaAssets.createdAt)).limit(30),
+  ]);
+  const terms = new Set(query.toLowerCase().split(/\W+/).filter((term) => term.length > 3));
+  const internal = internalRows.filter((asset) => asset.sceneId !== sceneId && (asset.storageKey || asset.sourceUrl)).map((asset, index): DiscoveryCandidate => {
+    const overlap = [...terms].filter((term) => `${asset.name} ${asset.sourceType}`.toLowerCase().includes(term)).length;
+    return { id: `internal:${asset.id}`, provider: "Frameflow library", category: "INTERNAL", title: asset.name, mediaType: asset.mimeType.startsWith("video/") ? "VIDEO" : "IMAGE", thumbnailUrl: asset.storageKey ? `/api/projects/${asset.projectId}/media?asset=${encodeURIComponent(asset.id)}` : asset.sourceUrl, assetUrl: asset.sourceUrl, landingUrl: asset.sourceUrl || "#", licenseType: asset.licenseType, licenseUrl: null, creator: "Verified internal asset", sourceAssetId: asset.id, score: 80 + overlap * 5 - index };
+  }).sort((a, b) => b.score - a.score).slice(0, 6);
+  const paid: DiscoveryCandidate[] = [
+    { id: "paid:shutterstock", provider: "Shutterstock", category: "PAID", title: `Search Shutterstock for “${query}”`, mediaType: "CATALOG", thumbnailUrl: null, assetUrl: null, landingUrl: `https://www.shutterstock.com/search/${encodeURIComponent(query)}`, licenseType: "PAID_LICENSE_REQUIRED", licenseUrl: null, creator: null, score: 75 },
+    { id: "paid:storyblocks", provider: "Storyblocks", category: "PAID", title: `Search Storyblocks for “${query}”`, mediaType: "CATALOG", thumbnailUrl: null, assetUrl: null, landingUrl: `https://www.storyblocks.com/video/search/${encodeURIComponent(query)}`, licenseType: "PAID_LICENSE_REQUIRED", licenseUrl: null, creator: null, score: 74 },
+    { id: "paid:artgrid", provider: "Artgrid", category: "PAID", title: `Search Artgrid for “${query}”`, mediaType: "CATALOG", thumbnailUrl: null, assetUrl: null, landingUrl: "https://artgrid.io/", licenseType: "PAID_LICENSE_REQUIRED", licenseUrl: null, creator: null, score: 73 },
+  ];
+  return { scene: { id: scene.id, query }, providerStatus, candidates: [...internal, ...pexels, ...pixabay, ...openverse, ...paid].sort((a, b) => b.score - a.score) };
+}
+
 async function buildAssembly(projectId: string) {
   const db = await getDb();
   const [scenes, assets, segments, runs] = await Promise.all([
@@ -92,6 +160,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     await ensureMediaSchema();
     const db = await getDb();
     const url = new URL(request.url);
+    const discoverSceneId = url.searchParams.get("discover");
+    if (discoverSceneId) return Response.json(await discoverAssets(id, discoverSceneId));
     const assetId = url.searchParams.get("asset");
     if (assetId) {
       const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, assetId)).limit(1);
@@ -143,7 +213,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ ok: true, assetId });
     }
 
-    const payload = await request.json() as { action?: "GENERATE_DIAGRAMS" | "REGISTER_LINK" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY"; sceneId?: string; assetId?: string; sourceUrl?: string; licenseType?: string; licenseProof?: string };
+    const payload = await request.json() as { action?: "GENERATE_DIAGRAMS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY"; sceneId?: string; assetId?: string; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate };
     if (payload.action === "GENERATE_DIAGRAMS") {
       const env = await runtimeEnv();
       if (!env.BUCKET) return Response.json({ error: "Media storage is unavailable" }, { status: 424 });
@@ -168,6 +238,27 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const assetId = `${id}-AST-${crypto.randomUUID()}`;
       await db.insert(mediaAssets).values({ id: assetId, projectId: id, sceneId: scene.id, name: new URL(payload.sourceUrl).hostname, mimeType: "text/uri-list", sourceType: "EXTERNAL_LINK", sourceUrl: payload.sourceUrl, licenseType: payload.licenseType || "UNKNOWN", licenseProof: payload.licenseProof || null, rightsStatus: "PENDING", status: "REVIEW", sizeBytes: 0 });
       return Response.json({ ok: true, assetId });
+    }
+    if (payload.action === "SELECT_DISCOVERY") {
+      if (!payload.sceneId || !payload.candidate) return Response.json({ error: "Scene and candidate are required" }, { status: 400 });
+      const [scene] = await db.select().from(sceneManifest).where(eq(sceneManifest.id, payload.sceneId)).limit(1);
+      if (!scene || scene.projectId !== id) return Response.json({ error: "Scene not found" }, { status: 404 });
+      const candidate = payload.candidate;
+      if (!['FREE', 'INTERNAL'].includes(candidate.category) || !['Openverse', 'Pexels', 'Pixabay', 'Frameflow library'].includes(candidate.provider)) return Response.json({ error: "Unsupported discovery source" }, { status: 400 });
+      let sourceUrl = candidate.assetUrl || candidate.landingUrl;
+      let storageKey: string | null = null;
+      let sourceType = candidate.category === "INTERNAL" ? "INTERNAL_REUSE" : "DISCOVERED_FREE_STOCK";
+      let rightsStatus = "PENDING";
+      if (candidate.category === "INTERNAL") {
+        if (!candidate.sourceAssetId) return Response.json({ error: "Internal source is missing" }, { status: 400 });
+        const [source] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, candidate.sourceAssetId)).limit(1);
+        if (!source || source.rightsStatus !== "VERIFIED") return Response.json({ error: "Internal asset is not rights-verified" }, { status: 409 });
+        sourceUrl = source.sourceUrl; storageKey = source.storageKey; rightsStatus = "VERIFIED";
+      } else if (!sourceUrl || !/^https:\/\//.test(sourceUrl) || !candidate.landingUrl?.startsWith("https://")) return Response.json({ error: "Candidate source is invalid" }, { status: 400 });
+      const assetId = `${id}-AST-${crypto.randomUUID()}`;
+      const proof = JSON.stringify({ provider: cleanText(candidate.provider), landingUrl: candidate.landingUrl, licenseType: cleanText(candidate.licenseType), licenseUrl: candidate.licenseUrl, creator: candidate.creator, selectedAt: new Date().toISOString(), verification: rightsStatus === "VERIFIED" ? "Inherited from verified internal asset" : "Human verification required" });
+      await db.insert(mediaAssets).values({ id: assetId, projectId: id, sceneId: scene.id, name: cleanText(candidate.title), mimeType: candidate.mediaType === "VIDEO" ? "video/external" : "image/external", sourceType, sourceUrl, storageKey, licenseType: cleanText(candidate.licenseType, "UNKNOWN"), licenseProof: proof, rightsStatus, status: "REVIEW", sizeBytes: 0 });
+      return Response.json({ ok: true, assetId, rightsStatus });
     }
     if (payload.action === "VERIFY_RIGHTS") {
       if (!payload.assetId) return Response.json({ error: "assetId is required" }, { status: 400 });

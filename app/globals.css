@@ -445,9 +445,34 @@ nav { display: grid; gap: 5px; }
 .sourceAssetControls > strong { color: #66756f; font-size: 8px; line-height: 1.4; }
 .uploadControl { padding: 8px; border-radius: 7px; background: #173e35; color: white; text-align: center; font-size: 7px; font-weight: 800; cursor: pointer; }
 .uploadControl input { display: none; }
+.discoverButton { padding: 9px; border: 1px solid #79b79d; border-radius: 7px; background: #e2f1ea; color: #1e684e; font-size: 7px; font-weight: 850; cursor: pointer; }
+.discoverButton:disabled { opacity: .55; cursor: wait; }
 .linkControl { display: grid; grid-template-columns: 1fr auto; }
 .linkControl input { min-width: 0; padding: 8px; border: 1px solid #d8e0dc; border-radius: 7px 0 0 7px; font-size: 7px; }
 .linkControl button { border: 0; border-radius: 0 7px 7px 0; padding: 0 8px; background: #dcece5; color: #286a54; font-size: 7px; font-weight: 800; cursor: pointer; }
+.discoveryTray { padding: 12px 13px 14px; border-top: 1px solid #e2e8e5; background: #fbfcfb; }
+.discoveryHeader { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.discoveryHeader strong, .discoveryHeader span { display: block; }
+.discoveryHeader strong { font-size: 9px; }
+.discoveryHeader span { margin-top: 3px; color: #81908a; font-size: 7px; }
+.discoveryFilters { display: flex; gap: 4px; }
+.discoveryFilters button { padding: 5px 7px; border: 1px solid #d7dfdb; border-radius: 12px; background: white; color: #718079; font-size: 6px; font-weight: 850; cursor: pointer; }
+.discoveryFilters button.active { border-color: #2f745b; background: #2f745b; color: white; }
+.discoveryGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.discoveryCard { min-width: 0; overflow: hidden; border: 1px solid #dfe6e2; border-radius: 9px; background: white; }
+.discoveryThumb { position: relative; height: 82px; display: grid; place-items: center; overflow: hidden; background: #153b33; color: #8bd5b5; }
+.discoveryThumb > span { width: 100%; height: 100%; background-position: center; background-size: cover; }
+.discoveryThumb > b { font-size: 17px; }
+.discoveryThumb > em { position: absolute; top: 6px; left: 6px; padding: 3px 5px; border-radius: 9px; background: rgba(16,46,41,.86); color: white; font-size: 5px; font-style: normal; font-weight: 900; }
+.discoveryMeta { padding: 8px; }
+.discoveryMeta small { color: #34725b; font-size: 6px; font-weight: 800; text-transform: uppercase; }
+.discoveryMeta strong { display: block; margin-top: 4px; overflow: hidden; color: #253c35; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.discoveryMeta p { margin: 4px 0 0; overflow: hidden; color: #86918d; font-size: 6px; text-overflow: ellipsis; white-space: nowrap; }
+.discoveryActions { display: flex; align-items: center; justify-content: space-between; gap: 5px; padding: 0 8px 8px; }
+.discoveryActions a, .discoveryActions button { border: 0; background: transparent; color: #39745f; font-size: 6px; font-weight: 800; text-decoration: none; cursor: pointer; }
+.discoveryActions button { padding: 5px 6px; border-radius: 6px; background: #dff0e8; }
+.discoveryActions span { color: #976424; font-size: 6px; }
+.discoveryNotice { margin: 9px 0 0; color: #8e6a39; font-size: 6px; line-height: 1.45; }
 .mediaRail { display: grid; gap: 10px; }
 .mediaRail .workspacePanel { padding: 16px; }
 .sourcingPolicy ul { list-style: none; margin: 12px 0 0; padding: 0; }
@@ -486,6 +511,7 @@ nav { display: grid; gap: 5px; }
   .topbar { align-items: flex-start; }
   .secondaryButton { display: none; }
   .metricGrid { grid-template-columns: repeat(2, 1fr); }
+  .discoveryGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .projectList { grid-template-columns: 1fr; }
   .projectCard h3 { min-height: 0; }
   .rightRail { grid-template-columns: 1fr; }
