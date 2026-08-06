@@ -15,6 +15,7 @@ type TimingResponse = { audio_base64: string; alignment?: Record<string, unknown
 type ElevenLabsFailure = { status: number; code: string; message: string; retryable: boolean };
 
 const PLAYBACK_QA_CHECKS = ["FULL_PLAYBACK", "SINGLE_VOICE", "SYNC", "LOUDNESS", "BLACK_FRAMES", "RIGHTS"] as const;
+const PLAYBACK_FAILURES = ["SOUNDTRACK_MISSING", "SEMANTIC_VISUAL_MISMATCH", "VISUAL_REPETITION", "FRAME_FIT_FAILURE", "VISUAL_DENSITY_LOW"] as const;
 
 function voiceSignature(profile: { voiceId: string; modelId: string; stability: number; similarityBoost: number; style: number; speed: number }) {
   const value = `${profile.voiceId}|${profile.modelId}|${profile.stability}|${profile.similarityBoost}|${profile.style}|${profile.speed}`;
@@ -181,7 +182,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       return new Response(upstream.body, { status: upstream.status, headers: responseHeaders });
     }
     const snapshot = await projectSnapshot(id);
-    return Response.json({ ...snapshot, segments: snapshot.segments.map((segment) => ({ ...segment, audioUrl: `/api/projects/${id}/voice?audio=${encodeURIComponent(segment.id)}` })), renders: snapshot.renders.map((render) => { const gates = JSON.parse(render.gateResults) as Array<{ gate?: string; value?: string }>; return { ...render, voiceSignature: gates.find((gate) => gate.gate === "voiceSignature")?.value || null, videoUrl: `/api/projects/${id}/render?video=${encodeURIComponent(render.id)}`, downloadUrl: `/api/projects/${id}/render?video=${encodeURIComponent(render.id)}&download=1` }; }) });
+    return Response.json({ ...snapshot, segments: snapshot.segments.map((segment) => ({ ...segment, audioUrl: `/api/projects/${id}/voice?audio=${encodeURIComponent(segment.id)}` })), renders: snapshot.renders.map((render) => { const gates = JSON.parse(render.gateResults) as Array<{ gate?: string; value?: string; issues?: string[] }>; return { ...render, voiceSignature: gates.find((gate) => gate.gate === "voiceSignature")?.value || null, qaIssues: gates.findLast((gate) => gate.gate === "PLAYBACK_REJECTED")?.issues || [], repairWave: Number(gates.findLast((gate) => gate.gate === "EDITORIAL_REPAIR_WAVE")?.value || 0), editorialProfile: gates.findLast((gate) => gate.gate === "editorialProfile")?.value || null, videoUrl: `/api/projects/${id}/render?video=${encodeURIComponent(render.id)}`, downloadUrl: `/api/projects/${id}/render?video=${encodeURIComponent(render.id)}&download=1` }; }) });
   } catch (error) {
     console.error("Final composer GET failed", error);
     return Response.json({ error: "Final composer could not be loaded" }, { status: 500 });
@@ -199,7 +200,17 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       await bucket.put(`final-uploads/${id}/${uploadId}/${part}.part`, bytes, { httpMetadata: { contentType: "application/octet-stream" }, customMetadata: { projectId: id, uploadId, part: String(part) } });
       return Response.json({ ok: true, part });
     }
-    const payload = await request.json() as { action?: "FINALIZE_VIDEO" | "MATERIALIZE_V2_NARRATION" | "COMPLETE_PLAYBACK_QA"; position?: number; renderId?: string; checks?: string[]; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; durationSeconds?: number; width?: number; height?: number; fps?: number; renderMode?: string };
+    const payload = await request.json() as { action?: "FINALIZE_VIDEO" | "MATERIALIZE_V2_NARRATION" | "COMPLETE_PLAYBACK_QA" | "REJECT_PLAYBACK_QA"; position?: number; renderId?: string; checks?: string[]; issues?: string[]; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; durationSeconds?: number; width?: number; height?: number; fps?: number; renderMode?: string; repairWave?: number };
+    if (payload.action === "REJECT_PLAYBACK_QA") {
+      const db = await getDb(); const renderId = String(payload.renderId || ""); const [render] = await db.select().from(videoRenders).where(eq(videoRenders.id, renderId)).limit(1);
+      if (!render || render.projectId !== id) return Response.json({ error: "Master render not found" }, { status: 404 });
+      if (render.status !== "READY_FOR_PLAYBACK_QA") return Response.json({ error: "Only a master awaiting playback QA can enter repair" }, { status: 409 });
+      const issues = [...new Set(Array.isArray(payload.issues) ? payload.issues.filter((issue) => (PLAYBACK_FAILURES as readonly string[]).includes(issue)) : [])]; if (!issues.length) return Response.json({ error: "Select at least one observed playback failure" }, { status: 400 });
+      const allRenders = await db.select().from(videoRenders).where(eq(videoRenders.projectId, id)).orderBy(desc(videoRenders.version)); const priorWaves = allRenders.flatMap((item) => { try { return (JSON.parse(item.gateResults) as Array<{ gate?: string; value?: string }>).filter((gate) => gate.gate === "EDITORIAL_REPAIR_WAVE").map((gate) => Number(gate.value || 0)); } catch { return []; } }); const repairWave = Math.max(0, ...priorWaves) + 1; const escalated = repairWave > 2;
+      const priorGates = JSON.parse(render.gateResults) as Array<Record<string, unknown>>; const status = escalated ? "HUMAN_EDITOR_ESCALATION" : "QA_REJECTED"; await db.update(videoRenders).set({ status, gateResults: JSON.stringify([...priorGates, { gate: "PLAYBACK_REJECTED", passed: false, issues }, { gate: "EDITORIAL_REPAIR_WAVE", passed: !escalated, value: String(repairWave) }]) }).where(eq(videoRenders.id, render.id));
+      await db.insert(workflowEvents).values({ projectId: id, toStatus: "RENDER_READY", eventType: escalated ? "PLAYBACK_QA_ESCALATED" : "PLAYBACK_QA_REPAIR_ROUTED", summary: escalated ? `Master v${render.version} failed after two bounded repair waves; human editor required` : `Master v${render.version} rejected; Editorial Repair v3 wave ${repairWave}/2 targets ${issues.join(", ")}` });
+      return Response.json({ ok: true, renderId: render.id, status, repairWave, issues });
+    }
     if (payload.action === "COMPLETE_PLAYBACK_QA") {
       const db = await getDb(); const renderId = String(payload.renderId || ""); const [render] = await db.select().from(videoRenders).where(eq(videoRenders.id, renderId)).limit(1);
       if (!render || render.projectId !== id) return Response.json({ error: "Master render not found" }, { status: 404 });
@@ -232,7 +243,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const snapshot = await projectSnapshot(id); const gateResults = [
       { gate: "Voice", passed: snapshot.gates.voiceReady }, { gate: "Media", passed: snapshot.gates.mediaReady }, { gate: "Rights", passed: snapshot.gates.rightsReady }, { gate: "Motion", passed: snapshot.gates.motionReady }, { gate: "Assembly", passed: snapshot.gates.assemblyReady },
     ];
-    const optimizedGateResults: Array<{ gate: string; passed: boolean; value?: string }> = snapshot.optimized && payload.renderMode === "OPTIMIZED_V2" ? Object.entries((snapshot.optimized as { gates: Record<string, boolean> }).gates).map(([gate, passed]) => ({ gate, passed })) : []; if (snapshot.optimized && payload.renderMode === "OPTIMIZED_V2") optimizedGateResults.push({ gate: "voiceSignature", passed: true, value: (snapshot.optimized as { voiceIdentity: { signature: string } }).voiceIdentity.signature }); const activeGateResults = optimizedGateResults.length ? optimizedGateResults : gateResults;
+    const optimizedMode = payload.renderMode === "OPTIMIZED_V2" || payload.renderMode === "EDITORIAL_REPAIR_V3"; const optimizedGateResults: Array<{ gate: string; passed: boolean; value?: string }> = snapshot.optimized && optimizedMode ? Object.entries((snapshot.optimized as { gates: Record<string, boolean> }).gates).map(([gate, passed]) => ({ gate, passed })) : []; if (snapshot.optimized && optimizedMode) { optimizedGateResults.push({ gate: "voiceSignature", passed: true, value: (snapshot.optimized as { voiceIdentity: { signature: string } }).voiceIdentity.signature }); optimizedGateResults.push({ gate: "editorialProfile", passed: true, value: payload.renderMode === "EDITORIAL_REPAIR_V3" ? "EDITORIAL_REPAIR_V3" : "OPTIMIZED_V2" }); optimizedGateResults.push({ gate: "visualChangeCeiling", passed: true, value: "4.8s" }); optimizedGateResults.push({ gate: "soundscapeProfile", passed: true, value: "5_ARCS_4_ZONES_15_SFX" }); }
+    const activeGateResults = optimizedGateResults.length ? optimizedGateResults : gateResults;
     if (activeGateResults.some((gate) => !gate.passed)) return Response.json({ error: `Final render gate blocked: ${activeGateResults.filter((gate) => !gate.passed).map((gate) => gate.gate).join(", ")}` }, { status: 409 });
     const bucket = (await runtimeEnv()).BUCKET; if (!bucket) return Response.json({ error: "Video storage is unavailable" }, { status: 424 });
     const parts: Uint8Array[] = []; const keys: string[] = []; let total = 0;
@@ -246,7 +258,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const db = await getDb(); const existing = await db.select().from(videoRenders).where(eq(videoRenders.projectId, id)).orderBy(desc(videoRenders.version)); const version = (existing[0]?.version || 0) + 1;
     const renderId = `${id}-FINAL-V${version}`; const name = safeName(payload.fileName || `${id}-final-v${version}.webm`); const key = `renders/${id}/${renderId}-${name}`;
     await bucket.put(key, joined, { httpMetadata: { contentType: "video/webm" }, customMetadata: { projectId: id, renderId, version: String(version) } });
-    await db.insert(videoRenders).values({ id: renderId, projectId: id, version, name, storageKey: key, mimeType: "video/webm", sizeBytes: total, durationSeconds: payload.durationSeconds || snapshot.totalDuration, width: payload.width || 1280, height: payload.height || 720, fps: payload.fps || 30, status: payload.renderMode === "OPTIMIZED_V2" ? "READY_FOR_PLAYBACK_QA" : "READY", gateResults: JSON.stringify(activeGateResults) });
+    await db.insert(videoRenders).values({ id: renderId, projectId: id, version, name, storageKey: key, mimeType: "video/webm", sizeBytes: total, durationSeconds: payload.durationSeconds || snapshot.totalDuration, width: payload.width || 1280, height: payload.height || 720, fps: payload.fps || 30, status: optimizedMode ? "READY_FOR_PLAYBACK_QA" : "READY", gateResults: JSON.stringify(activeGateResults) });
     await db.update(videoProjects).set({ status: "RENDER_READY", progress: 96, nextAction: "Run final playback QA", updatedAt: new Date().toISOString() }).where(eq(videoProjects.id, id));
     await db.insert(workflowEvents).values({ projectId: id, fromStatus: "ASSEMBLY_READY", toStatus: "RENDER_READY", eventType: "FINAL_VIDEO_RENDERED", summary: `Final video v${version} rendered with approved visuals and ElevenLabs narration; five production gates passed` });
     await bucket.delete(keys);
