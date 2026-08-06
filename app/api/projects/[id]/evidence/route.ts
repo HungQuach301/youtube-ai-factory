@@ -291,6 +291,63 @@ async function repairEvidenceBatch(projectId: string, batchSize = 6) {
   return { repaired, total: work.length, complete: pending.length <= batchSize && failures.length === 0, remaining: Math.max(0, pending.length - repaired), failures };
 }
 
+function chunks<T>(items: T[], size: number) {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) result.push(items.slice(index, index + size));
+  return result;
+}
+
+async function planProductionExpansion(projectId: string) {
+  const db = await ensureFoundation(projectId);
+  const [assets, claims] = await Promise.all([
+    db.select().from(mediaAssets).where(eq(mediaAssets.projectId, projectId)),
+    db.select().from(researchClaims).where(eq(researchClaims.projectId, projectId)),
+  ]);
+  const legacyBeats = assets.filter((asset) => asset.status === "APPROVED" && asset.sceneId.startsWith(`${projectId}-VB-`)).sort((a, b) => Number(a.sceneId.split("-").at(-1)) - Number(b.sceneId.split("-").at(-1)));
+  const uniqueBeatIds = [...new Set(legacyBeats.map((asset) => asset.sceneId))];
+  if (uniqueBeatIds.length < 40) throw new Error(`Production expansion requires 40 frozen visual beats; found ${uniqueBeatIds.length}`);
+  const supportedClaims = claims.filter((claim) => claim.status === "SUPPORTED");
+  if (!supportedClaims.length) throw new Error("Production expansion requires verified research claims");
+
+  const families = ["MACRO_REALITY", "LIVING_MAP", "SYSTEM_UI", "RECEIPT_COUNTER", "TIMING_LANES", "ECONOMIC_WATERFALL"];
+  const now = new Date().toISOString();
+  const shotRows: Array<typeof evidenceRecords.$inferInsert> = [];
+  const slotRows: Array<typeof evidenceRecords.$inferInsert> = [];
+  const bindingRows: Array<typeof evidenceBindings.$inferInsert> = [];
+  for (let slot = 0; slot < 84; slot += 1) {
+    const family = families[slot % families.length];
+    slotRows.push({
+      id: `${projectId}-V5-ASSET-SLOT-${String(slot + 1).padStart(3, "0")}`, projectId, entityType: "MEDIA_ASSET", pipelineVersion: 5,
+      lifecycleState: "PLAN", title: `Unique asset slot ${String(slot + 1).padStart(3, "0")} · ${family.replaceAll("_", " ")}`,
+      licenseStatus: "REQUIRES_MATERIALIZATION", commercialUseStatus: "UNKNOWN", settingsJson: JSON.stringify({ productionExpansionVersion: 5, role: "UNIQUE_ASSET_SLOT", family, candidateDepthRequired: 3, ownedFallbackRequired: true, maximumUses: 2, minimumRepeatSpacingSeconds: 90, frameFit: "COVER_SAFE_16_9" }), updatedAt: now,
+    });
+  }
+  for (let index = 0; index < 144; index += 1) {
+    const startSeconds = Number((index * 480 / 144).toFixed(3));
+    const endSeconds = index === 143 ? 480 : Number(((index + 1) * 480 / 144).toFixed(3));
+    const parentBeatIndex = Math.min(39, Math.floor(startSeconds / 12));
+    const parentBeatId = uniqueBeatIds[parentBeatIndex];
+    const family = families[index % families.length];
+    const slotNumber = index % 84 + 1;
+    const shotId = `${projectId}-V5-SHOT-${String(index + 1).padStart(3, "0")}`;
+    const slotId = `${projectId}-V5-ASSET-SLOT-${String(slotNumber).padStart(3, "0")}`;
+    const claim = supportedClaims[index % supportedClaims.length];
+    const meaningfulEvents = index < 120 ? 2 : 1;
+    shotRows.push({
+      id: shotId, projectId, entityType: "SHOT", pipelineVersion: 5, lifecycleState: "PLAN",
+      title: `Editorial shot ${String(index + 1).padStart(3, "0")} · ${family.replaceAll("_", " ")}`,
+      licenseStatus: "NOT_APPLICABLE", commercialUseStatus: "NOT_APPLICABLE", claimIdsJson: JSON.stringify([claim.id]), shotIdsJson: JSON.stringify([shotId]),
+      settingsJson: JSON.stringify({ productionExpansionVersion: 5, parentBeatId, sectionIndex: Math.min(12, Math.floor(startSeconds / 40) + 1), startSeconds, endSeconds, durationSeconds: Number((endSeconds - startSeconds).toFixed(3)), primaryFamily: family, narrativeFunction: index % 4 === 0 ? "ORIENT" : index % 4 === 1 ? "EXPLAIN" : index % 4 === 2 ? "PROVE" : "PAYOFF", meaningfulEvents, maximumNearStaticSeconds: 3.2, transitionPurpose: "SEMANTIC_CHANGE", frameFit: "COVER_SAFE_16_9", assetSlotId: slotId }), updatedAt: now,
+    });
+    bindingRows.push({ id: `${projectId}-V5-PLAN-BIND-${String(index + 1).padStart(3, "0")}`, projectId, fromRecordId: slotId, toRecordId: shotId, relationship: "PLANNED_VISUAL_FOR_SHOT", status: "PLANNED" });
+  }
+  for (const batch of chunks(slotRows, 18)) await db.insert(evidenceRecords).values(batch).onConflictDoNothing();
+  for (const batch of chunks(shotRows, 18)) await db.insert(evidenceRecords).values(batch).onConflictDoNothing();
+  for (const batch of chunks(bindingRows, 24)) await db.insert(evidenceBindings).values(batch).onConflictDoNothing();
+  await db.insert(workflowEvents).values({ projectId, toStatus: "V5_PRODUCTION_EXPANSION_PLANNED", eventType: "V5_SHOT_CONTRACT_FROZEN", summary: "V5 expansion planned 84 unique asset slots, 144 editorial shots and 264 meaningful visual events across 0–480 seconds" });
+  return { shots: 144, assetSlots: 84, meaningfulEvents: 264, runtimeSeconds: 480, averageShotSeconds: Number((480 / 144).toFixed(2)), maximumNearStaticSeconds: 3.2 };
+}
+
 function recordIntegrity(record: typeof evidenceRecords.$inferSelect) {
   const fileBacked = ["RESEARCH_DOCUMENT", "MEDIA_ASSET", "AUDIO_ASSET", "RENDER_EVIDENCE"].includes(record.entityType);
   const stored = ["STORED", "VERIFIED", "BOUND", "RENDERED", "AUDITED"].includes(record.lifecycleState);
@@ -348,12 +405,17 @@ async function responseData(projectId: string) {
   ]);
   const counts = Object.fromEntries(ENTITY_TYPES.map((type) => [type, records.filter((record) => record.entityType === type).length]));
   const lifecycle = Object.fromEntries(["PLAN", "FETCHED", "STORED", "VERIFIED", "BOUND", "RENDERED", "AUDITED"].map((state) => [state, records.filter((record) => record.lifecycleState === state).length]));
+  const expansionRecords = records.filter((record) => proofObject(record.settingsJson).productionExpansionVersion === 5);
+  const expansionShots = expansionRecords.filter((record) => record.entityType === "SHOT");
+  const expansionSlots = expansionRecords.filter((record) => record.entityType === "MEDIA_ASSET" && proofObject(record.settingsJson).role === "UNIQUE_ASSET_SLOT");
+  const meaningfulEvents = expansionShots.reduce((sum, record) => sum + Number(proofObject(record.settingsJson).meaningfulEvents || 0), 0);
   const profile = profileRows[0];
   return {
     profile: profile ? { ...profile, targets: JSON.parse(profile.targetsJson) } : null,
     entityTypes: ENTITY_TYPES,
     counts: { ...counts, total: records.length, bindings: bindings.length },
     lifecycle,
+    expansion: { status: expansionShots.length === 144 && expansionSlots.length === 84 && meaningfulEvents === 264 ? "CONTRACT_FROZEN" : "NOT_PLANNED", shots: expansionShots.length, assetSlots: expansionSlots.length, meaningfulEvents, runtimeSeconds: expansionShots.length ? Math.max(...expansionShots.map((record) => Number(proofObject(record.settingsJson).endSeconds || 0))) : 0, averageShotSeconds: expansionShots.length ? Number((480 / expansionShots.length).toFixed(2)) : 0, maximumNearStaticSeconds: expansionShots.length ? Math.max(...expansionShots.map((record) => Number(proofObject(record.settingsJson).maximumNearStaticSeconds || 0))) : 0 },
     latestAudit: audits[0] ? { ...audits[0], counts: JSON.parse(audits[0].countsJson), blockers: JSON.parse(audits[0].blockersJson) } : null,
     migration: migrations[0] ? { ...migrations[0], policy: JSON.parse(migrations[0].policyJson) } : null,
     truth: {
@@ -380,7 +442,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const payload = await request.json() as { action?: "SYNC_REGISTRY" | "RUN_INTEGRITY_AUDIT" | "RUN_REPAIR_BATCH" };
+    const payload = await request.json() as { action?: "SYNC_REGISTRY" | "RUN_INTEGRITY_AUDIT" | "RUN_REPAIR_BATCH" | "PLAN_PRODUCTION_EXPANSION" };
     if (payload.action === "SYNC_REGISTRY") {
       await synchronizeKnownEvidence(id);
       await (await getDb()).insert(workflowEvents).values({ projectId: id, toStatus: "V5_EVIDENCE_FOUNDATION", eventType: "V5_EVIDENCE_REGISTRY_SYNCED", summary: "Pipeline v5 registry synchronized; legacy artifacts remain read-only evidence candidates" });
@@ -398,6 +460,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const repair = await repairEvidenceBatch(id);
       const audit = repair.complete ? await runAudit(id) : null;
       return Response.json({ ok: true, repair, audit, registry: await responseData(id) });
+    }
+    if (payload.action === "PLAN_PRODUCTION_EXPANSION") {
+      const expansion = await planProductionExpansion(id);
+      return Response.json({ ok: true, expansion, registry: await responseData(id) });
     }
     return Response.json({ error: "Unknown evidence action" }, { status: 400 });
   } catch (error) {
