@@ -12,6 +12,7 @@ type RuntimeBucket = {
 };
 type RuntimeEnv = { DB?: RuntimeD1; BUCKET?: RuntimeBucket; ELEVENLABS_API_KEY?: string };
 type TimingResponse = { audio_base64: string; alignment?: Record<string, unknown>; normalized_alignment?: { character_end_times_seconds?: number[] } & Record<string, unknown> };
+type ElevenLabsFailure = { status: number; code: string; message: string; retryable: boolean };
 
 const PLAYBACK_QA_CHECKS = ["FULL_PLAYBACK", "SINGLE_VOICE", "SYNC", "LOUDNESS", "BLACK_FRAMES", "RIGHTS"] as const;
 
@@ -50,6 +51,39 @@ async function ensureSchema() {
 function validUploadId(value: string) { return /^[a-zA-Z0-9-]{12,80}$/.test(value); }
 function safeName(value: string) { return value.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 100) || "final-video.webm"; }
 function parseLicenseProof(value: string | null) { try { const parsed = JSON.parse(value || "{}"); return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {}; } catch { return {} as Record<string, unknown>; } }
+
+async function elevenLabsFailure(response: Response): Promise<ElevenLabsFailure> {
+  const raw = await response.text().catch(() => "");
+  let code = `HTTP_${response.status}`; let providerMessage = "";
+  try {
+    const parsed = JSON.parse(raw) as { detail?: string | { status?: string; message?: string }; message?: string };
+    if (typeof parsed.detail === "string") providerMessage = parsed.detail;
+    else if (parsed.detail && typeof parsed.detail === "object") { code = parsed.detail.status || code; providerMessage = parsed.detail.message || ""; }
+    if (!providerMessage && typeof parsed.message === "string") providerMessage = parsed.message;
+  } catch { providerMessage = raw; }
+  const normalized = `${code} ${providerMessage}`.toLowerCase(); const retryable = response.status === 429 || response.status >= 500;
+  let message = `ElevenLabs rejected the narration request (${code}, HTTP ${response.status}).`;
+  if (/quota|credit|character limit/.test(normalized)) message = "ElevenLabs credits are insufficient for the remaining narration. Add credits or upgrade the ElevenLabs plan, then resume from the failed section.";
+  else if (/invalid.*api|api.*key|unauthor/.test(normalized)) message = "ElevenLabs rejected the API key. Reconnect ELEVENLABS_API_KEY in Factory Connections, then resume.";
+  else if (response.status === 429) message = "ElevenLabs is rate-limiting narration. The factory retried twice; wait briefly, then resume from the failed section.";
+  else if (/voice/.test(normalized) && /not found|invalid|access|permission/.test(normalized)) message = "The locked ElevenLabs voice is unavailable to this API key. Verify access to the Authorization voice, then resume.";
+  else if (/model/.test(normalized) && /not found|invalid|access|permission|support/.test(normalized)) message = "The locked ElevenLabs model is unavailable for this account or voice. Verify the model in Factory Connections, then resume.";
+  else if (providerMessage) message += ` ${providerMessage.replace(/\s+/g, " ").slice(0, 220)}`;
+  return { status: response.status, code, message, retryable };
+}
+
+async function requestElevenLabsNarration(env: RuntimeEnv, profile: { voiceId: string; modelId: string; stability: number; similarityBoost: number; style: number; speed: number }, text: string) {
+  let lastFailure: ElevenLabsFailure | null = null; let attempts = 0;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    attempts = attempt;
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(profile.voiceId)}/with-timestamps?output_format=mp3_44100_128`, { method: "POST", headers: { "content-type": "application/json", "xi-api-key": env.ELEVENLABS_API_KEY || "" }, body: JSON.stringify({ text, model_id: profile.modelId, language_code: "en", voice_settings: { stability: profile.stability, similarity_boost: profile.similarityBoost, style: profile.style, use_speaker_boost: true, speed: profile.speed } }) });
+    if (response.ok) return { response, attempts: attempt, failure: null };
+    lastFailure = await elevenLabsFailure(response);
+    if (!lastFailure.retryable || attempt === 2) break;
+    await new Promise((resolve) => setTimeout(resolve, attempt * 750));
+  }
+  return { response: null, attempts, failure: lastFailure || { status: 502, code: "UNKNOWN_PROVIDER_ERROR", message: "ElevenLabs narration failed without a provider response.", retryable: false } };
+}
 
 function isSafeExternalUrl(value: string) {
   try {
@@ -184,8 +218,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const signature = voiceSignature(profile); const versionKey = `${editArtifact.id}:V3:${signature}`; const segmentId = `${id}-OPT-V3-${signature}-SEG-${String(position).padStart(2, "0")}`;
       const [existing] = await db.select().from(narrationSegments).where(eq(narrationSegments.id, segmentId)).limit(1); if (existing?.audioKey) return Response.json({ ok: true, position, reused: true, voiceSignature: signature });
       if (!existing) await db.insert(narrationSegments).values({ id: segmentId, projectId: id, scriptVersionId: versionKey, position, label: section.beat, text: section.text, characterCount: section.text.length, status: "GENERATING" });
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(profile.voiceId)}/with-timestamps?output_format=mp3_44100_128`, { method: "POST", headers: { "content-type": "application/json", "xi-api-key": env.ELEVENLABS_API_KEY }, body: JSON.stringify({ text: section.text, model_id: profile.modelId, language_code: "en", voice_settings: { stability: profile.stability, similarity_boost: profile.similarityBoost, style: profile.style, use_speaker_boost: true, speed: profile.speed } }) }); if (!response.ok) return Response.json({ error: "ElevenLabs optimized narration failed", providerStatus: response.status }, { status: 502 });
-      const generated = await response.json() as TimingResponse; const bytes = Uint8Array.from(atob(generated.audio_base64), (character) => character.charCodeAt(0)); const audioKey = `voice/${id}/optimized-v3/${signature}/${segmentId}.mp3`; await env.BUCKET.put(audioKey, bytes, { httpMetadata: { contentType: "audio/mpeg" }, customMetadata: { projectId: id, segmentId, source: "OPTIMIZED_V3", voiceId: profile.voiceId, voiceName: profile.voiceName, modelId: profile.modelId, voiceSignature: signature } }); const timing = generated.normalized_alignment || generated.alignment || {}; const endTimes = generated.normalized_alignment?.character_end_times_seconds || []; const durationSeconds = endTimes.length ? endTimes[endTimes.length - 1] : null; await db.update(narrationSegments).set({ scriptVersionId: versionKey, status: "MATERIALIZED", audioKey, alignment: JSON.stringify(timing), durationSeconds, takeNumber: 1, updatedAt: new Date().toISOString() }).where(eq(narrationSegments.id, segmentId)); return Response.json({ ok: true, position, durationSeconds, voiceName: profile.voiceName, voiceSignature: signature });
+      const provider = await requestElevenLabsNarration(env, profile, section.text);
+      if (!provider.response) {
+        await db.update(narrationSegments).set({ status: "FAILED", updatedAt: new Date().toISOString() }).where(eq(narrationSegments.id, segmentId));
+        await db.insert(workflowEvents).values({ projectId: id, toStatus: "VOICE_PRODUCTION", eventType: "OPTIMIZED_NARRATION_BLOCKED", summary: `Optimized narration section ${position} stopped after ${provider.attempts} attempt(s): ${provider.failure.code}` });
+        return Response.json({ error: provider.failure.message, providerStatus: provider.failure.status, providerCode: provider.failure.code, retryable: provider.failure.retryable, position, attempts: provider.attempts }, { status: 502 });
+      }
+      const generated = await provider.response.json() as TimingResponse; if (!generated.audio_base64) return Response.json({ error: "ElevenLabs returned no audio for this section. Resume to retry only this section.", providerCode: "EMPTY_AUDIO_RESPONSE", position, attempts: provider.attempts }, { status: 502 }); const bytes = Uint8Array.from(atob(generated.audio_base64), (character) => character.charCodeAt(0)); const audioKey = `voice/${id}/optimized-v3/${signature}/${segmentId}.mp3`; await env.BUCKET.put(audioKey, bytes, { httpMetadata: { contentType: "audio/mpeg" }, customMetadata: { projectId: id, segmentId, source: "OPTIMIZED_V3", voiceId: profile.voiceId, voiceName: profile.voiceName, modelId: profile.modelId, voiceSignature: signature } }); const timing = generated.normalized_alignment || generated.alignment || {}; const endTimes = generated.normalized_alignment?.character_end_times_seconds || []; const durationSeconds = endTimes.length ? endTimes[endTimes.length - 1] : null; await db.update(narrationSegments).set({ scriptVersionId: versionKey, status: "MATERIALIZED", audioKey, alignment: JSON.stringify(timing), durationSeconds, takeNumber: provider.attempts, updatedAt: new Date().toISOString() }).where(eq(narrationSegments.id, segmentId)); return Response.json({ ok: true, position, durationSeconds, voiceName: profile.voiceName, voiceSignature: signature, attempts: provider.attempts });
     }
     if (payload.action !== "FINALIZE_VIDEO") return Response.json({ error: "Unknown composer action" }, { status: 400 });
     const uploadId = payload.uploadId || ""; const chunkCount = Number(payload.chunkCount);
