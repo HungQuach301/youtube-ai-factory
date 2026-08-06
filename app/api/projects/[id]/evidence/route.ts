@@ -39,7 +39,11 @@ const PROFILE = {
 };
 
 type RuntimeObject = { body: ReadableStream; arrayBuffer?: () => Promise<ArrayBuffer>; size: number; httpMetadata?: { contentType?: string } };
-type RuntimeEnv = { BUCKET?: { get(key: string): Promise<RuntimeObject | null> } };
+type RuntimeStatement = { bind(...values: unknown[]): RuntimeStatement };
+type RuntimeEnv = {
+  BUCKET?: { get(key: string): Promise<RuntimeObject | null> };
+  DB?: { prepare(sql: string): RuntimeStatement; batch(statements: RuntimeStatement[]): Promise<unknown> };
+};
 
 async function runtimeEnv() {
   const { env } = await import("cloudflare:workers");
@@ -299,6 +303,8 @@ function chunks<T>(items: T[], size: number) {
 
 async function planProductionExpansion(projectId: string) {
   const db = await ensureFoundation(projectId);
+  const env = await runtimeEnv();
+  if (!env.DB) throw new Error("Production expansion requires the Factory database");
   const [assets, claims] = await Promise.all([
     db.select().from(mediaAssets).where(eq(mediaAssets.projectId, projectId)),
     db.select().from(researchClaims).where(eq(researchClaims.projectId, projectId)),
@@ -341,9 +347,14 @@ async function planProductionExpansion(projectId: string) {
     });
     bindingRows.push({ id: `${projectId}-V5-PLAN-BIND-${String(index + 1).padStart(3, "0")}`, projectId, fromRecordId: slotId, toRecordId: shotId, relationship: "PLANNED_VISUAL_FOR_SHOT", status: "PLANNED" });
   }
-  for (const batch of chunks(slotRows, 18)) await db.insert(evidenceRecords).values(batch).onConflictDoNothing();
-  for (const batch of chunks(shotRows, 18)) await db.insert(evidenceRecords).values(batch).onConflictDoNothing();
-  for (const batch of chunks(bindingRows, 24)) await db.insert(evidenceBindings).values(batch).onConflictDoNothing();
+  // One prepared statement per row avoids D1's bound-variable ceiling. D1
+  // batch groups those statements into a small number of network round trips.
+  const recordSql = "INSERT OR IGNORE INTO evidence_records (id, project_id, entity_type, pipeline_version, lifecycle_state, title, license_status, commercial_use_status, settings_json, claim_ids_json, shot_ids_json, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+  const recordStatements = [...slotRows, ...shotRows].map((row) => env.DB!.prepare(recordSql).bind(row.id, row.projectId, row.entityType, row.pipelineVersion, row.lifecycleState, row.title, row.licenseStatus, row.commercialUseStatus, row.settingsJson, row.claimIdsJson || "[]", row.shotIdsJson || "[]", row.updatedAt));
+  for (const batch of chunks(recordStatements, 50)) await env.DB.batch(batch);
+  const bindingSql = "INSERT OR IGNORE INTO evidence_bindings (id, project_id, from_record_id, to_record_id, relationship, status) VALUES (?, ?, ?, ?, ?, ?)";
+  const bindingStatements = bindingRows.map((row) => env.DB!.prepare(bindingSql).bind(row.id, row.projectId, row.fromRecordId, row.toRecordId, row.relationship, row.status));
+  for (const batch of chunks(bindingStatements, 50)) await env.DB.batch(batch);
   await db.insert(workflowEvents).values({ projectId, toStatus: "V5_PRODUCTION_EXPANSION_PLANNED", eventType: "V5_SHOT_CONTRACT_FROZEN", summary: "V5 expansion planned 84 unique asset slots, 144 editorial shots and 264 meaningful visual events across 0–480 seconds" });
   return { shots: 144, assetSlots: 84, meaningfulEvents: 264, runtimeSeconds: 480, averageShotSeconds: Number((480 / 144).toFixed(2)), maximumNearStaticSeconds: 3.2 };
 }
