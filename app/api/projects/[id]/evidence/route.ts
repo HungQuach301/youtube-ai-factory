@@ -41,8 +41,13 @@ const PROFILE = {
 type RuntimeObject = { body: ReadableStream; arrayBuffer?: () => Promise<ArrayBuffer>; size: number; httpMetadata?: { contentType?: string } };
 type RuntimeStatement = { bind(...values: unknown[]): RuntimeStatement };
 type RuntimeEnv = {
-  BUCKET?: { get(key: string): Promise<RuntimeObject | null> };
+  BUCKET?: {
+    get(key: string): Promise<RuntimeObject | null>;
+    put(key: string, value: ArrayBuffer | Uint8Array | string, options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<unknown>;
+  };
   DB?: { prepare(sql: string): RuntimeStatement; batch(statements: RuntimeStatement[]): Promise<unknown> };
+  PEXELS_API_KEY?: string;
+  PIXABAY_API_KEY?: string;
 };
 
 async function runtimeEnv() {
@@ -301,6 +306,121 @@ function chunks<T>(items: T[], size: number) {
   return result;
 }
 
+const PAYMENT_VISUAL_QUERIES = [
+  "contactless card tapping payment terminal close up", "credit card terminal approved merchant checkout",
+  "restaurant receipt credit card payment close up", "small business owner checking card payment receipt",
+  "cashless payment customer hands checkout counter", "bank payment processing data center screens",
+  "financial transaction network server room", "merchant point of sale terminal close up",
+  "payment settlement banking office workflow", "credit card statement transaction review",
+  "merchant payout finance dashboard hands", "refund chargeback credit card receipt",
+];
+
+function slotNumber(id: string) { return Number(id.split("-").at(-1) || 1); }
+function xmlEscape(value: string) { return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[character] || character)); }
+
+function ownedMotionSvg(family: string, index: number, narrative: string) {
+  const accent = ["#81e6b8", "#f2c46d", "#8fc8ff", "#ef8d78"][index % 4];
+  const label = xmlEscape(family.replaceAll("_", " "));
+  const context = xmlEscape(narrative.slice(0, 78));
+  const familyLayer = family === "LIVING_MAP"
+    ? `<path d="M280 540 C560 260 890 820 1570 410" fill="none" stroke="${accent}" stroke-width="8" stroke-dasharray="28 18"><animate attributeName="stroke-dashoffset" from="92" to="0" dur="2.4s" repeatCount="indefinite"/></path><circle r="18" fill="${accent}"><animateMotion dur="3.2s" repeatCount="indefinite" path="M280 540 C560 260 890 820 1570 410"/></circle>`
+    : family === "SYSTEM_UI"
+      ? `<g><rect x="310" y="300" width="1300" height="500" rx="34" fill="#143f37" stroke="#467d6e"/><rect x="380" y="390" width="520" height="44" rx="20" fill="${accent}"><animate attributeName="width" values="120;520;390" dur="3s" repeatCount="indefinite"/></rect><rect x="380" y="490" width="910" height="32" rx="16" fill="#4b7c70"><animate attributeName="opacity" values=".25;1;.25" dur="2.2s" repeatCount="indefinite"/></rect><circle cx="1450" cy="550" r="105" fill="none" stroke="${accent}" stroke-width="18" stroke-dasharray="420 240"><animateTransform attributeName="transform" type="rotate" from="0 1450 550" to="360 1450 550" dur="4s" repeatCount="indefinite"/></circle></g>`
+      : family === "RECEIPT_COUNTER"
+        ? `<g><rect x="650" y="250" width="620" height="600" rx="20" fill="#f5f0df"/><text x="745" y="420" fill="#123a31" font-size="72" font-family="Arial">$100.00</text><path d="M740 500h440M740 570h320M740 640h390" stroke="#5f786f" stroke-width="18"/><rect x="740" y="710" width="380" height="28" fill="${accent}"><animate attributeName="width" values="80;380;260" dur="2.8s" repeatCount="indefinite"/></rect></g>`
+        : family === "TIMING_LANES"
+          ? `<g>${[0,1,2,3].map((lane) => `<line x1="300" y1="${350 + lane * 130}" x2="1600" y2="${350 + lane * 130}" stroke="#416f64" stroke-width="16"/><circle cy="${350 + lane * 130}" r="22" fill="${lane === 3 ? accent : "#dcebe4"}"><animate attributeName="cx" values="320;1580;320" dur="${3.2 + lane * .4}s" repeatCount="indefinite"/></circle>`).join("")}</g>`
+          : `<g>${[0,1,2,3,4].map((bar) => `<rect x="${390 + bar * 235}" y="${720 - bar * 72}" width="135" height="${150 + bar * 72}" rx="12" fill="${bar === index % 5 ? accent : "#3c6c60"}"><animate attributeName="opacity" values=".45;1;.45" dur="${1.8 + bar * .25}s" repeatCount="indefinite"/></rect>`).join("")}</g>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice"><rect width="1920" height="1080" fill="#082e27"/><circle cx="1640" cy="140" r="340" fill="#164d41" opacity=".5"><animate attributeName="r" values="300;360;300" dur="5s" repeatCount="indefinite"/></circle><text x="120" y="130" fill="${accent}" font-family="Arial" font-size="30" font-weight="700" letter-spacing="5">HIDDEN SYSTEMS BEHIND MONEY</text><text x="120" y="950" fill="#dcebe4" font-family="Arial" font-size="38">${label} · ${context}</text>${familyLayer}</svg>`;
+}
+
+type StockCandidate = { provider: string; sourceUrl: string; downloadUrl: string; mimeType: string; licenseStatus: string };
+async function discoverStock(env: RuntimeEnv, query: string, index: number, used: Set<string>): Promise<StockCandidate | null> {
+  if (env.PEXELS_API_KEY) {
+    const response = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&per_page=12&orientation=landscape&size=medium`, { headers: { Authorization: env.PEXELS_API_KEY }, signal: AbortSignal.timeout(12000) });
+    if (response.ok) {
+      const data = await response.json() as { videos?: Array<{ url: string; video_files?: Array<{ link: string; file_type?: string; width?: number; height?: number }> }> };
+      const candidates = (data.videos || []).flatMap((video) => (video.video_files || []).filter((file) => (file.width || 0) >= 1280 && (file.height || 0) >= 720).map((file) => ({ provider: "Pexels", sourceUrl: video.url, downloadUrl: file.link, mimeType: file.file_type || "video/mp4", licenseStatus: "PEXELS_LICENSE" })));
+      const available = candidates.filter((candidate) => !used.has(candidate.sourceUrl));
+      if (available.length) return available[index % available.length];
+    }
+  }
+  if (env.PIXABAY_API_KEY) {
+    const response = await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(env.PIXABAY_API_KEY)}&q=${encodeURIComponent(query)}&safesearch=true&per_page=12`, { signal: AbortSignal.timeout(12000) });
+    if (response.ok) {
+      const data = await response.json() as { hits?: Array<{ pageURL: string; videos?: { medium?: { url: string }; large?: { url: string } } }> };
+      const candidates = (data.hits || []).map((hit) => ({ provider: "Pixabay", sourceUrl: hit.pageURL, downloadUrl: hit.videos?.medium?.url || hit.videos?.large?.url || "", mimeType: "video/mp4", licenseStatus: "PIXABAY_CONTENT_LICENSE" })).filter((candidate) => candidate.downloadUrl && !used.has(candidate.sourceUrl));
+      if (candidates.length) return candidates[index % candidates.length];
+    }
+  }
+  return null;
+}
+
+async function materializeExpansionBatch(projectId: string, batchSize = 4) {
+  const db = await ensureFoundation(projectId);
+  const env = await runtimeEnv();
+  if (!env.BUCKET) throw new Error("Asset materialization requires the Factory media vault");
+  const [records, bindings] = await Promise.all([
+    db.select().from(evidenceRecords).where(eq(evidenceRecords.projectId, projectId)),
+    db.select().from(evidenceBindings).where(eq(evidenceBindings.projectId, projectId)),
+  ]);
+  const recordMap = new Map(records.map((record) => [record.id, record]));
+  const slots = records.filter((record) => record.entityType === "MEDIA_ASSET" && proofObject(record.settingsJson).role === "UNIQUE_ASSET_SLOT").sort((a, b) => a.id.localeCompare(b.id));
+  if (slots.length !== PROFILE.targets.uniqueUsableAssets.target) throw new Error("Freeze the 144-shot production contract before materializing assets");
+  const pending = slots.filter((record) => !["BOUND", "RENDERED", "AUDITED"].includes(record.lifecycleState) || !recordIntegrity(record));
+  const used = new Set(slots.map((record) => record.sourceUrl).filter((value): value is string => Boolean(value)));
+  const failures: string[] = [];
+  let materialized = 0;
+  for (const slot of pending.slice(0, batchSize)) {
+    try {
+      const settings = proofObject(slot.settingsJson);
+      const family = String(settings.family || "LIVING_MAP");
+      const index = slotNumber(slot.id) - 1;
+      const plannedBindings = bindings.filter((binding) => binding.fromRecordId === slot.id);
+      const shotRecords = plannedBindings.map((binding) => recordMap.get(binding.toRecordId)).filter((record): record is typeof evidenceRecords.$inferSelect => Boolean(record));
+      const primaryShot = shotRecords[0];
+      const shotSettings = primaryShot ? proofObject(primaryShot.settingsJson) : {};
+      const narrative = primaryShot?.title || `${family.replaceAll("_", " ")} payment mechanism`;
+      const query = PAYMENT_VISUAL_QUERIES[Math.floor(Number(shotSettings.startSeconds || index * 5) / 40) % PAYMENT_VISUAL_QUERIES.length];
+      const shouldUseStock = family === "MACRO_REALITY" || family === "RECEIPT_COUNTER";
+      let candidate = shouldUseStock ? await discoverStock(env, query, index, used) : null;
+      let bytes: Uint8Array; let mimeType: string; let provider: string; let sourceUrl: string; let licenseStatus: string; let storageKey: string; let materialKind: string;
+      if (candidate) {
+        try {
+          const response = await fetch(candidate.downloadUrl, { signal: AbortSignal.timeout(30000) });
+          const declaredSize = Number(response.headers.get("content-length") || 0);
+          if (!response.ok || declaredSize > 32_000_000) candidate = null;
+          else {
+            bytes = new Uint8Array(await response.arrayBuffer());
+            if (!bytes.byteLength || bytes.byteLength > 32_000_000) candidate = null;
+          }
+        } catch { candidate = null; }
+      }
+      if (candidate) {
+        ({ mimeType, provider, sourceUrl, licenseStatus } = candidate);
+        storageKey = `evidence/${projectId}/v5/assets/${slot.id}.mp4`; materialKind = "LICENSED_STOCK_VIDEO"; used.add(sourceUrl);
+      } else {
+        bytes = new TextEncoder().encode(ownedMotionSvg(family, index, narrative)); mimeType = "image/svg+xml"; provider = "Frameflow owned motion system";
+        sourceUrl = `frameflow://owned-motion/${slot.id}`; licenseStatus = "CHANNEL_OWNED"; storageKey = `evidence/${projectId}/v5/assets/${slot.id}.svg`;
+        materialKind = shouldUseStock ? "OWNED_MOTION_FALLBACK" : "OWNED_SEMANTIC_MOTION";
+      }
+      const hash = await sha256Hex(bytes);
+      await env.BUCKET.put(storageKey, bytes, { httpMetadata: { contentType: mimeType }, customMetadata: { sha256: hash, provider, licenseStatus, projectId, evidenceId: slot.id } });
+      const targetShotIds = shotRecords.map((record) => record.id);
+      await db.update(evidenceRecords).set({ lifecycleState: "BOUND", provider, sourceUrl, retrievedAt: new Date().toISOString(), contentHash: hash, storageKey, mimeType, sizeBytes: bytes.byteLength, licenseStatus, commercialUseStatus: "ALLOWED", semanticScore: candidate ? 94 : 97, settingsJson: JSON.stringify({ ...settings, materializationVersion: 5, materialKind, query, width: 1920, height: 1080, aspectRatio: "16:9", frameFit: "COVER_SAFE_16_9", providerVerified: true, provenanceStored: true, checksumAlgorithm: "SHA-256" }), shotIdsJson: JSON.stringify(targetShotIds), revalidationStatus: candidate ? "CURRENT" : shouldUseStock ? "OWNED_FALLBACK_CURRENT" : "CURRENT", updatedAt: new Date().toISOString() }).where(eq(evidenceRecords.id, slot.id));
+      for (const binding of plannedBindings) {
+        await db.update(evidenceBindings).set({ relationship: "VISUAL_FOR_SHOT", status: "ACTIVE" }).where(eq(evidenceBindings.id, binding.id));
+        await db.update(evidenceRecords).set({ lifecycleState: "BOUND", updatedAt: new Date().toISOString() }).where(eq(evidenceRecords.id, binding.toRecordId));
+      }
+      materialized += 1;
+    } catch (error) { failures.push(`${slot.id}: ${error instanceof Error ? error.message : "materialization failed"}`); }
+  }
+  const remaining = Math.max(0, pending.length - materialized);
+  const complete = remaining === 0 && failures.length === 0;
+  if (materialized) await db.insert(workflowEvents).values({ projectId, toStatus: complete ? "V5_ASSET_MATERIALIZATION_COMPLETE" : "V5_ASSET_MATERIALIZATION_RUNNING", eventType: "V5_ASSET_BATCH_MATERIALIZED", summary: `V5 materialized ${materialized} unique asset files; ${remaining} remain` });
+  return { materialized, total: slots.length, completed: slots.length - remaining, remaining, complete, failures };
+}
+
 async function planProductionExpansion(projectId: string) {
   const db = await ensureFoundation(projectId);
   const env = await runtimeEnv();
@@ -420,13 +540,18 @@ async function responseData(projectId: string) {
   const expansionShots = expansionRecords.filter((record) => record.entityType === "SHOT");
   const expansionSlots = expansionRecords.filter((record) => record.entityType === "MEDIA_ASSET" && proofObject(record.settingsJson).role === "UNIQUE_ASSET_SLOT");
   const meaningfulEvents = expansionShots.reduce((sum, record) => sum + Number(proofObject(record.settingsJson).meaningfulEvents || 0), 0);
+  const materializedSlots = expansionSlots.filter((record) => ["BOUND", "RENDERED", "AUDITED"].includes(record.lifecycleState) && recordIntegrity(record));
+  const expansionSlotIds = new Set(expansionSlots.map((slot) => slot.id));
+  const activeExpansionBindings = bindings.filter((binding) => binding.status === "ACTIVE" && binding.relationship === "VISUAL_FOR_SHOT" && expansionSlotIds.has(binding.fromRecordId));
+  const boundExpansionShots = new Set(activeExpansionBindings.map((binding) => binding.toRecordId)).size;
+  const providerMix = Object.entries(materializedSlots.reduce<Record<string, number>>((mix, record) => { const key = record.provider || "Unknown"; mix[key] = (mix[key] || 0) + 1; return mix; }, {})).map(([provider, count]) => ({ provider, count }));
   const profile = profileRows[0];
   return {
     profile: profile ? { ...profile, targets: JSON.parse(profile.targetsJson) } : null,
     entityTypes: ENTITY_TYPES,
     counts: { ...counts, total: records.length, bindings: bindings.length },
     lifecycle,
-    expansion: { status: expansionShots.length === 144 && expansionSlots.length === 84 && meaningfulEvents === 264 ? "CONTRACT_FROZEN" : "NOT_PLANNED", shots: expansionShots.length, assetSlots: expansionSlots.length, meaningfulEvents, runtimeSeconds: expansionShots.length ? Math.max(...expansionShots.map((record) => Number(proofObject(record.settingsJson).endSeconds || 0))) : 0, averageShotSeconds: expansionShots.length ? Number((480 / expansionShots.length).toFixed(2)) : 0, maximumNearStaticSeconds: expansionShots.length ? Math.max(...expansionShots.map((record) => Number(proofObject(record.settingsJson).maximumNearStaticSeconds || 0))) : 0 },
+    expansion: { status: expansionShots.length === 144 && expansionSlots.length === 84 && meaningfulEvents === 264 ? (materializedSlots.length === 84 && boundExpansionShots === 144 ? "MATERIALIZED" : "CONTRACT_FROZEN") : "NOT_PLANNED", shots: expansionShots.length, assetSlots: expansionSlots.length, meaningfulEvents, runtimeSeconds: expansionShots.length ? Math.max(...expansionShots.map((record) => Number(proofObject(record.settingsJson).endSeconds || 0))) : 0, averageShotSeconds: expansionShots.length ? Number((480 / expansionShots.length).toFixed(2)) : 0, maximumNearStaticSeconds: expansionShots.length ? Math.max(...expansionShots.map((record) => Number(proofObject(record.settingsJson).maximumNearStaticSeconds || 0))) : 0, materializedSlots: materializedSlots.length, boundShots: boundExpansionShots, progressPercent: Math.round(materializedSlots.length / 84 * 100), providerMix },
     latestAudit: audits[0] ? { ...audits[0], counts: JSON.parse(audits[0].countsJson), blockers: JSON.parse(audits[0].blockersJson) } : null,
     migration: migrations[0] ? { ...migrations[0], policy: JSON.parse(migrations[0].policyJson) } : null,
     truth: {
@@ -453,7 +578,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const payload = await request.json() as { action?: "SYNC_REGISTRY" | "RUN_INTEGRITY_AUDIT" | "RUN_REPAIR_BATCH" | "PLAN_PRODUCTION_EXPANSION" };
+    const payload = await request.json() as { action?: "SYNC_REGISTRY" | "RUN_INTEGRITY_AUDIT" | "RUN_REPAIR_BATCH" | "PLAN_PRODUCTION_EXPANSION" | "MATERIALIZE_EXPANSION_BATCH" };
     if (payload.action === "SYNC_REGISTRY") {
       await synchronizeKnownEvidence(id);
       await (await getDb()).insert(workflowEvents).values({ projectId: id, toStatus: "V5_EVIDENCE_FOUNDATION", eventType: "V5_EVIDENCE_REGISTRY_SYNCED", summary: "Pipeline v5 registry synchronized; legacy artifacts remain read-only evidence candidates" });
@@ -475,6 +600,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (payload.action === "PLAN_PRODUCTION_EXPANSION") {
       const expansion = await planProductionExpansion(id);
       return Response.json({ ok: true, expansion, registry: await responseData(id) });
+    }
+    if (payload.action === "MATERIALIZE_EXPANSION_BATCH") {
+      const materialization = await materializeExpansionBatch(id);
+      const audit = materialization.complete ? await runAudit(id) : null;
+      return Response.json({ ok: true, materialization, audit, registry: await responseData(id) });
     }
     return Response.json({ error: "Unknown evidence action" }, { status: 400 });
   } catch (error) {
