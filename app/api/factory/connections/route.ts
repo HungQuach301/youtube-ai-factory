@@ -39,7 +39,20 @@ async function connectionCatalog() {
 
 async function fetchChecked(url: string, headers?: Record<string, string>) {
   const response = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
-  if (!response.ok) throw new Error(`Provider returned ${response.status}`);
+  if (!response.ok) {
+    const raw = await response.text().catch(() => ""); let code = `HTTP_${response.status}`; let detail = "";
+    try {
+      const parsed = JSON.parse(raw) as { detail?: string | { status?: string; message?: string }; message?: string };
+      if (typeof parsed.detail === "string") detail = parsed.detail;
+      else if (parsed.detail && typeof parsed.detail === "object") { code = parsed.detail.status || code; detail = parsed.detail.message || ""; }
+      if (!detail && typeof parsed.message === "string") detail = parsed.message;
+    } catch { detail = raw; }
+    const normalized = `${code} ${detail}`.toLowerCase(); let action = detail.replace(/\s+/g, " ").slice(0, 180);
+    if (/invalid.*api|api.*key|unauthor/.test(normalized)) action = "API key was rejected. Replace the protected key and retry.";
+    else if (/permission|scope|forbidden/.test(normalized) || response.status === 403) action = "The key lacks the required scope or its IP allowlist blocks this server.";
+    else if (/quota|credit|character limit/.test(normalized)) action = "The key or workspace credit limit has been reached.";
+    throw new Error(`Provider ${code} · HTTP ${response.status}${action ? ` · ${action}` : ""}`);
+  }
 }
 
 function shutterstockHeaders(env: RuntimeEnv) {
@@ -58,13 +71,13 @@ async function testConnection(provider: string) {
   const startedAt = Date.now();
   try {
     if (provider === "openai") await fetchChecked("https://api.openai.com/v1/models", { Authorization: `Bearer ${env.OPENAI_API_KEY}` });
-    else if (provider === "elevenlabs") await fetchChecked("https://api.elevenlabs.io/v1/user/subscription", { "xi-api-key": env.ELEVENLABS_API_KEY || "" });
+    else if (provider === "elevenlabs") await fetchChecked("https://api.elevenlabs.io/v1/models", { "content-type": "application/json", "xi-api-key": env.ELEVENLABS_API_KEY || "" });
     else if (provider === "openverse") await fetchChecked("https://api.openverse.org/v1/images/?q=money&page_size=1");
     else if (provider === "pexels") await fetchChecked("https://api.pexels.com/v1/curated?per_page=1", { Authorization: env.PEXELS_API_KEY || "" });
     else if (provider === "pixabay") await fetchChecked(`https://pixabay.com/api/?key=${encodeURIComponent(env.PIXABAY_API_KEY || "")}&q=money&per_page=3&safesearch=true`);
     else if (provider === "shutterstock") await fetchChecked("https://api.shutterstock.com/v2/images/search?query=money&page=1&per_page=5&view=minimal", shutterstockHeaders(env));
     else if (provider === "youtube") await fetchChecked(`https://www.googleapis.com/youtube/v3/videos?part=id&id=dQw4w9WgXcQ&key=${encodeURIComponent(env.YOUTUBE_API_KEY || "")}`);
-    return { provider, status: "CONNECTED", latencyMs: Date.now() - startedAt, message: provider === "database" || provider === "owned_vault" ? "Factory binding is available" : "Server-side connection test passed" };
+    return { provider, status: "CONNECTED", latencyMs: Date.now() - startedAt, message: provider === "database" || provider === "owned_vault" ? "Factory binding is available" : provider === "elevenlabs" ? "ElevenLabs API key authenticated · Text-to-Speech remains protected server-side" : "Server-side connection test passed" };
   } catch (error) {
     return { provider, status: "FAILED", latencyMs: Date.now() - startedAt, message: error instanceof Error ? error.message : "Connection test failed" };
   }
