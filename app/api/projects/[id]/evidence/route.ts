@@ -38,6 +38,19 @@ const PROFILE = {
   truthPolicy: "A plan authorizes work. Only a stored file with checksum, provenance and rights may prove production completion.",
 };
 
+type RuntimeObject = { body: ReadableStream; arrayBuffer?: () => Promise<ArrayBuffer>; size: number; httpMetadata?: { contentType?: string } };
+type RuntimeEnv = { BUCKET?: { get(key: string): Promise<RuntimeObject | null> } };
+
+async function runtimeEnv() {
+  const { env } = await import("cloudflare:workers");
+  return env as unknown as RuntimeEnv;
+}
+
+async function sha256Hex(bytes: Uint8Array) {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
 type RegistryInput = {
   id: string;
   entityType: typeof ENTITY_TYPES[number];
@@ -214,6 +227,70 @@ async function synchronizeKnownEvidence(projectId: string) {
   }
 }
 
+function latestOptimizedNarration(segments: Array<typeof narrationSegments.$inferSelect>) {
+  const optimized = segments.filter((segment) => segment.audioKey && segment.scriptVersionId.includes(":V3:"));
+  const latestVersion = optimized.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.scriptVersionId;
+  return latestVersion ? optimized.filter((segment) => segment.scriptVersionId === latestVersion) : [];
+}
+
+async function repairEvidenceBatch(projectId: string, batchSize = 6) {
+  const db = await ensureFoundation(projectId);
+  const env = await runtimeEnv();
+  if (!env.BUCKET) throw new Error("Evidence repair requires the Factory media vault");
+  const [assets, segments, records, bindings] = await Promise.all([
+    db.select().from(mediaAssets).where(eq(mediaAssets.projectId, projectId)),
+    db.select().from(narrationSegments).where(eq(narrationSegments.projectId, projectId)),
+    db.select().from(evidenceRecords).where(eq(evidenceRecords.projectId, projectId)),
+    db.select().from(evidenceBindings).where(eq(evidenceBindings.projectId, projectId)),
+  ]);
+  const recordMap = new Map(records.map((record) => [record.id, record]));
+  const boundIds = new Set(bindings.filter((binding) => binding.status === "ACTIVE").map((binding) => binding.fromRecordId));
+  const selectedMedia = assets.filter((asset) => asset.status === "APPROVED" && asset.rightsStatus === "VERIFIED" && asset.sceneId.startsWith(`${projectId}-VB-`) && Boolean(asset.storageKey));
+  const selectedAudio = latestOptimizedNarration(segments);
+
+  // Legacy renders remain inspectable, but cannot masquerade as v5 masters.
+  for (const record of records.filter((item) => item.entityType === "RENDER_EVIDENCE" && !recordIntegrity(item))) {
+    await db.update(evidenceRecords).set({ lifecycleState: "PLAN", revalidationStatus: "LEGACY_READ_ONLY", commercialUseStatus: "BLOCKED_UNTIL_V5_RENDER", updatedAt: new Date().toISOString() }).where(eq(evidenceRecords.id, record.id));
+  }
+
+  for (const asset of selectedMedia) {
+    const shotId = `V5-SHOT-${asset.sceneId}`;
+    await db.insert(evidenceRecords).values({
+      id: shotId, projectId, entityType: "SHOT", pipelineVersion: 5, lifecycleState: "PLAN",
+      title: asset.sceneId.replace(`${projectId}-`, ""), licenseStatus: "NOT_APPLICABLE", commercialUseStatus: "NOT_APPLICABLE",
+      shotIdsJson: JSON.stringify([asset.sceneId]), settingsJson: JSON.stringify({ source: "V5_ACTIVE_EDIT", role: "VISUAL_BEAT" }), updatedAt: new Date().toISOString(),
+    }).onConflictDoNothing();
+  }
+
+  const work = [
+    ...selectedMedia.map((asset) => ({ kind: "MEDIA" as const, sourceId: asset.id, recordId: `V5-MEDIA-${asset.id}`, storageKey: asset.storageKey!, mimeType: asset.mimeType, title: asset.name, targetId: `V5-SHOT-${asset.sceneId}`, relationship: "VISUAL_FOR_SHOT", licenseStatus: asset.licenseType, commercialUseStatus: "ALLOWED", sourceUrl: asset.sourceUrl })),
+    ...selectedAudio.map((segment) => ({ kind: "AUDIO" as const, sourceId: segment.id, recordId: `V5-AUDIO-${segment.id}`, storageKey: segment.audioKey!, mimeType: "audio/mpeg", title: segment.label, targetId: `V5-MASTER-${projectId}`, relationship: "AUDIO_FOR_MASTER", licenseStatus: "ELEVENLABS_ACCOUNT_GENERATION", commercialUseStatus: "ALLOWED", sourceUrl: null })),
+  ];
+  const pending = work.filter((item) => {
+    const record = recordMap.get(item.recordId);
+    return !record || !boundIds.has(item.recordId) || !["BOUND", "RENDERED", "AUDITED"].includes(record.lifecycleState) || !recordIntegrity(record);
+  });
+  const failures: string[] = [];
+  let repaired = 0;
+  for (const item of pending.slice(0, batchSize)) {
+    const object = await env.BUCKET.get(item.storageKey);
+    if (!object) { failures.push(`${item.sourceId}: stored object is missing`); continue; }
+    const buffer = object.arrayBuffer ? await object.arrayBuffer() : await new Response(object.body).arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    if (!bytes.byteLength) { failures.push(`${item.sourceId}: stored object is empty`); continue; }
+    const hash = await sha256Hex(bytes);
+    await db.update(evidenceRecords).set({
+      lifecycleState: "BOUND", contentHash: hash, storageKey: item.storageKey, mimeType: object.httpMetadata?.contentType || item.mimeType,
+      sizeBytes: bytes.byteLength, licenseStatus: item.licenseStatus, commercialUseStatus: item.commercialUseStatus,
+      revalidationStatus: "CURRENT", sourceUrl: item.sourceUrl, updatedAt: new Date().toISOString(),
+    }).where(eq(evidenceRecords.id, item.recordId));
+    await db.insert(evidenceBindings).values({ id: `${projectId}-${item.relationship}-${item.sourceId}`, projectId, fromRecordId: item.recordId, toRecordId: item.targetId, relationship: item.relationship, status: "ACTIVE" }).onConflictDoNothing();
+    if (item.kind === "MEDIA") await db.update(evidenceRecords).set({ lifecycleState: "BOUND", updatedAt: new Date().toISOString() }).where(eq(evidenceRecords.id, item.targetId));
+    repaired += 1;
+  }
+  return { repaired, total: work.length, complete: pending.length <= batchSize && failures.length === 0, remaining: Math.max(0, pending.length - repaired), failures };
+}
+
 function recordIntegrity(record: typeof evidenceRecords.$inferSelect) {
   const fileBacked = ["RESEARCH_DOCUMENT", "MEDIA_ASSET", "AUDIO_ASSET", "RENDER_EVIDENCE"].includes(record.entityType);
   const stored = ["STORED", "VERIFIED", "BOUND", "RENDERED", "AUDITED"].includes(record.lifecycleState);
@@ -234,20 +311,30 @@ async function runAudit(projectId: string) {
   const invalid = records.filter((record) => !recordIntegrity(record));
   const counts = Object.fromEntries(ENTITY_TYPES.map((type) => [type, records.filter((record) => record.entityType === type).length]));
   const planReady = counts.SOURCE_RECORD > 0 && counts.CLAIM > 0 && counts.SHOT > 0;
-  const requiredMaterial = records.filter((record) => ["MEDIA_ASSET", "AUDIO_ASSET"].includes(record.entityType));
-  const materialReady = requiredMaterial.length > 0 && requiredMaterial.every((record) => ["VERIFIED", "BOUND", "RENDERED", "AUDITED"].includes(record.lifecycleState) && recordIntegrity(record));
+  const activeBindings = bindings.filter((binding) => binding.status === "ACTIVE");
+  const boundIds = new Set(activeBindings.map((binding) => binding.fromRecordId));
+  const requiredMaterial = records.filter((record) => boundIds.has(record.id) && ["MEDIA_ASSET", "AUDIO_ASSET"].includes(record.entityType));
+  const boundMedia = requiredMaterial.filter((record) => record.entityType === "MEDIA_ASSET");
+  const boundAudio = requiredMaterial.filter((record) => record.entityType === "AUDIO_ASSET");
+  const boundShotIds = new Set(activeBindings.filter((binding) => binding.relationship === "VISUAL_FOR_SHOT").map((binding) => binding.toRecordId));
+  const materialIntegrityReady = requiredMaterial.length > 0 && requiredMaterial.every((record) => ["BOUND", "RENDERED", "AUDITED"].includes(record.lifecycleState) && recordIntegrity(record));
+  const materialReady = materialIntegrityReady && boundMedia.length >= PROFILE.targets.uniqueUsableAssets.minimum && boundAudio.length >= 12 && boundShotIds.size >= PROFILE.targets.editorialShots.minimum;
   const masterEvidence = records.filter((record) => record.entityType === "RENDER_EVIDENCE");
   const masterReady = materialReady && masterEvidence.some((record) => record.lifecycleState === "AUDITED" && recordIntegrity(record));
   const blockers = [
     ...invalid.map((record) => `${record.id}: lifecycle state exceeds its stored evidence`),
     ...(!planReady ? ["Plan gate requires source, claim and shot records"] : []),
-    ...(!materialReady ? ["Material gate requires every used media/audio file to have bytes, checksum, provenance, rights and commercial-use clearance"] : []),
+    ...(!materialIntegrityReady ? ["Selected material requires stored bytes, checksum, provenance, rights, commercial-use clearance and an active binding"] : []),
+    ...(boundMedia.length < PROFILE.targets.uniqueUsableAssets.minimum ? [`Unique bound media ${boundMedia.length}/${PROFILE.targets.uniqueUsableAssets.minimum} minimum`] : []),
+    ...(boundAudio.length < 12 ? [`Bound narration stems ${boundAudio.length}/12 required`] : []),
+    ...(boundShotIds.size < PROFILE.targets.editorialShots.minimum ? [`Bound editorial shots ${boundShotIds.size}/${PROFILE.targets.editorialShots.minimum} minimum`] : []),
     ...(!masterReady ? ["Master gate requires a v5 render plus perceptual and technical audit evidence"] : []),
   ];
   const integrityScore = records.length ? Math.round(100 * (records.length - invalid.length) / records.length) : 0;
   const id = `${projectId}-EVIDENCE-AUDIT-${Date.now()}`;
-  await db.insert(evidenceAuditRuns).values({ id, projectId, pipelineVersion: 5, status: invalid.length ? "REPAIR_REQUIRED" : "PASS", integrityScore, planReady, materialReady, masterReady, countsJson: JSON.stringify({ ...counts, total: records.length, bindings: bindings.length, historicalRenders: renders.length }), blockersJson: JSON.stringify(blockers) });
-  return { id, status: invalid.length ? "REPAIR_REQUIRED" : "PASS", integrityScore, planReady, materialReady, masterReady, counts: { ...counts, total: records.length, bindings: bindings.length, historicalRenders: renders.length }, blockers };
+  const status = blockers.length ? "REPAIR_REQUIRED" : "PASS";
+  await db.insert(evidenceAuditRuns).values({ id, projectId, pipelineVersion: 5, status, integrityScore, planReady, materialReady, masterReady, countsJson: JSON.stringify({ ...counts, total: records.length, bindings: bindings.length, historicalRenders: renders.length, boundMedia: boundMedia.length, boundAudio: boundAudio.length, boundShots: boundShotIds.size }), blockersJson: JSON.stringify(blockers) });
+  return { id, status, integrityScore, planReady, materialReady, masterReady, counts: { ...counts, total: records.length, bindings: bindings.length, historicalRenders: renders.length, boundMedia: boundMedia.length, boundAudio: boundAudio.length, boundShots: boundShotIds.size }, blockers };
 }
 
 async function responseData(projectId: string) {
@@ -293,7 +380,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const payload = await request.json() as { action?: "SYNC_REGISTRY" | "RUN_INTEGRITY_AUDIT" };
+    const payload = await request.json() as { action?: "SYNC_REGISTRY" | "RUN_INTEGRITY_AUDIT" | "RUN_REPAIR_BATCH" };
     if (payload.action === "SYNC_REGISTRY") {
       await synchronizeKnownEvidence(id);
       await (await getDb()).insert(workflowEvents).values({ projectId: id, toStatus: "V5_EVIDENCE_FOUNDATION", eventType: "V5_EVIDENCE_REGISTRY_SYNCED", summary: "Pipeline v5 registry synchronized; legacy artifacts remain read-only evidence candidates" });
@@ -306,6 +393,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       const result = await runAudit(id);
       await (await getDb()).insert(workflowEvents).values({ projectId: id, toStatus: "V5_EVIDENCE_FOUNDATION", eventType: "V5_EVIDENCE_AUDIT_COMPLETED", summary: `Evidence integrity ${result.status}; plan ${result.planReady ? "ready" : "blocked"}, material ${result.materialReady ? "ready" : "blocked"}, master ${result.masterReady ? "ready" : "blocked"}` });
       return Response.json({ ok: true, ...result, registry: await responseData(id) });
+    }
+    if (payload.action === "RUN_REPAIR_BATCH") {
+      const repair = await repairEvidenceBatch(id);
+      const audit = repair.complete ? await runAudit(id) : null;
+      return Response.json({ ok: true, repair, audit, registry: await responseData(id) });
     }
     return Response.json({ error: "Unknown evidence action" }, { status: 400 });
   } catch (error) {
