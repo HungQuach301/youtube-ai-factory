@@ -25,7 +25,7 @@ type DiscoveryCandidate = {
 type MaterializationBeat = OptimizedVisualBeat & {
   assetKey: string;
   selectedPlan: (PlannedAssetCandidate & { selectedScore: number; verificationStatus: string }) | null;
-  materializedAsset: null | { id: string; name: string; mimeType: string; sourceType: string; rightsStatus: string; url: string | null };
+  materializedAsset: null | { id: string; name: string; mimeType: string; sourceType: string; actualProvider?: string; rightsStatus: string; url: string | null };
 };
 
 type OptimizedVisualBeat = {
@@ -84,13 +84,13 @@ async function ensureMediaSchema() {
 
 function motionVisualType(beat: string) {
   const value = beat.toLowerCase();
-  return value.includes("net") || value.includes("fee") ? "CHART" : value.includes("route") || value.includes("six") ? "MAP" : "DIAGRAM";
+  return value.includes("economic_waterfall") || value.includes("net") || value.includes("fee") ? "CHART" : value.includes("living_map") || value.includes("route") || value.includes("six") ? "MAP" : value.includes("receipt_counter") ? "RECEIPT" : value.includes("timing_lanes") ? "TIMELINE" : value.includes("system_ui") ? "UI" : "DIAGRAM";
 }
 
 function diagramSvg(beat: string) {
   const title = beat.replace(/[<>&]/g, "");
   const type = motionVisualType(beat);
-  const nodes = type === "CHART" ? ["$100 purchase", "Variable fees", "Merchant net"] : type === "MAP" ? ["Terminal", "Acquirer", "Network", "Issuer"] : ["Authorization now", "Settlement later"];
+  const nodes = type === "CHART" ? ["$100 purchase", "Variable fees", "Merchant net"] : type === "MAP" ? ["Terminal", "Acquirer", "Network", "Issuer"] : type === "RECEIPT" ? ["$100 receipt", "Receivable", "Variable cost", "Net deposit"] : type === "TIMELINE" ? ["Authorize", "Capture", "Clear", "Settle"] : type === "UI" ? ["Request", "Risk checks", "Decision", "State change"] : ["Authorization now", "Settlement later"];
   const nodeWidth = nodes.length === 4 ? 330 : 440;
   const chart = type === "CHART" ? `${nodes.map((node, index) => { const x = 190 + index * 520; const height = [390, 155, 310][index]; const y = 790 - height; return `<g class="bar b${index}"><rect x="${x}" y="${y}" width="330" height="${height}" rx="22" fill="${index === 1 ? "#edb86c" : "#8bd5b5"}"/><text x="${x + 28}" y="${y - 30}" fill="#fff" font-family="Arial" font-size="34" font-weight="700">${node}</text></g>`; }).join("")}<path class="chartLine" d="M355 390 C650 390 650 635 875 635 S1220 480 1395 480" fill="none" stroke="#fff" stroke-width="8" stroke-dasharray="18 16"/>` : "";
   const network = type !== "CHART" ? `${nodes.map((node, index) => { const x = 120 + index * (nodeWidth + 35); return `<g class="node n${index}"><rect x="${x}" y="420" width="${nodeWidth}" height="190" rx="28" fill="#e7f3ed"/><text x="${x + 34}" y="525" fill="#153f35" font-family="Arial" font-size="32" font-weight="700">${node}</text></g>${index < nodes.length - 1 ? `<path class="flow f${index}" d="M${x + nodeWidth + 8} 515h30" stroke="#62c59b" stroke-width="10"/><circle class="packet p${index}" cx="${x + nodeWidth + 8}" cy="515" r="13" fill="#fff"/>` : ""}`; }).join("")}` : "";
@@ -181,8 +181,17 @@ function actualProvider(asset: typeof mediaAssets.$inferSelect, proof: Record<st
   if (asset.sourceType.includes("PIXABAY")) return "Pixabay";
   if (asset.sourceType.includes("OPENVERSE")) return "Openverse";
   if (asset.sourceType.includes("INTERNAL")) return "Owned Media Vault";
-  if (asset.sourceType.includes("FALLBACK") || asset.sourceType.includes("ORIGINAL")) return "Frameflow original system";
+  if (asset.sourceType.includes("FALLBACK") || asset.sourceType.includes("ORIGINAL") || asset.sourceType.startsWith("OPTIMIZED_MOTION_")) return "Frameflow original system";
   return asset.sourceType.replaceAll("_", " ");
+}
+
+function expectedVisualFormat(family: string) { return family === "MACRO_REALITY" ? "STOCK_VIDEO" : `MOTION_${family}_WEBM`; }
+function detectedVisualFormat(asset: typeof mediaAssets.$inferSelect | null) {
+  if (!asset) return "MISSING";
+  if (asset.sourceType.startsWith("OPTIMIZED_MOTION_WEBM_")) return asset.sourceType.replace("OPTIMIZED_", "");
+  if (asset.sourceType.startsWith("OPTIMIZED_MOTION_SOURCE_")) return "MOTION_SOURCE_NOT_RENDERED";
+  if (asset.mimeType.startsWith("video/") && !asset.sourceType.includes("MOTION")) return "STOCK_VIDEO";
+  return asset.mimeType.startsWith("image/") ? "STATIC_IMAGE" : "OTHER";
 }
 
 function buildMaterializationAudit(planBeats: Array<OptimizedVisualBeat & { assetKey: string; materializedAsset: null | Record<string, unknown> }>, assets: Array<typeof mediaAssets.$inferSelect>) {
@@ -192,11 +201,12 @@ function buildMaterializationAudit(planBeats: Array<OptimizedVisualBeat & { asse
     const physicalKey = asset ? String(proof.sha256 || proof.inheritedFrom || asset.storageKey || asset.sourceUrl || asset.id) : `missing:${beat.id}`;
     const provider = asset ? actualProvider(asset, proof) : "Missing"; const isOwned = provider === "Frameflow original system" || asset?.licenseType === "CHANNEL_OWNED";
     const semanticScore = Number(proof.selectionScore || (isOwned ? 100 : asset?.sourceType.includes("INTERNAL") ? 82 : 0));
-    return { beat, asset, proof, physicalKey, provider, isOwned, semanticScore, mediaClass: asset?.mimeType.startsWith("video/") ? "VIDEO" : asset?.mimeType.startsWith("image/") ? "IMAGE" : "OTHER" };
+    const actualFormat = detectedVisualFormat(asset); const expectedFormat = expectedVisualFormat(beat.primaryFamily);
+    return { beat, asset, proof, physicalKey, provider, isOwned, semanticScore, actualFormat, expectedFormat, mediaClass: asset?.mimeType.startsWith("video/") ? "VIDEO" : asset?.mimeType.startsWith("image/") ? "IMAGE" : "OTHER" };
   });
   const usage = new Map<string, number>(); records.forEach((record) => usage.set(record.physicalKey, (usage.get(record.physicalKey) || 0) + 1));
   const providerMix: Record<string, number> = {}; const mediaMix: Record<string, number> = {}; const failures: Array<{ beatId: string; severity: "HARD" | "SOFT"; issues: string[]; assetId: string | null }> = [];
-  let technicalPassed = 0; let rightsPassed = 0; let semanticPassed = 0; let uniquePassed = 0; let macroVideoPassed = 0; let macroBeats = 0;
+  let technicalPassed = 0; let rightsPassed = 0; let semanticPassed = 0; let uniquePassed = 0; let formatPassed = 0; let motionRendered = 0; let motionBeats = 0;
   records.forEach((record) => {
     providerMix[record.provider] = (providerMix[record.provider] || 0) + 1; mediaMix[record.mediaClass] = (mediaMix[record.mediaClass] || 0) + 1;
     const issues: string[] = []; const hard: string[] = [];
@@ -206,18 +216,26 @@ function buildMaterializationAudit(planBeats: Array<OptimizedVisualBeat & { asse
       if (record.asset.rightsStatus !== "VERIFIED" || !record.asset.licenseProof) hard.push("RIGHTS_PROVENANCE"); else rightsPassed++;
       if (record.semanticScore < 85) issues.push("SEMANTIC_CONFIDENCE"); else semanticPassed++;
       const duplicateCount = usage.get(record.physicalKey) || 0; if (duplicateCount > 1) issues.push("DUPLICATE_PHYSICAL_SOURCE"); else uniquePassed++;
-      if (record.beat.primaryFamily === "MACRO_REALITY") { macroBeats++; if (record.mediaClass !== "VIDEO") hard.push("MACRO_VIDEO_REQUIRED"); else macroVideoPassed++; }
+      if (record.actualFormat !== record.expectedFormat) hard.push(record.actualFormat === "MOTION_SOURCE_NOT_RENDERED" ? "MOTION_RENDER_REQUIRED" : "VISUAL_FAMILY_FORMAT_MISMATCH"); else formatPassed++;
+      if (record.beat.primaryFamily !== "MACRO_REALITY") { motionBeats++; if (record.actualFormat === record.expectedFormat) motionRendered++; }
     }
     if (hard.length || issues.length) failures.push({ beatId: record.beat.id, severity: hard.length ? "HARD" : "SOFT", issues: [...hard, ...issues], assetId: record.asset?.id || null });
   });
-  const total = Math.max(1, records.length); const macroTotal = Math.max(1, macroBeats);
+  const stockRecords = records.filter((record) => record.expectedFormat === "STOCK_VIDEO" && record.actualFormat === "STOCK_VIDEO"); const stockProviders: Record<string, number> = {}; stockRecords.forEach((record) => { stockProviders[record.provider] = (stockProviders[record.provider] || 0) + 1; });
+  const dominantProvider = Object.entries(stockProviders).sort((a, b) => b[1] - a[1])[0]; const providerLimit = Math.max(1, Math.ceil(stockRecords.length * .8));
+  if (stockRecords.length >= 4 && (Object.keys(stockProviders).length < 2 || (dominantProvider?.[1] || 0) > providerLimit)) {
+    const excess = Math.max(1, (dominantProvider?.[1] || 0) - providerLimit); stockRecords.filter((record) => record.provider === dominantProvider?.[0]).slice(-excess).forEach((record) => { const existing = failures.find((failure) => failure.beatId === record.beat.id); if (existing) existing.issues.push("PROVIDER_OVERCONCENTRATION"); else failures.push({ beatId: record.beat.id, severity: "SOFT", issues: ["PROVIDER_OVERCONCENTRATION"], assetId: record.asset?.id || null }); });
+  }
+  let run = 0; records.forEach((record) => { run = record.actualFormat === "STOCK_VIDEO" ? run + 1 : 0; if (run > 2) { const existing = failures.find((failure) => failure.beatId === record.beat.id); if (existing) existing.issues.push("STOCK_SEQUENCE_TOO_LONG"); else failures.push({ beatId: record.beat.id, severity: "SOFT", issues: ["STOCK_SEQUENCE_TOO_LONG"], assetId: record.asset?.id || null }); } });
+  const total = Math.max(1, records.length); const motionTotal = Math.max(1, motionBeats); const providerBalance = stockRecords.length < 4 ? 100 : Object.keys(stockProviders).length >= 2 && (dominantProvider?.[1] || 0) <= providerLimit ? 100 : 60;
   const dimensions = {
     completeness: Math.round(records.filter((record) => record.asset).length / total * 100), technicalIntegrity: Math.round(technicalPassed / total * 100), rightsProvenance: Math.round(rightsPassed / total * 100),
-    semanticFit: Math.round(semanticPassed / total * 100), sourceUniqueness: Math.round(uniquePassed / total * 100), macroVideoCoverage: Math.round(macroVideoPassed / macroTotal * 100),
+    semanticFit: Math.round(semanticPassed / total * 100), sourceUniqueness: Math.round(uniquePassed / total * 100), formatFidelity: Math.round(formatPassed / total * 100), motionRendered: Math.round(motionRendered / motionTotal * 100), providerBalance,
   };
-  const score = Math.round(dimensions.completeness * .15 + dimensions.technicalIntegrity * .15 + dimensions.rightsProvenance * .2 + dimensions.semanticFit * .2 + dimensions.sourceUniqueness * .15 + dimensions.macroVideoCoverage * .15);
+  const score = Math.round(dimensions.completeness * .1 + dimensions.technicalIntegrity * .1 + dimensions.rightsProvenance * .15 + dimensions.semanticFit * .15 + dimensions.sourceUniqueness * .1 + dimensions.formatFidelity * .2 + dimensions.motionRendered * .15 + dimensions.providerBalance * .05);
   const hardFailures = failures.filter((failure) => failure.severity === "HARD").length;
-  return { status: score >= 90 && hardFailures === 0 && failures.length === 0 ? "PASS" : "REPAIR_REQUIRED", score, threshold: 90, dimensions, providerMix, mediaMix, uniquePhysicalAssets: new Set(records.map((record) => record.physicalKey).filter((key) => !key.startsWith("missing:"))).size, duplicateBeats: records.filter((record) => (usage.get(record.physicalKey) || 0) > 1).length, hardFailures, repairQueue: failures, maximumRepairCycles: 2, policy: "Repair only failed beats; never lower a threshold; paid assets require approval." };
+  const expectedFamilyMix = Object.fromEntries([...new Set(records.map((record) => record.beat.primaryFamily))].map((family) => [family, records.filter((record) => record.beat.primaryFamily === family).length])); const actualFormatMix = Object.fromEntries([...new Set(records.map((record) => record.actualFormat))].map((format) => [format, records.filter((record) => record.actualFormat === format).length]));
+  return { version: 2, status: score >= 90 && hardFailures === 0 && failures.length === 0 ? "PASS" : "REPAIR_REQUIRED", score, threshold: 90, dimensions, providerMix, stockProviderMix: stockProviders, mediaMix, expectedFamilyMix, actualFormatMix, uniquePhysicalAssets: new Set(records.map((record) => record.physicalKey).filter((key) => !key.startsWith("missing:"))).size, duplicateBeats: records.filter((record) => (usage.get(record.physicalKey) || 0) > 1).length, hardFailures, repairQueue: failures, maximumRepairCycles: 2, semanticEvidence: "Metadata + frozen storyboard contract; pixel-level vision review remains a later gate.", policy: "Family-format fidelity is mandatory; no more than two consecutive stock beats; stock requires at least two providers; repair only failed beats; never lower a threshold; paid assets require approval." };
 }
 
 async function getOptimizedSourcePlan(projectId: string, assets: Array<typeof mediaAssets.$inferSelect>) {
@@ -339,6 +357,45 @@ async function storeOptimizedFallback(projectId: string, beat: MaterializationBe
   await env.BUCKET.put(key, bytes, { httpMetadata: { contentType: "image/svg+xml" }, customMetadata: { projectId, beatId: beat.id, fallback: "true" } });
   await db.insert(mediaAssets).values({ id: assetId, projectId, sceneId: beat.assetKey, name: `${beat.id} · owned semantic motion`, mimeType: "image/svg+xml", sourceType: "OWNED_SEMANTIC_FALLBACK", storageKey: key, licenseType: "CHANNEL_OWNED", licenseProof: JSON.stringify({ policy: "MATERIALIZATION_ENGINE_V1", generator: "FRAMEFLOW_MOTION_SVG", beatId: beat.id, fallbackAfterAttempts: 2, reason, rights: "CHANNEL_OWNED", createdAt: new Date().toISOString() }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: bytes.byteLength }).onConflictDoNothing();
   return { assetId, provider: "Frameflow owned fallback", fallback: true };
+}
+
+async function storeOptimizedMotionSource(projectId: string, beat: MaterializationBeat) {
+  const db = await getDb(); const env = await runtimeEnv(); if (!env.BUCKET) throw new Error("MEDIA_STORAGE_UNAVAILABLE");
+  const family = beat.primaryFamily; const bytes = new TextEncoder().encode(diagramSvg(`${family} · ${beat.visualIntent}`)); const assetId = `${projectId}-VCA2-${beat.id}-${crypto.randomUUID()}`; const key = `media/${projectId}/optimized/${beat.id}/${assetId}.svg`;
+  await env.BUCKET.put(key, bytes, { httpMetadata: { contentType: "image/svg+xml" }, customMetadata: { projectId, beatId: beat.id, family, visualCompositionVersion: "2" } });
+  await db.insert(mediaAssets).values({ id: assetId, projectId, sceneId: beat.assetKey, name: `${beat.id} · ${family.replaceAll("_", " ").toLowerCase()} motion source.svg`, mimeType: "image/svg+xml", sourceType: `OPTIMIZED_MOTION_SOURCE_${family}`, storageKey: key, licenseType: "CHANNEL_OWNED", licenseProof: JSON.stringify({ policy: "VISUAL_COMPOSITION_AUDIT_V2", generator: "FRAMEFLOW_FAMILY_MOTION_V2", beatId: beat.id, visualFamily: family, expectedFormat: expectedVisualFormat(family), selectionScore: 100, semanticBasis: "Frozen storyboard visual intent", rights: "CHANNEL_OWNED", createdAt: new Date().toISOString() }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: bytes.byteLength });
+  return assetId;
+}
+
+async function storeOptimizedMotionRender(projectId: string, sceneId: string, parentAssetId: string, name: string, bytes: Uint8Array) {
+  const db = await getDb(); const [parent] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, parentAssetId)).limit(1);
+  if (!parent || parent.projectId !== projectId || parent.sceneId !== sceneId || !parent.sourceType.startsWith("OPTIMIZED_MOTION_SOURCE_") || parent.rightsStatus !== "VERIFIED") throw new Error("OPTIMIZED_MOTION_SOURCE_NOT_FOUND");
+  const family = parent.sourceType.replace("OPTIMIZED_MOTION_SOURCE_", ""); const env = await runtimeEnv(); if (!env.BUCKET) throw new Error("MEDIA_STORAGE_UNAVAILABLE");
+  const assetId = `${projectId}-VCA2-WEBM-${crypto.randomUUID()}`; const key = `media/${projectId}/optimized/${sceneId.replace(`${projectId}-`, "")}/${assetId}-${safeName(name)}`;
+  await env.BUCKET.put(key, bytes, { httpMetadata: { contentType: "video/webm" }, customMetadata: { projectId, sceneId, family, sourceAssetId: parent.id, visualCompositionVersion: "2" } });
+  await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(and(eq(mediaAssets.projectId, projectId), eq(mediaAssets.sceneId, sceneId), eq(mediaAssets.status, "APPROVED")));
+  await db.insert(mediaAssets).values({ id: assetId, projectId, sceneId, name, mimeType: "video/webm", sourceType: `OPTIMIZED_MOTION_WEBM_${family}`, storageKey: key, licenseType: "CHANNEL_OWNED", licenseProof: JSON.stringify({ policy: "VISUAL_COMPOSITION_AUDIT_V2", renderer: "FRAMEFLOW_BROWSER_WEBM_V2", sourceAssetId: parent.id, visualFamily: family, expectedFormat: expectedVisualFormat(family), selectionScore: 100, fps: 30, rights: "CHANNEL_OWNED", renderedAt: new Date().toISOString() }), rightsStatus: "VERIFIED", status: "APPROVED", sizeBytes: bytes.byteLength });
+  return assetId;
+}
+
+async function prepareVisualCompositionV2(projectId: string, repairCycle = 1) {
+  if (!Number.isInteger(repairCycle) || repairCycle < 1 || repairCycle > 2) throw new Error("REPAIR_CYCLE_LIMIT");
+  const db = await getDb(); const assets = await db.select().from(mediaAssets).where(eq(mediaAssets.projectId, projectId)).orderBy(desc(mediaAssets.createdAt)); const plan = await getOptimizedSourcePlan(projectId, assets); if (!plan) throw new Error("OPTIMIZED_SOURCE_PLAN_NOT_FOUND");
+  const failed = new Map(plan.qualityAudit.repairQueue.map((failure: { beatId: string; issues: string[] }) => [failure.beatId, failure.issues])); const motionSourceIds: string[] = []; const decisions: Array<Record<string, unknown>> = [];
+  for (const beat of plan.beats as MaterializationBeat[]) {
+    const issues = failed.get(beat.id) || []; if (!issues.length) continue; const previous = assets.find((asset) => asset.sceneId === beat.assetKey && asset.status === "APPROVED") || null;
+    if (beat.primaryFamily !== "MACRO_REALITY" && issues.some((issue) => ["VISUAL_FAMILY_FORMAT_MISMATCH", "MOTION_RENDER_REQUIRED", "STOCK_SEQUENCE_TOO_LONG"].includes(issue))) {
+      if (previous?.sourceType.startsWith("OPTIMIZED_MOTION_SOURCE_")) { motionSourceIds.push(previous.id); continue; }
+      const assetId = await storeOptimizedMotionSource(projectId, beat); if (previous) await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(eq(mediaAssets.id, previous.id)); motionSourceIds.push(assetId); decisions.push({ beatId: beat.id, action: "GENERATE_FAMILY_MOTION", family: beat.primaryFamily, assetId }); continue;
+    }
+    if (beat.primaryFamily === "MACRO_REALITY" && issues.includes("PROVIDER_OVERCONCENTRATION")) {
+      const candidates = (await discoverOptimizedCandidates(projectId, beat, { allowInternal: false })).filter((candidate) => candidate.provider !== beat.materializedAsset?.actualProvider && candidate.mediaType === "VIDEO"); let stored: { assetId: string; provider: string; fallback: boolean } | null = null;
+      for (const candidate of candidates.slice(0, 2)) { try { stored = await storeOptimizedAsset(projectId, beat, candidate, 1); break; } catch { /* next provider candidate */ } }
+      if (stored) { if (previous) await db.update(mediaAssets).set({ status: "SUPERSEDED", updatedAt: new Date().toISOString() }).where(eq(mediaAssets.id, previous.id)); decisions.push({ beatId: beat.id, action: "DIVERSIFY_STOCK_PROVIDER", ...stored }); }
+    }
+  }
+  await db.insert(workflowEvents).values({ projectId, toStatus: "PRODUCTION_PREP", eventType: "VISUAL_COMPOSITION_V2_PREPARED", summary: `Visual Composition v2 cycle ${repairCycle}: ${motionSourceIds.length} family-motion sources prepared; ${decisions.length} repair decisions` });
+  return { motionSourceIds, decisions, repairCycle };
 }
 
 async function materializeOptimizedWave(projectId: string, batchSize = 4) {
@@ -660,7 +717,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ ok: true, assetId, generatedMotion });
     }
 
-    const payload = await request.json() as { action?: "REPAIR_OPTIMIZED_WAVE" | "MATERIALIZE_OPTIMIZED_WAVE" | "GENERATE_DIAGRAMS" | "GENERATE_MOTION_VISUALS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY" | "FINALIZE_MOTION_UPLOAD"; batchSize?: number; repairCycle?: number; sceneId?: string; assetId?: string; parentAssetId?: string; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
+    const payload = await request.json() as { action?: "PREPARE_VISUAL_COMPOSITION_V2" | "REPAIR_OPTIMIZED_WAVE" | "MATERIALIZE_OPTIMIZED_WAVE" | "GENERATE_DIAGRAMS" | "GENERATE_MOTION_VISUALS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY" | "FINALIZE_MOTION_UPLOAD"; batchSize?: number; repairCycle?: number; sceneId?: string; assetId?: string; parentAssetId?: string; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
+    if (payload.action === "PREPARE_VISUAL_COMPOSITION_V2") return Response.json({ ok: true, ...(await prepareVisualCompositionV2(id, Number(payload.repairCycle) || 1)) });
     if (payload.action === "REPAIR_OPTIMIZED_WAVE") return Response.json({ ok: true, ...(await repairOptimizedWave(id, Number(payload.batchSize) || 4, Number(payload.repairCycle) || 1)) });
     if (payload.action === "MATERIALIZE_OPTIMIZED_WAVE") return Response.json({ ok: true, ...(await materializeOptimizedWave(id, Number(payload.batchSize) || 4)) });
     if (payload.action === "FINALIZE_MOTION_UPLOAD") {
@@ -677,7 +735,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (payload.sizeBytes && total !== payload.sizeBytes) return Response.json({ error: "Motion upload size check failed" }, { status: 409 });
       if (total > 50 * 1024 * 1024) return Response.json({ error: "Rendered clip exceeds the 50 MB MVP limit" }, { status: 413 });
       const joined = new Uint8Array(total); let offset = 0; for (const part of parts) { joined.set(part, offset); offset += part.byteLength; }
-      const assetId = await storeMotionRender(id, sceneId, parentAssetId, safeName(payload.fileName || "motion.webm"), joined);
+      const [parentAsset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, parentAssetId)).limit(1);
+      const assetId = parentAsset?.sourceType.startsWith("OPTIMIZED_MOTION_SOURCE_") ? await storeOptimizedMotionRender(id, sceneId, parentAssetId, safeName(payload.fileName || "motion.webm"), joined) : await storeMotionRender(id, sceneId, parentAssetId, safeName(payload.fileName || "motion.webm"), joined);
       await env.BUCKET.delete(partKeys);
       return Response.json({ ok: true, assetId, generatedMotion: true });
     }

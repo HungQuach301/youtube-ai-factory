@@ -457,7 +457,7 @@ nav { display: grid; gap: 5px; }
 .materializationAudit > header p { margin: 5px 0 0; color: #73877f; font-size: 8px; }
 .materializationAudit > header > b { color: #1d604a; font: 30px/1 Georgia, serif; }
 .materializationAudit > header > b small { color: #789087; font: 9px/1 var(--font-body), sans-serif; }
-.auditDimensions { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid #e0eae6; border-bottom: 1px solid #e0eae6; }
+.auditDimensions { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid #e0eae6; border-bottom: 1px solid #e0eae6; }
 .auditDimensions article { padding: 11px; border-right: 1px solid #e0eae6; }
 .auditDimensions article:last-child { border-right: 0; }
 .auditDimensions small, .auditDimensions strong { display: block; }
@@ -467,10 +467,11 @@ nav { display: grid; gap: 5px; }
 .auditDimensions i { display: block; height: 3px; overflow: hidden; border-radius: 10px; background: #e2ebe7; }
 .auditDimensions i span { display: block; height: 100%; background: #62af8e; }
 .auditDimensions .fail i span { background: #d59a52; }
-.actualAssetMix { display: grid; grid-template-columns: 1.4fr 1fr 1fr; }
+.actualAssetMix { display: grid; grid-template-columns: 1.4fr 1.4fr 1fr 1fr; }
 .actualAssetMix > div { padding: 12px 15px; border-right: 1px solid #e0eae6; }
 .actualAssetMix > div:last-child { border-right: 0; }
 .actualAssetMix p { margin: 5px 0 0; color: #294f42; font-size: 8px; line-height: 1.5; }
+.semanticEvidence { margin: 0; padding: 9px 15px; border-top: 1px solid #e0eae6; color: #6b7f77; font-size: 7px; font-weight: 750; letter-spacing: .02em; }
 .materializationAudit > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 15px; border-top: 1px solid #e0eae6; }
 .materializationAudit > footer p { margin: 0; color: #6b7f77; font-size: 8px; }
 .materializationAudit > footer button { border: 0; border-radius: 8px; padding: 9px 13px; background: #174c3d; color: white; font-size: 8px; font-weight: 900; cursor: pointer; }
