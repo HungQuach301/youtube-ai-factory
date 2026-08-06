@@ -188,7 +188,10 @@ function actualProvider(asset: typeof mediaAssets.$inferSelect, proof: Record<st
 function expectedVisualFormat(family: string) { return family === "MACRO_REALITY" ? "STOCK_VIDEO" : `MOTION_${family}_WEBM`; }
 function detectedVisualFormat(asset: typeof mediaAssets.$inferSelect | null) {
   if (!asset) return "MISSING";
-  if (asset.sourceType.startsWith("OPTIMIZED_MOTION_WEBM_")) return asset.sourceType.replace("OPTIMIZED_", "");
+  if (asset.sourceType.startsWith("OPTIMIZED_MOTION_WEBM_")) {
+    const family = asset.sourceType.slice("OPTIMIZED_MOTION_WEBM_".length);
+    return `MOTION_${family}_WEBM`;
+  }
   if (asset.sourceType.startsWith("OPTIMIZED_MOTION_SOURCE_")) return "MOTION_SOURCE_NOT_RENDERED";
   if (asset.mimeType.startsWith("video/") && !asset.sourceType.includes("MOTION")) return "STOCK_VIDEO";
   return asset.mimeType.startsWith("image/") ? "STATIC_IMAGE" : "OTHER";
