@@ -106,10 +106,11 @@ async function ensureFoundation(projectId: string) {
 }
 
 async function upsertRecord(projectId: string, input: RegistryInput, knownRecords?: Map<string, typeof evidenceRecords.$inferSelect>) {
+  const knownExisting = knownRecords?.get(input.id);
+  if (knownRecords && knownExisting) return;
   const db = await getDb();
   const now = new Date().toISOString();
-  const existing = knownRecords?.get(input.id) || (await db.select().from(evidenceRecords).where(eq(evidenceRecords.id, input.id)).limit(1))[0];
-  if (knownRecords && existing) return;
+  const existing = knownExisting || (await db.select().from(evidenceRecords).where(eq(evidenceRecords.id, input.id)).limit(1))[0];
   const stateOrder = ["PLAN", "FETCHED", "STORED", "VERIFIED", "BOUND", "RENDERED", "AUDITED"];
   const preserveExisting = Boolean(existing && stateOrder.indexOf(existing.lifecycleState) > stateOrder.indexOf(input.lifecycleState));
   const lifecycleState = preserveExisting && existing ? existing.lifecycleState : input.lifecycleState;
@@ -279,7 +280,9 @@ async function responseData(projectId: string) {
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    await synchronizeKnownEvidence(id);
+    // Reads must remain read-only and fast. Registry synchronization is an
+    // explicit, resumable action rather than hidden work on every page load.
+    await ensureFoundation(id);
     return Response.json(await responseData(id));
   } catch (error) {
     console.error("Evidence registry GET failed", error);
@@ -297,10 +300,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ ok: true, ...(await responseData(id)) });
     }
     if (payload.action === "RUN_INTEGRITY_AUDIT") {
-      await synchronizeKnownEvidence(id);
+      // Audit the evidence that is already stored. Never hide a potentially
+      // expensive migration inside an integrity check.
+      await ensureFoundation(id);
       const result = await runAudit(id);
       await (await getDb()).insert(workflowEvents).values({ projectId: id, toStatus: "V5_EVIDENCE_FOUNDATION", eventType: "V5_EVIDENCE_AUDIT_COMPLETED", summary: `Evidence integrity ${result.status}; plan ${result.planReady ? "ready" : "blocked"}, material ${result.materialReady ? "ready" : "blocked"}, master ${result.masterReady ? "ready" : "blocked"}` });
-      return Response.json({ ok: true, ...result });
+      return Response.json({ ok: true, ...result, registry: await responseData(id) });
     }
     return Response.json({ error: "Unknown evidence action" }, { status: 400 });
   } catch (error) {
