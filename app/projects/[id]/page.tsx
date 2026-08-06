@@ -730,6 +730,7 @@ function AiPerceptualQa({ projectId, setProjectNotice }: { projectId: string; se
         setProjectNotice(`Repair Wave V5.2 built · ${contract.repairWave?.systemicPackages || 0} systemic work packages`);
       }
       for (let wave = 0; wave < 40; wave += 1) {
+        setProgress((current) => ({ percent: Math.max(3, current.percent), phase: "V5.2 MATERIALIZATION", message: `Searching, generating and storing asset batch ${wave + 1}…` }));
         const response = await fetch(`/api/projects/${projectId}/repair-v51`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "MATERIALIZE_V51_BATCH" }), signal: AbortSignal.timeout(180000) });
         const payload = await response.json().catch(() => ({})) as { error?: string; repair?: { materialized?: number; repaired?: number; remaining?: number; complete?: boolean; failures?: string[] } }; if (!response.ok) throw new Error(payload.error || "V5.2 materialization stopped safely");
         const repaired = Number(payload.repair?.repaired || payload.repair?.materialized || 0); const percent = Math.min(96, 5 + Math.round(repaired / 120 * 91)); setProgress({ percent, phase: "V5.2 MATERIALIZATION", message: `${repaired}/120 assets rebuilt, stored and rebound · ${payload.repair?.remaining || 0} remaining` });
