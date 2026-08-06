@@ -6,6 +6,7 @@ import {
   criticEvaluations,
   mediaAssets,
   narrationSegments,
+  productionProfiles,
   qualityGateRuns,
   qualityGateSettings,
   referenceBenchmarkRuns,
@@ -210,6 +211,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   try {
     const { id } = await context.params; await ensureSchema(); const db = await getDb();
     const payload = await request.json() as { action?: "RUN_GATE" | "SET_MODE" | "SET_ADAPTER" | "ROUTE_REPAIRS" | "APPROVE_GATE"; verificationMode?: VerificationMode; formatAdapter?: AdapterKey };
+    const [productionProfile] = await db.select().from(productionProfiles).where(eq(productionProfiles.projectId, id)).limit(1);
+    if (productionProfile?.version >= 5 && ["RUN_GATE", "ROUTE_REPAIRS", "APPROVE_GATE"].includes(payload.action || "")) {
+      return Response.json({ error: "V5_EVIDENCE_QA_REQUIRED", message: "Historical quality scores remain visible but cannot authorize a v5 release. Run the v5 evidence and perceptual gates." }, { status: 409 });
+    }
     if (payload.action === "RUN_GATE") return Response.json({ ok: true, ...(await runGate(id)) });
     if (payload.action === "SET_MODE" && payload.verificationMode) { await db.update(qualityGateSettings).set({ verificationMode: payload.verificationMode, updatedAt: new Date().toISOString() }).where(eq(qualityGateSettings.projectId, id)); return Response.json({ ok: true }); }
     if (payload.action === "SET_ADAPTER" && payload.formatAdapter && adapters.some((adapter) => adapter.key === payload.formatAdapter)) { await db.update(qualityGateSettings).set({ formatAdapter: payload.formatAdapter, updatedAt: new Date().toISOString() }).where(eq(qualityGateSettings.projectId, id)); return Response.json({ ok: true }); }

@@ -1,6 +1,6 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
-import { assemblyRuns, mediaAssets, mediaAutomationSettings, narrationSegments, optimizationArtifacts, sceneManifest, videoProjects, voiceProfiles, workflowEvents } from "../../../../../db/schema";
+import { assemblyRuns, mediaAssets, mediaAutomationSettings, narrationSegments, optimizationArtifacts, productionProfiles, sceneManifest, videoProjects, voiceProfiles, workflowEvents } from "../../../../../db/schema";
 
 type RuntimeD1 = { prepare(sql: string): { run(): Promise<unknown> } };
 type RuntimeBucket = {
@@ -721,6 +721,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
 
     const payload = await request.json() as { action?: "PREPARE_VISUAL_COMPOSITION_V2" | "REPAIR_OPTIMIZED_WAVE" | "MATERIALIZE_OPTIMIZED_WAVE" | "GENERATE_DIAGRAMS" | "GENERATE_MOTION_VISUALS" | "REGISTER_LINK" | "SELECT_DISCOVERY" | "SET_AUTOMATION_MODE" | "AUTO_SOURCE_ALL" | "VERIFY_RIGHTS" | "APPROVE_ASSET" | "BUILD_ASSEMBLY" | "FINALIZE_MOTION_UPLOAD"; batchSize?: number; repairCycle?: number; sceneId?: string; assetId?: string; parentAssetId?: string; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; sourceUrl?: string; licenseType?: string; licenseProof?: string; candidate?: DiscoveryCandidate; verificationMode?: "AUTOPILOT" | "REVIEW" };
+    const [productionProfile] = await db.select().from(productionProfiles).where(eq(productionProfiles.projectId, id)).limit(1);
+    const legacyAutomation = new Set(["PREPARE_VISUAL_COMPOSITION_V2", "REPAIR_OPTIMIZED_WAVE", "MATERIALIZE_OPTIMIZED_WAVE", "AUTO_SOURCE_ALL", "GENERATE_DIAGRAMS", "GENERATE_MOTION_VISUALS", "BUILD_ASSEMBLY"]);
+    if (productionProfile?.version >= 5 && productionProfile.legacyRenderDisabled && payload.action && legacyAutomation.has(payload.action)) {
+      return Response.json({ error: "LEGACY_MATERIALIZATION_DISABLED_FOR_V5", message: "Uploads and rights review remain available; automated v2/v4 materialization is read-only and cannot count as v5 evidence." }, { status: 409 });
+    }
     if (payload.action === "PREPARE_VISUAL_COMPOSITION_V2") return Response.json({ ok: true, ...(await prepareVisualCompositionV2(id, Number(payload.repairCycle) || 1)) });
     if (payload.action === "REPAIR_OPTIMIZED_WAVE") return Response.json({ ok: true, ...(await repairOptimizedWave(id, Number(payload.batchSize) || 4, Number(payload.repairCycle) || 1)) });
     if (payload.action === "MATERIALIZE_OPTIMIZED_WAVE") return Response.json({ ok: true, ...(await materializeOptimizedWave(id, Number(payload.batchSize) || 4)) });

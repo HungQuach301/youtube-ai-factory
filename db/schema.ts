@@ -375,3 +375,85 @@ export const optimizationArtifactQa = sqliteTable("optimization_artifact_qa", {
   regressionJson: text("regression_json").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const productionProfiles = sqliteTable("production_profiles", {
+  projectId: text("project_id").primaryKey(),
+  version: integer("version").notNull().default(5),
+  profileKey: text("profile_key").notNull(),
+  formatAdapter: text("format_adapter").notNull(),
+  runtimeTargetSeconds: integer("runtime_target_seconds").notNull(),
+  targetsJson: text("targets_json").notNull(),
+  truthPolicy: text("truth_policy").notNull(),
+  legacyRenderDisabled: integer("legacy_render_disabled", { mode: "boolean" }).notNull().default(true),
+  status: text("status").notNull().default("ACTIVE"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const evidenceRecords = sqliteTable("evidence_records", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  entityType: text("entity_type").notNull(),
+  pipelineVersion: integer("pipeline_version").notNull().default(5),
+  lifecycleState: text("lifecycle_state").notNull().default("PLAN"),
+  title: text("title").notNull(),
+  provider: text("provider"),
+  sourceUrl: text("source_url"),
+  retrievedAt: text("retrieved_at"),
+  contentHash: text("content_hash"),
+  storageKey: text("storage_key"),
+  mimeType: text("mime_type"),
+  sizeBytes: integer("size_bytes").notNull().default(0),
+  licenseStatus: text("license_status").notNull().default("UNKNOWN"),
+  commercialUseStatus: text("commercial_use_status").notNull().default("UNKNOWN"),
+  costUsd: real("cost_usd").notNull().default(0),
+  modelId: text("model_id"),
+  modelVersion: text("model_version"),
+  prompt: text("prompt"),
+  seed: text("seed"),
+  settingsJson: text("settings_json").notNull().default("{}"),
+  semanticScore: integer("semantic_score"),
+  claimIdsJson: text("claim_ids_json").notNull().default("[]"),
+  shotIdsJson: text("shot_ids_json").notNull().default("[]"),
+  transformationHistoryJson: text("transformation_history_json").notNull().default("[]"),
+  humanOverrideJson: text("human_override_json").notNull().default("{}"),
+  expiresAt: text("expires_at"),
+  revalidationStatus: text("revalidation_status").notNull().default("CURRENT"),
+  supersedesId: text("supersedes_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const evidenceBindings = sqliteTable("evidence_bindings", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  fromRecordId: text("from_record_id").notNull(),
+  toRecordId: text("to_record_id").notNull(),
+  relationship: text("relationship").notNull(),
+  status: text("status").notNull().default("ACTIVE"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const evidenceAuditRuns = sqliteTable("evidence_audit_runs", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  pipelineVersion: integer("pipeline_version").notNull().default(5),
+  status: text("status").notNull(),
+  integrityScore: integer("integrity_score").notNull().default(0),
+  planReady: integer("plan_ready", { mode: "boolean" }).notNull().default(false),
+  materialReady: integer("material_ready", { mode: "boolean" }).notNull().default(false),
+  masterReady: integer("master_ready", { mode: "boolean" }).notNull().default(false),
+  countsJson: text("counts_json").notNull(),
+  blockersJson: text("blockers_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const pipelineMigrations = sqliteTable("pipeline_migrations", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  fromVersion: integer("from_version").notNull(),
+  toVersion: integer("to_version").notNull(),
+  status: text("status").notNull(),
+  policyJson: text("policy_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

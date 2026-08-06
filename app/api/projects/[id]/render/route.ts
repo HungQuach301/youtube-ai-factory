@@ -1,6 +1,6 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
-import { assemblyRuns, mediaAssets, narrationSegments, optimizationArtifacts, sceneManifest, videoProjects, videoRenders, voiceProfiles, workflowEvents } from "../../../../../db/schema";
+import { assemblyRuns, mediaAssets, narrationSegments, optimizationArtifacts, productionProfiles, sceneManifest, videoProjects, videoRenders, voiceProfiles, workflowEvents } from "../../../../../db/schema";
 
 type RuntimeD1 = { prepare(sql: string): { run(): Promise<unknown> } };
 type RuntimeObject = { body: ReadableStream; arrayBuffer?: () => Promise<ArrayBuffer>; size: number; httpMetadata?: { contentType?: string } };
@@ -191,7 +191,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await context.params; await ensureSchema(); const url = new URL(request.url);
+    const { id } = await context.params; await ensureSchema(); const url = new URL(request.url); const db = await getDb();
+    const [productionProfile] = await db.select().from(productionProfiles).where(eq(productionProfiles.projectId, id)).limit(1);
+    if (productionProfile?.version >= 5 && productionProfile.legacyRenderDisabled) {
+      return Response.json({ error: "LEGACY_RENDER_DISABLED_FOR_V5", message: "Historical masters remain readable, but v2/v4 upload, render and playback approval cannot produce v5 release evidence." }, { status: 409 });
+    }
     if (url.searchParams.get("upload") === "part") {
       const uploadId = url.searchParams.get("uploadId") || ""; const part = Number(url.searchParams.get("part"));
       if (!validUploadId(uploadId) || !Number.isInteger(part) || part < 0 || part > 300) return Response.json({ error: "Invalid final-video upload part" }, { status: 400 });
@@ -202,7 +206,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     const payload = await request.json() as { action?: "FINALIZE_VIDEO" | "MATERIALIZE_V2_NARRATION" | "COMPLETE_PLAYBACK_QA" | "REJECT_PLAYBACK_QA"; position?: number; renderId?: string; checks?: string[]; issues?: string[]; uploadId?: string; chunkCount?: number; fileName?: string; sizeBytes?: number; durationSeconds?: number; width?: number; height?: number; fps?: number; renderMode?: string; repairWave?: number };
     if (payload.action === "REJECT_PLAYBACK_QA") {
-      const db = await getDb(); const renderId = String(payload.renderId || ""); const [render] = await db.select().from(videoRenders).where(eq(videoRenders.id, renderId)).limit(1);
+      const renderId = String(payload.renderId || ""); const [render] = await db.select().from(videoRenders).where(eq(videoRenders.id, renderId)).limit(1);
       if (!render || render.projectId !== id) return Response.json({ error: "Master render not found" }, { status: 404 });
       if (render.status !== "READY_FOR_PLAYBACK_QA") return Response.json({ error: "Only a master awaiting playback QA can enter repair" }, { status: 409 });
       const issues = [...new Set(Array.isArray(payload.issues) ? payload.issues.filter((issue) => (PLAYBACK_FAILURES as readonly string[]).includes(issue)) : [])]; if (!issues.length) return Response.json({ error: "Select at least one observed playback failure" }, { status: 400 });
@@ -212,7 +216,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return Response.json({ ok: true, renderId: render.id, status, repairWave, issues });
     }
     if (payload.action === "COMPLETE_PLAYBACK_QA") {
-      const db = await getDb(); const renderId = String(payload.renderId || ""); const [render] = await db.select().from(videoRenders).where(eq(videoRenders.id, renderId)).limit(1);
+      const renderId = String(payload.renderId || ""); const [render] = await db.select().from(videoRenders).where(eq(videoRenders.id, renderId)).limit(1);
       if (!render || render.projectId !== id) return Response.json({ error: "Master render not found" }, { status: 404 });
       if (render.status !== "READY_FOR_PLAYBACK_QA") return Response.json({ error: render.status === "QA_PASSED" ? "Playback QA already passed" : "This render is not awaiting playback QA" }, { status: 409 });
       const completed = new Set(Array.isArray(payload.checks) ? payload.checks : []); const missing = PLAYBACK_QA_CHECKS.filter((check) => !completed.has(check));
@@ -223,7 +227,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     if (payload.action === "MATERIALIZE_V2_NARRATION") {
       const position = Number(payload.position); if (!Number.isInteger(position) || position < 1 || position > 12) return Response.json({ error: "Narration position must be 1–12" }, { status: 400 });
-      const db = await getDb(); const artifacts = await db.select().from(optimizationArtifacts).where(eq(optimizationArtifacts.projectId, id)).orderBy(desc(optimizationArtifacts.createdAt)); const editArtifact = artifacts.find((artifact) => artifact.stageKey === "EDIT_COMPOSE" && artifact.status === "FROZEN"); const scriptArtifact = artifacts.find((artifact) => artifact.stageKey === "SCRIPT" && artifact.status === "FROZEN"); if (!editArtifact || !scriptArtifact) return Response.json({ error: "Freeze Edit & Composition and Script v2 before voice materialization" }, { status: 409 });
+      const artifacts = await db.select().from(optimizationArtifacts).where(eq(optimizationArtifacts.projectId, id)).orderBy(desc(optimizationArtifacts.createdAt)); const editArtifact = artifacts.find((artifact) => artifact.stageKey === "EDIT_COMPOSE" && artifact.status === "FROZEN"); const scriptArtifact = artifacts.find((artifact) => artifact.stageKey === "SCRIPT" && artifact.status === "FROZEN"); if (!editArtifact || !scriptArtifact) return Response.json({ error: "Freeze Edit & Composition and Script v2 before voice materialization" }, { status: 409 });
       const script = JSON.parse(scriptArtifact.contentJson) as { sections?: Array<{ beat: string; text: string }> }; const section = script.sections?.[position - 1]; if (!section) return Response.json({ error: "Optimized script section is missing" }, { status: 409 });
       const env = await runtimeEnv(); if (!env.ELEVENLABS_API_KEY || !env.BUCKET) return Response.json({ error: !env.ELEVENLABS_API_KEY ? "ELEVENLABS_NOT_CONNECTED" : "AUDIO_STORAGE_NOT_READY" }, { status: 424 }); const [profile] = await db.select().from(voiceProfiles).where(eq(voiceProfiles.projectId, id)).limit(1); if (!profile || profile.status !== "LOCKED") return Response.json({ error: "Lock exactly one channel voice before narration materialization" }, { status: 409 });
       const signature = voiceSignature(profile); const versionKey = `${editArtifact.id}:V3:${signature}`; const segmentId = `${id}-OPT-V3-${signature}-SEG-${String(position).padStart(2, "0")}`;
@@ -255,7 +259,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (payload.sizeBytes && total !== payload.sizeBytes) return Response.json({ error: "Final video size check failed" }, { status: 409 });
     if (total > 100 * 1024 * 1024) return Response.json({ error: "Final video exceeds the 100 MB MVP limit" }, { status: 413 });
     const joined = new Uint8Array(total); let offset = 0; for (const part of parts) { joined.set(part, offset); offset += part.byteLength; }
-    const db = await getDb(); const existing = await db.select().from(videoRenders).where(eq(videoRenders.projectId, id)).orderBy(desc(videoRenders.version)); const version = (existing[0]?.version || 0) + 1;
+    const existing = await db.select().from(videoRenders).where(eq(videoRenders.projectId, id)).orderBy(desc(videoRenders.version)); const version = (existing[0]?.version || 0) + 1;
     const renderId = `${id}-FINAL-V${version}`; const name = safeName(payload.fileName || `${id}-final-v${version}.webm`); const key = `renders/${id}/${renderId}-${name}`;
     await bucket.put(key, joined, { httpMetadata: { contentType: "video/webm" }, customMetadata: { projectId: id, renderId, version: String(version) } });
     await db.insert(videoRenders).values({ id: renderId, projectId: id, version, name, storageKey: key, mimeType: "video/webm", sizeBytes: total, durationSeconds: payload.durationSeconds || snapshot.totalDuration, width: payload.width || 1280, height: payload.height || 720, fps: payload.fps || 30, status: optimizedMode ? "READY_FOR_PLAYBACK_QA" : "READY", gateResults: JSON.stringify(activeGateResults) });

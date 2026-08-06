@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
-import { optimizationArtifactQa, optimizationArtifacts, optimizationCycles, optimizationSettings, optimizationStageRuns, researchClaims, researchSources, videoProjects, videoRenders, workflowEvents } from "../../../../../db/schema";
+import { optimizationArtifactQa, optimizationArtifacts, optimizationCycles, optimizationSettings, optimizationStageRuns, productionProfiles, researchClaims, researchSources, videoProjects, videoRenders, workflowEvents } from "../../../../../db/schema";
 
 type RuntimeD1 = { prepare(sql: string): { run(): Promise<unknown> } };
 type RuntimeEnv = { DB?: RuntimeD1 };
@@ -58,6 +58,16 @@ const pipelineV4Profile = {
   ],
   nonBypassableStops: ["Unsupported P0 claim", "Unverified commercial rights", "Budget cap exceeded", "Provider or render failure", "Perceptual QA below floor"],
 };
+
+async function ensureV5Profile(projectId: string) {
+  const db = await getDb();
+  await db.insert(productionProfiles).values({
+    projectId, version: 5, profileKey: "EXPLAINER_DOCUMENTARY_8M_V1", formatAdapter: "EXPLAINER_DOCUMENTARY", runtimeTargetSeconds: 480,
+    targetsJson: JSON.stringify({ profileSpecific: true, sourceOfTruth: "Data & Evidence Registry v5" }),
+    truthPolicy: "Plans authorize work; only stored files with checksum, provenance and rights prove production completion.",
+    legacyRenderDisabled: true, status: "ACTIVE", updatedAt: new Date().toISOString(),
+  }).onConflictDoNothing();
+}
 
 const candidateLibrary: Record<string, Array<{ label: string; thesis: string; scores: Record<string, number>; risks: string[] }>> = {
   CREATIVE_STRATEGY: [
@@ -693,14 +703,26 @@ async function reconcileArtifactChain(projectId: string) {
 }
 
 async function responseData(projectId: string) {
-  const db = await getDb(); const [settingsRows, cycles, runs, artifacts, qaRuns] = await Promise.all([db.select().from(optimizationSettings).where(eq(optimizationSettings.projectId, projectId)).limit(1), db.select().from(optimizationCycles).where(eq(optimizationCycles.projectId, projectId)).orderBy(desc(optimizationCycles.version)), db.select().from(optimizationStageRuns).where(eq(optimizationStageRuns.projectId, projectId)).orderBy(desc(optimizationStageRuns.createdAt)), db.select().from(optimizationArtifacts).where(eq(optimizationArtifacts.projectId, projectId)).orderBy(desc(optimizationArtifacts.createdAt)), db.select().from(optimizationArtifactQa).where(eq(optimizationArtifactQa.projectId, projectId)).orderBy(desc(optimizationArtifactQa.createdAt))]);
-  return { pipelineProfile: pipelineV4Profile, contracts, settings: settingsRows[0], cycles: cycles.map((cycle) => ({ ...cycle, stages: JSON.parse(cycle.stageStateJson), issues: JSON.parse(cycle.issueLedgerJson), learning: JSON.parse(cycle.learningJson) })), runs: runs.map((run) => ({ ...run, contract: JSON.parse(run.contractJson), candidates: JSON.parse(run.candidatesJson), decision: JSON.parse(run.decisionJson) })), artifacts: artifacts.map((artifact) => ({ ...artifact, content: JSON.parse(artifact.contentJson) })), artifactQa: qaRuns.map((qa) => ({ ...qa, rubric: JSON.parse(qa.rubricJson), issues: JSON.parse(qa.issuesJson), regression: JSON.parse(qa.regressionJson) })) };
+  const db = await getDb(); const [settingsRows, cycles, runs, artifacts, qaRuns, profiles] = await Promise.all([db.select().from(optimizationSettings).where(eq(optimizationSettings.projectId, projectId)).limit(1), db.select().from(optimizationCycles).where(eq(optimizationCycles.projectId, projectId)).orderBy(desc(optimizationCycles.version)), db.select().from(optimizationStageRuns).where(eq(optimizationStageRuns.projectId, projectId)).orderBy(desc(optimizationStageRuns.createdAt)), db.select().from(optimizationArtifacts).where(eq(optimizationArtifacts.projectId, projectId)).orderBy(desc(optimizationArtifacts.createdAt)), db.select().from(optimizationArtifactQa).where(eq(optimizationArtifactQa.projectId, projectId)).orderBy(desc(optimizationArtifactQa.createdAt)), db.select().from(productionProfiles).where(eq(productionProfiles.projectId, projectId)).limit(1)]);
+  return { v5Active: Boolean(profiles[0]?.version && profiles[0].version >= 5), pipelineProfile: pipelineV4Profile, contracts, settings: settingsRows[0], cycles: cycles.map((cycle) => ({ ...cycle, stages: JSON.parse(cycle.stageStateJson), issues: JSON.parse(cycle.issueLedgerJson), learning: JSON.parse(cycle.learningJson) })), runs: runs.map((run) => ({ ...run, contract: JSON.parse(run.contractJson), candidates: JSON.parse(run.candidatesJson), decision: JSON.parse(run.decisionJson) })), artifacts: artifacts.map((artifact) => ({ ...artifact, content: JSON.parse(artifact.contentJson) })), artifactQa: qaRuns.map((qa) => ({ ...qa, rubric: JSON.parse(qa.rubricJson), issues: JSON.parse(qa.issuesJson), regression: JSON.parse(qa.regressionJson) })) };
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) { try { const { id } = await context.params; await ensureSchema(); const db = await getDb(); await db.insert(optimizationSettings).values({ projectId: id, mode: "AUTOPILOT", maximumAttempts: 3, minimumImprovement: 3, maximumWaveStages: 4, regressionTolerance: 5 }).onConflictDoNothing(); await enforceResearchDepthV2(id); await upgradeProductionPipelineV4(id); await reconcileArtifactChain(id); return Response.json(await responseData(id)); } catch (error) { console.error("Optimization system GET failed", error); return Response.json({ error: "Continuous Quality system could not be loaded" }, { status: 500 }); } }
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await context.params; await ensureSchema(); const db = await getDb();
+    await db.insert(optimizationSettings).values({ projectId: id, mode: "AUTOPILOT", maximumAttempts: 3, minimumImprovement: 3, maximumWaveStages: 4, regressionTolerance: 5 }).onConflictDoNothing();
+    await ensureV5Profile(id);
+    return Response.json(await responseData(id));
+  } catch (error) {
+    console.error("Optimization system GET failed", error);
+    return Response.json({ error: "Continuous Quality system could not be loaded" }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try { const { id } = await context.params; await ensureSchema(); const db = await getDb(); const payload = await request.json() as { action?: "START_CYCLE" | "RUN_STAGE" | "RUN_WAVE" | "RUN_ARTIFACT_LOOP" | "RUN_PIPELINE_V4_STEP" | "SET_MODE" | "APPROVE_HANDOFF"; mode?: Mode };
+    const [productionProfile] = await db.select().from(productionProfiles).where(eq(productionProfiles.projectId, id)).limit(1);
+    if (productionProfile?.version >= 5 && payload.action !== "SET_MODE") return Response.json({ error: "PIPELINE_V4_READ_ONLY", message: "Pipeline v4 is preserved as historical evidence. New work must use v5 evidence-aware workers." }, { status: 409 });
     if (payload.action === "START_CYCLE") return Response.json({ ok: true, ...(await startCycle(id)) });
     if (payload.action === "RUN_STAGE") { const [cycle] = await db.select().from(optimizationCycles).where(eq(optimizationCycles.projectId, id)).orderBy(desc(optimizationCycles.version)).limit(1); if (!cycle) return Response.json({ error: "Start an optimized rebuild cycle first" }, { status: 409 }); return Response.json({ ok: true, ...(await executeStage(id, cycle.id)) }); }
     if (payload.action === "RUN_WAVE") return Response.json({ ok: true, ...(await runWave(id)) });
