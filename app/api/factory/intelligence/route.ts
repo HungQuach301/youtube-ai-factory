@@ -29,6 +29,7 @@ type Gate = { id: string; label: string; status: "PASS" | "FAIL"; evidence: stri
 
 const schema = [
   `CREATE TABLE IF NOT EXISTS v7_intelligence_runs (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, stage_key text NOT NULL, attempt integer DEFAULT 1 NOT NULL, status text DEFAULT 'RUNNING' NOT NULL, score integer DEFAULT 0 NOT NULL, threshold integer DEFAULT 90 NOT NULL, model_id text NOT NULL, source_mode text DEFAULT 'OPENAI_WEB_SEARCH' NOT NULL, gate_json text DEFAULT '[]' NOT NULL, started_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, completed_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_intelligence_jobs (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, run_id text NOT NULL, stage_key text NOT NULL, provider_response_id text NOT NULL, provider_status text DEFAULT 'queued' NOT NULL, status text DEFAULT 'ACTIVE' NOT NULL, heartbeat_at text NOT NULL, started_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, finalized_at text, error text)`,
   `CREATE TABLE IF NOT EXISTS v7_intelligence_artifacts (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, run_id text NOT NULL, stage_key text NOT NULL, artifact_type text NOT NULL, title text NOT NULL, lifecycle_state text DEFAULT 'MATERIALIZED' NOT NULL, content_json text NOT NULL, content_hash text NOT NULL, runtime_key text, drive_file_id text, source_count integer DEFAULT 0 NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_intelligence_sources (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, run_id text NOT NULL, stage_key text NOT NULL, source_type text NOT NULL, title text NOT NULL, publisher text NOT NULL, url text NOT NULL, published_at text, authority_tier text NOT NULL, freshness_state text NOT NULL, verification_state text DEFAULT 'WEB_GROUNDED' NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_claim_nodes (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, run_id text NOT NULL, claim_text text NOT NULL, claim_class text NOT NULL, risk_level text NOT NULL, status text DEFAULT 'CONTROLLED' NOT NULL, source_ids_json text NOT NULL, counter_evidence text DEFAULT '' NOT NULL, qualification text DEFAULT '' NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
@@ -51,7 +52,7 @@ function outputText(payload: Record<string, unknown>) {
   throw new Error("OpenAI returned no structured intelligence artifact");
 }
 
-async function openaiWebStructured(env: RuntimeEnv, name: string, prompt: string, responseSchema: Record<string, unknown>) {
+async function startOpenAIResearch(env: RuntimeEnv, name: string, prompt: string, responseSchema: Record<string, unknown>) {
   if (!env.OPENAI_API_KEY) throw new Error("Connect OPENAI_API_KEY before running Wave 2 intelligence");
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -59,17 +60,34 @@ async function openaiWebStructured(env: RuntimeEnv, name: string, prompt: string
     body: JSON.stringify({
       model: env.OPENAI_QA_MODEL || MODEL,
       reasoning: { effort: "high" },
-      tools: [{ type: "web_search" }],
+      tools: [{ type: "web_search", return_token_budget: "unlimited" }],
+      background: true,
+      store: true,
       input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }],
       text: { format: { type: "json_schema", name, strict: true, schema: responseSchema } },
     }),
-    signal: AbortSignal.timeout(240000),
+    signal: AbortSignal.timeout(30000),
   });
   if (!response.ok) {
     const detail = (await response.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 500);
     throw new Error(`OpenAI web-grounded intelligence failed (${response.status})${detail ? ` · ${detail}` : ""}`);
   }
-  return JSON.parse(outputText(await response.json() as Record<string, unknown>)) as Record<string, unknown>;
+  const payload = await response.json() as Record<string, unknown>;
+  if (typeof payload.id !== "string") throw new Error("OpenAI did not return a background response ID");
+  return { id: payload.id, status: String(payload.status || "queued") };
+}
+
+async function retrieveOpenAIResearch(env: RuntimeEnv, responseId: string) {
+  if (!env.OPENAI_API_KEY) throw new Error("Connect OPENAI_API_KEY before resuming Wave 2 intelligence");
+  const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(responseId)}`, {
+    headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" },
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!response.ok) {
+    const detail = (await response.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 500);
+    throw new Error(`OpenAI research status failed (${response.status})${detail ? ` · ${detail}` : ""}`);
+  }
+  return await response.json() as Record<string, unknown>;
 }
 
 const sourceSchema = {
@@ -179,8 +197,11 @@ async function snapshot() {
   const env = await runtime(); const db = env.DB!;
   const program = await db.prepare("SELECT * FROM v7_program_contracts WHERE id=?").bind(PROGRAM_ID).first<Record<string, unknown>>();
   if (program?.production_authorized) await db.prepare("UPDATE v7_stage_states SET status='READY', blocker=null, evidence_summary='Wave 1 passed; Wave 2 intelligence authorized', updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='BLOCKED_UPSTREAM'").bind(`${PROGRAM_ID}-STAGE-01`).run();
+  await db.prepare("UPDATE v7_intelligence_runs SET status='FAILED',gate_json='[{\"id\":\"RECOVERY\",\"label\":\"Execution recovery\",\"status\":\"FAIL\",\"evidence\":\"Legacy request was interrupted before a resumable background job existed\"}]',completed_at=CURRENT_TIMESTAMP WHERE program_id=? AND status='RUNNING' AND id NOT IN (SELECT run_id FROM v7_intelligence_jobs WHERE status='ACTIVE')").bind(PROGRAM_ID).run();
+  await db.prepare("UPDATE v7_stage_states SET status='REPAIR_REQUIRED',blocker='Previous foreground request was interrupted; resume safely with the background runner',evidence_summary='Resumable execution is ready',updated_at=CURRENT_TIMESTAMP WHERE program_id=? AND stage_key IN ('01','02','03') AND status='RUNNING' AND NOT EXISTS (SELECT 1 FROM v7_intelligence_jobs AS job WHERE job.program_id=? AND job.stage_key=v7_stage_states.stage_key AND job.status='ACTIVE')").bind(PROGRAM_ID, PROGRAM_ID).run();
   const stages = await rows(db, "SELECT * FROM v7_stage_states WHERE program_id=? AND stage_key IN ('01','02','03') ORDER BY sequence", PROGRAM_ID);
   const runs = await rows(db, "SELECT * FROM v7_intelligence_runs WHERE program_id=? ORDER BY started_at DESC", PROGRAM_ID);
+  const jobs = await rows(db, "SELECT * FROM v7_intelligence_jobs WHERE program_id=? ORDER BY started_at DESC", PROGRAM_ID);
   const artifacts = await rows(db, "SELECT id,run_id,stage_key,artifact_type,title,lifecycle_state,content_json,content_hash,runtime_key,drive_file_id,source_count,created_at FROM v7_intelligence_artifacts WHERE program_id=? ORDER BY created_at DESC", PROGRAM_ID);
   const sources = await rows(db, "SELECT * FROM v7_intelligence_sources WHERE program_id=? ORDER BY created_at DESC", PROGRAM_ID);
   const claims = await rows(db, "SELECT * FROM v7_claim_nodes WHERE program_id=? ORDER BY created_at DESC", PROGRAM_ID);
@@ -189,6 +210,7 @@ async function snapshot() {
     provider: { connected: Boolean(env.OPENAI_API_KEY), model: env.OPENAI_QA_MODEL || MODEL, sourceMode: "OPENAI_WEB_SEARCH" },
     stages: stages.map((stage) => ({ id: stage.id, stageKey: stage.stage_key, stageName: stage.stage_name, status: stage.status, threshold: stage.threshold, attempt: stage.attempt, blocker: stage.blocker, evidenceSummary: stage.evidence_summary, artifactId: stage.artifact_id })),
     runs: runs.map((run) => ({ id: run.id, stageKey: run.stage_key, attempt: run.attempt, status: run.status, score: run.score, threshold: run.threshold, gates: JSON.parse(String(run.gate_json || "[]")), startedAt: run.started_at, completedAt: run.completed_at })),
+    jobs: jobs.map((job) => ({ id: job.id, runId: job.run_id, stageKey: job.stage_key, status: job.status, providerStatus: job.provider_status, heartbeatAt: job.heartbeat_at, startedAt: job.started_at, finalizedAt: job.finalized_at, error: job.error })),
     artifacts: artifacts.map((artifact) => ({ id: artifact.id, runId: artifact.run_id, stageKey: artifact.stage_key, artifactType: artifact.artifact_type, title: artifact.title, lifecycleState: artifact.lifecycle_state, content: JSON.parse(String(artifact.content_json)), contentHash: artifact.content_hash, runtimeKey: artifact.runtime_key, driveFileId: artifact.drive_file_id, sourceCount: artifact.source_count, createdAt: artifact.created_at })),
     sourceCount: sources.length,
     claimCount: claims.length,
@@ -202,56 +224,99 @@ function stagePrompt(stage: StageKey, upstream: Record<string, unknown> | null) 
   return `${common}\nUpstream reference artifact: ${JSON.stringify(upstream)}\nBuild a primary-source-led research pack and claim graph for the champion topic. Use at least twelve sources including at least six Tier-1 primary or official sources. Create at least twelve controlled claims; every claim needs at least two source IDs and every P0 claim must be corroborated by independent sources. Resolve at least three material contradictions, record at least five uncertainties with safe language and prohibited overclaims, and mark at least eight claims story-eligible. Exclude weak or unresolved claims rather than smoothing them over.`;
 }
 
-async function runStage(stage: StageKey) {
+async function upstreamArtifact(db: RuntimeDatabase, stage: StageKey) {
+  if (stage === "01") return null;
+  const previous = stage === "02" ? "01" : "02";
+  const row = await db.prepare("SELECT content_json FROM v7_intelligence_artifacts WHERE program_id=? AND stage_key=? AND lifecycle_state='FROZEN' ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, previous).first<{ content_json: string }>();
+  if (!row) throw new Error(`Frozen Stage ${previous} artifact is missing`);
+  return JSON.parse(row.content_json) as Record<string, unknown>;
+}
+
+async function startStage(stage: StageKey) {
   const env = await runtime(); const db = env.DB!;
+  const active = await db.prepare("SELECT id FROM v7_intelligence_jobs WHERE program_id=? AND stage_key=? AND status='ACTIVE' ORDER BY started_at DESC LIMIT 1").bind(PROGRAM_ID, stage).first<{ id: string }>();
+  if (active) return snapshot();
   const program = await db.prepare("SELECT production_authorized FROM v7_program_contracts WHERE id=?").bind(PROGRAM_ID).first<{ production_authorized: number }>();
   if (!program?.production_authorized) throw new Error("Wave 1 foundation must pass before Wave 2 can run");
-  const state = await db.prepare("SELECT status,attempt,threshold FROM v7_stage_states WHERE id=?").bind(`${PROGRAM_ID}-STAGE-${stage}`).first<{ status: string; attempt: number; threshold: number }>();
+  const state = await db.prepare("SELECT status,attempt FROM v7_stage_states WHERE id=?").bind(`${PROGRAM_ID}-STAGE-${stage}`).first<{ status: string; attempt: number }>();
   if (!state || !["READY", "REPAIR_REQUIRED"].includes(state.status)) throw new Error(`${STAGES[stage].name} is not ready; complete its upstream stage first`);
   if (state.attempt >= 3) throw new Error(`${STAGES[stage].name} exhausted three automatic attempts and requires senior human review`);
-  const attempt = state.attempt + 1; const runId = `${PROGRAM_ID}-INT-${stage}-${Date.now()}`; const now = new Date().toISOString();
-  await db.prepare("INSERT INTO v7_intelligence_runs (id,program_id,stage_key,attempt,status,score,threshold,model_id,source_mode,gate_json,started_at) VALUES (?,?,?,?, 'RUNNING',0,?,?, 'OPENAI_WEB_SEARCH','[]',?)").bind(runId, PROGRAM_ID, stage, attempt, STAGES[stage].threshold, env.OPENAI_QA_MODEL || MODEL, now).run();
-  await db.prepare("UPDATE v7_stage_states SET status='RUNNING',attempt=?,blocker=null,evidence_summary='Web-grounded intelligence is being produced',updated_at=? WHERE id=?").bind(attempt, now, `${PROGRAM_ID}-STAGE-${stage}`).run();
+  const upstream = await upstreamArtifact(db, stage);
+  const provider = await startOpenAIResearch(env, `v7_intelligence_stage_${stage}`, stagePrompt(stage, upstream), stageSchemas[stage]);
+  const attempt = state.attempt + 1; const runId = `${PROGRAM_ID}-INT-${stage}-${Date.now()}`; const jobId = `${runId}-JOB`; const now = new Date().toISOString();
+  await db.batch([
+    db.prepare("INSERT INTO v7_intelligence_runs (id,program_id,stage_key,attempt,status,score,threshold,model_id,source_mode,gate_json,started_at) VALUES (?,?,?,?, 'RUNNING',0,?,?, 'OPENAI_WEB_SEARCH','[]',?)").bind(runId, PROGRAM_ID, stage, attempt, STAGES[stage].threshold, env.OPENAI_QA_MODEL || MODEL, now),
+    db.prepare("INSERT INTO v7_intelligence_jobs (id,program_id,run_id,stage_key,provider_response_id,provider_status,status,heartbeat_at,started_at) VALUES (?,?,?,?,?,?,'ACTIVE',?,?)").bind(jobId, PROGRAM_ID, runId, stage, provider.id, provider.status, now, now),
+    db.prepare("UPDATE v7_stage_states SET status='RUNNING',attempt=?,blocker=null,evidence_summary='Background research accepted · polling provider status',updated_at=? WHERE id=?").bind(attempt, now, `${PROGRAM_ID}-STAGE-${stage}`),
+  ]);
+  return snapshot();
+}
+
+async function failJob(db: RuntimeDatabase, stage: StageKey, runId: string, jobId: string, message: string) {
+  const now = new Date().toISOString();
+  await db.batch([
+    db.prepare("UPDATE v7_intelligence_jobs SET status='FAILED',provider_status='failed',heartbeat_at=?,finalized_at=?,error=? WHERE id=?").bind(now, now, message, jobId),
+    db.prepare("UPDATE v7_intelligence_runs SET status='FAILED',gate_json=?,completed_at=? WHERE id=?").bind(JSON.stringify([{ id: "EXECUTION", label: "Execution integrity", status: "FAIL", evidence: message }]), now, runId),
+    db.prepare("UPDATE v7_stage_states SET status='REPAIR_REQUIRED',blocker=?,evidence_summary='Background job stopped safely; no frozen artifact produced',updated_at=? WHERE id=?").bind(message, now, `${PROGRAM_ID}-STAGE-${stage}`),
+  ]);
+}
+
+async function finalizeStage(env: RuntimeEnv, stage: StageKey, runId: string, jobId: string, payload: Record<string, unknown>) {
+  const db = env.DB!; const now = new Date().toISOString();
+  const artifact = JSON.parse(outputText(payload)) as Record<string, unknown>;
+  const evaluation = evaluate(stage, artifact); const content = JSON.stringify({ pipelineVersion: 7, stage, generatedAt: now, artifact }, null, 2); const contentHash = await digest(content);
+  const artifactId = `${runId}-ARTIFACT`; const runtimeKey = `v7/intelligence/${stage}/${artifactId}.json`;
+  if (!env.BUCKET) throw new Error("Runtime object storage is unavailable");
+  await env.BUCKET.put(runtimeKey, content, { httpMetadata: { contentType: "application/json" }, customMetadata: { pipelineVersion: "7", stage, contentHash } });
+  if (!(await env.BUCKET.head(runtimeKey))) throw new Error("Runtime artifact read-back failed");
+  const drive = await storeDriveJsonArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Intelligence"], fileName: `${stage}-${STAGES[stage].artifactType.toLowerCase()}-${runId.slice(-13)}.json`, content, artifactId, contentHash });
+  const artifactState = evaluation.passed ? "FROZEN" : "REPAIR_REQUIRED";
+  await db.prepare("INSERT INTO v7_intelligence_artifacts (id,program_id,run_id,stage_key,artifact_type,title,lifecycle_state,content_json,content_hash,runtime_key,drive_file_id,source_count,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .bind(artifactId, PROGRAM_ID, runId, stage, STAGES[stage].artifactType, STAGES[stage].name, artifactState, JSON.stringify(artifact), contentHash, runtimeKey, drive.id, sourcesOf(artifact).length, now, now).run();
+  for (const [index, source] of sourcesOf(artifact).entries()) await db.prepare("INSERT INTO v7_intelligence_sources (id,program_id,run_id,stage_key,source_type,title,publisher,url,published_at,authority_tier,freshness_state,verification_state) VALUES (?,?,?,?,?,?,?,?,?,?,?,'WEB_GROUNDED')")
+    .bind(`${runId}-SRC-${String(index + 1).padStart(2, "0")}`, PROGRAM_ID, runId, stage, source.sourceType, source.title, source.publisher, source.url, source.publishedAt || null, source.authorityTier, source.freshnessState).run();
+  if (stage === "03") for (const claim of array(artifact.claims) as Array<{ id: string; text: string; claimClass: string; riskLevel: string; sourceIds: string[]; counterEvidence: string; qualification: string }>) await db.prepare("INSERT INTO v7_claim_nodes (id,program_id,run_id,claim_text,claim_class,risk_level,status,source_ids_json,counter_evidence,qualification) VALUES (?,?,?,?,?,?,'CONTROLLED',?,?,?)")
+    .bind(`${runId}-${claim.id}`, PROGRAM_ID, runId, claim.text, claim.claimClass, claim.riskLevel, JSON.stringify(claim.sourceIds), claim.counterEvidence, claim.qualification).run();
+  const upstreamEvidence = stage === "01" ? `${PROGRAM_ID}-EVIDENCE-PROGRAM` : await db.prepare("SELECT id FROM v7_evidence_lineage WHERE program_id=? AND entity_type=? AND lifecycle_state='FROZEN' ORDER BY updated_at DESC LIMIT 1").bind(PROGRAM_ID, STAGES[stage === "02" ? "01" : "02"].artifactType).first<{ id: string }>();
+  await db.batch([
+    db.prepare("UPDATE v7_intelligence_runs SET status=?,score=?,gate_json=?,completed_at=? WHERE id=?").bind(evaluation.passed ? "PASS" : "REPAIR_REQUIRED", evaluation.score, JSON.stringify(evaluation.gates), now, runId),
+    db.prepare("UPDATE v7_intelligence_jobs SET status='COMPLETED',provider_status='completed',heartbeat_at=?,finalized_at=?,error=null WHERE id=?").bind(now, now, jobId),
+    db.prepare("UPDATE v7_stage_states SET status=?,artifact_id=?,blocker=?,evidence_summary=?,frozen_at=?,updated_at=? WHERE id=?").bind(evaluation.passed ? "FROZEN" : "REPAIR_REQUIRED", artifactId, evaluation.passed ? null : "One or more intelligence hard gates failed", `${evaluation.score}/100 · ${sourcesOf(artifact).length} web-grounded sources · R2 and Google Drive verified`, evaluation.passed ? now : null, now, `${PROGRAM_ID}-STAGE-${stage}`),
+    db.prepare("INSERT INTO v7_evidence_lineage (id,program_id,entity_type,title,lifecycle_state,upstream_evidence_id,artifact_key,content_hash,storage_state,rights_state,cost_state,quarantine_state,pipeline_version,updated_at) VALUES (?,?,?,?,?,?,?,?, 'R2_AND_DRIVE_VERIFIED','RESEARCH_USE','MEASURED','CLEAR',7,?)").bind(`${artifactId}-EVIDENCE`, PROGRAM_ID, STAGES[stage].artifactType, STAGES[stage].name, artifactState, typeof upstreamEvidence === "string" ? upstreamEvidence : upstreamEvidence?.id || `${PROGRAM_ID}-EVIDENCE-PROGRAM`, runtimeKey, contentHash, now),
+    db.prepare("INSERT INTO v7_cost_events (id,program_id,stage_key,provider,cost_class,cost_type,status,estimated_usd,actual_usd,note) VALUES (?,?,?,'OPENAI','VARIABLE','WEB_GROUNDED_INTELLIGENCE','RECORDED',0,0,?)").bind(`${runId}-COST`, PROGRAM_ID, stage, `Provider usage recorded for ${STAGES[stage].name}; exact billing reconciliation deferred to provider usage import`),
+  ]);
+  if (evaluation.passed) {
+    const next = stage === "01" ? "02" : stage === "02" ? "03" : "04";
+    await db.prepare("UPDATE v7_stage_states SET status='READY',blocker=null,evidence_summary=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='BLOCKED_UPSTREAM'").bind(`Stage ${stage} frozen; upstream evidence accepted`, `${PROGRAM_ID}-STAGE-${next}`).run();
+    if (stage === "03") await db.prepare("UPDATE v7_program_contracts SET status='WAVE_2_FROZEN',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(PROGRAM_ID).run();
+  }
+}
+
+async function pollStage(stage: StageKey) {
+  const env = await runtime(); const db = env.DB!;
+  const job = await db.prepare("SELECT id,run_id,provider_response_id FROM v7_intelligence_jobs WHERE program_id=? AND stage_key=? AND status='ACTIVE' ORDER BY started_at DESC LIMIT 1").bind(PROGRAM_ID, stage).first<{ id: string; run_id: string; provider_response_id: string }>();
+  if (!job) return snapshot();
+  let payload: Record<string, unknown>;
   try {
-    let upstream: Record<string, unknown> | null = null;
-    if (stage !== "01") {
-      const previous = stage === "02" ? "01" : "02";
-      const row = await db.prepare("SELECT content_json FROM v7_intelligence_artifacts WHERE program_id=? AND stage_key=? AND lifecycle_state='FROZEN' ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, previous).first<{ content_json: string }>();
-      if (!row) throw new Error(`Frozen Stage ${previous} artifact is missing`);
-      upstream = JSON.parse(row.content_json) as Record<string, unknown>;
-    }
-    const artifact = await openaiWebStructured(env, `v7_intelligence_stage_${stage}`, stagePrompt(stage, upstream), stageSchemas[stage]);
-    const evaluation = evaluate(stage, artifact); const content = JSON.stringify({ pipelineVersion: 7, stage, generatedAt: new Date().toISOString(), artifact }, null, 2); const contentHash = await digest(content);
-    const artifactId = `${runId}-ARTIFACT`; const runtimeKey = `v7/intelligence/${stage}/${artifactId}.json`;
-    if (!env.BUCKET) throw new Error("Runtime object storage is unavailable");
-    await env.BUCKET.put(runtimeKey, content, { httpMetadata: { contentType: "application/json" }, customMetadata: { pipelineVersion: "7", stage, contentHash } });
-    if (!(await env.BUCKET.head(runtimeKey))) throw new Error("Runtime artifact read-back failed");
-    const drive = await storeDriveJsonArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Intelligence"], fileName: `${stage}-${STAGES[stage].artifactType.toLowerCase()}-${runId.slice(-13)}.json`, content, artifactId, contentHash });
-    const artifactState = evaluation.passed ? "FROZEN" : "REPAIR_REQUIRED";
-    await db.prepare("INSERT INTO v7_intelligence_artifacts (id,program_id,run_id,stage_key,artifact_type,title,lifecycle_state,content_json,content_hash,runtime_key,drive_file_id,source_count,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .bind(artifactId, PROGRAM_ID, runId, stage, STAGES[stage].artifactType, STAGES[stage].name, artifactState, JSON.stringify(artifact), contentHash, runtimeKey, drive.id, sourcesOf(artifact).length, now, now).run();
-    for (const [index, source] of sourcesOf(artifact).entries()) await db.prepare("INSERT INTO v7_intelligence_sources (id,program_id,run_id,stage_key,source_type,title,publisher,url,published_at,authority_tier,freshness_state,verification_state) VALUES (?,?,?,?,?,?,?,?,?,?,?,'WEB_GROUNDED')")
-      .bind(`${runId}-SRC-${String(index + 1).padStart(2, "0")}`, PROGRAM_ID, runId, stage, source.sourceType, source.title, source.publisher, source.url, source.publishedAt || null, source.authorityTier, source.freshnessState).run();
-    if (stage === "03") for (const claim of array(artifact.claims) as Array<{ id: string; text: string; claimClass: string; riskLevel: string; sourceIds: string[]; counterEvidence: string; qualification: string }>) await db.prepare("INSERT INTO v7_claim_nodes (id,program_id,run_id,claim_text,claim_class,risk_level,status,source_ids_json,counter_evidence,qualification) VALUES (?,?,?,?,?,?,'CONTROLLED',?,?,?)")
-      .bind(`${runId}-${claim.id}`, PROGRAM_ID, runId, claim.text, claim.claimClass, claim.riskLevel, JSON.stringify(claim.sourceIds), claim.counterEvidence, claim.qualification).run();
-    await db.prepare("UPDATE v7_intelligence_runs SET status=?,score=?,gate_json=?,completed_at=? WHERE id=?").bind(evaluation.passed ? "PASS" : "REPAIR_REQUIRED", evaluation.score, JSON.stringify(evaluation.gates), new Date().toISOString(), runId).run();
-    await db.prepare("UPDATE v7_stage_states SET status=?,artifact_id=?,blocker=?,evidence_summary=?,frozen_at=?,updated_at=? WHERE id=?")
-      .bind(evaluation.passed ? "FROZEN" : "REPAIR_REQUIRED", artifactId, evaluation.passed ? null : "One or more intelligence hard gates failed", `${evaluation.score}/100 · ${sourcesOf(artifact).length} web-grounded sources · R2 and Google Drive verified`, evaluation.passed ? new Date().toISOString() : null, new Date().toISOString(), `${PROGRAM_ID}-STAGE-${stage}`).run();
-    await db.prepare("INSERT INTO v7_evidence_lineage (id,program_id,entity_type,title,lifecycle_state,upstream_evidence_id,artifact_key,content_hash,storage_state,rights_state,cost_state,quarantine_state,pipeline_version,updated_at) VALUES (?,?,?,?,?,?,?,?, 'R2_AND_DRIVE_VERIFIED','RESEARCH_USE','MEASURED','CLEAR',7,?)")
-      .bind(`${artifactId}-EVIDENCE`, PROGRAM_ID, STAGES[stage].artifactType, STAGES[stage].name, artifactState, stage === "01" ? `${PROGRAM_ID}-EVIDENCE-PROGRAM` : `${PROGRAM_ID}-INT-${stage === "02" ? "01" : "02"}`, runtimeKey, contentHash, now).run();
-    await db.prepare("INSERT INTO v7_cost_events (id,program_id,stage_key,provider,cost_class,cost_type,status,estimated_usd,actual_usd,note) VALUES (?,?,?,'OPENAI','VARIABLE','WEB_GROUNDED_INTELLIGENCE','RECORDED',0,0,?)")
-      .bind(`${runId}-COST`, PROGRAM_ID, stage, `Provider usage recorded for ${STAGES[stage].name}; exact billing reconciliation deferred to provider usage import`).run();
-    if (evaluation.passed) {
-      const next = stage === "01" ? "02" : stage === "02" ? "03" : "04";
-      await db.prepare("UPDATE v7_stage_states SET status='READY',blocker=null,evidence_summary=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='BLOCKED_UPSTREAM'").bind(`Stage ${stage} frozen; upstream evidence accepted`, `${PROGRAM_ID}-STAGE-${next}`).run();
-      if (stage === "03") await db.prepare("UPDATE v7_program_contracts SET status='WAVE_2_FROZEN',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(PROGRAM_ID).run();
-    }
-    return snapshot();
+    payload = await retrieveOpenAIResearch(env, job.provider_response_id);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Wave 2 intelligence failed";
-    await db.prepare("UPDATE v7_intelligence_runs SET status='FAILED',gate_json=?,completed_at=CURRENT_TIMESTAMP WHERE id=?").bind(JSON.stringify([{ id: "EXECUTION", label: "Execution integrity", status: "FAIL", evidence: message }]), runId).run();
-    await db.prepare("UPDATE v7_stage_states SET status='REPAIR_REQUIRED',blocker=?,evidence_summary='No frozen artifact produced',updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(message, `${PROGRAM_ID}-STAGE-${stage}`).run();
-    throw error;
+    const message = error instanceof Error ? error.message : "Provider status is temporarily unavailable";
+    await db.prepare("UPDATE v7_intelligence_jobs SET heartbeat_at=?,error=? WHERE id=?").bind(new Date().toISOString(), message, job.id).run();
+    throw new Error(`${message}. The background job remains active and can be resumed.`);
+  }
+  try {
+    const providerStatus = String(payload.status || "unknown"); const now = new Date().toISOString();
+    await db.prepare("UPDATE v7_intelligence_jobs SET provider_status=?,heartbeat_at=? WHERE id=?").bind(providerStatus, now, job.id).run();
+    await db.prepare("UPDATE v7_stage_states SET evidence_summary=?,updated_at=? WHERE id=?").bind(`Background research · ${providerStatus.replaceAll("_", " ")} · heartbeat ${now.slice(11, 19)} UTC`, now, `${PROGRAM_ID}-STAGE-${stage}`).run();
+    if (["queued", "in_progress"].includes(providerStatus)) return snapshot();
+    if (providerStatus !== "completed") {
+      const detail = payload.error && typeof payload.error === "object" ? JSON.stringify(payload.error) : `Provider ended with status ${providerStatus}`;
+      await failJob(db, stage, job.run_id, job.id, detail); return snapshot();
+    }
+    await finalizeStage(env, stage, job.run_id, job.id, payload); return snapshot();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Wave 2 artifact finalization failed";
+    await failJob(db, stage, job.run_id, job.id, message); throw error;
   }
 }
 
@@ -263,8 +328,10 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json() as { action?: string; stage?: string };
-    if (body.action !== "RUN_STAGE" || !body.stage || !(body.stage in STAGES)) return Response.json({ error: "Unsupported Wave 2 action" }, { status: 400 });
-    return Response.json(await runStage(body.stage as StageKey));
+    if (!body.stage || !(body.stage in STAGES)) return Response.json({ error: "Unsupported Wave 2 stage" }, { status: 400 });
+    if (body.action === "RUN_STAGE") return Response.json(await startStage(body.stage as StageKey), { status: 202 });
+    if (body.action === "POLL_STAGE") return Response.json(await pollStage(body.stage as StageKey));
+    return Response.json({ error: "Unsupported Wave 2 action" }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Wave 2 intelligence failed";
     return Response.json({ error: message }, { status: message.includes("not ready") || message.includes("must pass") ? 409 : 500 });

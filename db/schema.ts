@@ -653,6 +653,20 @@ export const v7IntelligenceRuns = sqliteTable("v7_intelligence_runs", {
   completedAt: text("completed_at"),
 });
 
+export const v7IntelligenceJobs = sqliteTable("v7_intelligence_jobs", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  providerResponseId: text("provider_response_id").notNull(),
+  providerStatus: text("provider_status").notNull().default("queued"),
+  status: text("status").notNull().default("ACTIVE"),
+  heartbeatAt: text("heartbeat_at").notNull(),
+  startedAt: text("started_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  finalizedAt: text("finalized_at"),
+  error: text("error"),
+});
+
 export const v7IntelligenceArtifacts = sqliteTable("v7_intelligence_artifacts", {
   id: text("id").primaryKey(),
   programId: text("program_id").notNull(),
