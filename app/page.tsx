@@ -200,6 +200,7 @@ export default function Home() {
 
         <nav aria-label="Primary navigation">
           <button className="navItem active"><span>⌁</span>Command center</button>
+          <a className="navItem" href="/control-plane"><span>◉</span>V7 control plane</a>
           <button className="navItem"><span>◫</span>Market radar</button>
           <button className="navItem"><span>◇</span>Topic backlog</button>
           <button className="navItem"><span>▦</span>Content calendar</button>

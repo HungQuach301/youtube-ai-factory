@@ -457,3 +457,143 @@ export const pipelineMigrations = sqliteTable("pipeline_migrations", {
   policyJson: text("policy_json").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Production Pipeline V7 — Wave 1 control plane. Legacy V5/V6 tables remain
+// readable for historical QA, but these records are the only authoritative
+// state for new V7 work.
+export const v7ProgramContracts = sqliteTable("v7_program_contracts", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id").notNull(),
+  version: integer("version").notNull().default(7),
+  status: text("status").notNull().default("FOUNDATION_BUILD"),
+  executionMode: text("execution_mode").notNull().default("AUTOPILOT"),
+  qualityPolicy: text("quality_policy").notNull().default("MAXIMUM_QUALITY_FIRST"),
+  legacyPolicy: text("legacy_policy").notNull().default("HISTORICAL_QUARANTINE"),
+  overallFloor: integer("overall_floor").notNull().default(92),
+  criticalFloor: integer("critical_floor").notNull().default(90),
+  dimensionFloor: integer("dimension_floor").notNull().default(86),
+  p0Tolerance: integer("p0_tolerance").notNull().default(0),
+  p1Tolerance: integer("p1_tolerance").notNull().default(0),
+  maximumAttempts: integer("maximum_attempts").notNull().default(3),
+  minimumImprovement: integer("minimum_improvement").notNull().default(3),
+  productionAuthorized: integer("production_authorized", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7StageStates = sqliteTable("v7_stage_states", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  sequence: integer("sequence").notNull(),
+  stageName: text("stage_name").notNull(),
+  status: text("status").notNull().default("BLOCKED"),
+  threshold: integer("threshold").notNull().default(92),
+  attempt: integer("attempt").notNull().default(0),
+  artifactId: text("artifact_id"),
+  blocker: text("blocker"),
+  evidenceSummary: text("evidence_summary").notNull().default("No verified artifact"),
+  frozenAt: text("frozen_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7EvidenceLineage = sqliteTable("v7_evidence_lineage", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  projectId: text("project_id"),
+  entityType: text("entity_type").notNull(),
+  title: text("title").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("PLAN"),
+  upstreamEvidenceId: text("upstream_evidence_id"),
+  artifactKey: text("artifact_key"),
+  contentHash: text("content_hash"),
+  storageState: text("storage_state").notNull().default("NOT_STORED"),
+  rightsState: text("rights_state").notNull().default("NOT_APPLICABLE"),
+  costState: text("cost_state").notNull().default("NOT_APPLICABLE"),
+  quarantineState: text("quarantine_state").notNull().default("CLEAR"),
+  pipelineVersion: integer("pipeline_version").notNull().default(7),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7AssetRegistry = sqliteTable("v7_asset_registry", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  projectId: text("project_id"),
+  name: text("name").notNull(),
+  assetClass: text("asset_class").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("PLAN"),
+  provider: text("provider"),
+  mimeType: text("mime_type"),
+  contentHash: text("content_hash"),
+  runtimeKey: text("runtime_key"),
+  driveFileId: text("drive_file_id"),
+  localRelativePath: text("local_relative_path"),
+  syncState: text("sync_state").notNull().default("NOT_STORED"),
+  rightsState: text("rights_state").notNull().default("UNKNOWN"),
+  reusableEligible: integer("reusable_eligible", { mode: "boolean" }).notNull().default(false),
+  quarantined: integer("quarantined", { mode: "boolean" }).notNull().default(false),
+  costUsd: real("cost_usd").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7CostEvents = sqliteTable("v7_cost_events", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  projectId: text("project_id"),
+  stageKey: text("stage_key").notNull(),
+  provider: text("provider").notNull(),
+  costClass: text("cost_class").notNull(),
+  costType: text("cost_type").notNull(),
+  status: text("status").notNull().default("ESTIMATED"),
+  estimatedUsd: real("estimated_usd").notNull().default(0),
+  actualUsd: real("actual_usd").notNull().default(0),
+  reusableAllocationUsd: real("reusable_allocation_usd").notNull().default(0),
+  currency: text("currency").notNull().default("USD"),
+  assetId: text("asset_id"),
+  note: text("note").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7StorageContracts = sqliteTable("v7_storage_contracts", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  tier: text("tier").notNull(),
+  bindingName: text("binding_name").notNull(),
+  role: text("role").notNull(),
+  requiredForProduction: integer("required_for_production", { mode: "boolean" }).notNull().default(true),
+  implementationState: text("implementation_state").notNull().default("CONTRACT_READY"),
+  verificationState: text("verification_state").notNull().default("NOT_VERIFIED"),
+  lastVerifiedAt: text("last_verified_at"),
+  evidence: text("evidence").notNull().default("Awaiting verification"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7DecisionRecords = sqliteTable("v7_decision_records", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  decisionCode: text("decision_code").notNull(),
+  title: text("title").notNull(),
+  status: text("status").notNull(),
+  effectiveVersion: integer("effective_version").notNull().default(7),
+  rationale: text("rationale").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7FoundationAudits = sqliteTable("v7_foundation_audits", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  status: text("status").notNull(),
+  architectureScore: integer("architecture_score").notNull().default(0),
+  evidenceScore: integer("evidence_score").notNull().default(0),
+  costScore: integer("cost_score").notNull().default(0),
+  storageScore: integer("storage_score").notNull().default(0),
+  productionAuthorized: integer("production_authorized", { mode: "boolean" }).notNull().default(false),
+  checksJson: text("checks_json").notNull(),
+  blockersJson: text("blockers_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
