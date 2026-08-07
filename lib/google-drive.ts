@@ -169,6 +169,17 @@ async function createJsonMarker(accessToken: string, parentId: string) {
   });
 }
 
+async function uploadJsonFile(accessToken: string, parentId: string, name: string, content: string) {
+  const boundary = `frameflow-artifact-${crypto.randomUUID()}`;
+  const metadata = JSON.stringify({ name, parents: [parentId], mimeType: "application/json" });
+  const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${content}\r\n--${boundary}--`;
+  return driveRequest<DriveFile>(accessToken, "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink", {
+    method: "POST",
+    headers: { "content-type": `multipart/related; boundary=${boundary}` },
+    body,
+  });
+}
+
 async function materializeArchive(accessToken: string, existingRoot?: DriveFile) {
   const root = existingRoot || await ensureFolder(accessToken, "Frameflow Factory");
   const folders = await ensureArchiveFolders(accessToken, root);
@@ -325,6 +336,31 @@ export async function verifyDriveConnection() {
     await db.prepare("UPDATE v7_storage_contracts SET verification_state='REPAIR_REQUIRED', evidence=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(message, `${PROGRAM_ID}-STORAGE-DRIVE`).run();
     throw error;
   }
+}
+
+export async function storeDriveJsonArtifact(options: {
+  folderPath: string[];
+  fileName: string;
+  content: string;
+  artifactId: string;
+  contentHash: string;
+}) {
+  const env = await driveRuntime();
+  const db = await ensureDriveSchema();
+  const row = await readDriveConnection();
+  if (!row || row.status !== "VERIFIED" || !row.root_folder_id) throw new Error("Google Drive archive is not verified");
+  const { accessToken } = await refreshAccessToken(row, env);
+  let parentId = row.root_folder_id;
+  for (const segment of options.folderPath) {
+    const folder = await ensureFolder(accessToken, segment, parentId);
+    parentId = folder.id;
+  }
+  const stored = await uploadJsonFile(accessToken, parentId, options.fileName, options.content);
+  const verified = await driveRequest<DriveFile>(accessToken, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(stored.id)}?fields=id,name,mimeType,trashed,webViewLink`);
+  if (verified.trashed || verified.name !== options.fileName) throw new Error("Google Drive artifact read-back failed");
+  await db.prepare("INSERT INTO v7_storage_sync_events (id, storage_tier, action, status, artifact_id, content_hash, evidence_json) VALUES (?, 'GOOGLE_DRIVE_ARCHIVE', 'STORE_INTELLIGENCE_ARTIFACT', 'VERIFIED', ?, ?, ?)")
+    .bind(`DRIVE-ARTIFACT-${Date.now()}`, options.artifactId, options.contentHash, JSON.stringify({ driveFileId: verified.id, folderPath: options.folderPath, fileName: options.fileName, verifiedAt: new Date().toISOString() })).run();
+  return verified;
 }
 
 export async function disconnectDrive() {

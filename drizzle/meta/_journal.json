@@ -99,6 +99,13 @@
       "when": 1786073716401,
       "tag": "0013_lying_spot",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1786093725126,
+      "tag": "0014_clean_gargoyle",
+      "breakpoints": true
     }
   ]
 }

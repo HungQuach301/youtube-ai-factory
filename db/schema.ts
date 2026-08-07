@@ -635,3 +635,67 @@ export const v7StorageSyncEvents = sqliteTable("v7_storage_sync_events", {
   evidenceJson: text("evidence_json").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Production Pipeline V7 — Wave 2 intelligence. These records are greenfield
+// and may only be created after the Wave 1 foundation gate authorizes work.
+export const v7IntelligenceRuns = sqliteTable("v7_intelligence_runs", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  attempt: integer("attempt").notNull().default(1),
+  status: text("status").notNull().default("RUNNING"),
+  score: integer("score").notNull().default(0),
+  threshold: integer("threshold").notNull().default(90),
+  modelId: text("model_id").notNull(),
+  sourceMode: text("source_mode").notNull().default("OPENAI_WEB_SEARCH"),
+  gateJson: text("gate_json").notNull().default("[]"),
+  startedAt: text("started_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  completedAt: text("completed_at"),
+});
+
+export const v7IntelligenceArtifacts = sqliteTable("v7_intelligence_artifacts", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  artifactType: text("artifact_type").notNull(),
+  title: text("title").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("MATERIALIZED"),
+  contentJson: text("content_json").notNull(),
+  contentHash: text("content_hash").notNull(),
+  runtimeKey: text("runtime_key"),
+  driveFileId: text("drive_file_id"),
+  sourceCount: integer("source_count").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7IntelligenceSources = sqliteTable("v7_intelligence_sources", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  sourceType: text("source_type").notNull(),
+  title: text("title").notNull(),
+  publisher: text("publisher").notNull(),
+  url: text("url").notNull(),
+  publishedAt: text("published_at"),
+  authorityTier: text("authority_tier").notNull(),
+  freshnessState: text("freshness_state").notNull(),
+  verificationState: text("verification_state").notNull().default("WEB_GROUNDED"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7ClaimNodes = sqliteTable("v7_claim_nodes", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  claimText: text("claim_text").notNull(),
+  claimClass: text("claim_class").notNull(),
+  riskLevel: text("risk_level").notNull(),
+  status: text("status").notNull().default("CONTROLLED"),
+  sourceIdsJson: text("source_ids_json").notNull(),
+  counterEvidence: text("counter_evidence").notNull().default(""),
+  qualification: text("qualification").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

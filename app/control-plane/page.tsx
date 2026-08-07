@@ -142,6 +142,7 @@ export default function ControlPlanePage() {
           </div>
           <div className="v7TopActions">
             <span className={`v7Badge ${productionBlocked ? "blocked" : "pass"}`}>{productionBlocked ? "PRODUCTION LOCKED" : "PRODUCTION AUTHORIZED"}</span>
+            {!productionBlocked && <Link className="v7OutlineButton" href="/intelligence">Open Wave 2 Intelligence →</Link>}
             <Link className="v7OutlineButton" href="/settings">Factory settings</Link>
           </div>
         </header>
