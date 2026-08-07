@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 type Connection = {
   id: string; name: string; group: "AI_GENERATION" | "VOICE_SOUND" | "MEDIA_SOURCING" | "STORAGE_LIBRARY" | "DISTRIBUTION_ANALYTICS";
@@ -54,20 +55,20 @@ export default function FactorySettings() {
 
   return <main className="appShell factorySettingsShell">
     <aside className="sidebar">
-      <a className="brand" href="/"><LogoMark /><div><strong>Frameflow</strong><span>YouTube operations</span></div></a>
+      <Link className="brand" href="/"><LogoMark /><div><strong>Frameflow</strong><span>YouTube operations</span></div></Link>
       <nav aria-label="Primary navigation">
-        <a className="navItem" href="/"><span>⌁</span>Command center</a>
+        <Link className="navItem" href="/"><span>⌁</span>Command center</Link>
         <span className="navItem muted"><span>◫</span>Market radar</span>
         <span className="navItem muted"><span>◇</span>Topic backlog</span>
         <span className="navItem muted"><span>▦</span>Content calendar</span>
-        <a className="navItem" href="/"><span>▶</span>Video projects</a>
+        <Link className="navItem" href="/"><span>▶</span>Video projects</Link>
         <span className="navItem muted"><span>⌁</span>Analytics</span>
       </nav>
-      <div className="sidebarBottom"><div className="channelBadge"><span className="channelAvatar">HS</span><div><strong>Hidden Systems</strong><span>Behind Money · US</span></div></div><a className="navItem active" href="/settings"><span>⚙</span>Factory settings</a></div>
+      <div className="sidebarBottom"><div className="channelBadge"><span className="channelAvatar">HS</span><div><strong>Hidden Systems</strong><span>Behind Money · US</span></div></div><Link className="navItem active" href="/settings"><span>⚙</span>Factory settings</Link></div>
     </aside>
 
     <section className="workspace factorySettingsWorkspace">
-      <header className="factorySettingsHeader"><div><p className="eyebrow">FACTORY CONTROL PLANE</p><h1>Factory Connections</h1><p>Configure every external provider once. All video projects inherit connection status without receiving or storing provider secrets.</p></div><a href="/">← Command center</a></header>
+      <header className="factorySettingsHeader"><div><p className="eyebrow">FACTORY CONTROL PLANE</p><h1>Factory Connections</h1><p>Configure every external provider once. All video projects inherit connection status without receiving or storing provider secrets.</p></div><Link href="/">← Command center</Link></header>
       {error && <section className="factoryConnectionError"><strong>Connections could not load</strong><p>{error}</p><button onClick={() => load().catch((caught: Error) => setError(caught.message))}>Try again</button></section>}
       {!data && !error && <section className="voiceLoading"><span>◌</span><p>Reading protected factory connections…</p></section>}
       {data && <>
@@ -85,7 +86,7 @@ export default function FactorySettings() {
             <p>{connection.capability}</p>
             <div className="factoryConnectionKeys"><small>PROTECTED CONFIGURATION</small>{connection.requiredKeys.length ? connection.requiredKeys.map((key) => <code key={key}>{key}</code>) : <code>NO SECRET REQUIRED</code>}</div>
             <div className="factoryConnectionSecurity"><small>{connection.securityModel}</small><span>{test ? `${test.message}${test.latencyMs ? ` · ${test.latencyMs}ms` : ""}` : connection.nextAction}</span></div>
-            <button disabled={testing === connection.id} onClick={() => testConnection(connection.id)}>{testing === connection.id ? "Testing…" : "Test connection"}</button>
+            {connection.id === "google_drive" ? <Link className="factoryManageLink" href="/settings/storage">Open Drive setup</Link> : <button disabled={testing === connection.id} onClick={() => testConnection(connection.id)}>{testing === connection.id ? "Testing…" : "Test connection"}</button>}
           </article>; })}</div>
         </section>)}</div>
         <section className="factoryConnectionNext"><div><span>NEXT CONFIGURATION ORDER</span><strong>Free media first, then distribution</strong></div><ol><li><b>1</b>Pexels + Pixabay</li><li><b>2</b>Shutterstock</li><li><b>3</b>Google Drive OAuth</li><li><b>4</b>YouTube publishing + analytics</li></ol></section>

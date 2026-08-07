@@ -66,8 +66,8 @@ const lockedDecisions = [
   ["ADR-012", "Diagnostic and clean compositors are separated"],
   ["ADR-013", "Full-master QA uses eight independent critics"],
   ["ADR-014", "Repair returns to root stage and is bounded"],
-  ["ADR-015", "Runtime, Drive archive and local mirror have distinct roles"],
-  ["ADR-016", "Local folder integration requires a Sync Agent"],
+  ["ADR-015", "Google Drive is the canonical user-owned production archive"],
+  ["ADR-016", "Local Sync is an optional external-editor mirror"],
   ["ADR-017", "Original assets are immutable and SHA-256 deduplicated"],
   ["ADR-018", "Every asset links rights, cost, provenance and storage"],
   ["ADR-019", "Reuse never bypasses a new candidate tournament"],
@@ -144,6 +144,27 @@ async function seedControlPlane() {
     { id: `${PROGRAM_ID}-STORAGE-LOCAL`, programId: PROGRAM_ID, tier: "LOCAL_SYNC_FOLDER", bindingName: "LOCAL_SYNC_AGENT", role: "Editing, offline work and external-tool handoff", verificationState: "AGENT_REQUIRED" },
     { id: `${PROGRAM_ID}-STORAGE-REGISTRY`, programId: PROGRAM_ID, tier: "ASSET_REGISTRY", bindingName: "DB", role: "Identity, cost, rights, lineage and state", verificationState: "PENDING_RUNTIME_TEST" },
   ]).onConflictDoNothing();
+  await db.update(v7StorageContracts).set({
+    requiredForProduction: true,
+    role: "Primary user-owned canonical archive and recovery",
+    implementationState: "OAUTH_READY",
+    updatedAt: new Date().toISOString(),
+  }).where(eq(v7StorageContracts.id, `${PROGRAM_ID}-STORAGE-DRIVE`));
+  await db.update(v7StorageContracts).set({
+    requiredForProduction: false,
+    role: "Optional editing mirror and external-tool handoff",
+    implementationState: "DEFERRED_OPTIONAL",
+    evidence: "Local Sync does not block V7 production authorization",
+    updatedAt: new Date().toISOString(),
+  }).where(eq(v7StorageContracts.id, `${PROGRAM_ID}-STORAGE-LOCAL`));
+  await db.update(v7DecisionRecords).set({
+    title: "Google Drive is the canonical user-owned production archive",
+    rationale: "Wave 1.1 storage priority approved; R2 is runtime and Local Sync is optional",
+  }).where(eq(v7DecisionRecords.id, `${PROGRAM_ID}-ADR-015`));
+  await db.update(v7DecisionRecords).set({
+    title: "Local Sync is an optional external-editor mirror",
+    rationale: "Wave 1.1 removes Local Sync from the production authorization firewall",
+  }).where(eq(v7DecisionRecords.id, `${PROGRAM_ID}-ADR-016`));
 
   await db.insert(v7CostEvents).values({
     id: `${PROGRAM_ID}-COST-BOOTSTRAP`, programId: PROGRAM_ID, stageKey: "00", provider: "INTERNAL",
@@ -252,11 +273,11 @@ export async function POST(request: Request) {
       { id: "D1", label: "Asset Registry database", status: "PASS", evidence: "D1 read/write path verified" },
       { id: "R2", label: "Runtime object storage", status: r2Verified ? "PASS" : "FAIL", evidence: r2Verified ? "Marker write and head verification passed" : "Runtime marker verification failed" },
       { id: "DRIVE", label: "Google Drive archive", status: storage.some((item) => item.tier === "GOOGLE_DRIVE_ARCHIVE" && item.verificationState === "VERIFIED") ? "PASS" : "BLOCKED", evidence: "Connection and root folder must be verified before accepting production assets" },
-      { id: "LOCAL", label: "Local Sync Agent", status: storage.some((item) => item.tier === "LOCAL_SYNC_FOLDER" && item.verificationState === "VERIFIED") ? "PASS" : "BLOCKED", evidence: "Desktop agent pairing is required for durable local-folder synchronization" },
+      { id: "LOCAL", label: "Local Sync Agent", status: storage.some((item) => item.tier === "LOCAL_SYNC_FOLDER" && item.verificationState === "VERIFIED") ? "PASS" : "OPTIONAL", evidence: "Optional external-editor mirror; Google Drive remains the durable source of truth" },
     ];
     const architectureScore = Math.round((checks.filter((item) => ["SCHEMA", "ADR", "QUARANTINE"].includes(item.id) && item.status === "PASS").length / 3) * 100);
-    const storageScore = Math.round((checks.filter((item) => ["D1", "R2", "DRIVE", "LOCAL"].includes(item.id) && item.status === "PASS").length / 4) * 100);
-    const productionAuthorized = blockers.length === 0 && checks.every((item) => item.status === "PASS");
+    const storageScore = Math.round((checks.filter((item) => ["D1", "R2", "DRIVE"].includes(item.id) && item.status === "PASS").length / 3) * 100);
+    const productionAuthorized = blockers.length === 0 && checks.filter((item) => item.id !== "LOCAL").every((item) => item.status === "PASS");
     const auditId = `${PROGRAM_ID}-AUDIT-${Date.now()}`;
     await db.insert(v7FoundationAudits).values({
       id: auditId,

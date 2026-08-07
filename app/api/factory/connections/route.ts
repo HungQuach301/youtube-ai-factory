@@ -1,9 +1,11 @@
+import { readDriveConnection, verifyDriveConnection } from "../../../../lib/google-drive";
+
 type RuntimeEnv = {
   DB?: unknown; BUCKET?: unknown;
   ELEVENLABS_API_KEY?: string; OPENAI_API_KEY?: string; YOUTUBE_API_KEY?: string;
   PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string;
   SHUTTERSTOCK_CONSUMER_KEY?: string; SHUTTERSTOCK_CONSUMER_SECRET?: string;
-  GOOGLE_DRIVE_CLIENT_ID?: string;
+  GOOGLE_DRIVE_CLIENT_ID?: string; GOOGLE_DRIVE_CLIENT_SECRET?: string; GOOGLE_DRIVE_TOKEN_KEY?: string;
 };
 
 type ConnectionStatus = "CONNECTED" | "KEY_REQUIRED" | "CONFIG_REQUIRED" | "OAUTH_SETUP" | "BLOCKED";
@@ -22,6 +24,8 @@ function configured(value: string | undefined) { return Boolean(value && value.t
 
 async function connectionCatalog() {
   const env = await runtimeEnv();
+  const driveConnection = await readDriveConnection().catch(() => null);
+  const driveConfigured = configured(env.GOOGLE_DRIVE_CLIENT_ID) && configured(env.GOOGLE_DRIVE_CLIENT_SECRET) && configured(env.GOOGLE_DRIVE_TOKEN_KEY);
   const connections: FactoryConnection[] = [
     { id: "openai", name: "OpenAI", group: "AI_GENERATION", status: configured(env.OPENAI_API_KEY) ? "CONNECTED" : "KEY_REQUIRED", capability: "Research synthesis, script development, critics and image generation adapters.", requiredKeys: ["OPENAI_API_KEY"], securityModel: "Protected server secret · capability-based routing", nextAction: configured(env.OPENAI_API_KEY) ? "Ready for server-side adapters" : "Add OPENAI_API_KEY" },
     { id: "elevenlabs", name: "ElevenLabs", group: "VOICE_SOUND", status: configured(env.ELEVENLABS_API_KEY) ? "CONNECTED" : "KEY_REQUIRED", capability: "Locked narrator identity, segment generation, timing and pronunciation QA.", requiredKeys: ["ELEVENLABS_API_KEY"], securityModel: "Protected server secret · one immutable voice signature per master", nextAction: configured(env.ELEVENLABS_API_KEY) ? "Connected · Authorization voice locked" : "Add ELEVENLABS_API_KEY" },
@@ -31,7 +35,7 @@ async function connectionCatalog() {
     { id: "shutterstock", name: "Shutterstock", group: "MEDIA_SOURCING", status: configured(env.SHUTTERSTOCK_CONSUMER_KEY) && configured(env.SHUTTERSTOCK_CONSUMER_SECRET) ? "CONNECTED" : "KEY_REQUIRED", capability: "Paid image and footage search with a separate purchase and rights-evidence gate.", requiredKeys: ["SHUTTERSTOCK_CONSUMER_KEY", "SHUTTERSTOCK_CONSUMER_SECRET"], securityModel: "Protected server secrets · license proof required before use", nextAction: configured(env.SHUTTERSTOCK_CONSUMER_KEY) && configured(env.SHUTTERSTOCK_CONSUMER_SECRET) ? "Search ready · license handoff retained" : "Add consumer key + secret" },
     { id: "database", name: "Factory Database", group: "STORAGE_LIBRARY", status: env.DB ? "CONNECTED" : "BLOCKED", capability: "Projects, workflow state, evidence, gates, rights ledger and audit history.", requiredKeys: [], securityModel: "Factory-owned durable database", nextAction: env.DB ? "Connected · shared by every project" : "Database binding required" },
     { id: "owned_vault", name: "Owned Media Vault", group: "STORAGE_LIBRARY", status: env.BUCKET ? "CONNECTED" : "BLOCKED", capability: "Private personal images, footage, narration stems and rendered masters.", requiredKeys: [], securityModel: "Private object storage · per-asset provenance", nextAction: env.BUCKET ? "Connected · shared factory library" : "Storage binding required" },
-    { id: "google_drive", name: "Google Drive", group: "STORAGE_LIBRARY", status: configured(env.GOOGLE_DRIVE_CLIENT_ID) ? "OAUTH_SETUP" : "CONFIG_REQUIRED", capability: "Import user-selected personal files without exposing the whole Drive.", requiredKeys: ["GOOGLE_DRIVE_CLIENT_ID"], securityModel: "OAuth + Picker · file-scoped access only", nextAction: configured(env.GOOGLE_DRIVE_CLIENT_ID) ? "Complete OAuth callback and Picker" : "Add Drive OAuth client ID" },
+    { id: "google_drive", name: "Google Drive", group: "STORAGE_LIBRARY", status: driveConfigured ? driveConnection?.status === "VERIFIED" ? "CONNECTED" : "OAUTH_SETUP" : "CONFIG_REQUIRED", capability: "Primary user-owned canonical archive for verified assets, rights evidence, masters and recovery.", requiredKeys: ["GOOGLE_DRIVE_CLIENT_ID", "GOOGLE_DRIVE_CLIENT_SECRET", "GOOGLE_DRIVE_TOKEN_KEY"], securityModel: "OAuth drive.file · AES-GCM token vault · round-trip evidence", nextAction: !driveConfigured ? "Add the three protected Drive values" : driveConnection?.status === "VERIFIED" ? "Canonical archive verified" : "Authorize Google Drive in Storage settings" },
     { id: "youtube", name: "YouTube Data & Analytics", group: "DISTRIBUTION_ANALYTICS", status: configured(env.YOUTUBE_API_KEY) ? "OAUTH_SETUP" : "CONFIG_REQUIRED", capability: "Reference discovery, publishing, performance ingestion and learning loops.", requiredKeys: ["YOUTUBE_API_KEY"], securityModel: "API key for public discovery · channel OAuth required for publishing/analytics", nextAction: configured(env.YOUTUBE_API_KEY) ? "Public discovery ready · channel OAuth remains" : "Add YouTube API key, then channel OAuth" },
   ];
   return { env, connections };
@@ -76,6 +80,7 @@ async function testConnection(provider: string) {
     else if (provider === "pexels") await fetchChecked("https://api.pexels.com/v1/curated?per_page=1", { Authorization: env.PEXELS_API_KEY || "" });
     else if (provider === "pixabay") await fetchChecked(`https://pixabay.com/api/?key=${encodeURIComponent(env.PIXABAY_API_KEY || "")}&q=money&per_page=3&safesearch=true`);
     else if (provider === "shutterstock") await fetchChecked("https://api.shutterstock.com/v2/images/search?query=money&page=1&per_page=5&view=minimal", shutterstockHeaders(env));
+    else if (provider === "google_drive") await verifyDriveConnection();
     else if (provider === "youtube") await fetchChecked(`https://www.googleapis.com/youtube/v3/videos?part=id&id=dQw4w9WgXcQ&key=${encodeURIComponent(env.YOUTUBE_API_KEY || "")}`);
     return { provider, status: "CONNECTED", latencyMs: Date.now() - startedAt, message: provider === "database" || provider === "owned_vault" ? "Factory binding is available" : provider === "elevenlabs" ? "ElevenLabs API key authenticated · Text-to-Speech remains protected server-side" : "Server-side connection test passed" };
   } catch (error) {

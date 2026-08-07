@@ -597,3 +597,41 @@ export const v7FoundationAudits = sqliteTable("v7_foundation_audits", {
   blockersJson: text("blockers_json").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Wave 1.1 — Google Drive is the user-owned canonical archive. OAuth tokens
+// are encrypted before persistence; these tables contain no plaintext secret.
+export const v7GoogleDriveConnections = sqliteTable("v7_google_drive_connections", {
+  id: text("id").primaryKey(),
+  status: text("status").notNull().default("NOT_CONNECTED"),
+  refreshTokenCiphertext: text("refresh_token_ciphertext"),
+  refreshTokenIv: text("refresh_token_iv"),
+  scope: text("scope").notNull().default("https://www.googleapis.com/auth/drive.file"),
+  rootFolderId: text("root_folder_id"),
+  rootFolderName: text("root_folder_name").notNull().default("Frameflow Factory"),
+  auditFolderId: text("audit_folder_id"),
+  markerFileId: text("marker_file_id"),
+  lastVerifiedAt: text("last_verified_at"),
+  lastError: text("last_error"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7GoogleDriveOauthStates = sqliteTable("v7_google_drive_oauth_states", {
+  id: text("id").primaryKey(),
+  redirectUri: text("redirect_uri").notNull(),
+  returnTo: text("return_to").notNull().default("/settings/storage"),
+  expiresAt: text("expires_at").notNull(),
+  consumedAt: text("consumed_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7StorageSyncEvents = sqliteTable("v7_storage_sync_events", {
+  id: text("id").primaryKey(),
+  storageTier: text("storage_tier").notNull(),
+  action: text("action").notNull(),
+  status: text("status").notNull(),
+  artifactId: text("artifact_id"),
+  contentHash: text("content_hash"),
+  evidenceJson: text("evidence_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

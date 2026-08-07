@@ -177,7 +177,7 @@ export default function ControlPlanePage() {
             </div>
           </article>
           <article className="auditAction">
-            <div><small>FOUNDATION AUDIT</small><h3>{audit ? human(audit.status) : "Not executed"}</h3><p>{audit ? `${audit.checks.filter((check) => check.status === "PASS").length}/${audit.checks.length} checks passed` : "Test actual D1 and R2 paths, locked ADRs and production blockers."}</p></div>
+            <div><small>FOUNDATION AUDIT</small><h3>{audit ? human(audit.status) : "Not executed"}</h3><p>{audit ? `${audit.checks.filter((check) => check.status === "PASS" || check.status === "OPTIONAL").length}/${audit.checks.length} policy checks satisfied` : "Test actual D1, R2 and Google Drive paths, locked ADRs and production blockers."}</p></div>
             <button disabled={working !== null} onClick={() => void act("RUN_FOUNDATION_AUDIT")}>{working === "RUN_FOUNDATION_AUDIT" ? "Verifying actual services…" : audit ? "Audit again" : "Run Wave 1 audit"}</button>
           </article>
         </section>
@@ -223,9 +223,9 @@ export default function ControlPlanePage() {
         </div>
 
         <section id="storage" className="v7Panel">
-          <header className="v7SectionTitle"><div><p>THREE-TIER STORAGE + REGISTRY</p><h2>Storage contracts</h2></div><span>Runtime ≠ archive ≠ local mirror</span></header>
+          <header className="v7SectionTitle"><div><p>GOOGLE DRIVE–FIRST STORAGE + REGISTRY</p><h2>Storage contracts</h2></div><Link href="/settings/storage">Manage storage →</Link></header>
           <div className="v7StorageGrid">
-            {data.storage.map((item) => <article key={item.id} className={statusTone(item.verificationState)}><header><span>{item.tier.split("_").map((word) => word[0]).join("").slice(0, 3)}</span><b>{human(item.verificationState)}</b></header><h3>{human(item.tier)}</h3><p>{item.role}</p><footer><code>{item.bindingName}</code><span>{item.evidence}</span></footer></article>)}
+            {data.storage.map((item) => <article key={item.id} className={statusTone(item.verificationState)}><header><span>{item.tier.split("_").map((word) => word[0]).join("").slice(0, 3)}</span><b>{item.requiredForProduction ? human(item.verificationState) : "Optional"}</b></header><h3>{human(item.tier)}</h3><p>{item.role}</p><footer><code>{item.requiredForProduction ? "REQUIRED" : "OPTIONAL"}</code><span>{item.evidence}</span></footer></article>)}
           </div>
         </section>
 
@@ -234,7 +234,7 @@ export default function ControlPlanePage() {
           <div className="v7AuditScores">
             {[['Architecture', audit.architectureScore], ['Evidence', audit.evidenceScore], ['Cost ledger', audit.costScore], ['Storage', audit.storageScore]].map(([label, score]) => <article key={String(label)}><small>{label}</small><strong>{score}<span>/100</span></strong><i><b style={{ width: `${score}%` }} /></i></article>)}
           </div>
-          <div className="v7CheckList">{audit.checks.map((check) => <article key={check.id}><span className={statusTone(check.status)}>{check.status === "PASS" ? "✓" : "!"}</span><div><strong>{check.label}</strong><p>{check.evidence}</p></div><b>{check.status}</b></article>)}</div>
+          <div className="v7CheckList">{audit.checks.map((check) => <article key={check.id}><span className={statusTone(check.status)}>{check.status === "PASS" ? "✓" : check.status === "OPTIONAL" ? "○" : "!"}</span><div><strong>{check.label}</strong><p>{check.evidence}</p></div><b>{check.status}</b></article>)}</div>
           {audit.blockers.length > 0 && <div className="v7BlockerList"><h3>Production authorization withheld</h3>{audit.blockers.map((blocker) => <article key={blocker.code}><span>{blocker.severity}</span><div><strong>{blocker.message}</strong><p>{blocker.nextAction}</p></div></article>)}</div>}
         </section>}
 
