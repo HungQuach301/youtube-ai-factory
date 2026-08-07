@@ -558,6 +558,36 @@ export const v7CostEvents = sqliteTable("v7_cost_events", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const v7AiUsageEvents = sqliteTable("v7_ai_usage_events", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  provider: text("provider").notNull().default("OPENAI"),
+  modelId: text("model_id").notNull(),
+  providerResponseId: text("provider_response_id").notNull().unique(),
+  providerStatus: text("provider_status").notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  reasoningTokens: integer("reasoning_tokens").notNull().default(0),
+  totalTokens: integer("total_tokens").notNull().default(0),
+  webSearchCalls: integer("web_search_calls").notNull().default(0),
+  inputRatePerMillion: real("input_rate_per_million").notNull().default(0),
+  cachedInputRatePerMillion: real("cached_input_rate_per_million").notNull().default(0),
+  outputRatePerMillion: real("output_rate_per_million").notNull().default(0),
+  webSearchRatePerThousand: real("web_search_rate_per_thousand").notNull().default(0),
+  tokenCostUsd: real("token_cost_usd").notNull().default(0),
+  toolCostUsd: real("tool_cost_usd").notNull().default(0),
+  actualUsd: real("actual_usd").notNull().default(0),
+  pricingStatus: text("pricing_status").notNull().default("MEASURED"),
+  pricingSource: text("pricing_source").notNull(),
+  usageJson: text("usage_json").notNull(),
+  measuredAt: text("measured_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const v7StorageContracts = sqliteTable("v7_storage_contracts", {
   id: text("id").primaryKey(),
   programId: text("program_id").notNull(),

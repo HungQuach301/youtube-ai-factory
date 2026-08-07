@@ -1,0 +1,31 @@
+CREATE TABLE `v7_ai_usage_events` (
+	`id` text PRIMARY KEY NOT NULL,
+	`program_id` text NOT NULL,
+	`run_id` text NOT NULL,
+	`stage_key` text NOT NULL,
+	`provider` text DEFAULT 'OPENAI' NOT NULL,
+	`model_id` text NOT NULL,
+	`provider_response_id` text NOT NULL,
+	`provider_status` text NOT NULL,
+	`input_tokens` integer DEFAULT 0 NOT NULL,
+	`cached_input_tokens` integer DEFAULT 0 NOT NULL,
+	`output_tokens` integer DEFAULT 0 NOT NULL,
+	`reasoning_tokens` integer DEFAULT 0 NOT NULL,
+	`total_tokens` integer DEFAULT 0 NOT NULL,
+	`web_search_calls` integer DEFAULT 0 NOT NULL,
+	`input_rate_per_million` real DEFAULT 0 NOT NULL,
+	`cached_input_rate_per_million` real DEFAULT 0 NOT NULL,
+	`output_rate_per_million` real DEFAULT 0 NOT NULL,
+	`web_search_rate_per_thousand` real DEFAULT 0 NOT NULL,
+	`token_cost_usd` real DEFAULT 0 NOT NULL,
+	`tool_cost_usd` real DEFAULT 0 NOT NULL,
+	`actual_usd` real DEFAULT 0 NOT NULL,
+	`pricing_status` text DEFAULT 'MEASURED' NOT NULL,
+	`pricing_source` text NOT NULL,
+	`usage_json` text NOT NULL,
+	`measured_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `v7_ai_usage_events_provider_response_id_unique` ON `v7_ai_usage_events` (`provider_response_id`);

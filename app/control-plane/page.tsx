@@ -25,7 +25,9 @@ type Dashboard = {
   lifecycle: Array<{ state: string; count: number }>;
   assets: Array<{ id: string; name: string; assetClass: string; lifecycleState: string; syncState: string; rightsState: string; reusableEligible: boolean; quarantined: boolean; costUsd: number }>;
   costs: Array<{ id: string; stageKey: string; provider: string; costClass: string; costType: string; status: string; estimatedUsd: number; actualUsd: number; note: string }>;
-  costSummary: { actualCost: number; estimatedCost: number; reusableValue: number };
+  aiUsage: Array<{ id: string; runId: string; stageKey: string; provider: string; modelId: string; providerResponseId: string; providerStatus: string; inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningTokens: number; totalTokens: number; webSearchCalls: number; tokenCostUsd: number; toolCostUsd: number; actualUsd: number; pricingStatus: string; measuredAt: string }>;
+  costSummary: { actualCost: number; estimatedCost: number; reusableValue: number; aiActualCost: number; tokenCost: number; toolCost: number; inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningTokens: number; webSearchCalls: number; measuredResponses: number; rateExceptions: number };
+  reconciliation?: { discovered: number; reconciled: number; failed: number; failures: string[] };
   storage: Array<{ id: string; tier: string; bindingName: string; role: string; implementationState: string; verificationState: string; evidence: string; requiredForProduction: boolean }>;
   decisions: Array<{ id: string; decisionCode: string; title: string; status: string }>;
   latestAudit: null | {
@@ -58,6 +60,14 @@ function statusTone(status: string) {
   if (["PASS", "VERIFIED", "FROZEN", "READY", "LOCKED"].includes(status)) return "pass";
   if (["FAIL", "BLOCKED", "CONFIG_REQUIRED", "AGENT_REQUIRED"].includes(status)) return "blocked";
   return "pending";
+}
+
+function compactNumber(value: number) {
+  return new Intl.NumberFormat("en-US", { notation: value >= 1000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
+}
+
+function dollars(value: number) {
+  return value < 1 ? value.toFixed(4) : value.toFixed(2);
 }
 
 export default function ControlPlanePage() {
@@ -213,13 +223,21 @@ export default function ControlPlanePage() {
           </section>
 
           <section id="costs" className="v7Panel">
-            <header className="v7SectionTitle"><div><p>COST & UNIT ECONOMICS</p><h2>Cost Control Center</h2></div><span>Observed, never quality-limiting</span></header>
+            <header className="v7SectionTitle"><div><p>COST & UNIT ECONOMICS</p><h2>Cost Control Center</h2></div><button className="v7ReconcileButton" disabled={working !== null} onClick={() => void act("RECONCILE_AI_USAGE")}>{working === "RECONCILE_AI_USAGE" ? "Reading provider usage…" : "Reconcile AI usage"}</button></header>
             <div className="v7CostMetrics">
               <article><small>ACTUAL</small><strong>${data.costSummary.actualCost.toFixed(2)}</strong></article>
-              <article><small>ESTIMATED</small><strong>${data.costSummary.estimatedCost.toFixed(2)}</strong></article>
-              <article><small>REUSABLE VALUE</small><strong>${data.costSummary.reusableValue.toFixed(2)}</strong></article>
+              <article><small>PENDING ESTIMATE</small><strong>${data.costSummary.estimatedCost.toFixed(2)}</strong></article>
+              <article><small>MEASURED RESPONSES</small><strong>{data.costSummary.measuredResponses}</strong></article>
             </div>
-            {data.costs.map((cost) => <div className="v7CostRow" key={cost.id}><div><small>STAGE {cost.stageKey} · {cost.provider}</small><strong>{human(cost.costType)}</strong><p>{cost.note}</p></div><div><b>${cost.actualUsd.toFixed(2)}</b><span>{human(cost.status)}</span></div></div>)}
+            <div className="v7UsageMetrics">
+              <article><small>INPUT TOKENS</small><strong>{compactNumber(data.costSummary.inputTokens)}</strong><span>{compactNumber(data.costSummary.cachedInputTokens)} cached</span></article>
+              <article><small>OUTPUT TOKENS</small><strong>{compactNumber(data.costSummary.outputTokens)}</strong><span>{compactNumber(data.costSummary.reasoningTokens)} reasoning</span></article>
+              <article><small>WEB SEARCH</small><strong>{data.costSummary.webSearchCalls}</strong><span>${data.costSummary.toolCost.toFixed(3)} tool cost</span></article>
+              <article><small>MODEL TOKENS</small><strong>${data.costSummary.tokenCost.toFixed(3)}</strong><span>{data.costSummary.rateExceptions === 0 ? "all rates verified" : `${data.costSummary.rateExceptions} rate exceptions`}</span></article>
+            </div>
+            {data.reconciliation && <div className={`v7ReconcileResult ${data.reconciliation.failed ? "warning" : "pass"}`}><strong>{data.reconciliation.reconciled}/{data.reconciliation.discovered} responses reconciled</strong><span>{data.reconciliation.failed ? `${data.reconciliation.failed} response(s) could not be read; retry remains safe.` : "Historical Wave 2 and Stage 04 usage is now reflected below."}</span></div>}
+            <div className="v7PricingNote">USD is calculated from provider-reported tokens and tool calls. Reasoning tokens are shown separately but already included in output tokens, so they are never billed twice.</div>
+            {data.costs.map((cost) => <div className="v7CostRow" key={cost.id}><div><small>STAGE {cost.stageKey} · {cost.provider}</small><strong>{human(cost.costType)}</strong><p>{cost.note}</p></div><div><b>${dollars(cost.actualUsd)}</b><span>{human(cost.status)}</span></div></div>)}
           </section>
         </div>
 

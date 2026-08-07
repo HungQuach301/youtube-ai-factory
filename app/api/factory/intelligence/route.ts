@@ -1,4 +1,5 @@
 import { storeDriveJsonArtifact } from "../../../../lib/google-drive";
+import { AI_USAGE_TABLE_SQL, recordOpenAIUsage } from "../../../../lib/ai-usage";
 
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
 const MODEL = "gpt-5.6";
@@ -28,6 +29,7 @@ type Source = { id: string; sourceType: string; title: string; publisher: string
 type Gate = { id: string; label: string; status: "PASS" | "FAIL"; evidence: string };
 
 const schema = [
+  AI_USAGE_TABLE_SQL,
   `CREATE TABLE IF NOT EXISTS v7_intelligence_runs (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, stage_key text NOT NULL, attempt integer DEFAULT 1 NOT NULL, status text DEFAULT 'RUNNING' NOT NULL, score integer DEFAULT 0 NOT NULL, threshold integer DEFAULT 90 NOT NULL, model_id text NOT NULL, source_mode text DEFAULT 'OPENAI_WEB_SEARCH' NOT NULL, gate_json text DEFAULT '[]' NOT NULL, started_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_intelligence_jobs (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, run_id text NOT NULL, stage_key text NOT NULL, provider_response_id text NOT NULL, provider_status text DEFAULT 'queued' NOT NULL, status text DEFAULT 'ACTIVE' NOT NULL, heartbeat_at text NOT NULL, started_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, finalized_at text, error text)`,
   `CREATE TABLE IF NOT EXISTS v7_intelligence_artifacts (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, run_id text NOT NULL, stage_key text NOT NULL, artifact_type text NOT NULL, title text NOT NULL, lifecycle_state text DEFAULT 'MATERIALIZED' NOT NULL, content_json text NOT NULL, content_hash text NOT NULL, runtime_key text, drive_file_id text, source_count integer DEFAULT 0 NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
@@ -283,8 +285,8 @@ async function finalizeStage(env: RuntimeEnv, stage: StageKey, runId: string, jo
     db.prepare("UPDATE v7_intelligence_jobs SET status='COMPLETED',provider_status='completed',heartbeat_at=?,finalized_at=?,error=null WHERE id=?").bind(now, now, jobId),
     db.prepare("UPDATE v7_stage_states SET status=?,artifact_id=?,blocker=?,evidence_summary=?,frozen_at=?,updated_at=? WHERE id=?").bind(evaluation.passed ? "FROZEN" : "REPAIR_REQUIRED", artifactId, evaluation.passed ? null : "One or more intelligence hard gates failed", `${evaluation.score}/100 · ${sourcesOf(artifact).length} web-grounded sources · R2 and Google Drive verified`, evaluation.passed ? now : null, now, `${PROGRAM_ID}-STAGE-${stage}`),
     db.prepare("INSERT INTO v7_evidence_lineage (id,program_id,entity_type,title,lifecycle_state,upstream_evidence_id,artifact_key,content_hash,storage_state,rights_state,cost_state,quarantine_state,pipeline_version,updated_at) VALUES (?,?,?,?,?,?,?,?, 'R2_AND_DRIVE_VERIFIED','RESEARCH_USE','MEASURED','CLEAR',7,?)").bind(`${artifactId}-EVIDENCE`, PROGRAM_ID, STAGES[stage].artifactType, STAGES[stage].name, artifactState, typeof upstreamEvidence === "string" ? upstreamEvidence : upstreamEvidence?.id || `${PROGRAM_ID}-EVIDENCE-PROGRAM`, runtimeKey, contentHash, now),
-    db.prepare("INSERT INTO v7_cost_events (id,program_id,stage_key,provider,cost_class,cost_type,status,estimated_usd,actual_usd,note) VALUES (?,?,?,'OPENAI','VARIABLE','WEB_GROUNDED_INTELLIGENCE','RECORDED',0,0,?)").bind(`${runId}-COST`, PROGRAM_ID, stage, `Provider usage recorded for ${STAGES[stage].name}; exact billing reconciliation deferred to provider usage import`),
   ]);
+  await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId, stageKey: stage, costType: "WEB_GROUNDED_INTELLIGENCE", payload, fallbackModel: MODEL });
   if (evaluation.passed) {
     const next = stage === "01" ? "02" : stage === "02" ? "03" : "04";
     await db.prepare("UPDATE v7_stage_states SET status='READY',blocker=null,evidence_summary=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='BLOCKED_UPSTREAM'").bind(`Stage ${stage} frozen; upstream evidence accepted`, `${PROGRAM_ID}-STAGE-${next}`).run();
@@ -311,6 +313,7 @@ async function pollStage(stage: StageKey) {
     if (["queued", "in_progress"].includes(providerStatus)) return snapshot();
     if (providerStatus !== "completed") {
       const detail = payload.error && typeof payload.error === "object" ? JSON.stringify(payload.error) : `Provider ended with status ${providerStatus}`;
+      await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: job.run_id, stageKey: stage, costType: "WEB_GROUNDED_INTELLIGENCE", payload, fallbackModel: MODEL });
       await failJob(db, stage, job.run_id, job.id, detail); return snapshot();
     }
     await finalizeStage(env, stage, job.run_id, job.id, payload); return snapshot();

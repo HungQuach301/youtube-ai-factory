@@ -1,6 +1,7 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
 import {
+  v7AiUsageEvents,
   v7AssetRegistry,
   v7CostEvents,
   v7DecisionRecords,
@@ -10,8 +11,17 @@ import {
   v7StageStates,
   v7StorageContracts,
 } from "../../../../db/schema";
+import { AI_USAGE_TABLE_SQL, recordOpenAIUsage } from "../../../../lib/ai-usage";
 
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
+
+type RuntimeStatement = {
+  bind: (...values: unknown[]) => RuntimeStatement;
+  run: () => Promise<unknown>;
+  all: <T>() => Promise<{ results?: T[] }>;
+};
+type RuntimeDatabase = { prepare: (sql: string) => RuntimeStatement; batch: (statements: RuntimeStatement[]) => Promise<unknown> };
+type RuntimeEnv = { DB?: RuntimeDatabase; OPENAI_API_KEY?: string };
 
 const foundationSchema = [
   `CREATE TABLE IF NOT EXISTS v7_program_contracts (id text PRIMARY KEY NOT NULL, channel_id text NOT NULL, version integer DEFAULT 7 NOT NULL, status text DEFAULT 'FOUNDATION_BUILD' NOT NULL, execution_mode text DEFAULT 'AUTOPILOT' NOT NULL, quality_policy text DEFAULT 'MAXIMUM_QUALITY_FIRST' NOT NULL, legacy_policy text DEFAULT 'HISTORICAL_QUARANTINE' NOT NULL, overall_floor integer DEFAULT 92 NOT NULL, critical_floor integer DEFAULT 90 NOT NULL, dimension_floor integer DEFAULT 86 NOT NULL, p0_tolerance integer DEFAULT 0 NOT NULL, p1_tolerance integer DEFAULT 0 NOT NULL, maximum_attempts integer DEFAULT 3 NOT NULL, minimum_improvement integer DEFAULT 3 NOT NULL, production_authorized integer DEFAULT false NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
@@ -19,6 +29,7 @@ const foundationSchema = [
   `CREATE TABLE IF NOT EXISTS v7_evidence_lineage (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, project_id text, entity_type text NOT NULL, title text NOT NULL, lifecycle_state text DEFAULT 'PLAN' NOT NULL, upstream_evidence_id text, artifact_key text, content_hash text, storage_state text DEFAULT 'NOT_STORED' NOT NULL, rights_state text DEFAULT 'NOT_APPLICABLE' NOT NULL, cost_state text DEFAULT 'NOT_APPLICABLE' NOT NULL, quarantine_state text DEFAULT 'CLEAR' NOT NULL, pipeline_version integer DEFAULT 7 NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_asset_registry (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, project_id text, name text NOT NULL, asset_class text NOT NULL, lifecycle_state text DEFAULT 'PLAN' NOT NULL, provider text, mime_type text, content_hash text, runtime_key text, drive_file_id text, local_relative_path text, sync_state text DEFAULT 'NOT_STORED' NOT NULL, rights_state text DEFAULT 'UNKNOWN' NOT NULL, reusable_eligible integer DEFAULT false NOT NULL, quarantined integer DEFAULT false NOT NULL, cost_usd real DEFAULT 0 NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_cost_events (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, project_id text, stage_key text NOT NULL, provider text NOT NULL, cost_class text NOT NULL, cost_type text NOT NULL, status text DEFAULT 'ESTIMATED' NOT NULL, estimated_usd real DEFAULT 0 NOT NULL, actual_usd real DEFAULT 0 NOT NULL, reusable_allocation_usd real DEFAULT 0 NOT NULL, currency text DEFAULT 'USD' NOT NULL, asset_id text, note text DEFAULT '' NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  AI_USAGE_TABLE_SQL,
   `CREATE TABLE IF NOT EXISTS v7_storage_contracts (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, tier text NOT NULL, binding_name text NOT NULL, role text NOT NULL, required_for_production integer DEFAULT true NOT NULL, implementation_state text DEFAULT 'CONTRACT_READY' NOT NULL, verification_state text DEFAULT 'NOT_VERIFIED' NOT NULL, last_verified_at text, evidence text DEFAULT 'Awaiting verification' NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_decision_records (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, decision_code text NOT NULL, title text NOT NULL, status text NOT NULL, effective_version integer DEFAULT 7 NOT NULL, rationale text NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_foundation_audits (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, status text NOT NULL, architecture_score integer DEFAULT 0 NOT NULL, evidence_score integer DEFAULT 0 NOT NULL, cost_score integer DEFAULT 0 NOT NULL, storage_score integer DEFAULT 0 NOT NULL, production_authorized integer DEFAULT false NOT NULL, checks_json text NOT NULL, blockers_json text NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
@@ -182,11 +193,12 @@ async function readDashboard() {
   const evidence = await db.select().from(v7EvidenceLineage).where(eq(v7EvidenceLineage.programId, PROGRAM_ID)).orderBy(asc(v7EvidenceLineage.createdAt));
   const assets = await db.select().from(v7AssetRegistry).where(eq(v7AssetRegistry.programId, PROGRAM_ID));
   const costs = await db.select().from(v7CostEvents).where(eq(v7CostEvents.programId, PROGRAM_ID)).orderBy(desc(v7CostEvents.createdAt));
+  const aiUsage = await db.select().from(v7AiUsageEvents).where(eq(v7AiUsageEvents.programId, PROGRAM_ID)).orderBy(desc(v7AiUsageEvents.measuredAt));
   const storage = await db.select().from(v7StorageContracts).where(eq(v7StorageContracts.programId, PROGRAM_ID)).orderBy(asc(v7StorageContracts.id));
   const decisions = await db.select().from(v7DecisionRecords).where(eq(v7DecisionRecords.programId, PROGRAM_ID)).orderBy(asc(v7DecisionRecords.decisionCode));
   const [latestAudit] = await db.select().from(v7FoundationAudits).where(eq(v7FoundationAudits.programId, PROGRAM_ID)).orderBy(desc(v7FoundationAudits.createdAt)).limit(1);
   const actualCost = costs.reduce((total, item) => total + item.actualUsd, 0);
-  const estimatedCost = costs.reduce((total, item) => total + item.estimatedUsd, 0);
+  const estimatedCost = costs.filter((item) => item.status !== "MEASURED").reduce((total, item) => total + item.estimatedUsd, 0);
   const lifecycle = ["PLAN", "MATERIALIZED", "VERIFIED", "FROZEN", "REJECTED", "ESCALATED"].map((state) => ({
     state,
     count: evidence.filter((item) => item.lifecycleState === state).length,
@@ -198,7 +210,22 @@ async function readDashboard() {
     lifecycle,
     assets,
     costs,
-    costSummary: { actualCost, estimatedCost, reusableValue: assets.filter((item) => item.reusableEligible).reduce((total, item) => total + item.costUsd, 0) },
+    aiUsage,
+    costSummary: {
+      actualCost,
+      estimatedCost,
+      reusableValue: assets.filter((item) => item.reusableEligible).reduce((total, item) => total + item.costUsd, 0),
+      aiActualCost: aiUsage.reduce((total, item) => total + item.actualUsd, 0),
+      tokenCost: aiUsage.reduce((total, item) => total + item.tokenCostUsd, 0),
+      toolCost: aiUsage.reduce((total, item) => total + item.toolCostUsd, 0),
+      inputTokens: aiUsage.reduce((total, item) => total + item.inputTokens, 0),
+      cachedInputTokens: aiUsage.reduce((total, item) => total + item.cachedInputTokens, 0),
+      outputTokens: aiUsage.reduce((total, item) => total + item.outputTokens, 0),
+      reasoningTokens: aiUsage.reduce((total, item) => total + item.reasoningTokens, 0),
+      webSearchCalls: aiUsage.reduce((total, item) => total + item.webSearchCalls, 0),
+      measuredResponses: aiUsage.length,
+      rateExceptions: aiUsage.filter((item) => item.pricingStatus !== "MEASURED").length,
+    },
     storage,
     decisions,
     latestAudit: latestAudit ? { ...latestAudit, checks: JSON.parse(latestAudit.checksJson), blockers: JSON.parse(latestAudit.blockersJson) } : null,
@@ -230,6 +257,41 @@ export async function POST(request: Request) {
       }
       await db.update(v7ProgramContracts).set({ executionMode: payload.mode, updatedAt: new Date().toISOString() }).where(eq(v7ProgramContracts.id, PROGRAM_ID));
       return Response.json(await readDashboard());
+    }
+
+    if (payload.action === "RECONCILE_AI_USAGE") {
+      const { env } = await import("cloudflare:workers");
+      const runtime = env as unknown as RuntimeEnv;
+      if (!runtime.DB) throw new Error("Cost reconciliation database is unavailable");
+      if (!runtime.OPENAI_API_KEY) throw new Error("Connect OPENAI_API_KEY before reconciling AI usage");
+      const result = await runtime.DB.prepare(`SELECT j.run_id,j.stage_key,j.provider_response_id,r.model_id,'WEB_GROUNDED_INTELLIGENCE' AS cost_type
+        FROM v7_intelligence_jobs j JOIN v7_intelligence_runs r ON r.id=j.run_id WHERE j.program_id=?
+        UNION ALL
+        SELECT j.run_id,'04' AS stage_key,j.provider_response_id,r.model_id,'CREATIVE_TOURNAMENT' AS cost_type
+        FROM v7_creative_jobs j JOIN v7_creative_runs r ON r.id=j.run_id WHERE j.program_id=?`).bind(PROGRAM_ID, PROGRAM_ID).all<{
+          run_id: string; stage_key: string; provider_response_id: string; model_id: string; cost_type: string;
+        }>();
+      const jobs = result.results || [];
+      let reconciled = 0;
+      const failures: string[] = [];
+      for (let index = 0; index < jobs.length; index += 4) {
+        await Promise.all(jobs.slice(index, index + 4).map(async (job) => {
+          try {
+            const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(job.provider_response_id)}`, {
+              headers: { authorization: `Bearer ${runtime.OPENAI_API_KEY}` },
+              signal: AbortSignal.timeout(30000),
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const providerPayload = await response.json() as Record<string, unknown>;
+            await recordOpenAIUsage({ db: runtime.DB!, programId: PROGRAM_ID, runId: job.run_id, stageKey: job.stage_key, costType: job.cost_type, payload: providerPayload, fallbackModel: job.model_id });
+            reconciled += 1;
+          } catch (error) {
+            failures.push(`${job.stage_key}/${job.provider_response_id}: ${error instanceof Error ? error.message : "unknown error"}`);
+          }
+        }));
+      }
+      const dashboard = await readDashboard();
+      return Response.json({ ...dashboard, reconciliation: { discovered: jobs.length, reconciled, failed: failures.length, failures } });
     }
 
     if (payload.action !== "RUN_FOUNDATION_AUDIT") {
