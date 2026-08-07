@@ -160,6 +160,6 @@ export default function IntelligencePage() {
       })}
     </section>
 
-    <footer className="intelFooter"><div><strong>Wave 2 release rule</strong><span>Creative Contract stays blocked until the claim graph freezes with zero unresolved P0 evidence defects.</span></div><Link href="/control-plane">Return to V7 Control Plane →</Link></footer>
+    <footer className="intelFooter"><div><strong>Wave 2 release rule</strong><span>Creative Contract stays blocked until the claim graph freezes with zero unresolved P0 evidence defects.</span></div>{progress === 100 ? <Link href="/creative-contract">Open Stage 04 Creative Contract →</Link> : <Link href="/control-plane">Return to V7 Control Plane →</Link>}</footer>
   </main>;
 }

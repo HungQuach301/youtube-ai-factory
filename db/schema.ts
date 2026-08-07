@@ -713,3 +713,44 @@ export const v7ClaimNodes = sqliteTable("v7_claim_nodes", {
   qualification: text("qualification").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Production Pipeline V7 — Stage 04 Creative Contract. The tournament and
+// adjudication remain auditable; only a frozen champion may authorize Story.
+export const v7CreativeRuns = sqliteTable("v7_creative_runs", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  attempt: integer("attempt").notNull().default(1),
+  status: text("status").notNull().default("RUNNING"),
+  score: integer("score").notNull().default(0),
+  threshold: integer("threshold").notNull().default(90),
+  modelId: text("model_id").notNull(),
+  gateJson: text("gate_json").notNull().default("[]"),
+  startedAt: text("started_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  completedAt: text("completed_at"),
+});
+
+export const v7CreativeJobs = sqliteTable("v7_creative_jobs", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  providerResponseId: text("provider_response_id").notNull(),
+  providerStatus: text("provider_status").notNull().default("queued"),
+  status: text("status").notNull().default("ACTIVE"),
+  heartbeatAt: text("heartbeat_at").notNull(),
+  startedAt: text("started_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  finalizedAt: text("finalized_at"),
+  error: text("error"),
+});
+
+export const v7CreativeArtifacts = sqliteTable("v7_creative_artifacts", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("MATERIALIZED"),
+  contentJson: text("content_json").notNull(),
+  contentHash: text("content_hash").notNull(),
+  runtimeKey: text("runtime_key"),
+  driveFileId: text("drive_file_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
