@@ -75,6 +75,7 @@ function stageRoute(stageKey: string) {
   if (stageKey === "04") return "/creative-contract";
   if (stageKey === "05") return "/story-architecture";
   if (stageKey === "06") return "/script-development";
+  if (["07A", "07B"].includes(stageKey)) return "/production-design";
   return null;
 }
 
