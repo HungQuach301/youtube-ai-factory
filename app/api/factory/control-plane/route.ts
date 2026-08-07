@@ -33,6 +33,8 @@ const foundationSchema = [
   `CREATE TABLE IF NOT EXISTS v7_storage_contracts (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, tier text NOT NULL, binding_name text NOT NULL, role text NOT NULL, required_for_production integer DEFAULT true NOT NULL, implementation_state text DEFAULT 'CONTRACT_READY' NOT NULL, verification_state text DEFAULT 'NOT_VERIFIED' NOT NULL, last_verified_at text, evidence text DEFAULT 'Awaiting verification' NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_decision_records (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, decision_code text NOT NULL, title text NOT NULL, status text NOT NULL, effective_version integer DEFAULT 7 NOT NULL, rationale text NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_foundation_audits (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, status text NOT NULL, architecture_score integer DEFAULT 0 NOT NULL, evidence_score integer DEFAULT 0 NOT NULL, cost_score integer DEFAULT 0 NOT NULL, storage_score integer DEFAULT 0 NOT NULL, production_authorized integer DEFAULT false NOT NULL, checks_json text NOT NULL, blockers_json text NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_story_runs (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, attempt integer DEFAULT 1 NOT NULL, status text DEFAULT 'RUNNING' NOT NULL, score integer DEFAULT 0 NOT NULL, threshold integer DEFAULT 92 NOT NULL, model_id text NOT NULL, gate_json text DEFAULT '[]' NOT NULL, started_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, completed_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_story_jobs (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, run_id text NOT NULL, provider_response_id text NOT NULL, provider_status text DEFAULT 'queued' NOT NULL, status text DEFAULT 'ACTIVE' NOT NULL, heartbeat_at text NOT NULL, started_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, finalized_at text, error text)`,
 ] as const;
 
 async function ensureFoundationSchema() {
@@ -268,7 +270,10 @@ export async function POST(request: Request) {
         FROM v7_intelligence_jobs j JOIN v7_intelligence_runs r ON r.id=j.run_id WHERE j.program_id=?
         UNION ALL
         SELECT j.run_id,'04' AS stage_key,j.provider_response_id,r.model_id,'CREATIVE_TOURNAMENT' AS cost_type
-        FROM v7_creative_jobs j JOIN v7_creative_runs r ON r.id=j.run_id WHERE j.program_id=?`).bind(PROGRAM_ID, PROGRAM_ID).all<{
+        FROM v7_creative_jobs j JOIN v7_creative_runs r ON r.id=j.run_id WHERE j.program_id=?
+        UNION ALL
+        SELECT j.run_id,'05' AS stage_key,j.provider_response_id,r.model_id,'STORY_ARCHITECTURE' AS cost_type
+        FROM v7_story_jobs j JOIN v7_story_runs r ON r.id=j.run_id WHERE j.program_id=?`).bind(PROGRAM_ID, PROGRAM_ID, PROGRAM_ID).all<{
           run_id: string; stage_key: string; provider_response_id: string; model_id: string; cost_type: string;
         }>();
       const jobs = result.results || [];

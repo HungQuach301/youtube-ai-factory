@@ -70,6 +70,13 @@ function dollars(value: number) {
   return value < 1 ? value.toFixed(4) : value.toFixed(2);
 }
 
+function stageRoute(stageKey: string) {
+  if (["01", "02", "03"].includes(stageKey)) return "/intelligence";
+  if (stageKey === "04") return "/creative-contract";
+  if (stageKey === "05") return "/story-architecture";
+  return null;
+}
+
 export default function ControlPlanePage() {
   const [data, setData] = useState<Dashboard | null>(null);
   const [working, setWorking] = useState<string | null>(null);
@@ -200,7 +207,7 @@ export default function ControlPlanePage() {
               <header><span>{stage.stageKey}</span><b>≥{stage.threshold}</b></header>
               <strong>{stage.stageName}</strong>
               <p>{stage.evidenceSummary}</p>
-              <footer><span>{human(stage.status)}</span><small>Attempt {stage.attempt}/{data.program.maximumAttempts}</small></footer>
+              <footer><span>{human(stage.status)}</span>{stageRoute(stage.stageKey)&&stage.status!=="BLOCKED_UPSTREAM"?<Link href={stageRoute(stage.stageKey)!}>{stage.status==="READY"?"Open & run":"Open"} →</Link>:<small>Attempt {stage.attempt}/{data.program.maximumAttempts}</small>}</footer>
             </article>)}
           </div>
         </section>
