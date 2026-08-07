@@ -27,6 +27,24 @@ type DriveConnectionRow = {
 
 type DriveFile = { id: string; name: string; mimeType?: string; trashed?: boolean; webViewLink?: string };
 
+const ARCHIVE_FOLDER_PATHS = [
+  ["Channels"],
+  ["Channels", "Hidden Systems"],
+  ["Channels", "Hidden Systems", "Projects"],
+  ["Channels", "Hidden Systems", "Channel Assets"],
+  ["Reusable Library"],
+  ["Reusable Library", "Personal Media"],
+  ["Reusable Library", "Purchased Footage"],
+  ["Reusable Library", "Generated Visuals"],
+  ["Reusable Library", "Music"],
+  ["Reusable Library", "SFX"],
+  ["Reusable Library", "Brand Assets"],
+  ["Rights & Licenses"],
+  ["Masters"],
+  ["Publishing Packages"],
+  ["Audit & Recovery"],
+] as const;
+
 const schema = [
   `CREATE TABLE IF NOT EXISTS v7_google_drive_connections (id text PRIMARY KEY NOT NULL, status text DEFAULT 'NOT_CONNECTED' NOT NULL, refresh_token_ciphertext text, refresh_token_iv text, scope text DEFAULT '${DRIVE_SCOPE}' NOT NULL, root_folder_id text, root_folder_name text DEFAULT 'Frameflow Factory' NOT NULL, audit_folder_id text, marker_file_id text, last_verified_at text, last_error text, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_google_drive_oauth_states (id text PRIMARY KEY NOT NULL, redirect_uri text NOT NULL, return_to text DEFAULT '/settings/storage' NOT NULL, expires_at text NOT NULL, consumed_at text, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
@@ -124,6 +142,21 @@ async function ensureFolder(accessToken: string, name: string, parentId?: string
   return (await findFolder(accessToken, name, parentId)) || createFolder(accessToken, name, parentId);
 }
 
+function folderKey(path: readonly string[]) {
+  return path.join("/");
+}
+
+async function ensureArchiveFolders(accessToken: string, root: DriveFile) {
+  const folders: Record<string, DriveFile> = {};
+  for (const path of ARCHIVE_FOLDER_PATHS) {
+    const parentPath = path.slice(0, -1);
+    const parent = parentPath.length ? folders[folderKey(parentPath)] : root;
+    if (!parent) throw new Error(`Archive parent folder is missing for ${folderKey(path)}`);
+    folders[folderKey(path)] = await ensureFolder(accessToken, path.at(-1) || "", parent.id);
+  }
+  return folders;
+}
+
 async function createJsonMarker(accessToken: string, parentId: string) {
   const boundary = `frameflow-${crypto.randomUUID()}`;
   const marker = JSON.stringify({ pipeline: "V7", purpose: "GOOGLE_DRIVE_ARCHIVE_VERIFICATION", verifiedAt: new Date().toISOString() }, null, 2);
@@ -136,15 +169,14 @@ async function createJsonMarker(accessToken: string, parentId: string) {
   });
 }
 
-async function materializeArchive(accessToken: string) {
-  const root = await ensureFolder(accessToken, "Frameflow Factory");
-  const names = ["Channels", "Reusable Library", "Rights & Licenses", "Masters", "Publishing Packages", "Audit & Recovery"];
-  const folders: Record<string, DriveFile> = {};
-  for (const name of names) folders[name] = await ensureFolder(accessToken, name, root.id);
-  const marker = await createJsonMarker(accessToken, folders["Audit & Recovery"].id);
+async function materializeArchive(accessToken: string, existingRoot?: DriveFile) {
+  const root = existingRoot || await ensureFolder(accessToken, "Frameflow Factory");
+  const folders = await ensureArchiveFolders(accessToken, root);
+  const auditFolder = folders["Audit & Recovery"];
+  const marker = await createJsonMarker(accessToken, auditFolder.id);
   const verified = await driveRequest<DriveFile>(accessToken, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(marker.id)}?fields=id,name,mimeType,trashed,webViewLink`);
   if (verified.trashed || verified.name !== "frameflow-storage-verification.json") throw new Error("Drive verification marker could not be read back");
-  return { root, auditFolder: folders["Audit & Recovery"], marker: verified, folderCount: names.length + 1 };
+  return { root, auditFolder, marker: verified, folderCount: ARCHIVE_FOLDER_PATHS.length + 1 };
 }
 
 async function exchangeCode(code: string, redirectUri: string, env: RuntimeEnv) {
@@ -276,18 +308,17 @@ export async function verifyDriveConnection() {
     if (!row.root_folder_id) throw new Error("Google Drive root folder is missing");
     const root = await driveRequest<DriveFile>(accessToken, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(row.root_folder_id)}?fields=id,name,mimeType,trashed,webViewLink`);
     if (root.trashed || root.mimeType !== "application/vnd.google-apps.folder") throw new Error("Google Drive root folder is unavailable");
-    const auditFolder = await ensureFolder(accessToken, "Audit & Recovery", root.id);
-    const marker = await createJsonMarker(accessToken, auditFolder.id);
-    const readBack = await driveRequest<DriveFile>(accessToken, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(marker.id)}?fields=id,name,trashed`);
+    const archive = await materializeArchive(accessToken, root);
+    const readBack = await driveRequest<DriveFile>(accessToken, `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(archive.marker.id)}?fields=id,name,trashed`);
     if (readBack.trashed) throw new Error("Verification marker read-back failed");
     const now = new Date().toISOString();
     await db.prepare("UPDATE v7_google_drive_connections SET status='VERIFIED', audit_folder_id=?, marker_file_id=?, last_verified_at=?, last_error=null, updated_at=? WHERE id=?")
-      .bind(auditFolder.id, marker.id, now, now, CONNECTION_ID).run();
+      .bind(archive.auditFolder.id, archive.marker.id, now, now, CONNECTION_ID).run();
     await db.prepare("UPDATE v7_storage_contracts SET required_for_production=1, verification_state='VERIFIED', last_verified_at=?, evidence=?, updated_at=? WHERE id=?")
-      .bind(now, "OAuth refresh, root folder read and marker round-trip passed", now, `${PROGRAM_ID}-STORAGE-DRIVE`).run();
+      .bind(now, `OAuth refresh, ${archive.folderCount}-folder archive tree and marker round-trip passed`, now, `${PROGRAM_ID}-STORAGE-DRIVE`).run();
     await db.prepare("INSERT INTO v7_storage_sync_events (id, storage_tier, action, status, artifact_id, evidence_json) VALUES (?, 'GOOGLE_DRIVE_ARCHIVE', 'ROUND_TRIP_AUDIT', 'VERIFIED', ?, ?)")
-      .bind(`DRIVE-AUDIT-${Date.now()}`, marker.id, JSON.stringify({ rootFolderId: root.id, markerFileId: marker.id, verifiedAt: now })).run();
-    return { root, marker, verifiedAt: now };
+      .bind(`DRIVE-AUDIT-${Date.now()}`, archive.marker.id, JSON.stringify({ rootFolderId: root.id, markerFileId: archive.marker.id, folderCount: archive.folderCount, verifiedAt: now })).run();
+    return { root, marker: archive.marker, folderCount: archive.folderCount, verifiedAt: now };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Google Drive verification failed";
     await db.prepare("UPDATE v7_google_drive_connections SET status='REPAIR_REQUIRED', last_error=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(message, CONNECTION_ID).run();
@@ -309,4 +340,3 @@ export async function disconnectDrive() {
   await db.prepare("UPDATE v7_program_contracts SET production_authorized=0, status='WAVE_1_IMPLEMENTED_EXTERNAL_BLOCKERS', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(PROGRAM_ID).run();
   await db.prepare("UPDATE v7_stage_states SET status='IMPLEMENTED_BLOCKED', blocker='Google Drive archive must be verified', frozen_at=null, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(`${PROGRAM_ID}-STAGE-00`).run();
 }
-

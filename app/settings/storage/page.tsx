@@ -20,6 +20,21 @@ type DriveStatus = {
   localSync: { requiredForProduction: boolean; status: string };
 };
 
+type FolderNode = { name: string; children?: FolderNode[] };
+
+const DRIVE_FOLDER_CONTRACT: FolderNode[] = [
+  { name: "Channels", children: [{ name: "Hidden Systems", children: [{ name: "Projects" }, { name: "Channel Assets" }] }] },
+  { name: "Reusable Library", children: [{ name: "Personal Media" }, { name: "Purchased Footage" }, { name: "Generated Visuals" }, { name: "Music" }, { name: "SFX" }, { name: "Brand Assets" }] },
+  { name: "Rights & Licenses" },
+  { name: "Masters" },
+  { name: "Publishing Packages" },
+  { name: "Audit & Recovery" },
+];
+
+function FolderChildren({ nodes }: { nodes: FolderNode[] }) {
+  return <ul>{nodes.map((node) => <li key={node.name}><span>{node.name}</span>{node.children && <FolderChildren nodes={node.children} />}</li>)}</ul>;
+}
+
 function readable(value: string) {
   return value.replaceAll("_", " ").toLowerCase().replace(/^./, (letter) => letter.toUpperCase());
 }
@@ -109,15 +124,15 @@ export default function StorageSettingsPage() {
         </> : <>
           <div className="driveRoot"><span>✓</span><div><small>CANONICAL ROOT</small><strong>{data.rootFolder?.name}</strong><p>Last verified {data.lastVerifiedAt ? new Date(data.lastVerifiedAt).toLocaleString() : "—"}</p></div></div>
           <a className="storagePrimary link" href={data.rootFolder?.url} target="_blank" rel="noreferrer">Open archive folder ↗</a>
-          <div className="storageButtonRow"><button disabled={working !== null} onClick={() => void run("VERIFY")}>{working === "VERIFY" ? "Running round-trip audit…" : "Verify read/write again"}</button><button className="danger" disabled={working !== null} onClick={() => void run("DISCONNECT")}>Disconnect</button></div>
+          <div className="storageButtonRow"><button disabled={working !== null} onClick={() => void run("VERIFY")}>{working === "VERIFY" ? "Building and auditing folder tree…" : "Verify & repair folder tree"}</button><button className="danger" disabled={working !== null} onClick={() => void run("DISCONNECT")}>Disconnect</button></div>
         </>}
       </section>
     </div>
 
     <section className="storagePanel folderContract">
-      <header><div><p>AUTOMATIC MATERIALIZATION</p><h2>Folder contract created after authorization</h2></div><span>7 controlled roots</span></header>
-      <div>{["Channels", "Reusable Library", "Rights & Licenses", "Masters", "Publishing Packages", "Audit & Recovery"].map((folder, index) => <article key={folder}><span>{String(index + 1).padStart(2, "0")}</span><strong>{folder}</strong></article>)}</div>
-      <footer><strong>Verification proof</strong><span>OAuth refresh → root read → audit marker write → marker read-back → D1 evidence → V7 storage gate</span></footer>
+      <header><div><p>AUTOMATIC MATERIALIZATION</p><h2>Complete canonical folder contract</h2></div><span>16 managed folders</span></header>
+      <div className="folderTree">{DRIVE_FOLDER_CONTRACT.map((folder, index) => <article key={folder.name}><b>{String(index + 1).padStart(2, "0")}</b><strong>{folder.name}</strong>{folder.children && <FolderChildren nodes={folder.children} />}</article>)}</div>
+      <footer><strong>Idempotent repair</strong><span>Existing folders are reused → missing children are created → audit marker is written and read back → D1 evidence is refreshed</span></footer>
     </section>
 
     <section className="localOptional">
