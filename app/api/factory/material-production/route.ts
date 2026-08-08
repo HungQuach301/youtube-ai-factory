@@ -56,6 +56,8 @@ async function runtime() {
   await value.DB.batch(schema.map((statement) => value.DB!.prepare(statement)));
   await value.DB.prepare("INSERT INTO v7_stage_states (id,program_id,stage_key,sequence,stage_name,status,threshold,blocker,evidence_summary) VALUES (?,?,?,9,?,'BLOCKED_UPSTREAM',92,'Stage 08 must freeze first','No verified Stage 08 artifact') ON CONFLICT(id) DO NOTHING").bind(STAGE_ID, PROGRAM_ID, STAGE, "Fresh material production").run();
   await value.DB.prepare("INSERT INTO v7_stage_model_settings (id,program_id,stage_key,model_id,reasoning_effort,updated_at) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(`${PROGRAM_ID}-${STAGE}-MODEL`, PROGRAM_ID, STAGE, DEFAULT_MODEL, "low", new Date().toISOString()).run();
+  // Keep persisted authorization truth aligned with the critical Pixel-QA dispatch envelope.
+  await value.DB.prepare("UPDATE v7_material_authorizations SET model_policy_json=REPLACE(model_policy_json,'\"safety\":3000','\"safety\":8000'),updated_at=? WHERE model_policy_json LIKE '%\"singleVision\"%' AND model_policy_json LIKE '%\"safety\":3000%'").bind(new Date().toISOString()).run();
   return value;
 }
 
