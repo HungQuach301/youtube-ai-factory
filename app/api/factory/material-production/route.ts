@@ -456,7 +456,7 @@ async function pollVision(env: Env, db: DB, authorization: Row, requestRow: Row)
     return;
   }
   const result = JSON.parse(output(payload)) as Row, dimensions = ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity"], hardPass = dimensions.every((key) => Number(result[key]) >= 86) && Number(result.overall) >= 90 && result.decision === "PASS", file = await db.prepare("SELECT id FROM v7_material_files WHERE brief_id=? AND asset_role='PRIMARY'").bind(requestRow.brief_id).first<Row>();
-  await db.prepare("INSERT INTO v7_material_audits (id,program_id,run_id,authorization_id,brief_id,file_id,status,score,dimensions_json,provider_response_id,findings_json) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(`${requestRow.brief_id}-PIXEL-AUDIT`, PROGRAM_ID, authorization.run_id, authorization.id, requestRow.brief_id, file?.id || "MISSING", hardPass ? "PASS" : "REPAIR_REQUIRED", Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), payload.id, JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean))).run();
+  await db.prepare("INSERT INTO v7_material_audits (id,program_id,run_id,authorization_id,brief_id,file_id,status,score,dimensions_json,provider_response_id,findings_json) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET file_id=excluded.file_id,status=excluded.status,score=excluded.score,dimensions_json=excluded.dimensions_json,provider_response_id=excluded.provider_response_id,findings_json=excluded.findings_json").bind(`${requestRow.brief_id}-PIXEL-AUDIT`, PROGRAM_ID, authorization.run_id, authorization.id, requestRow.brief_id, file?.id || "MISSING", hardPass ? "PASS" : "REPAIR_REQUIRED", Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), payload.id, JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean))).run();
   await db.prepare("UPDATE v7_material_briefs SET status=? WHERE id=?").bind(hardPass ? "PIXEL_AUDITED" : "REPAIR_REQUIRED", requestRow.brief_id).run();
 }
 
@@ -492,21 +492,62 @@ async function startPilot() {
   return snapshot();
 }
 
+async function repairedPilotBrief(db: DB, authorization: Row) {
+  const tournaments = await rows(db, "SELECT brief_id,content_json,created_at FROM v7_material_tournaments WHERE authorization_id=? ORDER BY created_at DESC", authorization.id);
+  const repaired = tournaments.find((item) => {
+    try { return Number(rec(JSON.parse(String(item.content_json || "{}"))).repairAttempt || 0) > 0; }
+    catch { return false; }
+  });
+  if (repaired?.brief_id) return db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=? AND pilot=1").bind(repaired.brief_id, authorization.run_id).first<Row>();
+  return db.prepare("SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 AND status='REPAIR_REQUIRED' ORDER BY start_seconds LIMIT 1").bind(authorization.run_id).first<Row>();
+}
+
+async function closeRepairedUnitGate(db: DB, run: Row, authorization: Row, brief: Row) {
+  const audit = await db.prepare("SELECT status,score FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  if (!audit) return false;
+  const now = new Date().toISOString();
+  if (audit.status === "PASS") {
+    await db.batch([
+      db.prepare("UPDATE v7_material_runs SET status='PILOT_REPAIR_REVIEW' WHERE id=?").bind(run.id),
+      db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(now, authorization.id),
+      db.prepare("UPDATE v7_stage_states SET status='PILOT_REPAIR_REVIEW',blocker='USER_REVIEW_BEFORE_PILOT_CONTINUE',evidence_summary=?,updated_at=? WHERE id=?").bind(`${brief.id} bounded repair stored and Pixel QA passed at ${Number(audit.score)}/100 · no later pilot unit dispatched`, now, STAGE_ID),
+    ]);
+  } else {
+    await db.batch([
+      db.prepare("UPDATE v7_material_runs SET status='REPAIR_REQUIRED' WHERE id=?").bind(run.id),
+      db.prepare("UPDATE v7_material_authorizations SET status='REPAIR_REQUIRED',updated_at=? WHERE id=?").bind(now, authorization.id),
+      db.prepare("UPDATE v7_stage_states SET status='REPAIR_REQUIRED',blocker='REPAIRED_UNIT_PIXEL_QA_FAILED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${brief.id} repaired material failed Pixel QA at ${Number(audit.score)}/100 · later pilot units remain blocked`, now, STAGE_ID),
+    ]);
+  }
+  return true;
+}
+
 async function stepPilot() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization || authorization.status !== "AUTHORIZED" || !["PILOT_RUNNING", "PILOT_REPAIR_RUNNING"].includes(clean(run.status))) return snapshot();
   const repairOnly = run.status === "PILOT_REPAIR_RUNNING";
   try {
     const active = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND provider='OPENAI' AND status IN ('QUEUED','IN_PROGRESS') ORDER BY created_at LIMIT 1").bind(authorization.id).first<Row>();
-    if (active) await pollVision(env, db, authorization, active);
+    if (repairOnly) {
+      const target = await repairedPilotBrief(db, authorization);
+      if (!target) throw new Error("REPAIRED_PILOT_UNIT_NOT_FOUND");
+      if (active && active.brief_id !== target.id) throw new Error("UNRELATED_REMOTE_REQUEST_ACTIVE_DURING_REPAIR");
+      if (active) {
+        await pollVision(env, db, authorization, active);
+        await closeRepairedUnitGate(db, run, authorization, target);
+      } else {
+        const file = await db.prepare("SELECT id FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role='PRIMARY'").bind(authorization.id, target.id).first<Row>();
+        const audit = await db.prepare("SELECT status FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, target.id).first<Row>();
+        if (!file) await materializeOne(env, db, authorization, target);
+        else if (!audit) await dispatchVision(env, db, authorization, target);
+        else await closeRepairedUnitGate(db, run, authorization, target);
+      }
+    }
+    else if (active) await pollVision(env, db, authorization, active);
     else {
       const nextMaterial = await db.prepare("SELECT b.* FROM v7_material_briefs b LEFT JOIN v7_material_files f ON f.brief_id=b.id AND f.asset_role='PRIMARY' WHERE b.run_id=? AND b.pilot=1 AND f.id IS NULL ORDER BY b.start_seconds LIMIT 1").bind(run.id).first<Row>();
       if (nextMaterial) {
         await materializeOne(env, db, authorization, nextMaterial);
-        if (repairOnly) {
-          const now = new Date().toISOString();
-          await db.batch([db.prepare("UPDATE v7_material_runs SET status='PILOT_REPAIR_REVIEW' WHERE id=?").bind(run.id), db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_stage_states SET status='PILOT_REPAIR_REVIEW',blocker='USER_REVIEW_BEFORE_PILOT_CONTINUE',evidence_summary=?,updated_at=? WHERE id=?").bind(`${nextMaterial.id} bounded candidate repair stored · no later pilot unit dispatched`, now, STAGE_ID)]);
-        }
       }
       else {
         const nextAudit = await db.prepare("SELECT b.* FROM v7_material_briefs b LEFT JOIN v7_material_audits a ON a.brief_id=b.id WHERE b.run_id=? AND b.pilot=1 AND a.id IS NULL AND b.status<>'REPAIR_REQUIRED' ORDER BY b.start_seconds LIMIT 1").bind(run.id).first<Row>();
@@ -554,7 +595,10 @@ async function resumePilot() {
   const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
   if (active) throw new Error("REMOTE_REQUESTS_STILL_ACTIVE");
   const now = new Date().toISOString();
-  const repairOnly = run.status === "REPAIR_REQUIRED", nextStatus = repairOnly ? "PILOT_REPAIR_RUNNING" : "PILOT_RUNNING";
+  const repaired = await repairedPilotBrief(db, authorization);
+  const repairedAudit = repaired ? await db.prepare("SELECT status FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, repaired.id).first<Row>() : null;
+  const repairedUnitNeedsQa = run.status === "PILOT_REPAIR_REVIEW" && repaired && repairedAudit?.status !== "PASS";
+  const repairOnly = run.status === "REPAIR_REQUIRED" || Boolean(repairedUnitNeedsQa), nextStatus = repairOnly ? "PILOT_REPAIR_RUNNING" : "PILOT_RUNNING";
   await db.batch([db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(nextStatus, run.id), db.prepare("UPDATE v7_stage_states SET status=?,blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(nextStatus, repairOnly ? "One failed material unit resumed; later units remain paused" : "Pilot continued after explicit repaired-unit review", now, STAGE_ID)]);
   return snapshot();
 }
