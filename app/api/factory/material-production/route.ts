@@ -338,12 +338,12 @@ function searchPhrase(brief: Row, repairAttempt = 0) {
   return variants[Math.min(repairAttempt, variants.length - 1)].split(" ").slice(0, 7).join(" ");
 }
 
-async function discoverCandidates(env: Env, db: DB, authorization: Row, briefRow: Row, brief: Row) {
+async function discoverCandidates(env: Env, db: DB, authorization: Row, briefRow: Row, brief: Row, options?: { repairAttempt?: number; query?: string }) {
   const previous = await db.prepare("SELECT status,content_json FROM v7_material_tournaments WHERE brief_id=? LIMIT 1").bind(briefRow.id).first<Row>();
   const previousContent = previous?.content_json ? rec(JSON.parse(String(previous.content_json))) : {};
-  const repairAttempt = previous?.status === "NO_PIXEL_CHAMPION" ? Number(previousContent.repairAttempt || 0) + 1 : 0;
-  if (repairAttempt > 1) throw new Error("PIXEL_REPAIR_EXHAUSTED · one bounded query repair already used");
-  const query = searchPhrase(brief, repairAttempt), candidates: Candidate[] = [];
+  const repairAttempt = options?.repairAttempt ?? (previous?.status === "NO_PIXEL_CHAMPION" ? Number(previousContent.repairAttempt || 0) + 1 : 0);
+  if (options?.repairAttempt === undefined && repairAttempt > 1) throw new Error("PIXEL_REPAIR_EXHAUSTED · one bounded query repair already used");
+  const query = options?.query || searchPhrase(brief, repairAttempt), candidates: Candidate[] = [];
   if (env.PEXELS_API_KEY) {
     const requestId = await newRequest(db, authorization, clean(briefRow.id), "DISCOVERY", "PEXELS");
     try {
@@ -774,6 +774,42 @@ async function resumePilot() {
   return snapshot();
 }
 
+function replacementSearchPhrase(brief: Row, attempt: number) {
+  const variants = [
+    "contactless credit card tapping payment terminal close up",
+    "customer hand inserting credit card terminal checkout close up",
+    "unbranded credit card reader merchant checkout macro",
+  ];
+  const text = `${clean(brief.narrationClause)} ${clean(brief.viewerMustUnderstand)}`.toLowerCase();
+  if (/authorization|approved|terminal|credit tender|purchase amount/.test(text)) return variants[Math.min(attempt - 1, variants.length - 1)];
+  return searchPhrase(brief, Math.min(1, attempt));
+}
+
+async function replaceSourceCandidate() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET) throw new Error("SOURCE_REPLACEMENT_CONFIGURATION_REQUIRED");
+  const latestEvidence = await db.prepare("SELECT * FROM v7_media_evidence WHERE authorization_id=? AND evidence_type='SOURCE_FRAME_SET' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!latestEvidence) throw new Error("SOURCE_FRAME_EVIDENCE_MISSING");
+  const latestAudit = await db.prepare("SELECT * FROM v7_source_frame_audits WHERE evidence_id=? AND status='REPAIR_REQUIRED'").bind(latestEvidence.id).first<Row>();
+  if (!latestAudit) throw new Error("SOURCE_REPLACEMENT_NOT_AUTHORIZED");
+  const failed = await db.prepare("SELECT COUNT(*) AS total FROM v7_source_frame_audits WHERE authorization_id=? AND brief_id=? AND status='REPAIR_REQUIRED'").bind(authorization.id, latestEvidence.brief_id).first<{ total: number }>(), attempt = Number(failed?.total || 0);
+  if (attempt < 1 || attempt > 3) throw new Error("SOURCE_REPLACEMENT_TRANCHE_EXHAUSTED · maximum three actual-pixel candidates");
+  const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(latestEvidence.brief_id).first<Row>();
+  if (!briefRow) throw new Error("SOURCE_FRAME_BRIEF_MISSING");
+  const brief = JSON.parse(String(briefRow.content_json)) as Row, query = replacementSearchPhrase(brief, attempt), discovery = await discoverCandidates(env, db, authorization, briefRow, brief, { repairAttempt: attempt, query });
+  const candidate = await selectCandidateByPixels(env, db, authorization, briefRow, brief, discovery.candidates, discovery.query, discovery.repairAttempt), requestId = await newRequest(db, authorization, clean(briefRow.id), "SOURCE_REPLACEMENT_DOWNLOAD", candidate.provider.toUpperCase());
+  try {
+    const response = await fetch(candidate.assetUrl, { signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`HTTP_${response.status}`);
+    const declared = Number(response.headers.get("content-length") || 0); if (declared > 40_000_000) throw new Error("FILE_EXCEEDS_40MB_PILOT_LIMIT");
+    const buffer = await response.arrayBuffer(); if (!buffer.byteLength || buffer.byteLength > 40_000_000) throw new Error("INVALID_PILOT_FILE_SIZE");
+    await storeMaterial(env, db, authorization, briefRow, { role: "PRIMARY", bytes: new Uint8Array(buffer), mimeType: response.headers.get("content-type") || "video/mp4", extension: "mp4", sourceType: `PROVIDER_SOURCE_REPLACEMENT_${attempt}`, provider: candidate.provider, providerAssetId: candidate.id, sourceUrl: candidate.assetUrl, landingUrl: candidate.sourceUrl, licenseCode: candidate.licenseCode, width: candidate.width, height: candidate.height, duration: candidate.duration, thumbnailUrl: candidate.thumbnailUrl });
+    await finishRequest(db, requestId, "COMPLETE");
+  } catch (error) { await finishRequest(db, requestId, "FAILED", error instanceof Error ? error.message : "Replacement download failed"); throw error; }
+  await syncRunTotals(db, clean(authorization.run_id));
+  return planRootCauseExecution();
+}
+
 async function planRootCauseExecution() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("MATERIAL_RUN_REQUIRED");
@@ -782,8 +818,9 @@ async function planRootCauseExecution() {
   if (!brief) throw new Error("ROOT_CAUSE_BRIEF_NOT_FOUND");
   const source = await db.prepare("SELECT * FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role='PRIMARY' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
   if (!source || !clean(source.mime_type).startsWith("video/")) throw new Error("ROOT_CAUSE_SOURCE_VIDEO_REQUIRED");
-  const existing = await db.prepare("SELECT id,status FROM v7_media_jobs WHERE authorization_id=? AND brief_id=? AND job_type='SOURCE_FRAME_EXTRACTION' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
-  if (existing && ["QUEUED", "LEASED", "COMPLETE"].includes(clean(existing.status))) return snapshot();
+  const existing = await db.prepare("SELECT id,status,contract_json FROM v7_media_jobs WHERE authorization_id=? AND brief_id=? AND job_type='SOURCE_FRAME_EXTRACTION' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  const existingContract = existing?.contract_json ? rec(JSON.parse(String(existing.contract_json))) : {};
+  if (existing && ["QUEUED", "LEASED", "COMPLETE"].includes(clean(existing.status)) && clean(existingContract.sourceHash) === clean(source.content_hash)) return snapshot();
   const now = new Date().toISOString(), id = `${brief.id}-SOURCE-FRAMES-${Date.now()}`;
   const contract = {
     version: "MEDIA_EXECUTION_CONTRACT_V1",
@@ -904,6 +941,7 @@ export async function POST(request: Request) {
     if (body.action === "RESUME_PILOT") return Response.json(await resumePilot(), { status: 202 });
     if (body.action === "PLAN_ROOT_CAUSE_EXECUTION") return Response.json(await planRootCauseExecution(), { status: 201 });
     if (body.action === "RUN_SOURCE_FRAME_QA") return Response.json(await sourceFrameQa(), { status: 202 });
+    if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
     if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);
     if (body.action === "CLAIM_MEDIA_JOB") return await claimMediaJob(request, body);
     if (body.action === "COMPLETE_MEDIA_JOB") return await completeMediaJob(request, body);
