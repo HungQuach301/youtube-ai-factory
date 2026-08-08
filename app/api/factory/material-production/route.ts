@@ -32,6 +32,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_material_authorizations (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, run_id text NOT NULL, scope text DEFAULT 'PILOT' NOT NULL, status text DEFAULT 'AUTHORIZED' NOT NULL, shot_count integer NOT NULL, max_remote_requests integer NOT NULL, max_actual_spend_usd real NOT NULL, model_policy_json text NOT NULL, authorized_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, revoked_at text, completed_at text, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_material_requests (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, run_id text NOT NULL, authorization_id text NOT NULL, brief_id text NOT NULL, phase text NOT NULL, provider text NOT NULL, model_id text NOT NULL, reasoning text NOT NULL, status text DEFAULT 'PLANNED' NOT NULL, idempotency_key text NOT NULL, provider_response_id text, input_tokens integer DEFAULT 0 NOT NULL, output_tokens integer DEFAULT 0 NOT NULL, reasoning_tokens integer DEFAULT 0 NOT NULL, expected_output_tokens integer DEFAULT 0 NOT NULL, max_output_tokens integer DEFAULT 0 NOT NULL, estimated_cost_usd real DEFAULT 0 NOT NULL, actual_cost_usd real DEFAULT 0 NOT NULL, retry_of text, retry_scope text DEFAULT 'NONE' NOT NULL, error text, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_material_candidates (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,provider text NOT NULL,provider_asset_id text NOT NULL,score real DEFAULT 0 NOT NULL,status text DEFAULT 'DISCOVERED' NOT NULL,content_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_material_tournaments (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,status text NOT NULL,champion_candidate_id text,score integer DEFAULT 0 NOT NULL,candidate_count integer DEFAULT 0 NOT NULL,provider_coverage integer DEFAULT 0 NOT NULL,content_json text NOT NULL,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_material_files (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,asset_role text DEFAULT 'PRIMARY' NOT NULL,source_type text NOT NULL,provider text NOT NULL,provider_asset_id text,source_url text,landing_url text,license_code text NOT NULL,mime_type text NOT NULL,width integer NOT NULL,height integer NOT NULL,duration_seconds real DEFAULT 0 NOT NULL,byte_size integer NOT NULL,content_hash text NOT NULL,runtime_key text NOT NULL,drive_file_id text NOT NULL,thumbnail_url text,status text DEFAULT 'STORED_VERIFIED' NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_material_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,file_id text NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text NOT NULL,provider_response_id text,findings_json text DEFAULT '[]' NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
@@ -222,7 +223,19 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
 
 async function finishRequest(db: DB, id: string, status: string, error: string | null = null) { await db.prepare("UPDATE v7_material_requests SET status=?,error=?,updated_at=? WHERE id=?").bind(status, error, new Date().toISOString(), id).run(); }
 
-function searchPhrase(brief: Row) { const query = clean(arr(brief.providerQueries)[0] || brief.viewerMustUnderstand).replace(/[;:]/g, " "); return query.split(" ").filter((word) => word.length > 2).slice(0, 10).join(" "); }
+function searchPhrase(brief: Row) {
+  const text = `${clean(brief.narrationClause)} ${clean(brief.viewerMustUnderstand)}`.toLowerCase();
+  const concepts = [
+    [/reward|points|miles|cash back/, "credit card rewards points"],
+    [/merchant|checkout|purchase/, "merchant checkout card payment"],
+    [/issuer|bank|approve|authorization/, "bank card authorization decision"],
+    [/portfolio|ledger|funding|obligation/, "banking ledger transaction processing"],
+    [/fee|cost|interchange|econom/, "credit card processing fee merchant"],
+    [/settle|clearing|route|network/, "payment network transaction processing"],
+  ];
+  const selected = concepts.filter(([pattern]) => (pattern as RegExp).test(text)).map(([, phrase]) => phrase as string);
+  return (selected[0] || "credit card payment real world").split(" ").slice(0, 6).join(" ");
+}
 
 async function discoverCandidates(env: Env, db: DB, authorization: Row, briefRow: Row, brief: Row) {
   const query = searchPhrase(brief), candidates: Candidate[] = [];
@@ -247,15 +260,69 @@ async function discoverCandidates(env: Env, db: DB, authorization: Row, briefRow
     } catch (error) { await finishRequest(db, requestId, "FAILED", error instanceof Error ? error.message : "Pixabay failed"); }
   }
   const used = new Set((await rows(db, "SELECT provider_asset_id FROM v7_material_files WHERE authorization_id=?", authorization.id)).map((item) => String(item.provider_asset_id)));
-  const viable = candidates.filter((item) => !used.has(item.id) && item.width / Math.max(1, item.height) >= 1.6).sort((a, b) => b.score - a.score);
-  for (const candidate of candidates) await db.prepare("INSERT INTO v7_material_candidates (id,program_id,run_id,authorization_id,brief_id,provider,provider_asset_id,score,status,content_json) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(`${authorization.run_id}-${briefRow.id}-${candidate.id}`, PROGRAM_ID, authorization.run_id, authorization.id, briefRow.id, candidate.provider, candidate.id, candidate.score, viable[0]?.id === candidate.id ? "SELECTED_METADATA" : "DISCOVERED", JSON.stringify(candidate)).run();
-  return viable[0] || null;
+  const viable = candidates.filter((item) => !used.has(item.id) && item.width / Math.max(1, item.height) >= 1.6 && clean(item.thumbnailUrl)).slice(0, 12);
+  for (const candidate of candidates) await db.prepare("INSERT INTO v7_material_candidates (id,program_id,run_id,authorization_id,brief_id,provider,provider_asset_id,score,status,content_json) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET content_json=excluded.content_json,status='DISCOVERED'").bind(`${authorization.run_id}-${briefRow.id}-${candidate.id}`, PROGRAM_ID, authorization.run_id, authorization.id, briefRow.id, candidate.provider, candidate.id, 0, "DISCOVERED", JSON.stringify(candidate)).run();
+  return viable;
+}
+
+const tournamentSchema = {
+  type: "object", additionalProperties: false,
+  properties: {
+    championCandidateId: { type: "string" },
+    candidates: { type: "array", minItems: 6, maxItems: 12, items: { type: "object", additionalProperties: false, properties: { candidateId: { type: "string" }, semanticFit: { type: "integer", minimum: 0, maximum: 100 }, specificity: { type: "integer", minimum: 0, maximum: 100 }, composition: { type: "integer", minimum: 0, maximum: 100 }, authenticity: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["SELECT", "REJECT"] }, reason: { type: "string", minLength: 4, maxLength: 180 } }, required: ["candidateId", "semanticFit", "specificity", "composition", "authenticity", "decision", "reason"] } },
+  },
+  required: ["championCandidateId", "candidates"],
+};
+
+async function selectCandidateByPixels(env: Env, db: DB, authorization: Row, briefRow: Row, brief: Row, candidates: Candidate[]) {
+  if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY_REQUIRED_FOR_CANDIDATE_TOURNAMENT");
+  if (candidates.length < 6) throw new Error(`CANDIDATE_PIXEL_FLOOR_NOT_MET · ${candidates.length}/6`);
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(briefRow.id), "CANDIDATE_PIXEL_TOURNAMENT", "OPENAI", setting.modelId, setting.reasoningEffort, 1800, 3000);
+  const content: Row[] = [{ type: "input_text", text: `Select one exact visual champion for this frozen YouTube documentary shot. Judge the actual pixels, not provider metadata. Broad topic similarity, generic finance imagery, staged corporate imagery, logos, screens, weak 16:9 composition or a frame that cannot prove the clause must be rejected. Score every supplied candidate exactly once. A champion requires semanticFit >=90 and every other dimension >=86. If none qualifies, return an empty championCandidateId and reject all.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence })}\n\nCandidate IDs appear immediately before their image.` }];
+  for (const candidate of candidates) { content.push({ type: "input_text", text: `CANDIDATE_ID=${candidate.id} · PROVIDER=${candidate.provider}` }); content.push({ type: "input_image", image_url: candidate.thumbnailUrl, detail: "high" }); }
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, store: true, max_output_tokens: 3000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_candidate_pixel_tournament", strict: true, schema: tournamentSchema } } }), signal: AbortSignal.timeout(90000) });
+    if (!response.ok) throw new Error(`OPENAI_${response.status} · ${(await response.text()).replace(/\s+/g, " ").slice(0, 240)}`);
+    const payload = await response.json() as Row, usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: clean(authorization.run_id), stageKey: STAGE, costType: "MATERIAL_CANDIDATE_TOURNAMENT", payload, fallbackModel: setting.modelId });
+    await db.prepare("UPDATE v7_material_requests SET status='COMPLETE',provider_response_id=?,input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,updated_at=? WHERE id=?").bind(payload.id || null, usage.inputTokens, usage.outputTokens, usage.reasoningTokens, usage.actualUsd, new Date().toISOString(), requestId).run();
+    await syncRunTotals(db, clean(authorization.run_id));
+    const result = JSON.parse(output(payload)) as Row, scores = arr(result.candidates).map(rec), championId = clean(result.championCandidateId), championScore = scores.find((item) => clean(item.candidateId) === championId), champion = candidates.find((item) => item.id === championId), hardPass = Boolean(champion && championScore && Number(championScore.semanticFit) >= 90 && ["specificity","composition","authenticity"].every((key) => Number(championScore[key]) >= 86) && championScore.decision === "SELECT");
+    for (const score of scores) await db.prepare("UPDATE v7_material_candidates SET score=?,status=? WHERE run_id=? AND brief_id=? AND provider_asset_id=?").bind(Number(score.semanticFit || 0), hardPass && clean(score.candidateId) === championId ? "PIXEL_CHAMPION" : "PIXEL_REJECTED", authorization.run_id, briefRow.id, clean(score.candidateId)).run();
+    const tournament = { candidateScores: scores, query: searchPhrase(brief), selected: hardPass ? championId : null, providerCoverage: new Set(candidates.map((item) => item.provider)).size };
+    await db.prepare("INSERT INTO v7_material_tournaments (id,program_id,run_id,authorization_id,brief_id,status,champion_candidate_id,score,candidate_count,provider_coverage,content_json,provider_response_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,champion_candidate_id=excluded.champion_candidate_id,score=excluded.score,candidate_count=excluded.candidate_count,provider_coverage=excluded.provider_coverage,content_json=excluded.content_json,provider_response_id=excluded.provider_response_id").bind(`${briefRow.id}-PIXEL-TOURNAMENT`, PROGRAM_ID, authorization.run_id, authorization.id, briefRow.id, hardPass ? "PASS" : "NO_PIXEL_CHAMPION", hardPass ? championId : null, Number(championScore?.semanticFit || 0), candidates.length, tournament.providerCoverage, JSON.stringify(tournament), payload.id || null).run();
+    if (!hardPass || !champion) throw new Error("NO_PIXEL_CHAMPION");
+    return champion;
+  } catch (error) {
+    const row = await db.prepare("SELECT status FROM v7_material_requests WHERE id=?").bind(requestId).first<{status:string}>();
+    if (row?.status === "IN_PROGRESS") await finishRequest(db, requestId, "FAILED", error instanceof Error ? error.message : "Candidate tournament failed");
+    throw error;
+  }
+}
+
+function familyKind(value: unknown) {
+  const family = clean(value).toLowerCase();
+  if (/waterfall|chart|econom/.test(family)) return "CHART";
+  if (/timeline|timing|clock/.test(family)) return "TIMELINE";
+  if (/receipt|counter/.test(family)) return "RECEIPT";
+  if (/map|route|network/.test(family)) return "ROUTE";
+  if (/comic/.test(family)) return "COMIC";
+  if (/doodle|sketch/.test(family)) return "DOODLE";
+  if (/system|interface|ui/.test(family)) return "SYSTEM";
+  return "MECHANISM";
 }
 
 function ownedSvg(brief: Row, role: "PRIMARY" | "OVERLAY") {
-  const family = short(brief.primaryFamily, 34), title = short(brief.viewerMustUnderstand, 84), evidence = arr(brief.requiredEvidence).map((item) => short(item, 58)).slice(0, 3);
-  const cards = evidence.map((item, index) => `<g transform="translate(${170 + index * 545} 430)"><rect width="460" height="300" rx="32" fill="${index === 1 ? "#d9f1e4" : "#f5edcf"}"/><circle cx="62" cy="62" r="24" fill="#2d8063"/><text x="62" y="70" text-anchor="middle" font-size="24" font-family="Arial" font-weight="700" fill="white">${index + 1}</text><text x="42" y="130" font-size="27" font-family="Arial" font-weight="700" fill="#0d3f32">${escapeXml(short(item, 30))}</text><path d="M42 190 H390" stroke="#2d8063" stroke-width="12" stroke-linecap="round" opacity=".8"/><path d="M42 230 H${220 + index * 70}" stroke="#76b999" stroke-width="12" stroke-linecap="round"/></g>`).join("");
-  return new TextEncoder().encode(`<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><rect width="1920" height="1080" fill="${role === "OVERLAY" ? "#082f28" : "#0d3f32"}"/><circle cx="1710" cy="160" r="260" fill="#1c684f" opacity=".7"/><text x="120" y="130" fill="#7fd5aa" font-size="24" font-family="Arial" font-weight="700" letter-spacing="4">${escapeXml(family.toUpperCase())}</text><text x="120" y="230" fill="#fffdf5" font-size="52" font-family="Georgia" font-weight="700">${escapeXml(short(title, 58))}</text>${cards}<path d="M390 580 H715 M935 580 H1260" stroke="#7fd5aa" stroke-width="10" marker-end="url(#a)"/><defs><marker id="a" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#7fd5aa"/></marker></defs><text x="120" y="985" fill="#9dcbbb" font-size="24" font-family="Arial">${role === "OVERLAY" ? "Explanatory layer · transparent compositing source" : "Authored explanatory source · production-safe 16:9"}</text></svg>`);
+  const kind = familyKind(brief.primaryFamily), title = escapeXml(short(brief.viewerMustUnderstand, 68)), items = arr(brief.requiredEvidence).map((item) => escapeXml(short(item, 34))).slice(0, 3), labels = [...items, "Decision", "Outcome"].slice(0, 3);
+  const text = (x: number, y: number, value: string, size = 30, anchor = "start") => `<text x="${x}" y="${y}" text-anchor="${anchor}" fill="#103f35" font-family="Arial" font-size="${size}" font-weight="700">${value}</text>`;
+  const cards = labels.map((item, index) => `<g transform="translate(${150 + index * 555} 430)"><rect width="450" height="260" rx="30" fill="${index === 1 ? "#d8f0e4" : "#fff7dd"}"/>${text(225, 145, item, 27, "middle")}</g>`).join("");
+  const route = labels.map((item, index) => `<g><circle cx="${260 + index * 690}" cy="570" r="112" fill="${index === 1 ? "#78c69f" : "#fff7dd"}"/>${text(260 + index * 690, 580, item, 27, "middle")}${index < 2 ? `<path d="M${380 + index * 690} 570 H${800 + index * 690}" stroke="#78c69f" stroke-width="14" marker-end="url(#arrow)"/><circle r="15" fill="#fff7dd"><animateMotion dur="2.2s" repeatCount="indefinite" path="M${400 + index * 690} 570 H${780 + index * 690}"/></circle>` : ""}</g>`).join("");
+  const chart = [330,520,250,680].map((height,index)=>`<g><rect x="${300+index*330}" y="${835-height}" width="190" height="${height}" rx="18" fill="${index===3?"#78c69f":"#fff7dd"}"><animate attributeName="height" from="0" to="${height}" dur="1.2s" fill="freeze"/><animate attributeName="y" from="835" to="${835-height}" dur="1.2s" fill="freeze"/></rect>${text(395+index*330,885,index===0?"PURCHASE":index===3?"NET":"COST",24,"middle")}</g>`).join("");
+  const timeline = `<path d="M230 580 H1690" stroke="#fff7dd" stroke-width="14"/>${labels.map((item,index)=>`<g><circle cx="${330+index*620}" cy="580" r="58" fill="#78c69f"><animate attributeName="r" values="48;64;48" dur="2s" begin="${index*.55}s" repeatCount="indefinite"/></circle>${text(330+index*620,720,item,27,"middle")}</g>`).join("")}`;
+  const receipt = `<rect x="610" y="350" width="700" height="560" rx="34" fill="#fff7dd"/>${text(960,470,"$100.00",68,"middle")}${[0,1,2,3].map((index)=>`<rect x="720" y="${560+index*72}" width="${470-index*65}" height="16" rx="8" fill="${index===3?"#78c69f":"#7b958c"}"><animate attributeName="width" from="0" to="${470-index*65}" dur=".8s" begin="${index*.25}s" fill="freeze"/></rect>`).join("")}`;
+  const comic = labels.map((item,index)=>`<g transform="translate(${105+index*585} 360)"><rect width="520" height="480" rx="26" fill="${index===1?"#d8f0e4":"#fff7dd"}"/><circle cx="260" cy="155" r="72" fill="#78c69f"/><path d="M260 230 V350 M180 290 H340" stroke="#103f35" stroke-width="18" stroke-linecap="round"/>${text(260,425,item,25,"middle")}</g>`).join("");
+  const system = `<rect x="210" y="350" width="1500" height="560" rx="40" fill="#eff8f2"/><rect x="260" y="410" width="390" height="440" rx="28" fill="#fff7dd"/>${labels.map((item,index)=>`<g><rect x="730" y="${420+index*135}" width="820" height="92" rx="22" fill="${index===1?"#78c69f":"#d8f0e4"}"/>${text(780,478+index*135,item,28)}</g>`).join("")}`;
+  const body = kind === "ROUTE" ? route : kind === "CHART" ? chart : kind === "TIMELINE" ? timeline : kind === "RECEIPT" ? receipt : kind === "COMIC" ? comic : kind === "SYSTEM" ? system : cards;
+  return new TextEncoder().encode(`<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080"><defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0 L12 6 L0 12 Z" fill="#78c69f"/></marker></defs><rect width="1920" height="1080" fill="${role === "OVERLAY" ? "#082f28" : "#0d3f32"}"/><text x="110" y="150" fill="#fffdf5" font-family="Georgia" font-size="58" font-weight="700">${title}</text>${body}</svg>`);
 }
 
 const glyphs: Record<string, string[]> = {
@@ -267,18 +334,23 @@ function joinBytes(parts: Uint8Array[]) { const length = parts.reduce((sum, part
 function crc32(bytes: Uint8Array) { let crc = 0xffffffff; for (const byte of bytes) { crc ^= byte; for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1)); } return (crc ^ 0xffffffff) >>> 0; }
 function pngChunk(type: string, data: Uint8Array) { const name = new TextEncoder().encode(type), body = joinBytes([name,data]); return joinBytes([u32(data.length),body,u32(crc32(body))]); }
 function deflateStored(raw: Uint8Array) { const parts: Uint8Array[] = [new Uint8Array([0x78,0x01])]; for (let offset = 0; offset < raw.length;) { const length = Math.min(65535,raw.length-offset), final = offset + length >= raw.length ? 1 : 0; parts.push(new Uint8Array([final,length&255,(length>>>8)&255,(~length)&255,((~length)>>>8)&255]),raw.slice(offset,offset+length)); offset += length; } let a=1,b=0; for (const byte of raw) { a=(a+byte)%65521; b=(b+a)%65521; } parts.push(u32(((b<<16)|a)>>>0)); return joinBytes(parts); }
-function ownedPng(brief: Row) {
+function ownedPng(brief: Row, state: 0 | 1 | 2) {
   const width=960,height=540,pixels=new Uint8Array(width*height*4), raw=new Uint8Array(height*(1+width*4));
   const color=(hex:string)=>[Number.parseInt(hex.slice(1,3),16),Number.parseInt(hex.slice(3,5),16),Number.parseInt(hex.slice(5,7),16),255] as const;
   const fill=(x:number,y:number,w:number,h:number,hex:string)=>{const c=color(hex);for(let py=Math.max(0,y);py<Math.min(height,y+h);py++)for(let px=Math.max(0,x);px<Math.min(width,x+w);px++){const i=(py*width+px)*4;pixels.set(c,i);}};
   const text=(value:string,x:number,y:number,scale:number,hex:string)=>{const c=color(hex);let cx=x;for(const char of value.toUpperCase()){const glyph=glyphs[char]||glyphs["?"];for(let gy=0;gy<7;gy++)for(let gx=0;gx<5;gx++)if(glyph[gy][gx]==="1")for(let sy=0;sy<scale;sy++)for(let sx=0;sx<scale;sx++){const px=cx+gx*scale+sx,py=y+gy*scale+sy;if(px>=0&&px<width&&py>=0&&py<height){const i=(py*width+px)*4;pixels.set(c,i);}}cx+=6*scale;}};
   const wrap=(value:string,limit:number)=>{const lines:string[]=[],words=clean(value).toUpperCase().split(" ");let line="";for(const word of words){const next=line?`${line} ${word}`:word;if(next.length>limit&&line){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);return lines;};
-  fill(0,0,width,height,"#0d3f32");fill(0,0,18,height,"#74c69d");fill(46,42,868,3,"#74c69d");text(short(brief.primaryFamily,30),48,62,3,"#74c69d");wrap(short(brief.viewerMustUnderstand,100),42).slice(0,2).forEach((line,index)=>text(line,48,112+index*48,5,"#fffdf5"));
-  const evidence=arr(brief.requiredEvidence).map((item)=>short(item,44)).slice(0,3);evidence.forEach((item,index)=>{const x=48+index*300;fill(x,252,270,190,index===1?"#d9f1e4":"#f5edcf");fill(x+18,270,34,34,"#2d8063");text(String(index+1),x+26,276,3,"#fffdf5");wrap(item,25).slice(0,4).forEach((line,row)=>text(line,x+18,326+row*23,2,"#0d3f32"));if(index<2){fill(x+270,340,30,5,"#74c69d");}});text("STAGE 09 PIXEL QA PROXY",48,486,2,"#9dcbbb");
+  fill(0,0,width,height,"#0d3f32");fill(0,0,18,height,"#74c69d");wrap(short(brief.viewerMustUnderstand,92),45).slice(0,2).forEach((line,index)=>text(line,48,45+index*42,4,"#fffdf5"));
+  const evidence=arr(brief.requiredEvidence).map((item)=>short(item,36)).slice(0,3), kind=familyKind(brief.primaryFamily), visible=Math.max(1,state+1);
+  if(kind==="CHART") { [120,220,150,300].forEach((h,index)=>{if(index<=state+1){fill(170+index*185,470-h,120,h,index===3?"#74c69d":"#f5edcf");text(index===0?"BUY":index===3?"NET":"COST",178+index*185,490,2,"#fffdf5");}}); }
+  else if(kind==="RECEIPT") { fill(290,150,380,340,"#f5edcf");text("$100.00",390,205,6,"#0d3f32");for(let index=0;index<visible+1;index++)fill(350,280+index*55,260-index*45,12,index===state?"#74c69d":"#7b958c"); }
+  else if(kind==="TIMELINE") { fill(120,320,720,10,"#f5edcf");evidence.forEach((item,index)=>{if(index<visible){fill(175+index*300,285,70,70,"#74c69d");wrap(item,20).slice(0,2).forEach((line,row)=>text(line,130+index*300,390+row*22,2,"#fffdf5"));}}); }
+  else if(kind==="SYSTEM") { fill(95,150,770,340,"#eff8f2");fill(125,180,230,280,"#f5edcf");evidence.forEach((item,index)=>{if(index<visible){fill(395,190+index*90,410,62,index===state?"#74c69d":"#d9f1e4");wrap(item,32).slice(0,1).forEach((line)=>text(line,420,212+index*90,2,"#0d3f32"));}}); }
+  else { evidence.forEach((item,index)=>{const x=48+index*300;if(index<visible){fill(x,235,270,210,index===state?"#d9f1e4":"#f5edcf");fill(x+18,255,34,34,"#2d8063");text(String(index+1),x+26,261,3,"#fffdf5");wrap(item,25).slice(0,4).forEach((line,row)=>text(line,x+18,320+row*23,2,"#0d3f32"));if(index<state)fill(x+270,340,30,6,"#74c69d");}}); }
   for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
 }
 
-async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row, options: { role: "PRIMARY" | "OVERLAY" | "QA_PROXY"; bytes: Uint8Array; mimeType: string; extension: string; sourceType: string; provider: string; providerAssetId?: string; sourceUrl?: string; landingUrl?: string; licenseCode: string; width: number; height: number; duration?: number; thumbnailUrl?: string }) {
+async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row, options: { role: "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT"; bytes: Uint8Array; mimeType: string; extension: string; sourceType: string; provider: string; providerAssetId?: string; sourceUrl?: string; landingUrl?: string; licenseCode: string; width: number; height: number; duration?: number; thumbnailUrl?: string }) {
   if (!env.BUCKET) throw new Error("R2 material storage is unavailable");
   const id = `${briefRow.id}-${options.role}`, hash = await shaBytes(options.bytes), key = `v7/material-production/${authorization.run_id}/pilot/${clean(briefRow.id).split("-").at(-1)}-${options.role.toLowerCase()}.${options.extension}`;
   await env.BUCKET.put(key, options.bytes, { httpMetadata: { contentType: options.mimeType }, customMetadata: { sha256: hash, briefId: String(briefRow.id), role: options.role, provider: options.provider, licenseCode: options.licenseCode } });
@@ -293,8 +365,8 @@ async function materializeOne(env: Env, db: DB, authorization: Row, briefRow: Ro
   if (route === "MAKE") {
     await storeMaterial(env, db, authorization, briefRow, { role: "PRIMARY", bytes: ownedSvg(brief, "PRIMARY"), mimeType: "image/svg+xml", extension: "svg", sourceType: "OWNED_CODE_NATIVE", provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 1920, height: 1080 });
   } else {
-    const candidate = await discoverCandidates(env, db, authorization, briefRow, brief);
-    if (!candidate) throw new Error(`NO_RELEVANT_PROVIDER_CANDIDATE · ${briefRow.id}`);
+    const candidates = await discoverCandidates(env, db, authorization, briefRow, brief);
+    const candidate = await selectCandidateByPixels(env, db, authorization, briefRow, brief, candidates);
     const requestId = await newRequest(db, authorization, clean(briefRow.id), "DOWNLOAD", candidate.provider.toUpperCase());
     try {
       const response = await fetch(candidate.assetUrl, { signal: AbortSignal.timeout(30000) });
@@ -319,17 +391,19 @@ async function dispatchVision(env: Env, db: DB, authorization: Row, briefRow: Ro
   const imageUrls: string[] = [];
   if (clean(primary.thumbnail_url)) imageUrls.push(clean(primary.thumbnail_url));
   if (files.some((item) => item.mime_type === "image/svg+xml")) {
-    let proxy = files.find((item) => item.asset_role === "QA_PROXY");
-    if (!proxy) {
-      const bytes = ownedPng(brief);
-      await storeMaterial(env, db, authorization, briefRow, { role: "QA_PROXY", bytes, mimeType: "image/png", extension: "png", sourceType: "OWNED_PIXEL_QA_PROXY", provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
-      proxy = await db.prepare("SELECT * FROM v7_material_files WHERE brief_id=? AND asset_role='QA_PROXY'").bind(briefRow.id).first<Row>() || undefined;
+    const roles = [["QA_ENTRY",0],["QA_MIDPOINT",1],["QA_EXIT",2]] as const;
+    for (const [role,state] of roles) {
+      let proxy = files.find((item) => item.asset_role === role);
+      if (!proxy) {
+        await storeMaterial(env, db, authorization, briefRow, { role, bytes: ownedPng(brief, state), mimeType: "image/png", extension: "png", sourceType: "OWNED_AUDIENCE_FRAME_EVIDENCE", provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
+        proxy = await db.prepare("SELECT * FROM v7_material_files WHERE brief_id=? AND asset_role=?").bind(briefRow.id, role).first<Row>() || undefined;
+      }
+      if (proxy) { const object = await env.BUCKET?.get(clean(proxy.runtime_key)); if (object) imageUrls.push(`data:image/png;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`); }
     }
-    if (proxy) { const object = await env.BUCKET?.get(clean(proxy.runtime_key)); if (object) imageUrls.push(`data:image/png;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`); }
   }
   if (!imageUrls.length) throw new Error("REPRESENTATIVE_PIXEL_EVIDENCE_MISSING");
   const requestId = await newRequest(db, authorization, clean(briefRow.id), "PIXEL_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1500, 3000);
-  const content: Row[] = [{ type: "input_text", text: `Act as an exacting visual producer. Judge only the supplied representative material pixels against this frozen shot contract. Broad topic similarity is a failure. Penalize generic stock, unsupported claims, decorative diagrams, visible production metadata, weak mobile hierarchy, cropping, logos, text artifacts and repeated-template appearance. A PASS requires every dimension at least 86 and overall at least 90. This is representative-material QA; do not claim to have reviewed full motion playback.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
+  const content: Row[] = [{ type: "input_text", text: `Act as an exacting visual producer. Judge only the supplied material pixels against this frozen shot contract. For authored material, the images are entry, midpoint and exit in that order and must visibly progress. Broad topic similarity is a failure. Penalize generic stock, unsupported claims, decorative diagrams, visible production metadata, weak mobile hierarchy, cropping, logos, text artifacts and repeated-template appearance. A PASS requires every dimension at least 86 and overall at least 90. Do not infer motion that the supplied states do not prove.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
   for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 3000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_pixel_qa", strict: true, schema: visionSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`PIXEL_QA_START_FAILED · ${response.status}`); }
@@ -358,12 +432,15 @@ async function pollVision(env: Env, db: DB, authorization: Row, requestRow: Row)
 }
 
 async function finalizePilot(env: Env, db: DB, authorization: Row) {
-  const briefs = await rows(db, "SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", authorization.run_id), files = await rows(db, "SELECT * FROM v7_material_files WHERE authorization_id=?", authorization.id), audits = await rows(db, "SELECT * FROM v7_material_audits WHERE authorization_id=?", authorization.id), primary = files.filter((file) => file.asset_role === "PRIMARY"), families = new Set(briefs.map((brief) => String(brief.visual_family))), routes = new Set(briefs.map((brief) => String(brief.route))), hashes = new Set(primary.map((file) => String(file.content_hash)));
+  const briefs = await rows(db, "SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", authorization.run_id), files = await rows(db, "SELECT * FROM v7_material_files WHERE authorization_id=?", authorization.id), audits = await rows(db, "SELECT * FROM v7_material_audits WHERE authorization_id=?", authorization.id), tournaments = await rows(db, "SELECT * FROM v7_material_tournaments WHERE authorization_id=?", authorization.id), primary = files.filter((file) => file.asset_role === "PRIMARY"), families = new Set(briefs.map((brief) => String(brief.visual_family))), routes = new Set(briefs.map((brief) => String(brief.route))), hashes = new Set(primary.map((file) => String(file.content_hash))), sourced = briefs.filter((brief) => ["SOURCE","HYBRID"].includes(String(brief.route))), authored = briefs.filter((brief) => ["MAKE","HYBRID"].includes(String(brief.route)));
+  const authoredStates = authored.filter((brief) => ["QA_ENTRY","QA_MIDPOINT","QA_EXIT"].every((role) => files.some((file) => file.brief_id === brief.id && file.asset_role === role))).length;
   const gates = [
     { id: "PILOT_SCOPE", status: briefs.length === Number(authorization.shot_count) ? "PASS" : "FAIL", evidence: `${briefs.length}/${authorization.shot_count} authorized briefs` },
     { id: "STORED_BYTES", status: primary.length === briefs.length && primary.every((file) => Number(file.byte_size) > 0 && clean(file.drive_file_id) && clean(file.runtime_key)) ? "PASS" : "FAIL", evidence: `${primary.length}/${briefs.length} primary files stored in R2 + Drive` },
     { id: "PROVENANCE", status: primary.every((file) => clean(file.license_code) && clean(file.content_hash)) ? "PASS" : "FAIL", evidence: `${primary.filter((file) => clean(file.license_code) && clean(file.content_hash)).length}/${primary.length} rights + checksums` },
     { id: "PIXEL_QA", status: audits.length === briefs.length && audits.every((item) => item.status === "PASS") ? "PASS" : "FAIL", evidence: `${audits.filter((item) => item.status === "PASS").length}/${briefs.length} representative pixel audits passed` },
+    { id: "CANDIDATE_TOURNAMENT", status: tournaments.length === sourced.length && tournaments.every((item) => item.status === "PASS" && Number(item.candidate_count) >= 6) ? "PASS" : "FAIL", evidence: `${tournaments.filter((item) => item.status === "PASS").length}/${sourced.length} SOURCE/HYBRID pixel tournaments passed` },
+    { id: "THREE_STATE_EVIDENCE", status: authoredStates === authored.length ? "PASS" : "FAIL", evidence: `${authoredStates}/${authored.length} MAKE/HYBRID units store entry, midpoint and exit pixels` },
     { id: "PHYSICAL_UNIQUENESS", status: hashes.size === primary.length ? "PASS" : "FAIL", evidence: `${hashes.size}/${primary.length} unique primary hashes` },
     { id: "VISUAL_DIVERSITY", status: families.size >= 5 && routes.size >= 2 ? "PASS" : "FAIL", evidence: `${families.size} families · ${routes.size} routes` },
     { id: "SEQUENCE_BOUNDARY", status: "PASS", evidence: "Pilot-set audit passed; full motion playback remains mandatory downstream" },

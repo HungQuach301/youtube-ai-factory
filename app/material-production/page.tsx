@@ -98,13 +98,13 @@ export default function MaterialProductionPage() {
       <div><small>EXECUTION</small><strong>Zero-spend dry run</strong></div>
       <div><small>REMOTE REQUESTS</small><strong>{data.run?.remoteRequests || 0}</strong></div>
       <div><small>ACTUAL COST</small><strong>${(data.run?.actualCostUsd || 0).toFixed(2)}</strong></div>
-      <button onClick={build} disabled={Boolean(working) || !ready}>{working === "BUILD" ? "Compiling 166 local briefs…" : data.run ? "Rebuild deterministic dry run" : "Build zero-spend dry run"}</button>
+      <button onClick={build} disabled={Boolean(working) || !ready}>{working === "BUILD" ? "Creating clean Stage 09.4 run…" : data.run?.status === "REPAIR_REQUIRED" ? "Build clean Stage 09.4 pilot" : data.run ? "Rebuild deterministic dry run" : "Build zero-spend dry run"}</button>
     </section>
     {error && <p className="stateBanner errorState">{error}</p>}
     <section className="shotDoctrine">
       <header><p>MATERIAL FUNNEL · LOCKED</p><h2>Deterministic first. Expensive intelligence last.</h2><span>Pilot production stays unauthorized until this contract passes.</span></header>
       <div className="shotMetrics">
-        {[['01','Rules','Reject impossible routes and rights failures.'],['02','Retrieval','Search provider, Drive and reusable library.'],['03','Shortlist','Embeddings narrow candidates without long outputs.'],['04','Pixel QA','Vision inspects only top three actual files.'],['05','Adjudicate','High reasoning only for ambiguous finalists.'],['06','Store','Bytes, checksum, provenance and rights become evidence.']].map(([n,t,d])=><article key={n}><small>{n}</small><h3>{t}</h3><p>{d}</p></article>)}
+        {[['01','Rules','Reject impossible routes and rights failures.'],['02','Retrieval','Search every healthy provider with concrete queries.'],['03','Pixel tournament','Vision compares 6–12 real candidate thumbnails.'],['04','Family render','Eight meaning-specific authored grammars replace generic templates.'],['05','Three-state QA','Entry, midpoint, exit and 360p evidence are inspected.'],['06','Store','Bytes, checksum, provenance and rights become evidence.']].map(([n,t,d])=><article key={n}><small>{n}</small><h3>{t}</h3><p>{d}</p></article>)}
       </div>
     </section>
     <section className="shotProgress">
@@ -141,7 +141,7 @@ export default function MaterialProductionPage() {
         : <button onClick={() => void pilotAction("AUTHORIZE_PILOT")} disabled={Boolean(working) || data.run?.status !== "PILOT_READY"}>{working === "AUTHORIZE_PILOT" ? "Authorizing pilot…" : "Authorize 10-shot pilot · $0 now"}</button>}
     </section>
     {data.authorization && <section className="shotProgress">
-      <header><div><p>STAGE 09.3 · ACTUAL PILOT</p><h2>Material bytes, pixel evidence and request truth</h2></div><strong>{data.pilot.percent}%</strong></header>
+      <header><div><p>STAGE 09.4 · MATERIAL QUALITY REBUILD</p><h2>Candidate-pixel champions, family renderers and three-state evidence</h2></div><strong>{data.pilot.percent}%</strong></header>
       <i><span style={{ width: `${data.pilot.percent}%` }} /></i>
       <div>
         <span><b>01</b>{data.pilot.materialized}/{data.pilot.total} materialized</span>

@@ -76,6 +76,48 @@ Wave 09.1 implements the zero-spend dry-run compiler. Wave 09.2 adds an immutabl
 
 Wave 09.3 executes only that authorized pilot. It is resumable at one material unit per step: discovery, download or authored generation, R2 + Google Drive storage, checksum verification, pixel QA, and pilot sequence QA. Provider URLs and thumbnails remain candidates until bytes are stored. SOURCE and HYBRID shots retain the original provider file; HYBRID shots additionally receive a channel-owned explanatory overlay. MAKE shots receive a channel-owned 1920×1080 vector source. No 166-shot expansion is authorized by a pilot run.
 
+Wave 09.4 is a clean material-quality rebuild. Stage 09.3 bytes remain immutable failure evidence and are never offered as candidates. The rebuild creates a new run and authorization with these additional gates:
+
+- SOURCE/HYBRID discovery must collect 6–12 candidate thumbnails across every healthy provider. No provider wins by response order or metadata rank.
+- A multimodal tournament inspects the real candidate pixels and returns one champion plus rejection reasons. Broad topic similarity, generic finance imagery and provider-default bias are explicit failures.
+- MAKE/HYBRID explanatory layers use a renderer selected by visual family: mechanism diagram, route map, chart/waterfall, timeline, receipt/economic object, comic, doodle or system UI. One universal instruction-board template is prohibited.
+- Every authored material stores separate entry, midpoint and exit raster evidence. These are audience-facing frames with no URL, filename, family name, debug pill, QA label or production instruction.
+- Pixel QA receives all three states and a 360p-safe rendering. A single still can never prove motion semantics.
+- Only the ten failed pilot units are rebuilt. Full 166-shot production remains blocked until the clean pilot passes every material and sequence gate.
+
+### Candidate-pixel tournament
+
+1. Generate short, concrete, noun-and-action provider queries from the frozen clause; abstract story prose is excluded.
+2. Fetch candidates from all connected providers independently. A timeout reduces provider coverage but never promotes another provider by default.
+3. Reject invalid aspect ratio, insufficient resolution, duplicate provider IDs, missing preview pixels and already-used assets deterministically.
+4. Submit 6–12 real thumbnails in one bounded vision comparison. The structured response must name a candidate ID, semantic score, specificity score, composition score, authenticity score and rejection reason.
+5. Select only a candidate scoring at least 90 semantic fit and 86 in every other dimension. Otherwise the unit becomes `NO_PIXEL_CHAMPION` and routes to bounded query repair or MAKE/HYBRID escalation.
+6. Download only the champion. Selection evidence, rejected candidates and provider coverage are stored before materialization.
+
+### Family renderer contract
+
+| Family | Required visual proof | Prohibited fallback |
+|---|---|---|
+| Mechanism diagram | named roles, directional transfer, decision state | anonymous nodes and decorative dashes |
+| Route map | origin, destination, ordered path and moving token | undirected network wallpaper |
+| Chart / waterfall | reconciled values, labeled baseline and visible delta | bars without data |
+| Timeline | distinct states, ordered time and delayed consequence | evenly spaced generic cards |
+| Receipt / economic object | one persistent amount that visibly decomposes | decorative receipt placeholder |
+| Comic | concrete actor/action/consequence across panels | generic office characters |
+| Doodle | one hand-built metaphor with progressive reveal | icon collage |
+| System UI | one task-specific decision interface with hierarchy | fake provider dashboard or tiny labels |
+
+### Stage 09.4 release thresholds
+
+- Candidate tournament coverage: 100% of SOURCE/HYBRID pilot units; 6–12 inspected pixels per unit unless fewer valid candidates exist, which blocks rather than auto-selects.
+- Per-material semantic fit: >=90; P0 factual units >=94; every supporting dimension >=86.
+- Entry/midpoint/exit evidence: 3/3 stored and materially different for every MAKE/HYBRID unit.
+- Mobile safety: all essential labels readable at 360p with no crop or letterbox.
+- Diversity: no three consecutive same-family shots; no duplicate primary hash, candidate ID, composition signature or renderer state sequence.
+- Audience-pixel cleanliness: zero URLs, filenames, provider names, template names, debug labels or production metadata.
+- Rights and storage: 100% SHA-256, provenance, rights, R2 runtime copy and immutable Google Drive original.
+- Retry policy: at most one missing-field delta. Query repair or whole-unit rebuild requires stored root cause and never reuses a rejected candidate.
+
 ### Pilot execution state machine
 
 `PILOT_AUTHORIZED → PILOT_RUNNING → MATERIALIZED → PIXEL_AUDITED → PILOT_PASS | REPAIR_REQUIRED`
@@ -99,3 +141,8 @@ Wave 09.3 executes only that authorized pilot. It is resumable at one material u
 - **ADR-035 — SOURCE, MAKE and HYBRID preserve different evidence.** SOURCE stores the selected provider bytes; MAKE stores a channel-owned authored source; HYBRID stores both provider context and a separate owned explanatory layer.
 - **ADR-036 — Pixel evidence and sequence evidence are not conflated.** Vision review scores the selected representative pixels; sequence QA scores the pilot set. Full entry/mid/exit playback remains mandatory downstream when the motion edit exists.
 - **ADR-037 — Remote work is stop-aware and ledger-complete.** Every network call receives a request record with provider, phase, terminal status, token usage when applicable and actual measured cost before another unit advances.
+- **ADR-038 — Candidate pixels precede provider selection.** Provider metadata may filter but may never choose a SOURCE/HYBRID champion; selection requires a stored multimodal tournament over real previews.
+- **ADR-039 — Renderer identity follows meaning.** MAKE/HYBRID materials are rendered by a family-specific grammar. Recoloring or relabeling one generic template across meanings is a hard failure.
+- **ADR-040 — Three states prove motion semantics.** Entry, midpoint and exit evidence are distinct stored raster artifacts. One frame or a storyboard proxy cannot satisfy material QA.
+- **ADR-041 — Failure evidence is immutable but non-reusable.** Stage 09.3 assets remain auditable historical evidence; Stage 09.4 creates fresh bytes, candidate decisions and checksums for all ten pilot units.
+- **ADR-042 — Provider health cannot become selection bias.** Timeouts and missing candidates are recorded as coverage defects. They never silently promote Pexels, Pixabay or any other provider.
