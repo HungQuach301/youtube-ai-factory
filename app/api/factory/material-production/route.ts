@@ -146,7 +146,7 @@ async function snapshot() {
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
   let shotCount = 0; try { shotCount = (await upstream(db)).shots.length; } catch { shotCount = 0; }
   const primaryFiles = files.filter((file) => file.asset_role === "PRIMARY");
-  const items = pilotBriefs.map((brief) => { const value = JSON.parse(String(brief.content_json)) as Row, file = primaryFiles.find((item) => item.brief_id === brief.id), overlay = files.find((item) => item.brief_id === brief.id && item.asset_role === "OVERLAY"), auditRow = audits.find((item) => item.brief_id === brief.id), tournament = tournaments.find((item) => item.brief_id === brief.id); return { id: brief.id, briefId: value.briefId, route: value.route, family: value.primaryFamily, meaning: value.viewerMustUnderstand, status: auditRow?.status || file?.status || brief.status, file: file ? { id: file.id, provider: file.provider, mimeType: file.mime_type, bytes: Number(file.byte_size), hash: clean(file.content_hash).slice(0, 12), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(file.id))}` } : null, overlay: overlay ? { id: overlay.id, previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(overlay.id))}` } : null, tournament: tournament ? { status: tournament.status, score: Number(tournament.score), candidateCount: Number(tournament.candidate_count), providerCoverage: Number(tournament.provider_coverage), championId: tournament.champion_candidate_id } : null, audit: auditRow ? { status: auditRow.status, score: Number(auditRow.score), findings: JSON.parse(String(auditRow.findings_json || "[]")) } : null }; });
+  const items = pilotBriefs.map((brief) => { const value = JSON.parse(String(brief.content_json)) as Row, file = primaryFiles.find((item) => item.brief_id === brief.id), overlay = files.find((item) => item.brief_id === brief.id && item.asset_role === "OVERLAY"), auditRow = audits.find((item) => item.brief_id === brief.id), tournament = tournaments.find((item) => item.brief_id === brief.id), tournamentContent = tournament?.content_json ? rec(JSON.parse(String(tournament.content_json))) : {}; return { id: brief.id, briefId: value.briefId, route: value.route, family: value.primaryFamily, meaning: value.viewerMustUnderstand, status: auditRow?.status || file?.status || brief.status, file: file ? { id: file.id, provider: file.provider, mimeType: file.mime_type, bytes: Number(file.byte_size), hash: clean(file.content_hash).slice(0, 12), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(file.id))}` } : null, overlay: overlay ? { id: overlay.id, previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(overlay.id))}` } : null, tournament: tournament ? { status: tournament.status, score: Number(tournament.score), candidateCount: Number(tournament.candidate_count), providerCoverage: Number(tournament.provider_coverage), championId: tournament.champion_candidate_id, bestCandidateId: tournamentContent.bestCandidateId || null, bestReason: tournamentContent.bestReason || null, repairAttempt: Number(tournamentContent.repairAttempt || 0), assignedPixelJob: tournamentContent.assignedPixelJob || null } : null, audit: auditRow ? { status: auditRow.status, score: Number(auditRow.score), findings: JSON.parse(String(auditRow.findings_json || "[]")) } : null }; });
   const uniqueMaterialized = new Set(primaryFiles.map((file) => String(file.brief_id))).size;
   return {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
@@ -224,26 +224,42 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
 
 async function finishRequest(db: DB, id: string, status: string, error: string | null = null) { await db.prepare("UPDATE v7_material_requests SET status=?,error=?,updated_at=? WHERE id=?").bind(status, error, new Date().toISOString(), id).run(); }
 
-function searchPhrase(brief: Row) {
+function sourceContextJob(brief: Row) {
+  const text = `${clean(brief.narrationClause)} ${clean(brief.viewerMustUnderstand)}`.toLowerCase();
+  if (/reward|points|miles|cash back/.test(text) && /merchant|checkout|purchase|card/.test(text)) return "A real card purchase at a merchant checkout: card, terminal, receipt or customer hands; no cash, bank UI or completed-settlement implication";
+  if (/issuer|bank|approve|authorization/.test(text)) return "A credible card-authorization context: card terminal or issuer-side decision environment; no cash movement, payout or settlement imagery";
+  if (/merchant|checkout|purchase/.test(text)) return "A real merchant checkout and credit-card tender context with documentary authenticity; no cash or generic corporate meeting";
+  if (/portfolio|ledger|funding|obligation/.test(text)) return "A credible institutional transaction-processing or accounting context; no decorative crypto, cash piles or generic office meeting";
+  if (/fee|cost|interchange|econom/.test(text)) return "A real merchant payment and receipt context that can support a later authored cost breakdown; no invented fee values";
+  if (/settle|clearing|route|network/.test(text)) return "A credible electronic payment-processing context; no physical cash transfer or instant-settlement implication";
+  return "A literal, documentary physical context for the narration with no contradiction, logos, UI claims or generic corporate staging";
+}
+
+function searchPhrase(brief: Row, repairAttempt = 0) {
   const text = `${clean(brief.narrationClause)} ${clean(brief.viewerMustUnderstand)}`.toLowerCase();
   const concepts = [
-    [/reward|points|miles|cash back/, "credit card rewards points"],
-    [/merchant|checkout|purchase/, "merchant checkout card payment"],
-    [/issuer|bank|approve|authorization/, "bank card authorization decision"],
-    [/portfolio|ledger|funding|obligation/, "banking ledger transaction processing"],
-    [/fee|cost|interchange|econom/, "credit card processing fee merchant"],
-    [/settle|clearing|route|network/, "payment network transaction processing"],
+    [/reward|points|miles|cash back/, ["credit card purchase checkout close up", "customer paying credit card merchant terminal"]],
+    [/merchant|checkout|purchase/, ["merchant checkout credit card terminal", "customer hands paying credit card checkout"]],
+    [/issuer|bank|approve|authorization/, ["credit card terminal approval close up", "bank card authorization payment terminal"]],
+    [/portfolio|ledger|funding|obligation/, ["bank transaction processing operations", "financial operations payment processing"]],
+    [/fee|cost|interchange|econom/, ["merchant credit card receipt close up", "small business card payment receipt"]],
+    [/settle|clearing|route|network/, ["electronic payment processing data center", "payment network operations transaction"]],
   ];
-  const selected = concepts.filter(([pattern]) => (pattern as RegExp).test(text)).map(([, phrase]) => phrase as string);
-  return (selected[0] || "credit card payment real world").split(" ").slice(0, 6).join(" ");
+  const selected = concepts.find(([pattern]) => (pattern as RegExp).test(text));
+  const variants = selected ? selected[1] as string[] : ["credit card payment real world", "customer card payment close up"];
+  return variants[Math.min(repairAttempt, variants.length - 1)].split(" ").slice(0, 7).join(" ");
 }
 
 async function discoverCandidates(env: Env, db: DB, authorization: Row, briefRow: Row, brief: Row) {
-  const query = searchPhrase(brief), candidates: Candidate[] = [];
+  const previous = await db.prepare("SELECT status,content_json FROM v7_material_tournaments WHERE brief_id=? LIMIT 1").bind(briefRow.id).first<Row>();
+  const previousContent = previous?.content_json ? rec(JSON.parse(String(previous.content_json))) : {};
+  const repairAttempt = previous?.status === "NO_PIXEL_CHAMPION" ? Number(previousContent.repairAttempt || 0) + 1 : 0;
+  if (repairAttempt > 1) throw new Error("PIXEL_REPAIR_EXHAUSTED · one bounded query repair already used");
+  const query = searchPhrase(brief, repairAttempt), candidates: Candidate[] = [];
   if (env.PEXELS_API_KEY) {
     const requestId = await newRequest(db, authorization, clean(briefRow.id), "DISCOVERY", "PEXELS");
     try {
-      const response = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&per_page=8&orientation=landscape&size=medium`, { headers: { Authorization: env.PEXELS_API_KEY }, signal: AbortSignal.timeout(15000) });
+      const response = await fetch(`https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&per_page=8&page=${repairAttempt + 1}&orientation=landscape&size=medium`, { headers: { Authorization: env.PEXELS_API_KEY }, signal: AbortSignal.timeout(15000) });
       if (!response.ok) throw new Error(`HTTP_${response.status}`);
       const data = await response.json() as { videos?: Array<{ id: number; url: string; image?: string; duration?: number; user?: { name?: string }; video_files?: Array<{ id?: number; link: string; file_type?: string; width?: number; height?: number }> }> };
       for (const [index, video] of (data.videos || []).entries()) { const file = (video.video_files || []).filter((item) => (item.width || 0) >= 1280 && (item.height || 0) >= 720).sort((a, b) => Math.abs((a.width || 0) - 1920) - Math.abs((b.width || 0) - 1920))[0]; if (file) candidates.push({ id: `pexels-${video.id}`, provider: "Pexels", title: `Documentary result ${index + 1} for ${query}`, sourceUrl: video.url, assetUrl: file.link, thumbnailUrl: video.image || "", licenseCode: "PEXELS_LICENSE", licenseUrl: "https://www.pexels.com/license/", width: file.width || 0, height: file.height || 0, duration: video.duration || 0, score: 96 - index }); }
@@ -253,7 +269,7 @@ async function discoverCandidates(env: Env, db: DB, authorization: Row, briefRow
   if (env.PIXABAY_API_KEY) {
     const requestId = await newRequest(db, authorization, clean(briefRow.id), "DISCOVERY", "PIXABAY");
     try {
-      const response = await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(env.PIXABAY_API_KEY)}&q=${encodeURIComponent(query)}&safesearch=true&per_page=8`, { signal: AbortSignal.timeout(15000) });
+      const response = await fetch(`https://pixabay.com/api/videos/?key=${encodeURIComponent(env.PIXABAY_API_KEY)}&q=${encodeURIComponent(query)}&safesearch=true&per_page=8&page=${repairAttempt + 1}`, { signal: AbortSignal.timeout(15000) });
       if (!response.ok) throw new Error(`HTTP_${response.status}`);
       const data = await response.json() as { hits?: Array<{ id: number; pageURL: string; tags?: string; duration?: number; picture_id?: string; videos?: { medium?: { url: string; width?: number; height?: number; thumbnail?: string }; large?: { url: string; width?: number; height?: number; thumbnail?: string } } }> };
       for (const [index, hit] of (data.hits || []).entries()) { const file = hit.videos?.large || hit.videos?.medium; if (file?.url && (file.width || 0) >= 1280) candidates.push({ id: `pixabay-${hit.id}`, provider: "Pixabay", title: clean(hit.tags) || `Documentary result ${index + 1}`, sourceUrl: hit.pageURL, assetUrl: file.url, thumbnailUrl: file.thumbnail || (hit.picture_id ? `https://i.vimeocdn.com/video/${hit.picture_id}_640x360.jpg` : ""), licenseCode: "PIXABAY_CONTENT_LICENSE", licenseUrl: "https://pixabay.com/service/license-summary/", width: file.width || 0, height: file.height || 0, duration: hit.duration || 0, score: 94 - index }); }
@@ -261,9 +277,10 @@ async function discoverCandidates(env: Env, db: DB, authorization: Row, briefRow
     } catch (error) { await finishRequest(db, requestId, "FAILED", error instanceof Error ? error.message : "Pixabay failed"); }
   }
   const used = new Set((await rows(db, "SELECT provider_asset_id FROM v7_material_files WHERE authorization_id=?", authorization.id)).map((item) => String(item.provider_asset_id)));
-  const viable = candidates.filter((item) => !used.has(item.id) && item.width / Math.max(1, item.height) >= 1.6 && clean(item.thumbnailUrl)).slice(0, 12);
-  for (const candidate of candidates) await db.prepare("INSERT INTO v7_material_candidates (id,program_id,run_id,authorization_id,brief_id,provider,provider_asset_id,score,status,content_json) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET content_json=excluded.content_json,status='DISCOVERED'").bind(`${authorization.run_id}-${briefRow.id}-${candidate.id}`, PROGRAM_ID, authorization.run_id, authorization.id, briefRow.id, candidate.provider, candidate.id, 0, "DISCOVERED", JSON.stringify(candidate)).run();
-  return viable;
+  const rejected = new Set((await rows(db, "SELECT provider_asset_id FROM v7_material_candidates WHERE brief_id=? AND status='PIXEL_REJECTED'", briefRow.id)).map((item) => String(item.provider_asset_id)));
+  const viable = candidates.filter((item) => !used.has(item.id) && !rejected.has(item.id) && item.width / Math.max(1, item.height) >= 1.6 && clean(item.thumbnailUrl)).slice(0, 12);
+  for (const candidate of candidates) await db.prepare("INSERT INTO v7_material_candidates (id,program_id,run_id,authorization_id,brief_id,provider,provider_asset_id,score,status,content_json) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET content_json=excluded.content_json").bind(`${authorization.run_id}-${briefRow.id}-${candidate.id}`, PROGRAM_ID, authorization.run_id, authorization.id, briefRow.id, candidate.provider, candidate.id, 0, "DISCOVERED", JSON.stringify(candidate)).run();
+  return { candidates: viable, query, repairAttempt };
 }
 
 const tournamentSchema = {
@@ -275,11 +292,13 @@ const tournamentSchema = {
   required: ["championCandidateId", "candidates"],
 };
 
-async function selectCandidateByPixels(env: Env, db: DB, authorization: Row, briefRow: Row, brief: Row, candidates: Candidate[]) {
+async function selectCandidateByPixels(env: Env, db: DB, authorization: Row, briefRow: Row, brief: Row, candidates: Candidate[], query: string, repairAttempt: number) {
   if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY_REQUIRED_FOR_CANDIDATE_TOURNAMENT");
   if (candidates.length < 6) throw new Error(`CANDIDATE_PIXEL_FLOOR_NOT_MET · ${candidates.length}/6`);
   const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(briefRow.id), "CANDIDATE_PIXEL_TOURNAMENT", "OPENAI", setting.modelId, setting.reasoningEffort, 1800, 3000);
-  const content: Row[] = [{ type: "input_text", text: `Select one exact visual champion for this frozen YouTube documentary shot. Judge the actual pixels, not provider metadata. Broad topic similarity, generic finance imagery, staged corporate imagery, logos, screens, weak 16:9 composition or a frame that cannot prove the clause must be rejected. Score every supplied candidate exactly once. A champion requires semanticFit >=90 and every other dimension >=86. If none qualifies, return an empty championCandidateId and reject all.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence })}\n\nCandidate IDs appear immediately before their image.` }];
+  const hybrid = clean(brief.route) === "HYBRID", assignedJob = hybrid ? sourceContextJob(brief) : clean(brief.viewerMustUnderstand);
+  const thresholds = hybrid ? { semanticFit: 82, specificity: 80, composition: 86, authenticity: 86 } : { semanticFit: 90, specificity: 86, composition: 86, authenticity: 86 };
+  const content: Row[] = [{ type: "input_text", text: `Select one exact visual champion for the ${hybrid ? "REAL-WORLD CONTEXT LAYER of this HYBRID" : "complete SOURCE layer of this"} frozen YouTube documentary shot. Judge actual pixels, not provider metadata. Score semanticFit only against ASSIGNED PIXEL JOB below. ${hybrid ? "The authored overlay—not the stock footage—must carry the abstract explanation; do not reject authentic context merely because it does not visualize that overlay. The footage must not contradict it." : "The selected source itself must visibly support the complete meaning."} Reject staged corporate imagery, cash, logos, unreadable screens, weak 16:9 composition, contradictions or generic footage that fails the assigned job. Score every supplied candidate exactly once. A champion requires ${JSON.stringify(thresholds)}. If none qualifies, return an empty championCandidateId and reject all.\n\nASSIGNED PIXEL JOB:\n${assignedJob}\n\nFULL COMPOSITE CONTRACT (for contradiction checks):\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence })}\n\nCandidate IDs appear immediately before their image.` }];
   for (const candidate of candidates) { content.push({ type: "input_text", text: `CANDIDATE_ID=${candidate.id} · PROVIDER=${candidate.provider}` }); content.push({ type: "input_image", image_url: candidate.thumbnailUrl, detail: "high" }); }
   try {
     const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, store: true, max_output_tokens: 3000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_candidate_pixel_tournament", strict: true, schema: tournamentSchema } } }), signal: AbortSignal.timeout(90000) });
@@ -287,11 +306,16 @@ async function selectCandidateByPixels(env: Env, db: DB, authorization: Row, bri
     const payload = await response.json() as Row, usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: clean(authorization.run_id), stageKey: STAGE, costType: "MATERIAL_CANDIDATE_TOURNAMENT", payload, fallbackModel: setting.modelId });
     await db.prepare("UPDATE v7_material_requests SET status='COMPLETE',provider_response_id=?,input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,updated_at=? WHERE id=?").bind(payload.id || null, usage.inputTokens, usage.outputTokens, usage.reasoningTokens, usage.actualUsd, new Date().toISOString(), requestId).run();
     await syncRunTotals(db, clean(authorization.run_id));
-    const result = JSON.parse(output(payload)) as Row, scores = arr(result.candidates).map(rec), championId = clean(result.championCandidateId), championScore = scores.find((item) => clean(item.candidateId) === championId), champion = candidates.find((item) => item.id === championId), hardPass = Boolean(champion && championScore && Number(championScore.semanticFit) >= 90 && ["specificity","composition","authenticity"].every((key) => Number(championScore[key]) >= 86) && championScore.decision === "SELECT");
+    const result = JSON.parse(output(payload)) as Row, scores = arr(result.candidates).map(rec).filter((score) => candidates.some((candidate) => candidate.id === clean(score.candidateId)));
+    const qualifies = (score: Row) => Number(score.semanticFit) >= thresholds.semanticFit && Number(score.specificity) >= thresholds.specificity && Number(score.composition) >= thresholds.composition && Number(score.authenticity) >= thresholds.authenticity && score.decision === "SELECT";
+    const ranked = [...scores].sort((a, b) => (Number(b.semanticFit) + Number(b.specificity) + Number(b.composition) + Number(b.authenticity)) - (Number(a.semanticFit) + Number(a.specificity) + Number(a.composition) + Number(a.authenticity)));
+    const requestedId = clean(result.championCandidateId), requestedScore = scores.find((item) => clean(item.candidateId) === requestedId);
+    const championScore = requestedScore && qualifies(requestedScore) ? requestedScore : ranked.find(qualifies), championId = clean(championScore?.candidateId), champion = candidates.find((item) => item.id === championId), hardPass = Boolean(champion && championScore);
+    const bestScore = ranked[0], bestCandidateId = clean(bestScore?.candidateId), bestCompositeScore = bestScore ? Math.round((Number(bestScore.semanticFit) + Number(bestScore.specificity) + Number(bestScore.composition) + Number(bestScore.authenticity)) / 4) : 0;
     for (const score of scores) await db.prepare("UPDATE v7_material_candidates SET score=?,status=? WHERE run_id=? AND brief_id=? AND provider_asset_id=?").bind(Number(score.semanticFit || 0), hardPass && clean(score.candidateId) === championId ? "PIXEL_CHAMPION" : "PIXEL_REJECTED", authorization.run_id, briefRow.id, clean(score.candidateId)).run();
-    const tournament = { candidateScores: scores, query: searchPhrase(brief), selected: hardPass ? championId : null, providerCoverage: new Set(candidates.map((item) => item.provider)).size };
-    await db.prepare("INSERT INTO v7_material_tournaments (id,program_id,run_id,authorization_id,brief_id,status,champion_candidate_id,score,candidate_count,provider_coverage,content_json,provider_response_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,champion_candidate_id=excluded.champion_candidate_id,score=excluded.score,candidate_count=excluded.candidate_count,provider_coverage=excluded.provider_coverage,content_json=excluded.content_json,provider_response_id=excluded.provider_response_id").bind(`${briefRow.id}-PIXEL-TOURNAMENT`, PROGRAM_ID, authorization.run_id, authorization.id, briefRow.id, hardPass ? "PASS" : "NO_PIXEL_CHAMPION", hardPass ? championId : null, Number(championScore?.semanticFit || 0), candidates.length, tournament.providerCoverage, JSON.stringify(tournament), payload.id || null).run();
-    if (!hardPass || !champion) throw new Error("NO_PIXEL_CHAMPION");
+    const tournament = { route: brief.route, assignedPixelJob: assignedJob, thresholds, candidateScores: scores, query, repairAttempt, selected: hardPass ? championId : null, bestCandidateId, bestScore: bestCompositeScore, bestReason: clean(bestScore?.reason), providerCoverage: new Set(candidates.map((item) => item.provider)).size };
+    await db.prepare("INSERT INTO v7_material_tournaments (id,program_id,run_id,authorization_id,brief_id,status,champion_candidate_id,score,candidate_count,provider_coverage,content_json,provider_response_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status,champion_candidate_id=excluded.champion_candidate_id,score=excluded.score,candidate_count=excluded.candidate_count,provider_coverage=excluded.provider_coverage,content_json=excluded.content_json,provider_response_id=excluded.provider_response_id").bind(`${briefRow.id}-PIXEL-TOURNAMENT`, PROGRAM_ID, authorization.run_id, authorization.id, briefRow.id, hardPass ? "PASS" : "NO_PIXEL_CHAMPION", hardPass ? championId : null, hardPass ? Number(championScore?.semanticFit || 0) : bestCompositeScore, candidates.length, tournament.providerCoverage, JSON.stringify(tournament), payload.id || null).run();
+    if (!hardPass || !champion) throw new Error(`NO_PIXEL_CHAMPION · best ${bestCompositeScore}/100 · ${clean(bestScore?.reason) || "no valid pixel score"}`);
     return champion;
   } catch (error) {
     const row = await db.prepare("SELECT status FROM v7_material_requests WHERE id=?").bind(requestId).first<{status:string}>();
@@ -370,8 +394,8 @@ async function materializeOne(env: Env, db: DB, authorization: Row, briefRow: Ro
   if (route === "MAKE") {
     await storeMaterial(env, db, authorization, briefRow, { role: "PRIMARY", bytes: ownedSvg(brief, "PRIMARY"), mimeType: "image/svg+xml", extension: "svg", sourceType: "OWNED_CODE_NATIVE", provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 1920, height: 1080 });
   } else {
-    const candidates = await discoverCandidates(env, db, authorization, briefRow, brief);
-    const candidate = await selectCandidateByPixels(env, db, authorization, briefRow, brief, candidates);
+    const discovery = await discoverCandidates(env, db, authorization, briefRow, brief);
+    const candidate = await selectCandidateByPixels(env, db, authorization, briefRow, brief, discovery.candidates, discovery.query, discovery.repairAttempt);
     const requestId = await newRequest(db, authorization, clean(briefRow.id), "DOWNLOAD", candidate.provider.toUpperCase());
     try {
       const response = await fetch(candidate.assetUrl, { signal: AbortSignal.timeout(30000) });

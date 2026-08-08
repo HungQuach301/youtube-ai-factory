@@ -91,7 +91,8 @@ Wave 09.4 is a clean material-quality rebuild. Stage 09.3 bytes remain immutable
 2. Fetch candidates from all connected providers independently. A timeout reduces provider coverage but never promotes another provider by default.
 3. Reject invalid aspect ratio, insufficient resolution, duplicate provider IDs, missing preview pixels and already-used assets deterministically.
 4. Submit 6–12 real thumbnails in one bounded vision comparison. The structured response must name a candidate ID, semantic score, specificity score, composition score, authenticity score and rejection reason.
-5. Select only a candidate scoring at least 90 semantic fit and 86 in every other dimension. Otherwise the unit becomes `NO_PIXEL_CHAMPION` and routes to bounded query repair or MAKE/HYBRID escalation.
+5. Score pixels against the responsibility of their route. `SOURCE` must itself prove the frozen clause (semantic fit ≥90; other dimensions ≥86). In `HYBRID`, provider footage proves only the literal real-world context and must not contradict the authored explanation (context fit ≥82, specificity ≥80, composition/authenticity ≥86); the completed composite must still pass the ≥90 full semantic QA.
+6. A failed tournament stores its best candidate, dimension scores and rejection reason. One bounded repair changes the concrete query and excludes every previously rejected provider asset. A second failure blocks the unit; it never reruns the full pilot or silently lowers a threshold.
 6. Download only the champion. Selection evidence, rejected candidates and provider coverage are stored before materialization.
 
 ### Family renderer contract

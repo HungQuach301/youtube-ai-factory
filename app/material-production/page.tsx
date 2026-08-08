@@ -15,7 +15,7 @@ type Snapshot = {
   artifact: null | { contentHash: string; routeMix: Record<string, number>; modelMix: Record<string, number>; sampleBriefs: Brief[]; pilotIds: string[] };
   authorization: null | { id: string; status: string; shotCount: number; maxRemoteRequests: number; maxActualSpendUsd: number; authorizedAt: string; revokedAt?: string; modelPolicy: Record<string, unknown> };
   provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
-  pilot: { materialized: number; audited: number; total: number; percent: number; items: Array<{ id: string; briefId: string; route: string; family: string; meaning: string; status: string; file: null | { id: string; provider: string; mimeType: string; bytes: number; hash: string; previewUrl: string }; overlay: null | { id: string; previewUrl: string }; tournament: null | { status: string; score: number; candidateCount: number; providerCoverage: number; championId?: string }; audit: null | { status: string; score: number; findings: string[] } }> };
+  pilot: { materialized: number; audited: number; total: number; percent: number; items: Array<{ id: string; briefId: string; route: string; family: string; meaning: string; status: string; file: null | { id: string; provider: string; mimeType: string; bytes: number; hash: string; previewUrl: string }; overlay: null | { id: string; previewUrl: string }; tournament: null | { status: string; score: number; candidateCount: number; providerCoverage: number; championId?: string; bestCandidateId?: string; bestReason?: string; repairAttempt: number; assignedPixelJob?: string }; audit: null | { status: string; score: number; findings: string[] } }> };
   requestLedger: { total: number; planned: number; active: number; complete: number; incomplete: number; actualCostUsd: number; recent: Array<{ id: string; briefId: string; phase: string; provider: string; modelId: string; status: string; inputTokens: number; outputTokens: number; reasoningTokens: number; actualCostUsd: number; error?: string; createdAt: string }> };
 };
 
@@ -87,6 +87,7 @@ export default function MaterialProductionPage() {
   }
   if (!data) return <main className="shotShell"><p className="stateBanner">{error || "Loading Stage 09 production contract…"}</p></main>;
   const ready = ["READY", "PILOT_READY", "PILOT_AUTHORIZED", "PILOT_PAUSED", "PILOT_PASS", "REPAIR_REQUIRED"].includes(data.stage.status);
+  const failedTournament = data.pilot.items.find((item) => item.tournament?.status === "NO_PIXEL_CHAMPION");
   return <main className="shotShell">
     <nav className="shotTop"><Link href="/control-plane">← V7 Control Plane</Link><span>PRODUCTION V7 · STAGE 09</span><b>{data.stage.status.replaceAll("_", " ")}</b></nav>
     <section className="shotHero">
@@ -157,16 +158,17 @@ export default function MaterialProductionPage() {
       {data.run?.status === "PILOT_AUTHORIZED" && <button onClick={() => void execute("START_PILOT")} disabled={Boolean(working)}>Start authorized 10-shot pilot</button>}
       {data.run?.status === "PILOT_RUNNING" && <button onClick={() => void execute("STOP_PILOT")} disabled={working === "STOP_PILOT"}>{working === "STOP_PILOT" ? "Confirming provider stop…" : "Emergency stop · preserve completed materials"}</button>}
       {data.run?.status === "PILOT_PAUSED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>Resume from stored evidence</button>}
-      {data.run?.status === "REPAIR_REQUIRED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>Resume bounded repair from stored evidence</button>}
+      {data.run?.status === "REPAIR_REQUIRED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>{failedTournament ? `Repair ${failedTournament.briefId} only · use fresh candidates` : "Resume bounded repair from stored evidence"}</button>}
       {data.run?.status === "PILOT_PASS" && <p className="stateBanner">Pilot PASS. Full 166-shot production remains locked pending review.</p>}
-      {data.run?.status === "REPAIR_REQUIRED" && <p className="stateBanner errorState">Pilot repair required. No full-scale dispatch is authorized.</p>}
+      {data.run?.status === "REPAIR_REQUIRED" && <p className="stateBanner errorState">{failedTournament ? `${failedTournament.briefId} stopped at the pixel gate. Best candidate ${failedTournament.tournament?.score || 0}/100; completed work is preserved and full-scale dispatch remains locked.` : "Pilot repair required. No full-scale dispatch is authorized."}</p>}
     </section>}
     {data.pilot.items.length > 0 && <section className="materialPilotGrid">
       {data.pilot.items.map((item) => <article key={item.id}>
         <header><b>{item.briefId} · {item.route}</b><span>{item.status.replaceAll("_", " ")}</span></header>
         <h3>{item.family}</h3><p>{item.meaning}</p>
         {item.file && (item.file.mimeType.startsWith("video/") ? <video controls preload="metadata" src={item.file.previewUrl} /> : <Image unoptimized width={1920} height={1080} src={item.file.previewUrl} alt={`${item.briefId} material preview`} />)}
-        {item.tournament && <small>Pixel tournament · {item.tournament.status} · {item.tournament.candidateCount} candidates / {item.tournament.providerCoverage} providers · champion {item.tournament.score}/100</small>}
+        {item.tournament && <small>Pixel tournament · {item.tournament.status} · {item.tournament.candidateCount} candidates / {item.tournament.providerCoverage} providers · {item.tournament.status === "PASS" ? "champion" : "best candidate"} {item.tournament.score}/100{item.tournament.repairAttempt ? ` · repair ${item.tournament.repairAttempt}/1` : ""}</small>}
+        {item.tournament?.bestReason && item.tournament.status !== "PASS" && <small>Rejected: {item.tournament.bestReason}</small>}
         <footer><span>{item.file ? `${item.file.provider} · ${(item.file.bytes / 1_000_000).toFixed(1)} MB · ${item.file.hash}` : "Awaiting stored bytes"}</span><b>{item.audit ? `${item.audit.status} · ${item.audit.score}/100` : "Pixel QA pending"}</b></footer>
         {item.audit?.findings?.[0] && <small>{item.audit.findings[0]}</small>}
       </article>)}
