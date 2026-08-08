@@ -16,7 +16,7 @@ type Snapshot = {
   authorization: null | { id: string; status: string; shotCount: number; maxRemoteRequests: number; maxActualSpendUsd: number; authorizedAt: string; revokedAt?: string; modelPolicy: Record<string, unknown> };
   provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
   architecture: { version: string; status: string; principle: string; planes: Array<{ id: string; name: string; status: string; responsibility: string }>; qualityLadder: Array<{ order: number; name: string; exit: string }>; scalePolicy: { tranches: string[]; concurrency: string; stopConditions: string[]; resume: string } };
-  mediaExecution: { configured: boolean; executor: null | { id: string; status: string; version: string; lastSeenAt: string; capabilities: string[] }; counts: { queued: number; leased: number; complete: number; failed: number; blocked: number }; jobs: Array<{ id: string; briefId: string; type: string; status: string; attempt: number; maxAttempts: number; leaseOwner?: string; error?: string; createdAt: string; completedAt?: string }>; evidence: Array<{ id: string; briefId: string; type: string; status: string; hash: string; createdAt: string; probe: { durationSeconds?: number; width?: number; height?: number; codec?: string; averageFrameRate?: string }; frames: Array<{ role: string; timestampSeconds: number; width: number; height: number; mimeType: string; fileId: string; previewUrl: string }> }>; nextGate: string };
+  mediaExecution: { configured: boolean; executor: null | { id: string; status: string; version: string; lastSeenAt: string; capabilities: string[] }; counts: { queued: number; leased: number; complete: number; failed: number; blocked: number }; jobs: Array<{ id: string; briefId: string; type: string; status: string; attempt: number; maxAttempts: number; leaseOwner?: string; error?: string; createdAt: string; completedAt?: string }>; evidence: Array<{ id: string; briefId: string; type: string; status: string; technicalStatus: string; hash: string; createdAt: string; probe: { durationSeconds?: number; width?: number; height?: number; codec?: string; averageFrameRate?: string }; sourceQa: null | { status: string; score: number; dimensions: Record<string, number>; findings: string[]; repair: { replacementQuery?: string; sourceLayerContract?: string } }; frames: Array<{ role: string; timestampSeconds: number; width: number; height: number; mimeType: string; fileId: string; previewUrl: string }> }>; sourceQaActive: boolean; nextGate: string };
   pilot: { materialized: number; audited: number; total: number; percent: number; items: Array<{ id: string; briefId: string; route: string; family: string; meaning: string; status: string; file: null | { id: string; provider: string; mimeType: string; bytes: number; hash: string; previewUrl: string }; overlay: null | { id: string; previewUrl: string }; tournament: null | { status: string; score: number; candidateCount: number; providerCoverage: number; championId?: string; bestCandidateId?: string; bestReason?: string; repairAttempt: number; assignedPixelJob?: string }; audit: null | { status: string; score: number; findings: string[] } }> };
   requestLedger: { total: number; planned: number; active: number; complete: number; incomplete: number; actualCostUsd: number; recent: Array<{ id: string; briefId: string; phase: string; provider: string; modelId: string; status: string; inputTokens: number; outputTokens: number; reasoningTokens: number; actualCostUsd: number; error?: string; createdAt: string }> };
 };
@@ -47,6 +47,11 @@ export default function MaterialProductionPage() {
     }, 1400);
     return () => window.clearTimeout(timer);
   }, [data?.run?.status, data?.pilot.materialized, data?.pilot.audited, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (!data?.mediaExecution.sourceQaActive || working) return;
+    const timer = window.setTimeout(() => void sourceQa(true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [data?.mediaExecution.sourceQaActive, data?.requestLedger.active, working]);
   async function build() {
     setWorking("BUILD"); setError(null);
     try {
@@ -97,6 +102,16 @@ export default function MaterialProductionPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Media execution planning failed"); }
     finally { setWorking(null); }
   }
+  async function sourceQa(quiet = false) {
+    setWorking("RUN_SOURCE_FRAME_QA"); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "RUN_SOURCE_FRAME_QA" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Source-frame semantic QA failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Source-frame semantic QA failed"); }
+    finally { setWorking(null); }
+  }
   if (!data) return <main className="shotShell"><p className="stateBanner">{error || "Loading Stage 09 production contract…"}</p></main>;
   const ready = ["READY", "PILOT_READY", "PILOT_AUTHORIZED", "PILOT_PAUSED", "PILOT_PASS", "REPAIR_REQUIRED"].includes(data.stage.status);
   const failedTournament = data.pilot.items.find((item) => item.tournament?.status === "NO_PIXEL_CHAMPION");
@@ -136,8 +151,10 @@ export default function MaterialProductionPage() {
       {!data.mediaExecution.configured && <p className="stateBanner errorState">Add MEDIA_EXECUTOR_SHARED_SECRET in Factory Connections before starting the executor. Creating the job itself makes no provider or AI request.</p>}
       {data.mediaExecution.jobs.length > 0 && <div className="mediaExecutionJobs">{data.mediaExecution.jobs.map((job)=><article key={job.id}><span><b>{job.briefId}</b><small>{job.type.replaceAll("_", " ")}</small></span><strong>{job.status}</strong><span><b>{job.attempt}/{job.maxAttempts}</b><small>{job.error || job.leaseOwner || "Stored and resumable"}</small></span></article>)}</div>}
       {data.mediaExecution.evidence.map((evidence)=><section className="sourceFrameEvidence" key={evidence.id}>
-        <header><div><p>ACTUAL DECODED SOURCE · {evidence.status}</p><h3>{evidence.briefId}</h3><span>{evidence.probe.codec || "video"} · {Number(evidence.probe.width || 0)}×{Number(evidence.probe.height || 0)} · {Number(evidence.probe.durationSeconds || 0).toFixed(2)}s · SHA {evidence.hash}</span></div><strong>ENTRY · MIDPOINT · EXIT</strong></header>
+        <header><div><p>ACTUAL DECODED SOURCE · {evidence.technicalStatus}</p><h3>{evidence.briefId}</h3><span>{evidence.probe.codec || "video"} · {Number(evidence.probe.width || 0)}×{Number(evidence.probe.height || 0)} · {Number(evidence.probe.durationSeconds || 0).toFixed(2)}s · SHA {evidence.hash}</span></div><strong>SEMANTIC QA · {evidence.sourceQa?.status || (data.mediaExecution.sourceQaActive ? "RUNNING" : "REQUIRED")}</strong></header>
         <div>{evidence.frames.map((frame)=><article key={frame.fileId}><Image src={frame.previewUrl} alt={`${frame.role.toLowerCase()} decoded source frame`} width={960} height={540} unoptimized /><footer><b>{frame.role}</b><span>{frame.timestampSeconds.toFixed(2)}s</span><small>{frame.width}×{frame.height}</small></footer></article>)}</div>
+        {!evidence.sourceQa && <button onClick={() => void sourceQa()} disabled={Boolean(working) || data.mediaExecution.sourceQaActive}>{data.mediaExecution.sourceQaActive ? "AI inspecting actual pixels…" : "Run source-frame semantic QA · 1 bounded request"}</button>}
+        {evidence.sourceQa && <aside className={evidence.sourceQa.status === "PASS" ? "pass" : "fail"}><b>{evidence.sourceQa.status} · {evidence.sourceQa.score}/100</b><span>{Object.entries(evidence.sourceQa.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{evidence.sourceQa.findings.map((finding)=><small key={finding}>{finding}</small>)}{evidence.sourceQa.repair.replacementQuery && <p><b>Replacement query</b> {evidence.sourceQa.repair.replacementQuery}</p>}{evidence.sourceQa.repair.sourceLayerContract && <p><b>Source contract</b> {evidence.sourceQa.repair.sourceLayerContract}</p>}</aside>}
       </section>)}
     </section>
     <section className="shotDoctrine">

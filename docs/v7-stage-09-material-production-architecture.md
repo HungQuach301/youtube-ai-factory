@@ -251,7 +251,7 @@ Wave 09.5 implements the durable boundary between orchestration and binary media
 - Completion is idempotent by job/evidence identity.
 - A worker crash preserves the job and source; the lease expires and one bounded recovery is allowed.
 - No OpenAI or media-provider request is emitted by job planning, heartbeat, claim or source-frame completion.
-- A verified frame set unlocks only the composite tournament. It does not unlock pilot continuation or full production.
+- A technically verified frame set unlocks only source-frame semantic QA. Composite work remains blocked until the stored pixels pass that independent gate.
 
 ### Additional locked decisions
 
@@ -265,3 +265,7 @@ Wave 09.5 implements the durable boundary between orchestration and binary media
 - **ADR-058 — Worker transport and executor capability are independently authenticated.** A private Factory request must pass the hosting transport boundary before the application validates the executor secret; neither credential substitutes for the other.
 - **ADR-059 — Worker credentials remain runtime-only.** `FACTORY_SITE_AUTH_TOKEN` and `MEDIA_EXECUTOR_SHARED_SECRET` are injected only into the executor runtime, never stored in D1, R2, Google Drive, source control, job payloads or browser responses.
 - **ADR-060 — Cloud media execution is one-job-per-task.** The production packaging targets Google Cloud Run Jobs with a 15-minute timeout and zero platform retries; D1 lease expiry owns the single bounded recovery, preventing infrastructure retries from duplicating media work.
+- **ADR-061 — Technical verification is not semantic acceptance.** Codec, dimensions, duration, checksums and three decoded frames prove that real bytes exist; they cannot prove clause-level relevance, contradiction safety or composition readiness. These states are stored separately and no score can bridge them.
+- **ADR-062 — Source-frame QA judges actual decoded pixels before composition.** One bounded, ledgered vision request inspects ENTRY, MIDPOINT and EXIT for specificity, contradiction safety, context fit, temporal differentiation and mobile clarity. Every dimension must be at least 86 and overall at least 90.
+- **ADR-063 — A failed source gate creates a replacement contract, not a cosmetic patch.** The audit records findings, a replacement query and an explicit source-layer contract. The same source evidence is immutable and cannot be re-audited to seek a different verdict; a new source asset and checksum are required.
+- **ADR-064 — Source QA has a 3,000-token hard ceiling and zero automatic retries.** The expected structured result is 1,200 tokens. Incomplete provider output blocks the gate; it never launches a batch rerun or silently reduces the quality threshold.

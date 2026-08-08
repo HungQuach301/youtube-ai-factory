@@ -66,6 +66,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_media_executors (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,status text DEFAULT 'OFFLINE' NOT NULL,version text NOT NULL,capabilities_json text DEFAULT '[]' NOT NULL,last_seen_at text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_media_jobs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,source_file_id text NOT NULL,job_type text NOT NULL,status text DEFAULT 'QUEUED' NOT NULL,priority integer DEFAULT 100 NOT NULL,attempt integer DEFAULT 0 NOT NULL,max_attempts integer DEFAULT 2 NOT NULL,lease_owner text,lease_token_hash text,lease_expires_at text,contract_json text NOT NULL,output_json text,error text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_media_evidence (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,job_id text NOT NULL,evidence_type text NOT NULL,status text DEFAULT 'VERIFIED' NOT NULL,content_json text NOT NULL,content_hash text NOT NULL,runtime_key text NOT NULL,drive_file_id text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_source_frame_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,evidence_id text NOT NULL,status text DEFAULT 'QA_REQUIRED' NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,repair_json text DEFAULT '{}' NOT NULL,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
 ] as const;
 
@@ -115,6 +116,7 @@ async function runtime() {
   await value.DB.batch(schema.map((statement) => value.DB!.prepare(statement)));
   await value.DB.prepare("INSERT INTO v7_stage_states (id,program_id,stage_key,sequence,stage_name,status,threshold,blocker,evidence_summary) VALUES (?,?,?,9,?,'BLOCKED_UPSTREAM',92,'Stage 08 must freeze first','No verified Stage 08 artifact') ON CONFLICT(id) DO NOTHING").bind(STAGE_ID, PROGRAM_ID, STAGE, "Fresh material production").run();
   await value.DB.prepare("INSERT INTO v7_stage_model_settings (id,program_id,stage_key,model_id,reasoning_effort,updated_at) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(`${PROGRAM_ID}-${STAGE}-MODEL`, PROGRAM_ID, STAGE, DEFAULT_MODEL, "low", new Date().toISOString()).run();
+  await value.DB.prepare("UPDATE v7_media_evidence SET status='TECHNICALLY_VERIFIED' WHERE evidence_type='SOURCE_FRAME_SET' AND status='VERIFIED'").run();
   // Keep persisted authorization truth aligned with the critical Pixel-QA dispatch envelope.
   await value.DB.prepare("UPDATE v7_material_authorizations SET model_policy_json=REPLACE(model_policy_json,'\"safety\":3000','\"safety\":8000'),updated_at=? WHERE model_policy_json LIKE '%\"singleVision\"%' AND model_policy_json LIKE '%\"safety\":3000%'").bind(new Date().toISOString()).run();
   return value;
@@ -206,6 +208,7 @@ async function snapshot() {
   const tournaments = authorization ? await rows(db, "SELECT * FROM v7_material_tournaments WHERE authorization_id=? ORDER BY created_at ASC", authorization.id) : [];
   const mediaJobs = authorization ? await rows(db, "SELECT * FROM v7_media_jobs WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
   const mediaEvidence = authorization ? await rows(db, "SELECT * FROM v7_media_evidence WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
+  const sourceAudits = authorization ? await rows(db, "SELECT * FROM v7_source_frame_audits WHERE authorization_id=? ORDER BY updated_at DESC", authorization.id) : [];
   const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
@@ -215,7 +218,10 @@ async function snapshot() {
   const uniqueMaterialized = new Set(primaryFiles.map((file) => String(file.brief_id))).size;
   const executorAge = executor?.last_seen_at ? Date.now() - new Date(String(executor.last_seen_at)).getTime() : Number.POSITIVE_INFINITY;
   const executorOnline = executorAge < 120_000;
-  const sourceEvidenceReady = mediaEvidence.some((item) => item.evidence_type === "SOURCE_FRAME_SET" && item.status === "VERIFIED");
+  const sourceEvidence = mediaEvidence.find((item) => item.evidence_type === "SOURCE_FRAME_SET");
+  const sourceAudit = sourceEvidence ? sourceAudits.find((item) => item.evidence_id === sourceEvidence.id) : null;
+  const sourceEvidenceReady = sourceAudit?.status === "PASS";
+  const sourceQaActive = requestRows.some((row) => row.phase === "SOURCE_FRAME_QA" && ["QUEUED", "IN_PROGRESS"].includes(String(row.status)));
   return {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
     provider: { model: setting.modelId, reasoningEffort: setting.reasoningEffort, modelOptions: MODEL_OPTIONS, reasoningOptions: REASONING_OPTIONS },
@@ -233,9 +239,11 @@ async function snapshot() {
       jobs: mediaJobs.slice(0, 12).map((job) => ({ id: job.id, briefId: job.brief_id, type: job.job_type, status: job.status, attempt: Number(job.attempt), maxAttempts: Number(job.max_attempts), leaseOwner: job.lease_owner, error: job.error, createdAt: job.created_at, completedAt: job.completed_at })),
       evidence: mediaEvidence.slice(0, 12).map((item) => {
         let content: Row = {}; try { content = rec(JSON.parse(String(item.content_json || "{}"))); } catch { content = {}; }
-        return { id: item.id, briefId: item.brief_id, type: item.evidence_type, status: item.status, hash: clean(item.content_hash).slice(0, 12), createdAt: item.created_at, probe: rec(content.probe), frames: arr(content.frames).map(rec).map((frame) => ({ role: clean(frame.role), timestampSeconds: Number(frame.timestampSeconds), width: Number(frame.width), height: Number(frame.height), mimeType: clean(frame.mimeType), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })) };
+        const audit = sourceAudits.find((candidate) => candidate.evidence_id === item.id);
+        return { id: item.id, briefId: item.brief_id, type: item.evidence_type, status: audit?.status || item.status, technicalStatus: item.status, hash: clean(item.content_hash).slice(0, 12), createdAt: item.created_at, probe: rec(content.probe), sourceQa: audit ? { status: audit.status, score: Number(audit.score), dimensions: rec(JSON.parse(String(audit.dimensions_json || "{}"))), findings: arr(JSON.parse(String(audit.findings_json || "[]"))), repair: rec(JSON.parse(String(audit.repair_json || "{}"))) } : null, frames: arr(content.frames).map(rec).map((frame) => ({ role: clean(frame.role), timestampSeconds: Number(frame.timestampSeconds), width: Number(frame.width), height: Number(frame.height), mimeType: clean(frame.mimeType), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })) };
       }),
-      nextGate: sourceEvidenceReady ? "COMPOSITE_TOURNAMENT" : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET",
+      sourceQaActive,
+      nextGate: sourceEvidenceReady ? "COMPOSITE_TOURNAMENT" : sourceEvidence ? sourceQaActive ? "SOURCE_FRAME_QA_RUNNING" : sourceAudit?.status === "REPAIR_REQUIRED" ? "SOURCE_REPLACEMENT" : "SOURCE_FRAME_QA" : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET",
     },
   };
 }
@@ -518,7 +526,53 @@ async function materializeOne(env: Env, db: DB, authorization: Row, briefRow: Ro
 }
 
 const visionSchema = { type: "object", additionalProperties: false, properties: { semanticFit: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, composition: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, authenticity: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", maxItems: 5, items: { type: "string", minLength: 6, maxLength: 180 } }, exactRepair: { type: "string", minLength: 6, maxLength: 240 } }, required: ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "overall", "decision", "findings", "exactRepair"] };
+const sourceFrameQaSchema = { type: "object", additionalProperties: false, properties: { semanticSpecificity: { type: "integer", minimum: 0, maximum: 100 }, contradictionSafety: { type: "integer", minimum: 0, maximum: 100 }, contextFit: { type: "integer", minimum: 0, maximum: 100 }, frameDifferentiation: { type: "integer", minimum: 0, maximum: 100 }, mobileClarity: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", minItems: 1, maxItems: 5, items: { type: "string", minLength: 8, maxLength: 220 } }, replacementQuery: { type: "string", minLength: 8, maxLength: 180 }, sourceLayerContract: { type: "string", minLength: 8, maxLength: 260 } }, required: ["semanticSpecificity", "contradictionSafety", "contextFit", "frameDifferentiation", "mobileClarity", "overall", "decision", "findings", "replacementQuery", "sourceLayerContract"] };
 function output(payload: Row) { if (typeof payload.output_text === "string") return payload.output_text; for (const item of arr(payload.output)) for (const block of arr(rec(item).content)) if (typeof rec(block).text === "string") return String(rec(block).text); throw new Error("OpenAI returned no structured pixel audit"); }
+
+async function sourceFrameQa() {
+  const env = await runtime(), db = env.DB!, { authorization } = await current(db);
+  if (!authorization || !env.OPENAI_API_KEY || !env.BUCKET) throw new Error("SOURCE_FRAME_QA_CONFIGURATION_REQUIRED");
+  const evidence = await db.prepare("SELECT * FROM v7_media_evidence WHERE authorization_id=? AND evidence_type='SOURCE_FRAME_SET' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!evidence) throw new Error("SOURCE_FRAME_EVIDENCE_MISSING");
+  const existingAudit = await db.prepare("SELECT * FROM v7_source_frame_audits WHERE evidence_id=?").bind(evidence.id).first<Row>();
+  if (existingAudit) return snapshot();
+  const active = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND brief_id=? AND phase='SOURCE_FRAME_QA' AND status IN ('QUEUED','IN_PROGRESS') ORDER BY created_at DESC LIMIT 1").bind(authorization.id, evidence.brief_id).first<Row>();
+  if (active) {
+    const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(active.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`SOURCE_FRAME_QA_STATUS_FAILED · ${response.status}`);
+    const payload = await response.json() as Row, status = clean(payload.status);
+    if (["queued", "in_progress"].includes(status)) { await db.prepare("UPDATE v7_material_requests SET status=?,updated_at=? WHERE id=?").bind(status.toUpperCase(), new Date().toISOString(), active.id).run(); return snapshot(); }
+    const usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: clean(authorization.run_id), stageKey: STAGE, costType: "SOURCE_FRAME_SEMANTIC_QA", payload, fallbackModel: clean(active.model_id) || DEFAULT_MODEL });
+    await db.prepare("UPDATE v7_material_requests SET status=?,input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,error=?,updated_at=? WHERE id=?").bind(status === "completed" ? "COMPLETE" : "BLOCKED_INCOMPLETE", usage.inputTokens, usage.outputTokens, usage.reasoningTokens, usage.actualUsd, status === "completed" ? null : clean(rec(payload.incomplete_details).reason || rec(payload.error).message || status), new Date().toISOString(), active.id).run();
+    await syncRunTotals(db, clean(authorization.run_id));
+    if (status !== "completed") throw new Error("SOURCE_FRAME_QA_PROVIDER_INCOMPLETE · no automatic retry");
+    const result = JSON.parse(output(payload)) as Row, dimensions = ["semanticSpecificity", "contradictionSafety", "contextFit", "frameDifferentiation", "mobileClarity"], hardPass = dimensions.every((key) => Number(result[key]) >= 86) && Number(result.overall) >= 90 && result.decision === "PASS", now = new Date().toISOString();
+    await db.batch([
+      db.prepare("INSERT INTO v7_source_frame_audits (id,program_id,run_id,authorization_id,brief_id,evidence_id,status,score,dimensions_json,findings_json,repair_json,provider_response_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(`${evidence.id}-SEMANTIC-QA`, PROGRAM_ID, authorization.run_id, authorization.id, evidence.brief_id, evidence.id, hardPass ? "PASS" : "REPAIR_REQUIRED", Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), JSON.stringify(arr(result.findings)), JSON.stringify({ replacementQuery: clean(result.replacementQuery), sourceLayerContract: clean(result.sourceLayerContract) }), payload.id, now, now),
+      db.prepare("UPDATE v7_stage_states SET blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(hardPass ? "COMPOSITE_TOURNAMENT_REQUIRED" : "SOURCE_REPLACEMENT_REQUIRED", hardPass ? `${evidence.brief_id} source pixels passed semantic QA at ${Number(result.overall)}/100 · composite remains locked` : `${evidence.brief_id} source pixels rejected at ${Number(result.overall)}/100 · replacement required before composition`, now, STAGE_ID),
+    ]);
+    return snapshot();
+  }
+  const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(evidence.brief_id).first<Row>();
+  if (!briefRow) throw new Error("SOURCE_FRAME_BRIEF_MISSING");
+  const brief = JSON.parse(String(briefRow.content_json)) as Row, evidenceContent = rec(JSON.parse(String(evidence.content_json))), frames = arr(evidenceContent.frames).map(rec), imageUrls: string[] = [];
+  for (const frame of frames) {
+    const file = await db.prepare("SELECT runtime_key,mime_type FROM v7_material_files WHERE id=?").bind(frame.fileId).first<Row>();
+    if (!file) throw new Error(`SOURCE_FRAME_FILE_MISSING · ${clean(frame.role)}`);
+    const object = await env.BUCKET.get(clean(file.runtime_key)); if (!object) throw new Error(`SOURCE_FRAME_BYTES_MISSING · ${clean(frame.role)}`);
+    imageUrls.push(`data:${clean(file.mime_type)};base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`);
+  }
+  if (imageUrls.length !== 3) throw new Error("SOURCE_FRAME_SET_INCOMPLETE");
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(evidence.brief_id), "SOURCE_FRAME_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1200, 3000);
+  const content: Row[] = [{ type: "input_text", text: `You are the source-footage gate for a premium documentary. Inspect the actual decoded ENTRY, MIDPOINT and EXIT frames in order. Judge the source layer only: it does not need to explain the entire claim, but it must provide unmistakable, composition-ready physical context, contain no prohibited or contradictory evidence, and materially differ across time. Topic similarity is not enough. Do not credit metadata, filenames or the intended later overlay. Reject ambiguous cash/card handoffs, implied completed payment when the narration distinguishes authorization from settlement, unclear tender, generic checkout footage, logos, weak crops or near-duplicate frames. PASS requires every dimension >=86 and overall >=90. Return a concrete replacement search query and a source-layer contract even when passing.\n\nFROZEN CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance, sourceContext: sourceContextJob(brief) })}` }];
+  for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 3000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_source_frame_qa", strict: true, schema: sourceFrameQaSchema } } }), signal: AbortSignal.timeout(30000) });
+  if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`SOURCE_FRAME_QA_START_FAILED · ${response.status}`); }
+  const payload = await response.json() as Row;
+  if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("SOURCE_FRAME_QA_PROVIDER_ID_MISSING"); }
+  await db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, new Date().toISOString(), requestId).run();
+  return snapshot();
+}
 
 async function dispatchVision(env: Env, db: DB, authorization: Row, briefRow: Row) {
   if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY_REQUIRED_FOR_PIXEL_QA");
@@ -811,9 +865,9 @@ async function completeMediaJob(request: Request, body: Row) {
   const drive = await storeDriveJsonArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Material Production", "Execution Evidence"], fileName: `${jobId}-evidence.json`, content: json, artifactId: `${jobId}-EVIDENCE`, contentHash: hash });
   const now = new Date().toISOString();
   await db.batch([
-    db.prepare("INSERT INTO v7_media_evidence (id,program_id,run_id,authorization_id,brief_id,job_id,evidence_type,status,content_json,content_hash,runtime_key,drive_file_id,created_at) VALUES (?,?,?,?,?,?,'SOURCE_FRAME_SET','VERIFIED',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='VERIFIED',content_json=excluded.content_json,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id").bind(`${jobId}-EVIDENCE`, PROGRAM_ID, job.run_id, job.authorization_id, job.brief_id, jobId, json, hash, key, drive.id, now),
+    db.prepare("INSERT INTO v7_media_evidence (id,program_id,run_id,authorization_id,brief_id,job_id,evidence_type,status,content_json,content_hash,runtime_key,drive_file_id,created_at) VALUES (?,?,?,?,?,?,'SOURCE_FRAME_SET','TECHNICALLY_VERIFIED',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='TECHNICALLY_VERIFIED',content_json=excluded.content_json,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id").bind(`${jobId}-EVIDENCE`, PROGRAM_ID, job.run_id, job.authorization_id, job.brief_id, jobId, json, hash, key, drive.id, now),
     db.prepare("UPDATE v7_media_jobs SET status='COMPLETE',output_json=?,error=NULL,completed_at=?,updated_at=?,lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?").bind(JSON.stringify({ evidenceId: `${jobId}-EVIDENCE`, frameFileIds: storedFrameIds }), now, now, jobId),
-    db.prepare("UPDATE v7_stage_states SET blocker='COMPOSITE_TOURNAMENT_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${job.brief_id} actual source frames verified · composite tournament remains locked`, now, STAGE_ID),
+    db.prepare("UPDATE v7_stage_states SET blocker='SOURCE_FRAME_QA_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${job.brief_id} source bytes and decoded frames technically verified · semantic acceptance pending`, now, STAGE_ID),
   ]);
   return Response.json({ status: "COMPLETE", jobId, evidenceId: `${jobId}-EVIDENCE`, frameFileIds: storedFrameIds });
 }
@@ -849,6 +903,7 @@ export async function POST(request: Request) {
     if (body.action === "STOP_PILOT") return Response.json(await stopPilot());
     if (body.action === "RESUME_PILOT") return Response.json(await resumePilot(), { status: 202 });
     if (body.action === "PLAN_ROOT_CAUSE_EXECUTION") return Response.json(await planRootCauseExecution(), { status: 201 });
+    if (body.action === "RUN_SOURCE_FRAME_QA") return Response.json(await sourceFrameQa(), { status: 202 });
     if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);
     if (body.action === "CLAIM_MEDIA_JOB") return await claimMediaJob(request, body);
     if (body.action === "COMPLETE_MEDIA_JOB") return await completeMediaJob(request, body);
