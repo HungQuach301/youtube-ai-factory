@@ -1,5 +1,6 @@
 import { AI_USAGE_TABLE_SQL, recordOpenAIUsage } from "../../../../lib/ai-usage";
 import { storeDriveBinaryArtifact, storeDriveJsonArtifact } from "../../../../lib/google-drive";
+import jpeg from "jpeg-js";
 
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
 const STAGE = "09";
@@ -363,12 +364,32 @@ function joinBytes(parts: Uint8Array[]) { const length = parts.reduce((sum, part
 function crc32(bytes: Uint8Array) { let crc = 0xffffffff; for (const byte of bytes) { crc ^= byte; for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1)); } return (crc ^ 0xffffffff) >>> 0; }
 function pngChunk(type: string, data: Uint8Array) { const name = new TextEncoder().encode(type), body = joinBytes([name,data]); return joinBytes([u32(data.length),body,u32(crc32(body))]); }
 function deflateStored(raw: Uint8Array) { const parts: Uint8Array[] = [new Uint8Array([0x78,0x01])]; for (let offset = 0; offset < raw.length;) { const length = Math.min(65535,raw.length-offset), final = offset + length >= raw.length ? 1 : 0; parts.push(new Uint8Array([final,length&255,(length>>>8)&255,(~length)&255,((~length)>>>8)&255]),raw.slice(offset,offset+length)); offset += length; } let a=1,b=0; for (const byte of raw) { a=(a+byte)%65521; b=(b+a)%65521; } parts.push(u32(((b<<16)|a)>>>0)); return joinBytes(parts); }
-function ownedPng(brief: Row, state: 0 | 1 | 2) {
+function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array; width: number; height: number }) {
   const width=960,height=540,pixels=new Uint8Array(width*height*4), raw=new Uint8Array(height*(1+width*4));
   const color=(hex:string)=>[Number.parseInt(hex.slice(1,3),16),Number.parseInt(hex.slice(3,5),16),Number.parseInt(hex.slice(5,7),16),255] as const;
   const fill=(x:number,y:number,w:number,h:number,hex:string)=>{const c=color(hex);for(let py=Math.max(0,y);py<Math.min(height,y+h);py++)for(let px=Math.max(0,x);px<Math.min(width,x+w);px++){const i=(py*width+px)*4;pixels.set(c,i);}};
   const text=(value:string,x:number,y:number,scale:number,hex:string)=>{const c=color(hex);let cx=x;for(const char of value.toUpperCase()){const glyph=glyphs[char]||glyphs["?"];for(let gy=0;gy<7;gy++)for(let gx=0;gx<5;gx++)if(glyph[gy][gx]==="1")for(let sy=0;sy<scale;sy++)for(let sx=0;sx<scale;sx++){const px=cx+gx*scale+sx,py=y+gy*scale+sy;if(px>=0&&px<width&&py>=0&&py<height){const i=(py*width+px)*4;pixels.set(c,i);}}cx+=6*scale;}};
   const wrap=(value:string,limit:number)=>{const lines:string[]=[],words=clean(value).toUpperCase().split(" ");let line="";for(const word of words){const next=line?`${line} ${word}`:word;if(next.length>limit&&line){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);return lines;};
+  if (background) {
+    const audienceCopy: Record<string, Array<[string,string,string]>> = {
+      "MP-001": [["CREDIT PURCHASE","READY",""],["CREDIT PURCHASE","$100.00","CREDIT"],["CREDIT PURCHASE","$100.00","PROCESSING"]],
+      "MP-002": [["CREDIT PURCHASE","$100.00","PROCESSING"],["CREDIT PURCHASE","APPROVED","$100.00"],["AUTHORIZATION","APPROVED","NOT SETTLED"]],
+      "MP-003": [["PURCHASE RECORD","$100.00","APPROVED"],["REWARD RECORD","REWARD","POSTED"],["TWO RECORDS","PURCHASE","REWARD"]],
+      "MP-004": [["PURCHASE","$100.00","UNRESOLVED"],["PARTICIPANTS","MERCHANT","ACQUIRER"],["DISTINCT ROLES","MERCHANT","PROCESSOR"]],
+      "MP-018": [["EVIDENCE BASE","NATIONAL","TOTAL"],["CARD SHARE","SUPPORTED","PROPORTION"],["SOURCE CHECK","YEAR","DENOMINATOR"]],
+    };
+    const [heading,main,sub]=audienceCopy[clean(brief.briefId)]?.[state] || [["EXPLANATION","ENTRY",""],["EXPLANATION","CHANGE",""],["EXPLANATION","OUTCOME",""]][state];
+    const scale=Math.max(width/background.width,height/background.height),sourceWidth=width/scale,sourceHeight=height/scale,sourceX=(background.width-sourceWidth)/2,sourceY=(background.height-sourceHeight)/2;
+    for(let y=0;y<height;y++)for(let x=0;x<width;x++){const sx=Math.min(background.width-1,Math.max(0,Math.floor(sourceX+x/scale))),sy=Math.min(background.height-1,Math.max(0,Math.floor(sourceY+y/scale))),source=(sy*background.width+sx)*4,target=(y*width+x)*4;pixels[target]=Math.round(background.data[source]*.42);pixels[target+1]=Math.round(background.data[source+1]*.42);pixels[target+2]=Math.round(background.data[source+2]*.42);pixels[target+3]=255;}
+    fill(0,0,18,height,"#74c69d");
+    fill(476,86,420,368,"#f5edcf"); fill(506,116,360,54,"#d9f1e4");
+    text(heading,540,132,3,"#0d3f32");
+    text(main,main.length>10?520:555,226,main.length>10?5:8,"#0d3f32");
+    if(sub) text(sub,sub.length>11?535:600,340,4,"#0d3f32");
+    fill(570,382,230+state*40,12,state===2?"#74c69d":"#7b958c");
+    text(state===0?"01":state===1?"02":"03",820,414,3,"#0d3f32");
+    for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
+  }
   fill(0,0,width,height,"#0d3f32");fill(0,0,18,height,"#74c69d");wrap(short(brief.viewerMustUnderstand,92),45).slice(0,2).forEach((line,index)=>text(line,48,45+index*42,4,"#fffdf5"));
   const evidence=arr(brief.requiredEvidence).map((item)=>short(item,36)).slice(0,3), kind=familyKind(brief.primaryFamily), visible=Math.max(1,state+1);
   if(kind==="CHART") { [120,220,150,300].forEach((h,index)=>{if(index<=state+1){fill(170+index*185,470-h,120,h,index===3?"#74c69d":"#f5edcf");text(index===0?"BUY":index===3?"NET":"COST",178+index*185,490,2,"#fffdf5");}}); }
@@ -385,7 +406,7 @@ async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row
   await env.BUCKET.put(key, options.bytes, { httpMetadata: { contentType: options.mimeType }, customMetadata: { sha256: hash, briefId: String(briefRow.id), role: options.role, provider: options.provider, licenseCode: options.licenseCode } });
   if (!(await env.BUCKET.head(key))) throw new Error("R2_MATERIAL_READ_BACK_FAILED");
   const drive = await storeDriveBinaryArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Material Production", "Pilot 10"], fileName: `${clean(briefRow.id).split("-").at(-1)}-${options.role.toLowerCase()}.${options.extension}`, content: options.bytes, mimeType: options.mimeType, artifactId: id, contentHash: hash });
-  await db.prepare("INSERT INTO v7_material_files (id,program_id,run_id,authorization_id,brief_id,asset_role,source_type,provider,provider_asset_id,source_url,landing_url,license_code,mime_type,width,height,duration_seconds,byte_size,content_hash,runtime_key,drive_file_id,thumbnail_url,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'STORED_VERIFIED') ON CONFLICT(id) DO NOTHING").bind(id, PROGRAM_ID, authorization.run_id, authorization.id, briefRow.id, options.role, options.sourceType, options.provider, options.providerAssetId || null, options.sourceUrl || null, options.landingUrl || null, options.licenseCode, options.mimeType, options.width, options.height, options.duration || 0, options.bytes.byteLength, hash, key, drive.id, options.thumbnailUrl || null).run();
+  await db.prepare("INSERT INTO v7_material_files (id,program_id,run_id,authorization_id,brief_id,asset_role,source_type,provider,provider_asset_id,source_url,landing_url,license_code,mime_type,width,height,duration_seconds,byte_size,content_hash,runtime_key,drive_file_id,thumbnail_url,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'STORED_VERIFIED') ON CONFLICT(id) DO UPDATE SET source_type=excluded.source_type,provider=excluded.provider,provider_asset_id=excluded.provider_asset_id,source_url=excluded.source_url,landing_url=excluded.landing_url,license_code=excluded.license_code,mime_type=excluded.mime_type,width=excluded.width,height=excluded.height,duration_seconds=excluded.duration_seconds,byte_size=excluded.byte_size,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id,thumbnail_url=excluded.thumbnail_url,status='STORED_VERIFIED'").bind(id, PROGRAM_ID, authorization.run_id, authorization.id, briefRow.id, options.role, options.sourceType, options.provider, options.providerAssetId || null, options.sourceUrl || null, options.landingUrl || null, options.licenseCode, options.mimeType, options.width, options.height, options.duration || 0, options.bytes.byteLength, hash, key, drive.id, options.thumbnailUrl || null).run();
   return id;
 }
 
@@ -418,21 +439,27 @@ async function dispatchVision(env: Env, db: DB, authorization: Row, briefRow: Ro
   const setting = await modelSetting(db), brief = JSON.parse(String(briefRow.content_json)) as Row, files = await rows(db, "SELECT * FROM v7_material_files WHERE brief_id=? ORDER BY asset_role", briefRow.id), primary = files.find((file) => file.asset_role === "PRIMARY");
   if (!primary) throw new Error("PRIMARY_MATERIAL_MISSING");
   const imageUrls: string[] = [];
-  if (clean(primary.thumbnail_url)) imageUrls.push(clean(primary.thumbnail_url));
+  if (clean(primary.thumbnail_url) && clean(brief.route) !== "HYBRID") imageUrls.push(clean(primary.thumbnail_url));
   if (files.some((item) => item.mime_type === "image/svg+xml")) {
+    let hybridBackground: { data: Uint8Array; width: number; height: number } | undefined;
+    if (clean(brief.route) === "HYBRID" && clean(primary.thumbnail_url)) {
+      const response = await fetch(clean(primary.thumbnail_url), { signal: AbortSignal.timeout(15000) });
+      if (!response.ok) throw new Error(`HYBRID_BACKGROUND_FETCH_FAILED · ${response.status}`);
+      const mimeType = clean(response.headers.get("content-type"));
+      if (!mimeType.includes("jpeg") && !mimeType.includes("jpg")) throw new Error(`HYBRID_BACKGROUND_FORMAT_UNSUPPORTED · ${mimeType}`);
+      const decoded = jpeg.decode(new Uint8Array(await response.arrayBuffer()), { useTArray: true, formatAsRGBA: true });
+      hybridBackground = { data: decoded.data as Uint8Array, width: decoded.width, height: decoded.height };
+    }
     const roles = [["QA_ENTRY",0],["QA_MIDPOINT",1],["QA_EXIT",2]] as const;
     for (const [role,state] of roles) {
-      let proxy = files.find((item) => item.asset_role === role);
-      if (!proxy) {
-        await storeMaterial(env, db, authorization, briefRow, { role, bytes: ownedPng(brief, state), mimeType: "image/png", extension: "png", sourceType: "OWNED_AUDIENCE_FRAME_EVIDENCE", provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
-        proxy = await db.prepare("SELECT * FROM v7_material_files WHERE brief_id=? AND asset_role=?").bind(briefRow.id, role).first<Row>() || undefined;
-      }
+      await storeMaterial(env, db, authorization, briefRow, { role, bytes: ownedPng(brief, state, hybridBackground), mimeType: "image/png", extension: "png", sourceType: hybridBackground ? "HYBRID_AUDIENCE_COMPOSITE_V2" : "OWNED_AUDIENCE_FRAME_EVIDENCE", provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
+      const proxy = await db.prepare("SELECT * FROM v7_material_files WHERE brief_id=? AND asset_role=?").bind(briefRow.id, role).first<Row>() || undefined;
       if (proxy) { const object = await env.BUCKET?.get(clean(proxy.runtime_key)); if (object) imageUrls.push(`data:image/png;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`); }
     }
   }
   if (!imageUrls.length) throw new Error("REPRESENTATIVE_PIXEL_EVIDENCE_MISSING");
   const requestId = await newRequest(db, authorization, clean(briefRow.id), "PIXEL_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1500, 3000);
-  const content: Row[] = [{ type: "input_text", text: `Act as an exacting visual producer. Judge only the supplied material pixels against this frozen shot contract. For authored material, the images are entry, midpoint and exit in that order and must visibly progress. Broad topic similarity is a failure. Penalize generic stock, unsupported claims, decorative diagrams, visible production metadata, weak mobile hierarchy, cropping, logos, text artifacts and repeated-template appearance. A PASS requires every dimension at least 86 and overall at least 90. Do not infer motion that the supplied states do not prove.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
+  const content: Row[] = [{ type: "input_text", text: `Act as an exacting visual producer. Judge only the supplied audience-facing material pixels against this frozen shot contract. For HYBRID and authored material, the three images are the actual entry, midpoint and exit composites in that order and must visibly progress; there is no separate planning image. Broad topic similarity is a failure. Penalize generic stock, unsupported claims, decorative diagrams, visible production metadata, weak mobile hierarchy, cropping, logos, text artifacts and repeated-template appearance. A PASS requires every dimension at least 86 and overall at least 90. Do not infer motion that the supplied states do not prove.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
   for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 3000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_pixel_qa", strict: true, schema: visionSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`PIXEL_QA_START_FAILED · ${response.status}`); }
@@ -539,7 +566,7 @@ async function stepPilot() {
         const file = await db.prepare("SELECT id FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role='PRIMARY'").bind(authorization.id, target.id).first<Row>();
         const audit = await db.prepare("SELECT status FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, target.id).first<Row>();
         if (!file) await materializeOne(env, db, authorization, target);
-        else if (!audit) await dispatchVision(env, db, authorization, target);
+        else if (!audit || audit.status === "REPAIR_REQUIRED") await dispatchVision(env, db, authorization, target);
         else await closeRepairedUnitGate(db, run, authorization, target);
       }
     }

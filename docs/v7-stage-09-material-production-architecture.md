@@ -100,6 +100,8 @@ Wave 09.4 is a clean material-quality rebuild. Stage 09.3 bytes remain immutable
 
 ### Family renderer contract
 
+For every `HYBRID` unit, Pixel QA evaluates three stored audience-facing composites—not a provider thumbnail followed by separate planning graphics. The provider frame is rasterized as the real-world context layer; the authored layer supplies only the exact semantic states required by the frozen clause. Production instructions, source labels, filenames, placeholders and internal taxonomy are prohibited from these frames. A repaired composite overwrites its prior QA proxies and checksum record before a fresh audit; the old failed audit is never reused as evidence.
+
 | Family | Required visual proof | Prohibited fallback |
 |---|---|---|
 | Mechanism diagram | named roles, directional transfer, decision state | anonymous nodes and decorative dashes |
