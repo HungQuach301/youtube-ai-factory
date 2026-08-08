@@ -175,7 +175,7 @@ async function authorizePilot() {
   const shotCount = pilots.results?.length || 0;
   if (shotCount < 8 || shotCount > 12) throw new Error(`PILOT_SCOPE_INVALID · ${shotCount}/8–12`);
   const now = new Date().toISOString();
-  const id = `${run.id}-PILOT-AUTH`;
+  const id = `${run.id}-PILOT-AUTH-${Date.now()}`;
   const modelPolicy = { version: "ADAPTIVE_ENVELOPE_V2", qualityMode: "MAXIMUM_QUALITY", dispatch: "NOT_STARTED", lanes: { fastQuery: { expected: 1500, safety: 3000 }, singleVision: { expected: 4000, safety: 8000 }, comparison: { expected: 8000, safety: 16000 }, critical: { expected: 16000, calibrationHeadroom: 25000, safety: 32000 } }, incomplete: "BLOCK_GATE", semanticRetry: "ONE_DELTA_ONLY", transportRetry: "ONE_IDEMPOTENT_ONLY", fullUnitRecovery: "ROOT_CAUSE_AUTHORIZATION_REQUIRED" };
   await db.batch([
     db.prepare("INSERT INTO v7_material_authorizations (id,program_id,run_id,scope,status,shot_count,max_remote_requests,max_actual_spend_usd,model_policy_json,authorized_at,updated_at) VALUES (?,?,?,'PILOT','AUTHORIZED',?,80,50,?,?,?)").bind(id, PROGRAM_ID, run.id, shotCount, JSON.stringify(modelPolicy), now, now),
