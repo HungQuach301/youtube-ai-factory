@@ -123,7 +123,9 @@ export async function recordOpenAIUsage(args: {
   if (!usage.providerResponseId) throw new Error("OpenAI usage cannot be recorded without a response ID");
   const now = new Date().toISOString();
   const eventId = `${usage.providerResponseId}-USAGE`;
-  const costEventId = `${args.runId}-COST`;
+  // One immutable cost event per provider response. A run-level key would
+  // overwrite earlier requests and make the Cost Center under-report spend.
+  const costEventId = `${usage.providerResponseId}-COST`;
   const note = usage.pricingStatus === "MEASURED"
     ? `${usage.model} · ${usage.inputTokens.toLocaleString()} input (${usage.cachedInputTokens.toLocaleString()} cached) · ${usage.outputTokens.toLocaleString()} output (${usage.reasoningTokens.toLocaleString()} reasoning) · ${usage.webSearchCalls} web searches`
     : `${usage.model} usage captured; add a verified model rate to calculate USD`;

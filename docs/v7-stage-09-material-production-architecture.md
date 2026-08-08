@@ -72,7 +72,20 @@ The 32,000 value is a safety envelope, not a target. New critical tasks begin wi
 
 ## Current implementation boundary
 
-Wave 09.1 implements the zero-spend dry-run compiler. Wave 09.2 adds an immutable 8–12 shot pilot authorization and per-request ledger before any dispatch. Authorization itself creates no OpenAI or media-provider request and spends $0. The next wave may dispatch only the authorized pilot after the contract passes.
+Wave 09.1 implements the zero-spend dry-run compiler. Wave 09.2 adds an immutable 8–12 shot pilot authorization and per-request ledger before any dispatch. Authorization itself creates no OpenAI or media-provider request and spends $0.
+
+Wave 09.3 executes only that authorized pilot. It is resumable at one material unit per step: discovery, download or authored generation, R2 + Google Drive storage, checksum verification, pixel QA, and pilot sequence QA. Provider URLs and thumbnails remain candidates until bytes are stored. SOURCE and HYBRID shots retain the original provider file; HYBRID shots additionally receive a channel-owned explanatory overlay. MAKE shots receive a channel-owned 1920×1080 vector source. No 166-shot expansion is authorized by a pilot run.
+
+### Pilot execution state machine
+
+`PILOT_AUTHORIZED → PILOT_RUNNING → MATERIALIZED → PIXEL_AUDITED → PILOT_PASS | REPAIR_REQUIRED`
+
+- One HTTP step performs at most one material unit or advances one background vision review.
+- The browser may close; stored units and request records are authoritative on resume.
+- Emergency stop prevents new dispatch and cancels every cancellable OpenAI background response by provider response ID.
+- Provider discovery and file download calls are short-lived, individually ledgered operations. They are never represented as cancellable after completion.
+- A pilot PASS authorizes review of the next production tranche; it does not automatically dispatch it.
+- Sequence QA checks the ten-shot set for exact scope, route/family diversity, physical-file uniqueness, provenance completeness and pixel-QA completion. Playback rhythm remains a later edit/render gate and may not be inferred from metadata.
 
 ## Locked architecture decisions
 
@@ -81,3 +94,8 @@ Wave 09.1 implements the zero-spend dry-run compiler. Wave 09.2 adds an immutabl
 - **ADR-030 — Automatic retry is delta-only.** Whole-unit recovery requires explicit root-cause authorization and preserves completed work.
 - **ADR-031 — Usage calibrates envelopes after quality.** P95 token evidence may resize expected budgets but may never lower a quality gate.
 - **ADR-032 — Pilot authorization precedes dispatch.** The authorization binds shot IDs, maximum remote requests, model policy and revocation state; creating it costs $0.
+- **ADR-033 — Material identity is byte-backed.** A material is real only after R2 storage, SHA-256 read-back evidence and Google Drive archival; a provider URL, thumbnail or generated prompt cannot advance the gate.
+- **ADR-034 — Pilot work is one-unit resumable.** Every UI tick may advance at most one brief or one background QA response, so page closure, timeout or provider latency never restarts completed work.
+- **ADR-035 — SOURCE, MAKE and HYBRID preserve different evidence.** SOURCE stores the selected provider bytes; MAKE stores a channel-owned authored source; HYBRID stores both provider context and a separate owned explanatory layer.
+- **ADR-036 — Pixel evidence and sequence evidence are not conflated.** Vision review scores the selected representative pixels; sequence QA scores the pilot set. Full entry/mid/exit playback remains mandatory downstream when the motion edit exists.
+- **ADR-037 — Remote work is stop-aware and ledger-complete.** Every network call receives a request record with provider, phase, terminal status, token usage when applicable and actual measured cost before another unit advances.

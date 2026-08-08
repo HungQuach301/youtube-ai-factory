@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 
 type Gate = { id: string; status: string; evidence: string };
@@ -13,22 +14,37 @@ type Snapshot = {
   run: null | { status: string; score: number; briefCount: number; pilotCount: number; remoteRequests: number; actualCostUsd: number; gates: Gate[] };
   artifact: null | { contentHash: string; routeMix: Record<string, number>; modelMix: Record<string, number>; sampleBriefs: Brief[]; pilotIds: string[] };
   authorization: null | { id: string; status: string; shotCount: number; maxRemoteRequests: number; maxActualSpendUsd: number; authorizedAt: string; revokedAt?: string; modelPolicy: Record<string, unknown> };
-  requestLedger: { total: number; planned: number; active: number; complete: number; incomplete: number; actualCostUsd: number };
+  provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
+  pilot: { materialized: number; audited: number; total: number; percent: number; items: Array<{ id: string; briefId: string; route: string; family: string; meaning: string; status: string; file: null | { id: string; provider: string; mimeType: string; bytes: number; hash: string; previewUrl: string }; overlay: null | { id: string; previewUrl: string }; audit: null | { status: string; score: number; findings: string[] } }> };
+  requestLedger: { total: number; planned: number; active: number; complete: number; incomplete: number; actualCostUsd: number; recent: Array<{ id: string; briefId: string; phase: string; provider: string; modelId: string; status: string; inputTokens: number; outputTokens: number; reasoningTokens: number; actualCostUsd: number; error?: string; createdAt: string }> };
 };
 
 export default function MaterialProductionPage() {
   const [data, setData] = useState<Snapshot | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [modelId, setModelId] = useState("gpt-5.6-sol");
+  const [reasoningEffort, setReasoningEffort] = useState("low");
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/factory/material-production", { cache: "no-store" });
       const payload = await response.json() as Snapshot & { error?: string };
       if (!response.ok) throw new Error(payload.error || "Stage 09 could not load");
-      setData(payload); setError(null);
+      setData(payload); setModelId(payload.provider.model); setReasoningEffort(payload.provider.reasoningEffort); setError(null);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Stage 09 could not load"); }
   }, []);
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
+  useEffect(() => {
+    if (data?.run?.status !== "PILOT_RUNNING" || working) return;
+    const timer = window.setTimeout(() => {
+      setWorking("STEP_PILOT");
+      void fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "STEP_PILOT" }) })
+        .then(async (response) => { const payload = await response.json() as Snapshot & { error?: string }; if (!response.ok) throw new Error(payload.error || "Pilot execution failed"); setData(payload); setError(null); })
+        .catch((reason: Error) => setError(reason.message))
+        .finally(() => setWorking(null));
+    }, 1400);
+    return () => window.clearTimeout(timer);
+  }, [data?.run?.status, data?.pilot.materialized, data?.pilot.audited, data?.requestLedger.active, working]);
   async function build() {
     setWorking("BUILD"); setError(null);
     try {
@@ -49,8 +65,28 @@ export default function MaterialProductionPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Pilot authorization failed"); }
     finally { setWorking(null); }
   }
+  async function execute(action: "START_PILOT" | "STEP_PILOT" | "STOP_PILOT" | "RESUME_PILOT", quiet = false) {
+    setWorking(action); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Pilot execution failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Pilot execution failed"); }
+    finally { setWorking(null); }
+  }
+  async function saveModel() {
+    setWorking("SET_MODEL"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SET_MODEL", modelId, reasoningEffort }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Model selection failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Model selection failed"); }
+    finally { setWorking(null); }
+  }
   if (!data) return <main className="shotShell"><p className="stateBanner">{error || "Loading Stage 09 production contract…"}</p></main>;
-  const ready = ["READY", "PILOT_READY", "PILOT_AUTHORIZED"].includes(data.stage.status);
+  const ready = ["READY", "PILOT_READY", "PILOT_AUTHORIZED", "PILOT_PAUSED", "PILOT_PASS", "REPAIR_REQUIRED"].includes(data.stage.status);
   return <main className="shotShell">
     <nav className="shotTop"><Link href="/control-plane">← V7 Control Plane</Link><span>PRODUCTION V7 · STAGE 09</span><b>{data.stage.status.replaceAll("_", " ")}</b></nav>
     <section className="shotHero">
@@ -104,5 +140,38 @@ export default function MaterialProductionPage() {
         ? <button onClick={() => void pilotAction("REVOKE_PILOT")} disabled={Boolean(working)}>{working === "REVOKE_PILOT" ? "Revoking…" : "Revoke pilot authorization"}</button>
         : <button onClick={() => void pilotAction("AUTHORIZE_PILOT")} disabled={Boolean(working) || data.run?.status !== "PILOT_READY"}>{working === "AUTHORIZE_PILOT" ? "Authorizing pilot…" : "Authorize 10-shot pilot · $0 now"}</button>}
     </section>
+    {data.authorization && <section className="shotProgress">
+      <header><div><p>STAGE 09.3 · ACTUAL PILOT</p><h2>Material bytes, pixel evidence and request truth</h2></div><strong>{data.pilot.percent}%</strong></header>
+      <i><span style={{ width: `${data.pilot.percent}%` }} /></i>
+      <div>
+        <span><b>01</b>{data.pilot.materialized}/{data.pilot.total} materialized</span>
+        <span><b>02</b>{data.pilot.audited}/{data.pilot.total} pixel audited</span>
+        <span><b>03</b>{data.requestLedger.active} remote active</span>
+        <span><b>04</b>${data.requestLedger.actualCostUsd.toFixed(4)} measured</span>
+      </div>
+      <div className="materialModelControl">
+        <label>Vision model<select value={modelId} onChange={(event) => setModelId(event.target.value)} disabled={Boolean(working) || data.requestLedger.active > 0}>{data.provider.modelOptions.map((option) => <option key={option.id} value={option.id}>{option.label} · {option.description}</option>)}</select></label>
+        <label>Reasoning<select value={reasoningEffort} onChange={(event) => setReasoningEffort(event.target.value)} disabled={Boolean(working) || data.requestLedger.active > 0}>{data.provider.reasoningOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+        <button onClick={() => void saveModel()} disabled={Boolean(working) || data.requestLedger.active > 0}>Save model for next request</button>
+      </div>
+      {data.run?.status === "PILOT_AUTHORIZED" && <button onClick={() => void execute("START_PILOT")} disabled={Boolean(working)}>Start authorized 10-shot pilot</button>}
+      {data.run?.status === "PILOT_RUNNING" && <button onClick={() => void execute("STOP_PILOT")} disabled={working === "STOP_PILOT"}>{working === "STOP_PILOT" ? "Confirming provider stop…" : "Emergency stop · preserve completed materials"}</button>}
+      {data.run?.status === "PILOT_PAUSED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>Resume from stored evidence</button>}
+      {data.run?.status === "PILOT_PASS" && <p className="stateBanner">Pilot PASS. Full 166-shot production remains locked pending review.</p>}
+      {data.run?.status === "REPAIR_REQUIRED" && <p className="stateBanner errorState">Pilot repair required. No full-scale dispatch is authorized.</p>}
+    </section>}
+    {data.pilot.items.length > 0 && <section className="materialPilotGrid">
+      {data.pilot.items.map((item) => <article key={item.id}>
+        <header><b>{item.briefId} · {item.route}</b><span>{item.status.replaceAll("_", " ")}</span></header>
+        <h3>{item.family}</h3><p>{item.meaning}</p>
+        {item.file && (item.file.mimeType.startsWith("video/") ? <video controls preload="metadata" src={item.file.previewUrl} /> : <Image unoptimized width={1920} height={1080} src={item.file.previewUrl} alt={`${item.briefId} material preview`} />)}
+        <footer><span>{item.file ? `${item.file.provider} · ${(item.file.bytes / 1_000_000).toFixed(1)} MB · ${item.file.hash}` : "Awaiting stored bytes"}</span><b>{item.audit ? `${item.audit.status} · ${item.audit.score}/100` : "Pixel QA pending"}</b></footer>
+        {item.audit?.findings?.[0] && <small>{item.audit.findings[0]}</small>}
+      </article>)}
+    </section>}
+    {data.requestLedger.recent.length > 0 && <section className="materialLedger">
+      <header><div><p>REQUEST-LEVEL COST LEDGER</p><h2>Every provider call is inspectable</h2></div><strong>{data.requestLedger.total} requests</strong></header>
+      <div>{data.requestLedger.recent.map((request) => <article key={request.id}><span>{request.briefId}<b>{request.phase}</b></span><span>{request.provider}<b>{request.modelId}</b></span><span>{request.status}<b>{request.inputTokens.toLocaleString()} in · {request.outputTokens.toLocaleString()} out · {request.reasoningTokens.toLocaleString()} reasoning</b></span><strong>${request.actualCostUsd.toFixed(4)}</strong>{request.error && <small>{request.error}</small>}</article>)}</div>
+    </section>}
   </main>;
 }
