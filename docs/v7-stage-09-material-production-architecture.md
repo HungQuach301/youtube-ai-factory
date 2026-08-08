@@ -102,6 +102,8 @@ Wave 09.4 is a clean material-quality rebuild. Stage 09.3 bytes remain immutable
 
 For every `HYBRID` unit, Pixel QA evaluates three stored audience-facing composites—not a provider thumbnail followed by separate planning graphics. The provider frame is rasterized as the real-world context layer; the authored layer supplies only the exact semantic states required by the frozen clause. Production instructions, source labels, filenames, placeholders and internal taxonomy are prohibited from these frames. A repaired composite overwrites its prior QA proxies and checksum record before a fresh audit; the old failed audit is never reused as evidence.
 
+Pixel QA is a critical adjudication request and therefore uses the approved 8,000-token safety envelope while retaining a 1,500-token expected output. `max_output_tokens` is classified as provider-incomplete, not a visual verdict. The previous audit remains historical only and cannot close the repaired-unit gate; exactly one bounded incomplete retry is allowed.
+
 | Family | Required visual proof | Prohibited fallback |
 |---|---|---|
 | Mechanism diagram | named roles, directional transfer, decision state | anonymous nodes and decorative dashes |
