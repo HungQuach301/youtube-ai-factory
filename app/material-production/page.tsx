@@ -130,7 +130,7 @@ export default function MaterialProductionPage() {
         <article><small>NEXT GATE</small><b>{data.mediaExecution.nextGate.replaceAll("_", " ")}</b><span>scale remains locked</span></article>
       </div>
       <div className="mediaExecutionContract">
-        <div><b>Execution contract</b><span>FFPROBE → 10% frame → 50% frame → 90% frame → SHA-256/read-back → evidence registry</span><small>960×540 JPEG · exact three-frame set · source duration tolerance 250ms · no thumbnail substitution</small></div>
+        <div><b>Execution contract</b><span>Private transport auth → executor auth → bounded lease → FFPROBE → 10% / 50% / 90% frames → SHA-256/read-back → evidence registry</span><small>960×540 JPEG · exact three-frame set · source duration tolerance 250ms · no thumbnail substitution · zero AI authority</small></div>
         {!data.mediaExecution.jobs.some((job) => ["QUEUED", "LEASED", "COMPLETE"].includes(job.status)) && <button onClick={() => void planExecution()} disabled={Boolean(working)}>{working === "PLAN_ROOT_CAUSE_EXECUTION" ? "Creating bounded job…" : "Create root-cause media job · $0"}</button>}
       </div>
       {!data.mediaExecution.configured && <p className="stateBanner errorState">Add MEDIA_EXECUTOR_SHARED_SECRET in Factory Connections before starting the executor. Creating the job itself makes no provider or AI request.</p>}

@@ -6,12 +6,14 @@ import { join } from "node:path";
 
 const baseUrl = String(process.env.FACTORY_BASE_URL || "").replace(/\/$/, "");
 const secret = String(process.env.MEDIA_EXECUTOR_SHARED_SECRET || "");
+const siteAuthToken = String(process.env.FACTORY_SITE_AUTH_TOKEN || "");
 const executorId = String(process.env.MEDIA_EXECUTOR_ID || `media-executor-${randomUUID().slice(0, 8)}`);
 const once = process.argv.includes("--once");
 if (!baseUrl || !secret) throw new Error("FACTORY_BASE_URL and MEDIA_EXECUTOR_SHARED_SECRET are required");
 
 const endpoint = `${baseUrl}/api/factory/material-production`;
-const headers = { "content-type": "application/json", "x-frameflow-executor-key": secret };
+const transportHeaders = siteAuthToken ? { "OAI-Sites-Authorization": `Bearer ${siteAuthToken}` } : {};
+const headers = { "content-type": "application/json", "x-frameflow-executor-key": secret, ...transportHeaders };
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -38,7 +40,7 @@ async function execute(job) {
   const work = mkdtempSync(join(tmpdir(), "frameflow-media-"));
   try {
     const sourceUrl = new URL(job.sourceDownloadUrl, baseUrl).toString();
-    const response = await fetch(sourceUrl, { headers: { "x-frameflow-executor-key": secret } });
+    const response = await fetch(sourceUrl, { headers: { "x-frameflow-executor-key": secret, ...transportHeaders } });
     if (!response.ok) throw new Error(`source download ${response.status}`);
     const sourceBytes = Buffer.from(await response.arrayBuffer()), sourcePath = join(work, "source.mp4");
     writeFileSync(sourcePath, sourceBytes);
