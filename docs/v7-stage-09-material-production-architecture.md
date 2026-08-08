@@ -17,8 +17,10 @@ Stage 09 converts every frozen semantic shot contract into a rights-ready, store
 6. **Production is tranche-authorized.** Execution order is zero-spend dry run → 8–12 shot pilot → 30-second sequence QA → bounded 20–30 shot waves → exception repair. A later tranche cannot begin until the preceding tranche passes.
 7. **Deterministic-first model routing.** Rules and provider metadata remove ineligible candidates; embeddings shortlist; vision judges only the top candidates; high reasoning is reserved for factual or ambiguous finalists.
 8. **Token and spend are request contracts.** Every request records model, reasoning, input budget, output ceiling, retry allowance, idempotency key, provider response ID, usage and actual cost before the next request may start.
-9. **Incomplete output never triggers a full rerun.** `max_output_tokens` creates a bounded delta request for only the missing fields, at most once. Structured Outputs are mandatory for machine contracts.
+9. **Incomplete output is a hard blocker, never a degraded artifact.** `max_output_tokens` or any provider-incomplete state stops that unit. The orchestrator may request only the missing fields once; it may not silently truncate, invent defaults or lower a gate.
 10. **Stop and resume are provider-aware.** Background responses keep their provider IDs; emergency stop cancels cancellable responses, prevents new dispatch, and preserves validated work.
+11. **Expected budgets are not quality ceilings.** Each lane has a normal output range and a larger safety ceiling. Critical semantic or factual adjudication receives the headroom it needs; observed P95 usage calibrates the envelope after quality is proven.
+12. **Whole-unit recovery is explicit.** Automatic retry is delta-only. A complete unit may be rerun only after a stored root-cause diagnosis authorizes a bounded recovery; completed batches remain immutable.
 
 These controls follow the official OpenAI guidance that reasoning tokens are included in output-token usage, `max_output_tokens` can produce an incomplete response, and Structured Outputs should be used for schema adherence.
 
@@ -34,16 +36,26 @@ These controls follow the official OpenAI guidance that reasoning tokens are inc
 | Materialization | Champion | Fetch/generate/render | Provider-specific | Stored bytes, checksum, provenance, rights |
 | Sequence QA | Bound assets | Contact sheet + 30-second playback | Bounded | Semantic, variety, fit and rhythm evidence |
 
-## Per-request ceilings
+## Adaptive token envelopes
 
-| Lane | Typical use | Reasoning | Output ceiling | Retry |
-|---|---|---|---:|---:|
-| Deterministic | rules, routing, validation, rendering | none | 0 | 0 |
-| Fast | query variation, metadata normalization | low | 500–1,200 | 0 |
-| Balanced | candidate comparison, ordinary vision QA | low/medium | 1,200–3,000 | 1 delta only |
-| Critical | factual ambiguity, final exception adjudication | high | 4,000–8,000 | 1 delta only |
+| Lane | Typical use | Reasoning | Expected output | Safety ceiling | Automatic retry |
+|---|---|---|---:|---:|---:|
+| Deterministic | rules, routing, validation, rendering | none | 0 | 0 | 0 |
+| Fast query | query variation, metadata normalization | low | 500–1,500 | 3,000 | 0 |
+| Single-candidate vision | one stored asset at entry/mid/exit | low/medium | 1,500–4,000 | 8,000 | 1 delta only |
+| Multi-candidate comparison | compare three stored candidates | medium | 3,000–8,000 | 16,000 | 1 delta only |
+| Critical adjudication | factual ambiguity, semantic conflict, release exception | high | 8,000–16,000 | 32,000 | 1 delta only |
 
-The orchestrator batches by estimated token weight rather than a fixed number of shots. It never submits a whole-project generation request.
+The 32,000 value is a safety envelope, not a target. New critical tasks begin with 25,000 tokens of combined reasoning/output headroom during calibration, then use measured P95 consumption plus margin. The orchestrator batches by estimated token weight rather than a fixed number of shots and never submits a whole-project generation request.
+
+### Completion and retry state machine
+
+1. A complete schema-valid response advances to semantic validation.
+2. `incomplete` with `max_output_tokens` stores provider evidence and moves the unit to `BLOCKED_INCOMPLETE`.
+3. If the missing fields can be isolated, one delta request receives the missing-field contract and prior response ID.
+4. A second incomplete response becomes `HUMAN_OR_ROOT_CAUSE_REVIEW`; it never triggers a retry cascade.
+5. Transport errors may receive one idempotent transport retry and do not consume the semantic delta allowance.
+6. A full-unit rerun requires a new authorization that names the root cause, affected unit IDs and maximum request count.
 
 ## Quality gates
 
@@ -60,4 +72,12 @@ The orchestrator batches by estimated token weight rather than a fixed number of
 
 ## Current implementation boundary
 
-Wave 09.1 implements the zero-spend dry-run compiler and pilot authorization contract. It creates no OpenAI or media-provider request. The next wave may dispatch only the approved pilot after the dry-run artifact passes its deterministic audit.
+Wave 09.1 implements the zero-spend dry-run compiler. Wave 09.2 adds an immutable 8–12 shot pilot authorization and per-request ledger before any dispatch. Authorization itself creates no OpenAI or media-provider request and spends $0. The next wave may dispatch only the authorized pilot after the contract passes.
+
+## Locked architecture decisions
+
+- **ADR-028 — Adaptive token envelopes protect quality.** Token limits constrain runaway execution, not the completeness standard of an artifact.
+- **ADR-029 — Provider-incomplete means gate-blocked.** Missing output can never be repaired with defaults or compensated by an average score.
+- **ADR-030 — Automatic retry is delta-only.** Whole-unit recovery requires explicit root-cause authorization and preserves completed work.
+- **ADR-031 — Usage calibrates envelopes after quality.** P95 token evidence may resize expected budgets but may never lower a quality gate.
+- **ADR-032 — Pilot authorization precedes dispatch.** The authorization binds shot IDs, maximum remote requests, model policy and revocation state; creating it costs $0.

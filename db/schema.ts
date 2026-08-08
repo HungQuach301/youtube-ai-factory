@@ -784,3 +784,96 @@ export const v7CreativeArtifacts = sqliteTable("v7_creative_artifacts", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Production Pipeline V7 — Stage 09 fresh material production. Authorization
+// is deliberately separate from dispatch so a user can grant or revoke scope
+// without creating provider spend.
+export const v7MaterialRuns = sqliteTable("v7_material_runs", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  status: text("status").notNull().default("BUILDING"),
+  mode: text("mode").notNull().default("ZERO_SPEND_DRY_RUN"),
+  briefCount: integer("brief_count").notNull().default(0),
+  pilotCount: integer("pilot_count").notNull().default(0),
+  score: integer("score").notNull().default(0),
+  remoteRequests: integer("remote_requests").notNull().default(0),
+  actualCostUsd: real("actual_cost_usd").notNull().default(0),
+  gateJson: text("gate_json").notNull().default("[]"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  completedAt: text("completed_at"),
+});
+
+export const v7MaterialBriefs = sqliteTable("v7_material_briefs", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  shotId: text("shot_id").notNull(),
+  sectionId: text("section_id").notNull(),
+  startSeconds: real("start_seconds").notNull(),
+  endSeconds: real("end_seconds").notNull(),
+  route: text("route").notNull(),
+  visualFamily: text("visual_family").notNull(),
+  modelLane: text("model_lane").notNull(),
+  outputCeiling: integer("output_ceiling").notNull().default(0),
+  retryLimit: integer("retry_limit").notNull().default(0),
+  pilot: integer("pilot", { mode: "boolean" }).notNull().default(false),
+  contentJson: text("content_json").notNull(),
+  contentHash: text("content_hash").notNull(),
+  status: text("status").notNull().default("PLANNED"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7MaterialArtifacts = sqliteTable("v7_material_artifacts", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("DRY_RUN_FROZEN"),
+  contentJson: text("content_json").notNull(),
+  contentHash: text("content_hash").notNull(),
+  runtimeKey: text("runtime_key"),
+  driveFileId: text("drive_file_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7MaterialAuthorizations = sqliteTable("v7_material_authorizations", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  scope: text("scope").notNull().default("PILOT"),
+  status: text("status").notNull().default("AUTHORIZED"),
+  shotCount: integer("shot_count").notNull(),
+  maxRemoteRequests: integer("max_remote_requests").notNull(),
+  maxActualSpendUsd: real("max_actual_spend_usd").notNull(),
+  modelPolicyJson: text("model_policy_json").notNull(),
+  authorizedAt: text("authorized_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  revokedAt: text("revoked_at"),
+  completedAt: text("completed_at"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7MaterialRequests = sqliteTable("v7_material_requests", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  authorizationId: text("authorization_id").notNull(),
+  briefId: text("brief_id").notNull(),
+  phase: text("phase").notNull(),
+  provider: text("provider").notNull(),
+  modelId: text("model_id").notNull(),
+  reasoning: text("reasoning").notNull(),
+  status: text("status").notNull().default("PLANNED"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  providerResponseId: text("provider_response_id"),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  reasoningTokens: integer("reasoning_tokens").notNull().default(0),
+  expectedOutputTokens: integer("expected_output_tokens").notNull().default(0),
+  maxOutputTokens: integer("max_output_tokens").notNull().default(0),
+  estimatedCostUsd: real("estimated_cost_usd").notNull().default(0),
+  actualCostUsd: real("actual_cost_usd").notNull().default(0),
+  retryOf: text("retry_of"),
+  retryScope: text("retry_scope").notNull().default("NONE"),
+  error: text("error"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

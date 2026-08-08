@@ -92,6 +92,11 @@ const lockedDecisions = [
   ["ADR-025", "Model routing is deterministic-first with request token ceilings"],
   ["ADR-026", "Material production requires a passing pilot before full waves"],
   ["ADR-027", "Incomplete AI output receives one delta retry, never a full rerun"],
+  ["ADR-028", "Adaptive token envelopes protect artifact quality"],
+  ["ADR-029", "Provider-incomplete output blocks its gate"],
+  ["ADR-030", "Automatic retry is delta-only; full recovery requires root-cause authorization"],
+  ["ADR-031", "Observed P95 usage calibrates envelopes only after quality"],
+  ["ADR-032", "Pilot authorization is stored before any remote dispatch"],
 ] as const;
 
 async function seedControlPlane() {
