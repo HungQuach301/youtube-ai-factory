@@ -102,7 +102,11 @@ export function measureOpenAIUsage(payload: UsageRecord, fallbackModel = "gpt-5.
     actualUsd: tokenCostUsd + toolCostUsd,
     pricingStatus: rates.known ? "MEASURED" : "MODEL_RATE_REQUIRED",
     pricingSource: PRICING_SOURCE,
-    usageJson: JSON.stringify(usage),
+    usageJson: JSON.stringify({
+      usage,
+      incompleteDetails: object(payload.incomplete_details),
+      error: object(payload.error),
+    }),
   };
 }
 

@@ -25,7 +25,7 @@ type Dashboard = {
   lifecycle: Array<{ state: string; count: number }>;
   assets: Array<{ id: string; name: string; assetClass: string; lifecycleState: string; syncState: string; rightsState: string; reusableEligible: boolean; quarantined: boolean; costUsd: number }>;
   costs: Array<{ id: string; stageKey: string; provider: string; costClass: string; costType: string; status: string; estimatedUsd: number; actualUsd: number; note: string }>;
-  aiUsage: Array<{ id: string; runId: string; stageKey: string; provider: string; modelId: string; providerResponseId: string; providerStatus: string; inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningTokens: number; totalTokens: number; webSearchCalls: number; tokenCostUsd: number; toolCostUsd: number; actualUsd: number; pricingStatus: string; measuredAt: string }>;
+  aiUsage: Array<{ id: string; runId: string; stageKey: string; provider: string; modelId: string; providerResponseId: string; providerStatus: string; inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningTokens: number; totalTokens: number; webSearchCalls: number; tokenCostUsd: number; toolCostUsd: number; actualUsd: number; pricingStatus: string; usageJson: string; measuredAt: string }>;
   costSummary: { actualCost: number; estimatedCost: number; reusableValue: number; aiActualCost: number; tokenCost: number; toolCost: number; inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningTokens: number; webSearchCalls: number; measuredResponses: number; rateExceptions: number; incompleteResponses: number };
   reconciliation?: { discovered: number; reconciled: number; failed: number; failures: string[] };
   storage: Array<{ id: string; tier: string; bindingName: string; role: string; implementationState: string; verificationState: string; evidence: string; requiredForProduction: boolean }>;
@@ -68,6 +68,15 @@ function compactNumber(value: number) {
 
 function dollars(value: number) {
   return value < 1 ? value.toFixed(4) : value.toFixed(2);
+}
+
+function requestReason(usageJson: string) {
+  try {
+    const payload = JSON.parse(usageJson) as { incompleteDetails?: { reason?: string }; error?: { message?: string } };
+    return payload.incompleteDetails?.reason || payload.error?.message || null;
+  } catch {
+    return null;
+  }
 }
 
 function stageRoute(stageKey: string) {
@@ -264,6 +273,7 @@ export default function ControlPlanePage() {
                   <div><small>OUTPUT</small><b>{usage.outputTokens.toLocaleString()} · {usage.reasoningTokens.toLocaleString()} reasoning</b></div>
                   <div><small>TOKEN COST</small><b>${dollars(usage.tokenCostUsd)}</b></div>
                   <div><small>TOOL COST</small><b>${dollars(usage.toolCostUsd)}</b></div>
+                  {requestReason(usage.usageJson) && <div><small>INCOMPLETE REASON</small><b>{requestReason(usage.usageJson)}</b></div>}
                 </div>
               </details>)}
             </details>
