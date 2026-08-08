@@ -494,13 +494,20 @@ async function startPilot() {
 
 async function stepPilot() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
-  if (!run || !authorization || authorization.status !== "AUTHORIZED" || run.status !== "PILOT_RUNNING") return snapshot();
+  if (!run || !authorization || authorization.status !== "AUTHORIZED" || !["PILOT_RUNNING", "PILOT_REPAIR_RUNNING"].includes(clean(run.status))) return snapshot();
+  const repairOnly = run.status === "PILOT_REPAIR_RUNNING";
   try {
     const active = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND provider='OPENAI' AND status IN ('QUEUED','IN_PROGRESS') ORDER BY created_at LIMIT 1").bind(authorization.id).first<Row>();
     if (active) await pollVision(env, db, authorization, active);
     else {
       const nextMaterial = await db.prepare("SELECT b.* FROM v7_material_briefs b LEFT JOIN v7_material_files f ON f.brief_id=b.id AND f.asset_role='PRIMARY' WHERE b.run_id=? AND b.pilot=1 AND f.id IS NULL ORDER BY b.start_seconds LIMIT 1").bind(run.id).first<Row>();
-      if (nextMaterial) await materializeOne(env, db, authorization, nextMaterial);
+      if (nextMaterial) {
+        await materializeOne(env, db, authorization, nextMaterial);
+        if (repairOnly) {
+          const now = new Date().toISOString();
+          await db.batch([db.prepare("UPDATE v7_material_runs SET status='PILOT_REPAIR_REVIEW' WHERE id=?").bind(run.id), db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_stage_states SET status='PILOT_REPAIR_REVIEW',blocker='USER_REVIEW_BEFORE_PILOT_CONTINUE',evidence_summary=?,updated_at=? WHERE id=?").bind(`${nextMaterial.id} bounded candidate repair stored · no later pilot unit dispatched`, now, STAGE_ID)]);
+        }
+      }
       else {
         const nextAudit = await db.prepare("SELECT b.* FROM v7_material_briefs b LEFT JOIN v7_material_audits a ON a.brief_id=b.id WHERE b.run_id=? AND b.pilot=1 AND a.id IS NULL AND b.status<>'REPAIR_REQUIRED' ORDER BY b.start_seconds LIMIT 1").bind(run.id).first<Row>();
         if (nextAudit) await dispatchVision(env, db, authorization, nextAudit); else await finalizePilot(env, db, authorization);
@@ -513,7 +520,7 @@ async function stepPilot() {
   await syncRunTotals(db, clean(run.id));
   const materialized = await db.prepare("SELECT COUNT(DISTINCT brief_id) AS total FROM v7_material_files WHERE authorization_id=? AND asset_role='PRIMARY'").bind(authorization.id).first<{ total: number }>(), audited = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_audits WHERE authorization_id=?").bind(authorization.id).first<{ total: number }>();
   const state = await db.prepare("SELECT status FROM v7_material_runs WHERE id=?").bind(run.id).first<{ status: string }>();
-  if (state?.status === "PILOT_RUNNING") await db.prepare("UPDATE v7_stage_states SET evidence_summary=?,updated_at=? WHERE id=?").bind(`${Number(materialized?.total || 0)}/${authorization.shot_count} materialized · ${Number(audited?.total || 0)}/${authorization.shot_count} pixel audited`, new Date().toISOString(), STAGE_ID).run();
+  if (["PILOT_RUNNING", "PILOT_REPAIR_RUNNING"].includes(clean(state?.status))) await db.prepare("UPDATE v7_stage_states SET evidence_summary=?,updated_at=? WHERE id=?").bind(`${Number(materialized?.total || 0)}/${authorization.shot_count} materialized · ${Number(audited?.total || 0)}/${authorization.shot_count} pixel audited`, new Date().toISOString(), STAGE_ID).run();
   return snapshot();
 }
 
@@ -547,7 +554,8 @@ async function resumePilot() {
   const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
   if (active) throw new Error("REMOTE_REQUESTS_STILL_ACTIVE");
   const now = new Date().toISOString();
-  await db.batch([db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_material_runs SET status='PILOT_RUNNING' WHERE id=?").bind(run.id), db.prepare("UPDATE v7_stage_states SET status='PILOT_RUNNING',blocker=NULL,evidence_summary='Pilot resumed from stored evidence after bounded format repair',updated_at=? WHERE id=?").bind(now, STAGE_ID)]);
+  const repairOnly = run.status === "REPAIR_REQUIRED", nextStatus = repairOnly ? "PILOT_REPAIR_RUNNING" : "PILOT_RUNNING";
+  await db.batch([db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(nextStatus, run.id), db.prepare("UPDATE v7_stage_states SET status=?,blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(nextStatus, repairOnly ? "One failed material unit resumed; later units remain paused" : "Pilot continued after explicit repaired-unit review", now, STAGE_ID)]);
   return snapshot();
 }
 

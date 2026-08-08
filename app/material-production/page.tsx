@@ -35,7 +35,7 @@ export default function MaterialProductionPage() {
   }, []);
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
   useEffect(() => {
-    if (data?.run?.status !== "PILOT_RUNNING" || working) return;
+    if (!["PILOT_RUNNING", "PILOT_REPAIR_RUNNING"].includes(data?.run?.status || "") || working) return;
     const timer = window.setTimeout(() => {
       setWorking("STEP_PILOT");
       void fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "STEP_PILOT" }) })
@@ -156,10 +156,12 @@ export default function MaterialProductionPage() {
         <button onClick={() => void saveModel()} disabled={Boolean(working) || data.requestLedger.active > 0}>Save model for next request</button>
       </div>
       {data.run?.status === "PILOT_AUTHORIZED" && <button onClick={() => void execute("START_PILOT")} disabled={Boolean(working)}>Start authorized 10-shot pilot</button>}
-      {data.run?.status === "PILOT_RUNNING" && <button onClick={() => void execute("STOP_PILOT")} disabled={working === "STOP_PILOT"}>{working === "STOP_PILOT" ? "Confirming provider stop…" : "Emergency stop · preserve completed materials"}</button>}
+      {["PILOT_RUNNING", "PILOT_REPAIR_RUNNING"].includes(data.run?.status || "") && <button onClick={() => void execute("STOP_PILOT")} disabled={working === "STOP_PILOT"}>{working === "STOP_PILOT" ? "Confirming provider stop…" : "Emergency stop · preserve completed materials"}</button>}
       {data.run?.status === "PILOT_PAUSED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>Resume from stored evidence</button>}
+      {data.run?.status === "PILOT_REPAIR_REVIEW" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>Continue pilot after repaired-unit review</button>}
       {data.run?.status === "REPAIR_REQUIRED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>{failedTournament ? `Repair ${failedTournament.briefId} only · use fresh candidates` : "Resume bounded repair from stored evidence"}</button>}
       {data.run?.status === "PILOT_PASS" && <p className="stateBanner">Pilot PASS. Full 166-shot production remains locked pending review.</p>}
+      {data.run?.status === "PILOT_REPAIR_REVIEW" && <p className="stateBanner">Bounded repair stored. Later pilot units remain paused until you continue.</p>}
       {data.run?.status === "REPAIR_REQUIRED" && <p className="stateBanner errorState">{failedTournament ? `${failedTournament.briefId} stopped at the pixel gate. Best candidate ${failedTournament.tournament?.score || 0}/100; completed work is preserved and full-scale dispatch remains locked.` : "Pilot repair required. No full-scale dispatch is authorized."}</p>}
     </section>}
     {data.pilot.items.length > 0 && <section className="materialPilotGrid">
