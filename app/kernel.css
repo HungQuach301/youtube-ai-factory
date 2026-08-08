@@ -1,0 +1,21 @@
+.executionKernel{overflow:hidden;border:1px solid #9bcbb6;border-radius:22px;background:#fff}
+.executionKernel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:22px 24px;background:linear-gradient(120deg,#edf8f2,#f8fbf9)}
+.executionKernel header small,.executionKernel footer small{font-size:9px;font-weight:850;letter-spacing:.14em;color:#2f8062}
+.executionKernel h2{margin:6px 0 0;font:700 1.65rem Georgia,serif}
+.executionKernel header>span{border:1px solid #9fcbb8;border-radius:999px;padding:9px 13px;font-size:11px;font-weight:800;white-space:nowrap}
+.kernelProgress{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid #dce8e2;border-bottom:1px solid #dce8e2}
+.kernelProgress article{padding:18px 22px;border-right:1px solid #dce8e2}
+.kernelProgress article:last-child{border-right:0}
+.kernelProgress article>div{display:flex;align-items:center;justify-content:space-between}
+.kernelProgress small{font-size:10px;font-weight:800;letter-spacing:.1em;color:#56776b}
+.kernelProgress b{font:700 1.7rem Georgia,serif}
+.kernelProgress i{display:block;height:7px;margin:12px 0;border-radius:99px;background:#e2ebe6;overflow:hidden}
+.kernelProgress i span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#1f7558,#76c59f)}
+.kernelProgress p{margin:0;color:#658078;font-size:12px}
+.executionKernel>footer{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:22px;padding:18px 24px}
+.executionKernel footer strong{display:block;margin-top:5px}
+.executionKernel footer p{margin:0;color:#587269}
+.executionKernel footer>span{border-radius:999px;padding:8px 12px;font-size:11px;font-weight:850}
+.executionKernel footer .noAi{background:#def3e7;color:#1f694e}
+.executionKernel footer .ai{background:#fff0d8;color:#8a5918}
+@media(max-width:760px){.executionKernel>header{align-items:flex-start;flex-direction:column}.executionKernel>footer{align-items:flex-start;grid-template-columns:1fr}.kernelProgress{grid-template-columns:1fr}.kernelProgress article{border-right:0;border-bottom:1px solid #dce8e2}}
