@@ -8,7 +8,7 @@ const STAGE_ID = `${PROGRAM_ID}-STAGE-${STAGE}`;
 const THRESHOLD = 92;
 const DEFAULT_MODEL = "gpt-5.6-sol";
 const SOURCE_QA_RUBRIC = "SOURCE_LAYER_QA_V2";
-const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V1";
+const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V2";
 const MODEL_OPTIONS = [
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", description: "Maximum quality" },
   { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", description: "Balanced quality and speed" },
@@ -468,7 +468,7 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
   const wrap=(value:string,limit:number)=>{const lines:string[]=[],words=clean(value).toUpperCase().split(" ");let line="";for(const word of words){const next=line?`${line} ${word}`:word;if(next.length>limit&&line){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);return lines;};
   if (background) {
     const audienceCopy: Record<string, Array<[string,string,string]>> = {
-      "MP-001": [["CREDIT PURCHASE","-----","CREDIT"],["CREDIT PURCHASE","$100.00","CREDIT"],["CREDIT PURCHASE","$100.00","PROCESSING"]],
+      "MP-001": [["CREDIT PURCHASE","PRESENT CARD","READY"],["CREDIT PURCHASE","$100.00","CREDIT CARD"],["CREDIT PURCHASE","$100.00","PROCESSING"]],
       "MP-002": [["CREDIT PURCHASE","$100.00","PROCESSING"],["CREDIT PURCHASE","APPROVED","$100.00"],["AUTHORIZATION","APPROVED","NOT SETTLED"]],
       "MP-003": [["PURCHASE RECORD","$100.00","APPROVED"],["REWARD RECORD","REWARD","POSTED"],["TWO RECORDS","PURCHASE","REWARD"]],
       "MP-004": [["PURCHASE","$100.00","UNRESOLVED"],["PARTICIPANTS","MERCHANT","ACQUIRER"],["DISTINCT ROLES","MERCHANT","PROCESSOR"]],
@@ -490,16 +490,18 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
     } else if (layout === "B") {
       // Documentary rail: preserve maximum live-action area and bind one clean state strip to the bottom.
       fill(0,350,960,190,"#f5edcf"); fill(0,350,960,12,"#74c69d");
-      fill(42,388,258,104,"#173f38"); text(heading,65,409,3,"#fffdf5");
+      fill(42,388,276,104,"#173f38"); text(heading,65,414,2,"#fffdf5");
       text(main,main.length>10?352:382,392,main.length>10?5:7,"#0d3f32");
       if(sub) text(sub,650,417,3,"#0d3f32");
       [0,1,2].forEach((index)=>fill(650+index*74,472,54,12,index<=state?"#2d8063":"#b7c9c2"));
     } else {
-      // Focus lens: a compact state card leaves the card-tender action visible and adds an explicit progression ladder.
+      // Focus lens: preserve the physical action while each authored label performs one audience-facing job.
       fill(45,42,870,86,"#173f38"); text(heading,78,70,4,"#fffdf5");
-      fill(548,160,332,300,"#f5edcf"); text(main,main.length>10?574:602,208,main.length>10?4:6,"#0d3f32");
-      if(sub) text(sub,596,286,3,"#0d3f32");
-      ["READY","AMOUNT","STATE"].forEach((label,index)=>{fill(582,340+index*38,40,18,index<=state?"#2d8063":"#b7c9c2");text(label,640,338+index*38,2,"#0d3f32");});
+      fill(548,160,332,300,"#f5edcf"); text(main,main.length>10?578:602,208,main.length>10?3:6,"#0d3f32");
+      if(sub) text(sub,sub.length>10?578:596,286,sub.length>10?2:3,"#0d3f32");
+      const meaning=["READY FOR CREDIT CARD","AMOUNT CONFIRMED","AUTHORIZATION STARTED"][state];
+      fill(582,340,264,58,"#d9f1e4"); text(meaning,596,357,2,"#0d3f32");
+      [0,1,2].forEach((index)=>fill(582+index*70,420,48,12,index<=state?"#2d8063":"#b7c9c2"));
     }
     for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
   }
@@ -618,7 +620,7 @@ async function compositeTournament() {
     await db.prepare("UPDATE v7_material_requests SET status=?,input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,error=?,updated_at=? WHERE id=?").bind(status === "completed" ? "COMPLETE" : "BLOCKED_INCOMPLETE", usage.inputTokens, usage.outputTokens, usage.reasoningTokens, usage.actualUsd, status === "completed" ? null : clean(rec(payload.incomplete_details).reason || rec(payload.error).message || status), new Date().toISOString(), active.id).run();
     await syncRunTotals(db, clean(authorization.run_id));
     if (status !== "completed") throw new Error("COMPOSITE_TOURNAMENT_PROVIDER_INCOMPLETE · no automatic retry");
-    const result = JSON.parse(output(payload)) as Row, winner = clean(result.winner), winnerScores = rec(result[`candidate${winner}`]), dimensions = ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "progression"], hardPass = dimensions.every((key) => Number(winnerScores[key]) >= 86) && Number(winnerScores.overall) >= 90 && result.decision === "PASS", now = new Date().toISOString();
+    const result = JSON.parse(output(payload)) as Row, winner = clean(result.winner), winnerScores = rec(result[`candidate${winner}`]), dimensions = ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "progression"], candidateRows = [rec(result.candidateA), rec(result.candidateB), rec(result.candidateC)], viableField = candidateRows.every((candidate) => Number(candidate.overall) >= 82 && Number(candidate.factualSafety) >= 90 && Number(candidate.composition) >= 80 && Number(candidate.mobileLegibility) >= 80), hardPass = viableField && dimensions.every((key) => Number(winnerScores[key]) >= 86) && Number(winnerScores.overall) >= 90 && result.decision === "PASS", now = new Date().toISOString();
     const selectedFiles = await rows(db, "SELECT id,asset_role,content_hash FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role LIKE ? ORDER BY asset_role", authorization.id, evidence.brief_id, `COMPOSITE_${winner}_%`);
     await db.batch([
       db.prepare("INSERT INTO v7_composite_audits (id,program_id,run_id,authorization_id,brief_id,evidence_id,rubric_version,status,winner,score,dimensions_json,candidates_json,findings_json,repair_json,provider_response_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(`${evidence.id}-${COMPOSITE_QA_RUBRIC}`, PROGRAM_ID, authorization.run_id, authorization.id, evidence.brief_id, evidence.id, COMPOSITE_QA_RUBRIC, hardPass ? "PASS" : "REPAIR_REQUIRED", winner, Number(winnerScores.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(winnerScores[key])]))), JSON.stringify({ A: rec(result.candidateA), B: rec(result.candidateB), C: rec(result.candidateC), selectedFileIds: selectedFiles.map((file) => file.id), sourceEvidenceHash: evidence.content_hash }), JSON.stringify(arr(result.findings)), JSON.stringify({ exactRepair: clean(result.exactRepair) }), payload.id, now, now),
@@ -649,7 +651,7 @@ async function compositeTournament() {
     imageUrls.push(`data:image/png;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`);
   }
   const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(evidence.brief_id), "COMPOSITE_TOURNAMENT", "OPENAI", setting.modelId, setting.reasoningEffort, 1800, 4000);
-  const content: Row[] = [{ type: "input_text", text: `You are adjudicating ${COMPOSITE_QA_RUBRIC} for a premium US documentary. The nine images are ordered A-entry, A-midpoint, A-exit, B-entry, B-midpoint, B-exit, C-entry, C-midpoint, C-exit. Compare three materially different audience-facing hybrid compositions built from the same already-approved real checkout frames. Judge the finished pixels only. Select one winner; do not average candidates. The winner must visibly communicate the frozen clause, preserve authentic card-tender context, avoid production metadata and unsupported claims, remain readable on mobile, and show meaningful state progression. Exact $100.00, CREDIT and PROCESSING are authored illustrative states and are permitted. PASS requires every winner dimension >=86 and overall >=90. If none passes, choose the least-bad candidate and return REPAIR. Return English only.\n\nFROZEN SHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
+  const content: Row[] = [{ type: "input_text", text: `You are adjudicating ${COMPOSITE_QA_RUBRIC} for a premium US documentary. The nine images are ordered A-entry, A-midpoint, A-exit, B-entry, B-midpoint, B-exit, C-entry, C-midpoint, C-exit. Compare three materially different audience-facing hybrid compositions built from the same already-approved real checkout frames. Judge the finished pixels only. Select one winner; do not average candidates. The winner must visibly communicate the frozen clause, preserve authentic card-tender context, avoid production metadata and unsupported claims, remain readable on mobile, and show meaningful state progression. Exact $100.00, CREDIT, CREDIT CARD and PROCESSING are authored illustrative states and are permitted. Reject placeholder glyphs, clipped or colliding text, internal state-machine legends, generic debug/status UI, and any label without a direct narrative job. All three candidates must be viable alternatives: each needs overall >=82, factualSafety >=90, composition >=80 and mobileLegibility >=80. The winner additionally needs every dimension >=86 and overall >=90. If the field or winner fails any floor, select the least-bad candidate and return REPAIR. exactRepair and every finding must be clear English.\n\nFROZEN SHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
   for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 4000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_composite_tournament", strict: true, schema: compositeTournamentSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`COMPOSITE_TOURNAMENT_START_FAILED · ${response.status}`); }
