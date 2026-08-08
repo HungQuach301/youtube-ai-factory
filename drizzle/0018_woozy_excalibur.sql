@@ -1,4 +1,4 @@
-CREATE TABLE `v7_material_artifacts` (
+CREATE TABLE IF NOT EXISTS `v7_material_artifacts` (
 	`id` text PRIMARY KEY NOT NULL,
 	`program_id` text NOT NULL,
 	`run_id` text NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE `v7_material_artifacts` (
 	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `v7_material_authorizations` (
+CREATE TABLE IF NOT EXISTS `v7_material_authorizations` (
 	`id` text PRIMARY KEY NOT NULL,
 	`program_id` text NOT NULL,
 	`run_id` text NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE `v7_material_authorizations` (
 	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `v7_material_briefs` (
+CREATE TABLE IF NOT EXISTS `v7_material_briefs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`program_id` text NOT NULL,
 	`run_id` text NOT NULL,
@@ -46,7 +46,7 @@ CREATE TABLE `v7_material_briefs` (
 	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `v7_material_requests` (
+CREATE TABLE IF NOT EXISTS `v7_material_requests` (
 	`id` text PRIMARY KEY NOT NULL,
 	`program_id` text NOT NULL,
 	`run_id` text NOT NULL,
@@ -73,7 +73,7 @@ CREATE TABLE `v7_material_requests` (
 	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `v7_material_runs` (
+CREATE TABLE IF NOT EXISTS `v7_material_runs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`program_id` text NOT NULL,
 	`status` text DEFAULT 'BUILDING' NOT NULL,
