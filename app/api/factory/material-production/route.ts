@@ -8,7 +8,7 @@ const STAGE_ID = `${PROGRAM_ID}-STAGE-${STAGE}`;
 const THRESHOLD = 92;
 const DEFAULT_MODEL = "gpt-5.6-sol";
 const SOURCE_QA_RUBRIC = "SOURCE_LAYER_QA_V2";
-const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V2";
+const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V3";
 const MODEL_OPTIONS = [
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", description: "Maximum quality" },
   { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", description: "Balanced quality and speed" },
@@ -229,7 +229,8 @@ async function snapshot() {
   const compositeAudit = sourceEvidence ? compositeAudits.find((item) => item.evidence_id === sourceEvidence.id && item.rubric_version === COMPOSITE_QA_RUBRIC) : null;
   const compositeActive = requestRows.some((row) => row.phase === "COMPOSITE_TOURNAMENT" && ["QUEUED", "IN_PROGRESS"].includes(String(row.status)));
   const compositeContent = compositeAudit?.candidates_json ? rec(JSON.parse(String(compositeAudit.candidates_json))) : {};
-  const compositeCandidates = ["A", "B", "C"].map((candidate) => ({ candidate, scores: rec(compositeContent[candidate]), frames: ["ENTRY", "MIDPOINT", "EXIT"].map((state) => { const file = files.find((item) => item.brief_id === sourceEvidence?.brief_id && item.asset_role === `COMPOSITE_${candidate}_${state}`); return file ? { state, fileId: file.id, previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(file.id))}` } : null; }).filter(Boolean) }));
+  const compositeIdentity = sourceEvidence ? `${COMPOSITE_QA_RUBRIC}-${clean(sourceEvidence.content_hash).slice(0, 12)}` : "";
+  const compositeCandidates = ["A", "B", "C"].map((candidate) => ({ candidate, scores: rec(compositeContent[candidate]), frames: ["ENTRY", "MIDPOINT", "EXIT"].map((state) => { const file = files.find((item) => item.brief_id === sourceEvidence?.brief_id && item.asset_role === `COMPOSITE_${candidate}_${state}` && clean(item.id).includes(compositeIdentity)); return file ? { state, fileId: file.id, previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(file.id))}` } : null; }).filter(Boolean) }));
   return {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
     provider: { model: setting.modelId, reasoningEffort: setting.reasoningEffort, modelOptions: MODEL_OPTIONS, reasoningOptions: REASONING_OPTIONS },
@@ -481,7 +482,7 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
     if (layout === "A") {
       // Split proof: authentic checkout on the left, authored transaction state on the right.
       fill(44,84,380,388,"#173f38"); fill(70,112,328,122,"#f5edcf");
-      text(state===0?"-----":"$100.00",state===0?142:103,151,state===0?6:7,"#0d3f32");
+      if(state>0) text("$100.00",103,151,7,"#0d3f32");
       text(state===2?"PROCESSING":"CREDIT",state===2?91:143,260,state===2?3:4,"#fffdf5");
       [[102,330],[178,330],[254,330],[102,388],[178,388],[254,388]].forEach(([x,y])=>fill(x,y,42,30,"#d9f1e4"));
       fill(476,86,420,368,"#f5edcf"); fill(506,116,360,54,"#d9f1e4");
@@ -491,17 +492,16 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
       // Documentary rail: preserve maximum live-action area and bind one clean state strip to the bottom.
       fill(0,350,960,190,"#f5edcf"); fill(0,350,960,12,"#74c69d");
       fill(42,388,276,104,"#173f38"); text(heading,65,414,2,"#fffdf5");
-      text(main,main.length>10?352:382,392,main.length>10?5:7,"#0d3f32");
-      if(sub) text(sub,650,417,3,"#0d3f32");
-      [0,1,2].forEach((index)=>fill(650+index*74,472,54,12,index<=state?"#2d8063":"#b7c9c2"));
+      text(main,main.length>10?366:382,386,main.length>10?3:7,"#0d3f32");
+      if(sub) text(sub,382,463,2,"#0d3f32");
+      [0,1,2].forEach((index)=>fill(700+index*74,472,54,12,index<=state?"#2d8063":"#b7c9c2"));
     } else {
       // Focus lens: preserve the physical action while each authored label performs one audience-facing job.
       fill(45,42,870,86,"#173f38"); text(heading,78,70,4,"#fffdf5");
       fill(548,160,332,300,"#f5edcf"); text(main,main.length>10?578:602,208,main.length>10?3:6,"#0d3f32");
       if(sub) text(sub,sub.length>10?578:596,286,sub.length>10?2:3,"#0d3f32");
-      const meaning=["READY FOR CREDIT CARD","AMOUNT CONFIRMED","AUTHORIZATION STARTED"][state];
+      const meaning=["CARD READER READY","CARD PRESENTED","PROCESSING"][state];
       fill(582,340,264,58,"#d9f1e4"); text(meaning,596,357,2,"#0d3f32");
-      [0,1,2].forEach((index)=>fill(582+index*70,420,48,12,index<=state?"#2d8063":"#b7c9c2"));
     }
     for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
   }
@@ -621,7 +621,7 @@ async function compositeTournament() {
     await syncRunTotals(db, clean(authorization.run_id));
     if (status !== "completed") throw new Error("COMPOSITE_TOURNAMENT_PROVIDER_INCOMPLETE · no automatic retry");
     const result = JSON.parse(output(payload)) as Row, winner = clean(result.winner), winnerScores = rec(result[`candidate${winner}`]), dimensions = ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "progression"], candidateRows = [rec(result.candidateA), rec(result.candidateB), rec(result.candidateC)], viableField = candidateRows.every((candidate) => Number(candidate.overall) >= 82 && Number(candidate.factualSafety) >= 90 && Number(candidate.composition) >= 80 && Number(candidate.mobileLegibility) >= 80), hardPass = viableField && dimensions.every((key) => Number(winnerScores[key]) >= 86) && Number(winnerScores.overall) >= 90 && result.decision === "PASS", now = new Date().toISOString();
-    const selectedFiles = await rows(db, "SELECT id,asset_role,content_hash FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role LIKE ? ORDER BY asset_role", authorization.id, evidence.brief_id, `COMPOSITE_${winner}_%`);
+    const selectedFiles = await rows(db, "SELECT id,asset_role,content_hash FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role LIKE ? AND id LIKE ? ORDER BY asset_role", authorization.id, evidence.brief_id, `COMPOSITE_${winner}_%`, `%${COMPOSITE_QA_RUBRIC}-${clean(evidence.content_hash).slice(0, 12)}-COMPOSITE_${winner}_%`);
     await db.batch([
       db.prepare("INSERT INTO v7_composite_audits (id,program_id,run_id,authorization_id,brief_id,evidence_id,rubric_version,status,winner,score,dimensions_json,candidates_json,findings_json,repair_json,provider_response_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(`${evidence.id}-${COMPOSITE_QA_RUBRIC}`, PROGRAM_ID, authorization.run_id, authorization.id, evidence.brief_id, evidence.id, COMPOSITE_QA_RUBRIC, hardPass ? "PASS" : "REPAIR_REQUIRED", winner, Number(winnerScores.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(winnerScores[key])]))), JSON.stringify({ A: rec(result.candidateA), B: rec(result.candidateB), C: rec(result.candidateC), selectedFileIds: selectedFiles.map((file) => file.id), sourceEvidenceHash: evidence.content_hash }), JSON.stringify(arr(result.findings)), JSON.stringify({ exactRepair: clean(result.exactRepair) }), payload.id, now, now),
       db.prepare("UPDATE v7_stage_states SET blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(hardPass ? "MOTION_PROOF_REQUIRED" : "COMPOSITE_REPAIR_REQUIRED", hardPass ? `${evidence.brief_id} composite ${winner} passed at ${Number(winnerScores.overall)}/100 · motion proof remains locked` : `${evidence.brief_id} composite tournament rejected at ${Number(winnerScores.overall)}/100 · bounded compositor repair required`, now, STAGE_ID),
