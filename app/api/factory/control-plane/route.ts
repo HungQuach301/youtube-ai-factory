@@ -86,6 +86,7 @@ const lockedDecisions = [
   ["ADR-019", "Reuse never bypasses a new candidate tournament"],
   ["ADR-020", "One-off paid purchases require initial approval"],
   ["ADR-021", "Cost control spans factory to attempt and unit economics"],
+  ["ADR-022", "Cost Guard pauses waste without lowering quality"],
 ] as const;
 
 async function seedControlPlane() {
@@ -203,6 +204,30 @@ async function readDashboard() {
   const aiActualCost = aiUsage.reduce((total, item) => total + item.actualUsd, 0);
   const actualCost = nonAiActualCost + aiActualCost;
   const estimatedCost = costs.filter((item) => item.status !== "MEASURED").reduce((total, item) => total + item.estimatedUsd, 0);
+  const successfulAiUsage = aiUsage.filter((item) => item.providerStatus === "completed");
+  const wastedAiUsage = aiUsage.filter((item) => item.providerStatus !== "completed");
+  const successfulAiCost = successfulAiUsage.reduce((total, item) => total + item.actualUsd, 0);
+  const wastedAiCost = wastedAiUsage.reduce((total, item) => total + item.actualUsd, 0);
+  const stage08Usage = aiUsage.filter((item) => item.stageKey === "08");
+  const stage08Successful = stage08Usage.filter((item) => item.providerStatus === "completed");
+  const stage08SuccessfulCost = stage08Successful.reduce((total, item) => total + item.actualUsd, 0);
+  const stage08WastedCost = stage08Usage.filter((item) => item.providerStatus !== "completed").reduce((total, item) => total + item.actualUsd, 0);
+  const stage08ActualCost = stage08SuccessfulCost + stage08WastedCost;
+  let stage08Stored = 0, stage08Total = 0, stage08Active = 0;
+  try {
+    const { env } = await import("cloudflare:workers");
+    const runResult = await env.DB.prepare("SELECT id,total_batches,completed_batches FROM v7_shot_runs WHERE program_id=? ORDER BY started_at DESC LIMIT 1").bind(PROGRAM_ID).all<{ id: string; total_batches: number; completed_batches: number }>();
+    const run = runResult.results?.[0];
+    if (run) {
+      stage08Stored = Number(run.completed_batches || 0);
+      stage08Total = Number(run.total_batches || 0);
+      const activeResult = await env.DB.prepare("SELECT COUNT(*) AS count FROM v7_shot_jobs WHERE run_id=? AND status='ACTIVE'").bind(run.id).all<{ count: number }>();
+      stage08Active = Number(activeResult.results?.[0]?.count || 0);
+    }
+  } catch { /* Stage 08 tables may not exist before orchestration starts. */ }
+  const stage08AverageSuccessCost = stage08Successful.length ? stage08SuccessfulCost / stage08Successful.length : 0;
+  const stage08RemainingForecast = Math.max(0, stage08Total - stage08Stored) * stage08AverageSuccessCost;
+  const stage08ActiveExposure = stage08Active * 0.5;
   const lifecycle = ["PLAN", "MATERIALIZED", "VERIFIED", "FROZEN", "REJECTED", "ESCALATED"].map((state) => ({
     state,
     count: evidence.filter((item) => item.lifecycleState === state).length,
@@ -230,6 +255,18 @@ async function readDashboard() {
       measuredResponses: aiUsage.length,
       rateExceptions: aiUsage.filter((item) => item.pricingStatus !== "MEASURED").length,
       incompleteResponses: aiUsage.filter((item) => item.providerStatus === "incomplete").length,
+      successfulAiCost,
+      wastedAiCost,
+      wasteRate: aiActualCost ? wastedAiCost / aiActualCost : 0,
+      stage08ActualCost,
+      stage08SuccessfulCost,
+      stage08WastedCost,
+      stage08WasteRate: stage08ActualCost ? stage08WastedCost / stage08ActualCost : 0,
+      stage08ActiveExposure,
+      stage08RemainingForecast,
+      stage08Stored,
+      stage08Total,
+      stage08Active,
     },
     storage,
     decisions,
