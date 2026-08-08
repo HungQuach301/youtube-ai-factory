@@ -833,7 +833,7 @@ async function materialFile(request: Request) {
   return new Response(object.body, { headers: { "content-type": file.mime_type, "cache-control": "private, max-age=300", "content-disposition": "inline" } });
 }
 
-export async function GET(request: Request) { try { const params = new URL(request.url).searchParams; if (params.has("executionSource")) return executionSource(request); if (params.has("file")) return materialFile(request); return Response.json(await snapshot()); } catch (error) { const message = error instanceof Error ? error.message : "Stage 09 could not load"; return Response.json({ error: message }, { status: /UNAUTHORIZED|LEASE_INVALID/.test(message) ? 401 : /NOT_FOUND|MISSING/.test(message) ? 404 : 500 }); } }
+export async function GET(request: Request) { try { const params = new URL(request.url).searchParams; if (params.has("executionSource")) return await executionSource(request); if (params.has("file")) return await materialFile(request); return Response.json(await snapshot()); } catch (error) { const message = error instanceof Error ? error.message : "Stage 09 could not load"; return Response.json({ error: message }, { status: /UNAUTHORIZED/.test(message) ? 401 : /LEASE_INVALID/.test(message) ? 409 : /NOT_FOUND|MISSING/.test(message) ? 404 : 500 }); } }
 export async function POST(request: Request) {
   try {
     const body = await request.json() as Row;
@@ -846,10 +846,10 @@ export async function POST(request: Request) {
     if (body.action === "STOP_PILOT") return Response.json(await stopPilot());
     if (body.action === "RESUME_PILOT") return Response.json(await resumePilot(), { status: 202 });
     if (body.action === "PLAN_ROOT_CAUSE_EXECUTION") return Response.json(await planRootCauseExecution(), { status: 201 });
-    if (body.action === "EXECUTOR_HEARTBEAT") return executorHeartbeat(request, body);
-    if (body.action === "CLAIM_MEDIA_JOB") return claimMediaJob(request, body);
-    if (body.action === "COMPLETE_MEDIA_JOB") return completeMediaJob(request, body);
-    if (body.action === "FAIL_MEDIA_JOB") return failMediaJob(request, body);
+    if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);
+    if (body.action === "CLAIM_MEDIA_JOB") return await claimMediaJob(request, body);
+    if (body.action === "COMPLETE_MEDIA_JOB") return await completeMediaJob(request, body);
+    if (body.action === "FAIL_MEDIA_JOB") return await failMediaJob(request, body);
     return Response.json({ error: "Unsupported Stage 09 action" }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Stage 09 failed";
