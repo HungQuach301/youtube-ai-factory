@@ -561,7 +561,8 @@ async function stepPilot() {
       if (active && active.brief_id !== target.id) throw new Error("UNRELATED_REMOTE_REQUEST_ACTIVE_DURING_REPAIR");
       if (active) {
         await pollVision(env, db, authorization, active);
-        await closeRepairedUnitGate(db, run, authorization, target);
+        const refreshed = await db.prepare("SELECT status FROM v7_material_requests WHERE id=?").bind(active.id).first<Row>();
+        if (!refreshed || !["QUEUED", "IN_PROGRESS"].includes(clean(refreshed.status))) await closeRepairedUnitGate(db, run, authorization, target);
       } else {
         const file = await db.prepare("SELECT id FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role='PRIMARY'").bind(authorization.id, target.id).first<Row>();
         const audit = await db.prepare("SELECT status FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, target.id).first<Row>();
@@ -619,13 +620,14 @@ async function stopPilot() {
 async function resumePilot() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization || !["PAUSED", "REPAIR_REQUIRED"].includes(clean(authorization.status))) throw new Error("RESUMABLE_PILOT_NOT_FOUND");
-  const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
-  if (active) throw new Error("REMOTE_REQUESTS_STILL_ACTIVE");
+  const active = await db.prepare("SELECT id,brief_id,provider FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
   const now = new Date().toISOString();
   const repaired = await repairedPilotBrief(db, authorization);
+  const recoverableActiveRepair = Boolean(active && run.status === "REPAIR_REQUIRED" && active.provider === "OPENAI" && repaired?.id === active.brief_id);
+  if (active && !recoverableActiveRepair) throw new Error("REMOTE_REQUESTS_STILL_ACTIVE");
   const repairedAudit = repaired ? await db.prepare("SELECT status FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, repaired.id).first<Row>() : null;
   const repairedUnitNeedsQa = run.status === "PILOT_REPAIR_REVIEW" && repaired && repairedAudit?.status !== "PASS";
-  const repairOnly = run.status === "REPAIR_REQUIRED" || Boolean(repairedUnitNeedsQa), nextStatus = repairOnly ? "PILOT_REPAIR_RUNNING" : "PILOT_RUNNING";
+  const repairOnly = run.status === "REPAIR_REQUIRED" || Boolean(repairedUnitNeedsQa) || recoverableActiveRepair, nextStatus = repairOnly ? "PILOT_REPAIR_RUNNING" : "PILOT_RUNNING";
   await db.batch([db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(nextStatus, run.id), db.prepare("UPDATE v7_stage_states SET status=?,blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(nextStatus, repairOnly ? "One failed material unit resumed; later units remain paused" : "Pilot continued after explicit repaired-unit review", now, STAGE_ID)]);
   return snapshot();
 }
