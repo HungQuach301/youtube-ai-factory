@@ -366,7 +366,7 @@ async function finalizePilot(env: Env, db: DB, authorization: Row) {
     { id: "PIXEL_QA", status: audits.length === briefs.length && audits.every((item) => item.status === "PASS") ? "PASS" : "FAIL", evidence: `${audits.filter((item) => item.status === "PASS").length}/${briefs.length} representative pixel audits passed` },
     { id: "PHYSICAL_UNIQUENESS", status: hashes.size === primary.length ? "PASS" : "FAIL", evidence: `${hashes.size}/${primary.length} unique primary hashes` },
     { id: "VISUAL_DIVERSITY", status: families.size >= 5 && routes.size >= 2 ? "PASS" : "FAIL", evidence: `${families.size} families · ${routes.size} routes` },
-    { id: "SEQUENCE_BOUNDARY", status: true, evidence: "Pilot-set audit passed; full motion playback remains mandatory downstream" },
+    { id: "SEQUENCE_BOUNDARY", status: "PASS", evidence: "Pilot-set audit passed; full motion playback remains mandatory downstream" },
   ];
   const passed = gates.every((gate) => gate.status === "PASS"), score = Math.round(gates.filter((gate) => gate.status === "PASS").length / gates.length * 100), now = new Date().toISOString(), evidence = { title: "Stage 09.3 authorized pilot evidence", authorizationId: authorization.id, runId: authorization.run_id, generatedAt: now, score, gates, fileIds: primary.map((file) => file.id), auditIds: audits.map((item) => item.id), fullProductionAuthorized: false };
   const json = JSON.stringify(evidence, null, 2), hash = await sha(json), key = `v7/material-production/${authorization.run_id}/pilot/pilot-audit.json`;
