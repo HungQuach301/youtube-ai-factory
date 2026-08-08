@@ -199,7 +199,9 @@ async function readDashboard() {
   const storage = await db.select().from(v7StorageContracts).where(eq(v7StorageContracts.programId, PROGRAM_ID)).orderBy(asc(v7StorageContracts.id));
   const decisions = await db.select().from(v7DecisionRecords).where(eq(v7DecisionRecords.programId, PROGRAM_ID)).orderBy(asc(v7DecisionRecords.decisionCode));
   const [latestAudit] = await db.select().from(v7FoundationAudits).where(eq(v7FoundationAudits.programId, PROGRAM_ID)).orderBy(desc(v7FoundationAudits.createdAt)).limit(1);
-  const actualCost = costs.reduce((total, item) => total + item.actualUsd, 0);
+  const nonAiActualCost = costs.filter((item) => item.provider !== "OPENAI").reduce((total, item) => total + item.actualUsd, 0);
+  const aiActualCost = aiUsage.reduce((total, item) => total + item.actualUsd, 0);
+  const actualCost = nonAiActualCost + aiActualCost;
   const estimatedCost = costs.filter((item) => item.status !== "MEASURED").reduce((total, item) => total + item.estimatedUsd, 0);
   const lifecycle = ["PLAN", "MATERIALIZED", "VERIFIED", "FROZEN", "REJECTED", "ESCALATED"].map((state) => ({
     state,
@@ -217,7 +219,7 @@ async function readDashboard() {
       actualCost,
       estimatedCost,
       reusableValue: assets.filter((item) => item.reusableEligible).reduce((total, item) => total + item.costUsd, 0),
-      aiActualCost: aiUsage.reduce((total, item) => total + item.actualUsd, 0),
+      aiActualCost,
       tokenCost: aiUsage.reduce((total, item) => total + item.tokenCostUsd, 0),
       toolCost: aiUsage.reduce((total, item) => total + item.toolCostUsd, 0),
       inputTokens: aiUsage.reduce((total, item) => total + item.inputTokens, 0),
@@ -227,6 +229,7 @@ async function readDashboard() {
       webSearchCalls: aiUsage.reduce((total, item) => total + item.webSearchCalls, 0),
       measuredResponses: aiUsage.length,
       rateExceptions: aiUsage.filter((item) => item.pricingStatus !== "MEASURED").length,
+      incompleteResponses: aiUsage.filter((item) => item.providerStatus === "incomplete").length,
     },
     storage,
     decisions,
