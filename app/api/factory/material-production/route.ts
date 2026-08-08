@@ -8,7 +8,7 @@ const STAGE_ID = `${PROGRAM_ID}-STAGE-${STAGE}`;
 const THRESHOLD = 92;
 const DEFAULT_MODEL = "gpt-5.6-sol";
 const SOURCE_QA_RUBRIC = "SOURCE_LAYER_QA_V2";
-const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V3";
+const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V4";
 const MODEL_OPTIONS = [
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", description: "Maximum quality" },
   { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", description: "Balanced quality and speed" },
@@ -481,13 +481,12 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
     fill(0,0,18,height,"#74c69d");
     if (layout === "A") {
       // Split proof: authentic checkout on the left, authored transaction state on the right.
-      fill(44,84,380,388,"#173f38"); fill(70,112,328,122,"#f5edcf");
-      if(state>0) text("$100.00",103,151,7,"#0d3f32");
-      text(state===2?"PROCESSING":"CREDIT",state===2?91:143,260,state===2?3:4,"#fffdf5");
-      [[102,330],[178,330],[254,330],[102,388],[178,388],[254,388]].forEach(([x,y])=>fill(x,y,42,30,"#d9f1e4"));
-      fill(476,86,420,368,"#f5edcf"); fill(506,116,360,54,"#d9f1e4");
-      text(heading,540,132,3,"#0d3f32"); text(main,main.length>10?520:555,226,main.length>10?5:8,"#0d3f32");
-      if(sub) text(sub,sub.length>11?535:600,340,4,"#0d3f32"); fill(570,382,230+state*40,12,state===2?"#74c69d":"#7b958c");
+      fill(44,104,300,306,"#173f38"); fill(70,132,248,104,"#f5edcf");
+      if(state>0) text("$100.00",84,165,5,"#0d3f32");
+      text(state===2?"PROCESSING":"CREDIT",state===2?75:118,274,state===2?2:3,"#fffdf5");
+      fill(570,104,330,306,"#f5edcf"); fill(594,130,282,48,"#d9f1e4");
+      text(heading,610,143,2,"#0d3f32"); text(main,main.length>10?590:622,224,main.length>10?3:5,"#0d3f32");
+      if(sub) text(sub,sub.length>11?594:650,320,3,"#0d3f32"); fill(610,370,188+state*32,10,state===2?"#74c69d":"#7b958c");
     } else if (layout === "B") {
       // Documentary rail: preserve maximum live-action area and bind one clean state strip to the bottom.
       fill(0,350,960,190,"#f5edcf"); fill(0,350,960,12,"#74c69d");
@@ -500,8 +499,7 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
       fill(45,42,870,86,"#173f38"); text(heading,78,70,4,"#fffdf5");
       fill(548,160,332,300,"#f5edcf"); text(main,main.length>10?578:602,208,main.length>10?3:6,"#0d3f32");
       if(sub) text(sub,sub.length>10?578:596,286,sub.length>10?2:3,"#0d3f32");
-      const meaning=["CARD READER READY","CARD PRESENTED","PROCESSING"][state];
-      fill(582,340,264,58,"#d9f1e4"); text(meaning,596,357,2,"#0d3f32");
+      fill(582,340,264,4,"#d9f1e4");
     }
     for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
   }
