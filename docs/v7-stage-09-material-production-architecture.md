@@ -104,6 +104,8 @@ For every `HYBRID` unit, Pixel QA evaluates three stored audience-facing composi
 
 Pixel QA is a critical adjudication request and therefore uses the approved 8,000-token safety envelope while retaining a 1,500-token expected output. `max_output_tokens` is classified as provider-incomplete, not a visual verdict. The previous audit remains historical only and cannot close the repaired-unit gate; exactly one bounded incomplete retry is allowed.
 
+The Hybrid Compositor must preserve the documentary provider frame as context while authoring the exact semantic state at production size. Transaction-state pilots use a visibly unbranded reader/terminal, explicit blank → amount → processing progression, and no audience-facing counters, filenames, URLs, asset IDs, debug pills, or production instructions. A failed delta retry returns the unit to root-cause authorization; it never silently dispatches later pilot units.
+
 | Family | Required visual proof | Prohibited fallback |
 |---|---|---|
 | Mechanism diagram | named roles, directional transfer, decision state | anonymous nodes and decorative dashes |

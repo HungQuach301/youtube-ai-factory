@@ -169,7 +169,7 @@ async function authorizePilot() {
   const pilots = await rows(db, "SELECT id FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id), shotCount = pilots.length;
   if (shotCount < 8 || shotCount > 12) throw new Error(`PILOT_SCOPE_INVALID · ${shotCount}/8–12`);
   const now = new Date().toISOString(), id = `${run.id}-PILOT-AUTH-${Date.now()}`;
-  const modelPolicy = { version: "ADAPTIVE_ENVELOPE_V3", qualityMode: "MAXIMUM_QUALITY", dispatch: "NOT_STARTED", lanes: { singleVision: { expected: 1500, safety: 3000 } }, incomplete: "BLOCK_GATE", semanticRetry: "ONE_DELTA_ONLY", transportRetry: "ONE_IDEMPOTENT_ONLY", fullUnitRecovery: "ROOT_CAUSE_AUTHORIZATION_REQUIRED" };
+  const modelPolicy = { version: "ADAPTIVE_ENVELOPE_V3", qualityMode: "MAXIMUM_QUALITY", dispatch: "NOT_STARTED", lanes: { singleVision: { expected: 1500, safety: 8000 } }, incomplete: "BLOCK_GATE", semanticRetry: "ONE_DELTA_ONLY", transportRetry: "ONE_IDEMPOTENT_ONLY", fullUnitRecovery: "ROOT_CAUSE_AUTHORIZATION_REQUIRED" };
   await db.batch([db.prepare("INSERT INTO v7_material_authorizations (id,program_id,run_id,scope,status,shot_count,max_remote_requests,max_actual_spend_usd,model_policy_json,authorized_at,updated_at) VALUES (?,?,?,'PILOT','AUTHORIZED',?,80,50,?,?,?)").bind(id, PROGRAM_ID, run.id, shotCount, JSON.stringify(modelPolicy), now, now), db.prepare("UPDATE v7_material_runs SET status='PILOT_AUTHORIZED' WHERE id=?").bind(run.id), db.prepare("UPDATE v7_stage_states SET status='PILOT_AUTHORIZED',blocker='PILOT_DISPATCH_NOT_STARTED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${shotCount} pilot shots authorized · 0 remote requests · $0 actual cost`, now, STAGE_ID)]);
   return snapshot();
 }
@@ -372,7 +372,7 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
   const wrap=(value:string,limit:number)=>{const lines:string[]=[],words=clean(value).toUpperCase().split(" ");let line="";for(const word of words){const next=line?`${line} ${word}`:word;if(next.length>limit&&line){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);return lines;};
   if (background) {
     const audienceCopy: Record<string, Array<[string,string,string]>> = {
-      "MP-001": [["CREDIT PURCHASE","READY",""],["CREDIT PURCHASE","$100.00","CREDIT"],["CREDIT PURCHASE","$100.00","PROCESSING"]],
+      "MP-001": [["CREDIT PURCHASE","-----","CREDIT"],["CREDIT PURCHASE","$100.00","CREDIT"],["CREDIT PURCHASE","$100.00","PROCESSING"]],
       "MP-002": [["CREDIT PURCHASE","$100.00","PROCESSING"],["CREDIT PURCHASE","APPROVED","$100.00"],["AUTHORIZATION","APPROVED","NOT SETTLED"]],
       "MP-003": [["PURCHASE RECORD","$100.00","APPROVED"],["REWARD RECORD","REWARD","POSTED"],["TWO RECORDS","PURCHASE","REWARD"]],
       "MP-004": [["PURCHASE","$100.00","UNRESOLVED"],["PARTICIPANTS","MERCHANT","ACQUIRER"],["DISTINCT ROLES","MERCHANT","PROCESSOR"]],
@@ -380,14 +380,21 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
     };
     const [heading,main,sub]=audienceCopy[clean(brief.briefId)]?.[state] || [["EXPLANATION","ENTRY",""],["EXPLANATION","CHANGE",""],["EXPLANATION","OUTCOME",""]][state];
     const scale=Math.max(width/background.width,height/background.height),sourceWidth=width/scale,sourceHeight=height/scale,sourceX=(background.width-sourceWidth)/2,sourceY=(background.height-sourceHeight)/2;
-    for(let y=0;y<height;y++)for(let x=0;x<width;x++){const sx=Math.min(background.width-1,Math.max(0,Math.floor(sourceX+x/scale))),sy=Math.min(background.height-1,Math.max(0,Math.floor(sourceY+y/scale))),source=(sy*background.width+sx)*4,target=(y*width+x)*4;pixels[target]=Math.round(background.data[source]*.42);pixels[target+1]=Math.round(background.data[source+1]*.42);pixels[target+2]=Math.round(background.data[source+2]*.42);pixels[target+3]=255;}
+    for(let y=0;y<height;y++)for(let x=0;x<width;x++){const sx=Math.min(background.width-1,Math.max(0,Math.floor(sourceX+x/scale))),sy=Math.min(background.height-1,Math.max(0,Math.floor(sourceY+y/scale))),source=(sy*background.width+sx)*4,target=(y*width+x)*4;pixels[target]=Math.round(background.data[source]*.58);pixels[target+1]=Math.round(background.data[source+1]*.58);pixels[target+2]=Math.round(background.data[source+2]*.58);pixels[target+3]=255;}
     fill(0,0,18,height,"#74c69d");
+    if(clean(brief.briefId)==="MP-001") {
+      // The real checkout remains context; the authored reader makes credit tender unmistakable.
+      fill(58,104,348,350,"#173f38"); fill(82,132,300,112,"#f5edcf");
+      text(state===0?"-----":"$100.00",state===0?148:112,166,state===0?6:7,"#0d3f32");
+      text(state===2?"PROCESSING":"CREDIT",state===2?105:142,260,state===2?3:4,"#fffdf5");
+      [[112,324],[184,324],[256,324],[112,378],[184,378],[256,378]].forEach(([x,y])=>fill(x,y,38,28,"#d9f1e4"));
+      fill(132,438,198,8,"#74c69d");
+    }
     fill(476,86,420,368,"#f5edcf"); fill(506,116,360,54,"#d9f1e4");
     text(heading,540,132,3,"#0d3f32");
     text(main,main.length>10?520:555,226,main.length>10?5:8,"#0d3f32");
     if(sub) text(sub,sub.length>11?535:600,340,4,"#0d3f32");
     fill(570,382,230+state*40,12,state===2?"#74c69d":"#7b958c");
-    text(state===0?"01":state===1?"02":"03",820,414,3,"#0d3f32");
     for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
   }
   fill(0,0,width,height,"#0d3f32");fill(0,0,18,height,"#74c69d");wrap(short(brief.viewerMustUnderstand,92),45).slice(0,2).forEach((line,index)=>text(line,48,45+index*42,4,"#fffdf5"));
