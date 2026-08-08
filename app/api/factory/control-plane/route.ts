@@ -213,22 +213,27 @@ async function readDashboard() {
   const stage08SuccessfulCost = stage08Successful.reduce((total, item) => total + item.actualUsd, 0);
   const stage08WastedCost = stage08Usage.filter((item) => item.providerStatus !== "completed").reduce((total, item) => total + item.actualUsd, 0);
   const stage08ActualCost = stage08SuccessfulCost + stage08WastedCost;
-  let stage08Stored = 0, stage08Total = 0, stage08Active = 0;
+  let stage08Stored = 0, stage08Total = 0, stage08Active = 0, stage08RunStatus = "NOT_STARTED";
   try {
     const { env } = await import("cloudflare:workers");
-    const runResult = await env.DB.prepare("SELECT id,total_batches,completed_batches FROM v7_shot_runs WHERE program_id=? ORDER BY started_at DESC LIMIT 1").bind(PROGRAM_ID).all<{ id: string; total_batches: number; completed_batches: number }>();
+    const stage08Frozen = stages.some((item) => item.stageKey === "08" && item.status === "FROZEN");
+    const runResult = await env.DB.prepare(stage08Frozen
+      ? "SELECT r.id,r.total_batches,r.completed_batches,r.status FROM v7_shot_artifacts a JOIN v7_shot_runs r ON r.id=a.run_id WHERE a.program_id=? AND a.lifecycle_state='FROZEN' ORDER BY a.updated_at DESC LIMIT 1"
+      : "SELECT id,total_batches,completed_batches,status FROM v7_shot_runs WHERE program_id=? ORDER BY started_at DESC LIMIT 1")
+      .bind(PROGRAM_ID).all<{ id: string; total_batches: number; completed_batches: number; status: string }>();
     const run = runResult.results?.[0];
     if (run) {
       stage08Stored = Number(run.completed_batches || 0);
       stage08Total = Number(run.total_batches || 0);
+      stage08RunStatus = String(run.status || "UNKNOWN");
       const activeResult = await env.DB.prepare("SELECT COUNT(*) AS count FROM v7_shot_jobs WHERE run_id=? AND status='ACTIVE'").bind(run.id).all<{ count: number }>();
       stage08Active = Number(activeResult.results?.[0]?.count || 0);
     }
   } catch { /* Stage 08 tables may not exist before orchestration starts. */ }
   const stage08AverageSuccessCost = stage08Successful.length ? stage08SuccessfulCost / stage08Successful.length : 0;
-  const stage08RemainingForecast = Math.max(0, stage08Total - stage08Stored) * stage08AverageSuccessCost;
+  const stage08RemainingForecast = stage08RunStatus === "PASS" ? 0 : Math.max(0, stage08Total - stage08Stored) * stage08AverageSuccessCost;
   const stage08ActiveExposure = stage08Active * 0.5;
-  const lifecycle = ["PLAN", "MATERIALIZED", "VERIFIED", "FROZEN", "REJECTED", "ESCALATED"].map((state) => ({
+  const lifecycle = ["PLAN", "MATERIALIZED", "VERIFIED", "FROZEN", "REPAIR_REQUIRED", "REJECTED", "ESCALATED"].map((state) => ({
     state,
     count: evidence.filter((item) => item.lifecycleState === state).length,
   }));
@@ -267,6 +272,7 @@ async function readDashboard() {
       stage08Stored,
       stage08Total,
       stage08Active,
+      stage08RunStatus,
     },
     storage,
     decisions,

@@ -26,7 +26,7 @@ type Dashboard = {
   assets: Array<{ id: string; name: string; assetClass: string; lifecycleState: string; syncState: string; rightsState: string; reusableEligible: boolean; quarantined: boolean; costUsd: number }>;
   costs: Array<{ id: string; stageKey: string; provider: string; costClass: string; costType: string; status: string; estimatedUsd: number; actualUsd: number; note: string }>;
   aiUsage: Array<{ id: string; runId: string; stageKey: string; provider: string; modelId: string; providerResponseId: string; providerStatus: string; inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningTokens: number; totalTokens: number; webSearchCalls: number; tokenCostUsd: number; toolCostUsd: number; actualUsd: number; pricingStatus: string; usageJson: string; measuredAt: string }>;
-  costSummary: { actualCost: number; estimatedCost: number; reusableValue: number; aiActualCost: number; tokenCost: number; toolCost: number; inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningTokens: number; webSearchCalls: number; measuredResponses: number; rateExceptions: number; incompleteResponses: number; successfulAiCost: number; wastedAiCost: number; wasteRate: number; stage08ActualCost: number; stage08SuccessfulCost: number; stage08WastedCost: number; stage08WasteRate: number; stage08ActiveExposure: number; stage08RemainingForecast: number; stage08Stored: number; stage08Total: number; stage08Active: number };
+  costSummary: { actualCost: number; estimatedCost: number; reusableValue: number; aiActualCost: number; tokenCost: number; toolCost: number; inputTokens: number; cachedInputTokens: number; outputTokens: number; reasoningTokens: number; webSearchCalls: number; measuredResponses: number; rateExceptions: number; incompleteResponses: number; successfulAiCost: number; wastedAiCost: number; wasteRate: number; stage08ActualCost: number; stage08SuccessfulCost: number; stage08WastedCost: number; stage08WasteRate: number; stage08ActiveExposure: number; stage08RemainingForecast: number; stage08Stored: number; stage08Total: number; stage08Active: number; stage08RunStatus: string };
   reconciliation?: { discovered: number; reconciled: number; failed: number; failures: string[] };
   storage: Array<{ id: string; tier: string; bindingName: string; role: string; implementationState: string; verificationState: string; evidence: string; requiredForProduction: boolean }>;
   decisions: Array<{ id: string; decisionCode: string; title: string; status: string }>;
@@ -48,6 +48,7 @@ const labels: Record<string, string> = {
   MATERIALIZED: "Materialized",
   VERIFIED: "Verified",
   FROZEN: "Frozen",
+  REPAIR_REQUIRED: "Repair required",
   REJECTED: "Rejected",
   ESCALATED: "Escalated",
 };
@@ -142,6 +143,7 @@ export default function ControlPlanePage() {
 
   const audit = data.latestAudit;
   const productionBlocked = !data.program.productionAuthorized;
+  const stage08Frozen = data.stages.some((stage) => stage.stageKey === "08" && stage.status === "FROZEN");
 
   return (
     <main className="v7ControlShell">
@@ -257,7 +259,7 @@ export default function ControlPlanePage() {
                 <article><small>ACTIVE EXPOSURE</small><strong>${dollars(data.costSummary.stage08ActiveExposure)}</strong><span>{data.costSummary.stage08Active} active × $0.50 ceiling</span></article>
                 <article><small>REMAINING FORECAST</small><strong>${dollars(data.costSummary.stage08RemainingForecast)}</strong><span>Successful-request average only</span></article>
               </div>
-              <p>{data.costSummary.stage08WasteRate > .2 ? "Circuit-breaker threshold exceeded. New Stage 08 spend must remain paused until guarded resume is explicitly started." : "Waste is within the bounded threshold; quality gates remain unchanged."}</p>
+              <p>{stage08Frozen ? "Stage 08 is frozen at 42/42. Historical waste remains visible for optimization, but there is no remaining Stage 08 exposure or recovery forecast." : data.costSummary.stage08WasteRate > .2 ? "Circuit-breaker threshold exceeded. New Stage 08 spend must remain paused until guarded resume is explicitly started." : "Waste is within the bounded threshold; quality gates remain unchanged."}</p>
             </div>
             <div className="v7UsageMetrics">
               <article><small>INPUT TOKENS</small><strong>{compactNumber(data.costSummary.inputTokens)}</strong><span>{compactNumber(data.costSummary.cachedInputTokens)} cached</span></article>
