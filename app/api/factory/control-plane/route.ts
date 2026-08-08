@@ -87,6 +87,11 @@ const lockedDecisions = [
   ["ADR-020", "One-off paid purchases require initial approval"],
   ["ADR-021", "Cost control spans factory to attempt and unit economics"],
   ["ADR-022", "Cost Guard pauses waste without lowering quality"],
+  ["ADR-023", "Stage 09 uses a semantic-first actual-pixel material funnel"],
+  ["ADR-024", "Factual graphics are code-native and data-reconciled"],
+  ["ADR-025", "Model routing is deterministic-first with request token ceilings"],
+  ["ADR-026", "Material production requires a passing pilot before full waves"],
+  ["ADR-027", "Incomplete AI output receives one delta retry, never a full rerun"],
 ] as const;
 
 async function seedControlPlane() {
@@ -381,7 +386,7 @@ export async function POST(request: Request) {
     }));
     const checks = [
       { id: "SCHEMA", label: "V7 authoritative schema", status: "PASS", evidence: "Program, stage, evidence, asset, cost, storage and decision tables respond" },
-      { id: "ADR", label: "Locked decision baseline", status: decisions.length === 21 ? "PASS" : "FAIL", evidence: `${decisions.length}/21 locked ADRs stored` },
+      { id: "ADR", label: "Locked decision baseline", status: decisions.length === lockedDecisions.length ? "PASS" : "FAIL", evidence: `${decisions.length}/${lockedDecisions.length} locked ADRs stored` },
       { id: "QUARANTINE", label: "Legacy quarantine", status: evidence.some((item) => item.quarantineState === "ENFORCED") ? "PASS" : "FAIL", evidence: "V5/V6 excluded from V7 selection namespace" },
       { id: "D1", label: "Asset Registry database", status: "PASS", evidence: "D1 read/write path verified" },
       { id: "R2", label: "Runtime object storage", status: r2Verified ? "PASS" : "FAIL", evidence: r2Verified ? "Marker write and head verification passed" : "Runtime marker verification failed" },
