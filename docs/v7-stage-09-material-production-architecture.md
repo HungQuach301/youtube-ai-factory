@@ -1,7 +1,59 @@
-# Stage 09 Material Production Architecture v1.0
+# Stage 09 Material Production Architecture v2.0
 
 Status: LOCKED for Production Pipeline V7  
 Scope: fresh material production after Stage 08 semantic-shot freeze
+
+Version 2.0 incorporates the production findings from MP-001 Pixel QA at 23/100 and 76/100. The target is not to repair one checkout shot; it is to make the same failure class structurally impossible before Stage 09 scales.
+
+## Target operating architecture
+
+Stage 09 is split into six planes. Sites is the control plane; CPU/GPU-heavy video decoding and rendering belong to an asynchronous media-execution plane. A synchronous page request may coordinate one state transition but may never perform a full production wave.
+
+| Plane | Responsibility | Scaling boundary | Current readiness |
+|---|---|---|---|
+| Control plane | contracts, state, authorization, request/cost ledger, stop/resume | D1 state and immutable evidence references | Ready |
+| Source intelligence | provider/local/Drive retrieval, actual-video decoding, frame sampling, negative evidence | queue-backed media workers | Blocked pending actual-frame extractor |
+| Semantic composition | family renderer registry, structured factual data, composite tournament | stateless renderer workers | Partial; MP-001 renderer only |
+| Perceptual QA | candidate, composite, motion and sequence critics | bounded AI jobs with stored inputs/outputs | Partial; candidate and composite QA implemented |
+| Evidence plane | R2 working bytes, Google Drive canonical archive, checksum, rights and lineage | content-addressed immutable storage | Ready |
+| Scale governor | tranche admission, adaptive concurrency, backpressure and circuit breakers | one unit → pilot → sequence → waves | Contracted; locked until quality pilot passes |
+
+### Non-negotiable separation
+
+The control plane never treats a provider thumbnail as decoded video evidence and never performs long video work inline. The execution plane receives an idempotent job, reads stored source bytes, writes derived frames or renders, then returns checksums and evidence IDs. Only stored results may advance the state machine.
+
+## Quality-production process v2
+
+1. **Compile the immutable material brief.** Inherit timing, narration clause, viewer-state change, factual acceptance, required evidence and prohibited evidence from Stage 08.
+2. **Acquire real source bytes.** Search provider, personal and reusable libraries. Record rights before download; store the selected original in R2 and Google Drive.
+3. **Decode the actual video.** Sample frames and short clip windows from the stored MP4. A provider thumbnail is discovery evidence only.
+4. **Run negative-evidence detection.** Reject cash, wrong payment mode, logos, faces, obstructed focal objects, unreadable screens and every brief-specific prohibition before scoring relevance.
+5. **Run the source-frame tournament.** Rank actual frames or clip windows for context, action, composition, authenticity and editability.
+6. **Generate composite alternatives.** A family-specific renderer produces at least three materially different compositions; changing only color, copy or state label does not create a candidate.
+7. **Run composite Pixel QA.** Inspect stored audience-facing entry, midpoint and exit pixels at 1080p and 360p. Every supporting dimension must be at least 86 and overall at least 90.
+8. **Render motion proof.** Bind the champion to narration timing and prove entry, meaningful change and exit. Static state screenshots cannot prove final motion.
+9. **Run a 30-second sequence gate.** Check semantic continuity, repetition, rhythm, crop, mobile legibility and audio-handoff intent across neighboring shots.
+10. **Admit a bounded tranche.** Expansion is authorized only after all upstream evidence is terminal and passing.
+
+## Scale governor
+
+| Tranche | Scope | Admission evidence | Maximum automatic action |
+|---|---:|---|---|
+| Root-cause recovery | 1 failed unit | stored diagnosis and changed mechanism, not cosmetic retry | one newly authorized unit |
+| Quality pilot | 8–12 shots | every material and motion proof passes | no automatic expansion |
+| Sequence pilot | one representative 30-second sequence | playback, continuity, diversity and audio handoff pass | authorize first wave |
+| Production wave | 20–30 shots | prior wave defect/cost/provider health within tolerance | next bounded wave |
+| Completion | remaining shots | 100% evidence coverage and no open P0/P1 | handoff to composition |
+
+Concurrency is adaptive from two to eight workers. It decreases when provider failures exceed 10%, P1 defects exceed 5%, duplicate signatures exceed 2%, queue age grows abnormally or actual cost varies by more than 20% from the request contract. Any P0 immediately stops new dispatch. Completed units are immutable; a wave resume starts from the first incomplete unit.
+
+## Required artifact lineage
+
+Every final material must retain this trace:
+
+`shot contract → source query → candidate pixels → selected source bytes → decoded frame/clip → renderer version → composite candidates → champion → motion render → Pixel QA → sequence QA`
+
+Missing lineage blocks scale even when the pixels appear acceptable. This prevents an attractive but unrepeatable manual exception from becoming the basis for automated production.
 
 ## Objective
 
@@ -156,3 +208,11 @@ The Hybrid Compositor must preserve the documentary provider frame as context wh
 - **ADR-040 — Three states prove motion semantics.** Entry, midpoint and exit evidence are distinct stored raster artifacts. One frame or a storyboard proxy cannot satisfy material QA.
 - **ADR-041 — Failure evidence is immutable but non-reusable.** Stage 09.3 assets remain auditable historical evidence; Stage 09.4 creates fresh bytes, candidate decisions and checksums for all ten pilot units.
 - **ADR-042 — Provider health cannot become selection bias.** Timeouts and missing candidates are recorded as coverage defects. They never silently promote Pexels, Pixabay or any other provider.
+- **ADR-043 — Control and media execution are separate planes.** Sites coordinates state and evidence; queue-backed workers decode video and render motion. Synchronous control requests never perform a production wave.
+- **ADR-044 — Provider thumbnails are discovery-only.** SOURCE/HYBRID acceptance requires frames or clip windows decoded from the stored source video.
+- **ADR-045 — Prohibited evidence is executable.** Every prohibited visual rule becomes a deterministic or vision detector before candidate scoring; a P0 contradiction cannot be averaged away.
+- **ADR-046 — Composite quality has its own tournament.** A source champion is not a composite champion. At least three materially distinct finished compositions compete before motion production.
+- **ADR-047 — Renderer registry is versioned and meaning-bound.** Each visual family declares structured inputs, visual grammar, motion semantics, mobile constraints, prohibited fallbacks and renderer version in lineage.
+- **ADR-048 — Scale requires sequence evidence.** Per-shot PASS cannot authorize full production. A representative 30-second playback must prove continuity, variety, rhythm and audio handoff.
+- **ADR-049 — Backpressure protects both quality and spend.** Concurrency responds to defect rate, duplicate rate, provider health, queue age and measured cost variance; any P0 stops dispatch.
+- **ADR-050 — Root-cause recovery changes a mechanism.** A failed full-unit retry remains locked until a stored diagnosis names the changed source, renderer, QA or execution mechanism. Cosmetic reruns are prohibited.

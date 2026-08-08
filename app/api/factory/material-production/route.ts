@@ -22,6 +22,33 @@ type Env = { DB?: DB; BUCKET?: Bucket; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?
 type Row = Record<string, unknown>;
 type Candidate = { id: string; provider: string; title: string; sourceUrl: string; assetUrl: string; thumbnailUrl: string; licenseCode: string; licenseUrl: string; width: number; height: number; duration: number; score: number };
 
+const STAGE09_ARCHITECTURE = {
+  version: "MATERIAL_PRODUCTION_V2",
+  status: "QUALITY_SCALE_REBUILD",
+  principle: "No tranche scales from metadata, thumbnails or a single passing shot. Stored final pixels and sequence evidence authorize scale.",
+  planes: [
+    { id: "CONTROL", name: "Control plane", status: "READY", responsibility: "Contracts, authorization, state, cost, stop/resume and immutable evidence references." },
+    { id: "SOURCE", name: "Source intelligence", status: "BLOCKED", responsibility: "Decode actual provider video, sample candidate frames and reject prohibited objects before selection." },
+    { id: "COMPOSE", name: "Semantic composition", status: "PARTIAL", responsibility: "Family-specific renderers and a composite tournament create meaning-bearing entry, midpoint and exit states." },
+    { id: "QA", name: "Perceptual QA", status: "PARTIAL", responsibility: "Candidate, composite, motion and sequence gates inspect stored audience-facing evidence." },
+    { id: "EXECUTION", name: "Media execution", status: "BLOCKED", responsibility: "Queue-backed frame extraction, rendering and media transforms run outside synchronous control-plane requests." },
+    { id: "SCALE", name: "Scale governor", status: "BLOCKED", responsibility: "One repaired unit, ten-shot pilot, 30-second sequence and bounded waves must pass before 166-shot production." },
+  ],
+  qualityLadder: [
+    { order: 1, name: "Source-frame gate", exit: "Actual MP4 frames, negative-object clearance, rights and context fit." },
+    { order: 2, name: "Composite tournament", exit: "At least three materially different audience-facing compositions; one pixel champion." },
+    { order: 3, name: "Motion proof", exit: "Distinct entry, midpoint and exit plus exact narration-bound timing." },
+    { order: 4, name: "Sequence gate", exit: "30-second playback proves semantic continuity, variety, rhythm, mobile safety and clean audio handoff." },
+    { order: 5, name: "Wave admission", exit: "Zero P0/P1, all materials >=90 overall and every supporting dimension >=86." },
+  ],
+  scalePolicy: {
+    tranches: ["1 root-cause unit", "10-shot pilot", "30-second sequence", "25-shot wave", "remaining bounded waves"],
+    concurrency: "Adaptive 2–8 workers by provider health, queue age and defect rate",
+    stopConditions: ["Any P0", "P1 defect rate >5%", "duplicate signature >2%", "provider failure >10%", "cost variance >20%"],
+    resume: "Checkpointed unit state; completed evidence is immutable and never rerun by page refresh",
+  },
+} as const;
+
 const schema = [
   AI_USAGE_TABLE_SQL,
   `CREATE TABLE IF NOT EXISTS v7_cost_events (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, project_id text, stage_key text NOT NULL, provider text NOT NULL, cost_class text NOT NULL, cost_type text NOT NULL, status text DEFAULT 'ESTIMATED' NOT NULL, estimated_usd real DEFAULT 0 NOT NULL, actual_usd real DEFAULT 0 NOT NULL, reusable_allocation_usd real DEFAULT 0 NOT NULL, currency text DEFAULT 'USD' NOT NULL, asset_id text, note text DEFAULT '' NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
@@ -154,6 +181,7 @@ async function snapshot() {
   return {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
     provider: { model: setting.modelId, reasoningEffort: setting.reasoningEffort, modelOptions: MODEL_OPTIONS, reasoningOptions: REASONING_OPTIONS },
+    architecture: STAGE09_ARCHITECTURE,
     policy: { execution: "ZERO_SPEND_DRY_RUN_THEN_AUTHORIZED_TRANCHES", pilotShots: "8–12", expectedOutputTokens: "500–16000", safetyCeilings: "3000/8000/16000/32000", maxRetry: 1, retryPolicy: "DELTA_ONLY", incompletePolicy: "BLOCK_GATE", factualVisuals: "CODE_NATIVE", evidence: "STORED_PIXELS_AND_CHECKSUM" },
     run: run ? { id: run.id, status: run.status, score: Number(run.score), briefCount: Number(run.brief_count), pilotCount: Number(run.pilot_count), remoteRequests: Number(run.remote_requests), actualCostUsd: Number(run.actual_cost_usd), gates: JSON.parse(String(run.gate_json || "[]")) } : null,
     artifact: content ? { contentHash: artifact?.content_hash, runtimeKey: artifact?.runtime_key, driveFileId: artifact?.drive_file_id, pilotIds: content.pilotIds, routeMix: content.routeMix, modelMix: content.modelMix, sampleBriefs: arr(content.briefs).slice(0, 8) } : null,
@@ -635,7 +663,8 @@ async function resumePilot() {
   const repaired = await repairedPilotBrief(db, authorization);
   const recoverableActiveRepair = Boolean(active && run.status === "REPAIR_REQUIRED" && active.provider === "OPENAI" && repaired?.id === active.brief_id);
   if (active && !recoverableActiveRepair) throw new Error("REMOTE_REQUESTS_STILL_ACTIVE");
-  const repairedAudit = repaired ? await db.prepare("SELECT status FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, repaired.id).first<Row>() : null;
+  const repairedAudit = repaired ? await db.prepare("SELECT status,score FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, repaired.id).first<Row>() : null;
+  if (run.status === "REPAIR_REQUIRED" && repairedAudit?.status === "REPAIR_REQUIRED" && Number(repairedAudit.score) < 90) throw new Error("ROOT_CAUSE_ARCHITECTURE_UPGRADE_REQUIRED · source-frame extraction, composition tournament and media execution plane must be ready before another full-unit request");
   const repairedUnitNeedsQa = run.status === "PILOT_REPAIR_REVIEW" && repaired && repairedAudit?.status !== "PASS";
   const repairOnly = run.status === "REPAIR_REQUIRED" || Boolean(repairedUnitNeedsQa) || recoverableActiveRepair, nextStatus = repairOnly ? "PILOT_REPAIR_RUNNING" : "PILOT_RUNNING";
   await db.batch([db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(nextStatus, run.id), db.prepare("UPDATE v7_stage_states SET status=?,blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(nextStatus, repairOnly ? "One failed material unit resumed; later units remain paused" : "Pilot continued after explicit repaired-unit review", now, STAGE_ID)]);
