@@ -157,6 +157,7 @@ export default function MaterialProductionPage() {
       {data.run?.status === "PILOT_AUTHORIZED" && <button onClick={() => void execute("START_PILOT")} disabled={Boolean(working)}>Start authorized 10-shot pilot</button>}
       {data.run?.status === "PILOT_RUNNING" && <button onClick={() => void execute("STOP_PILOT")} disabled={working === "STOP_PILOT"}>{working === "STOP_PILOT" ? "Confirming provider stop…" : "Emergency stop · preserve completed materials"}</button>}
       {data.run?.status === "PILOT_PAUSED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>Resume from stored evidence</button>}
+      {data.run?.status === "REPAIR_REQUIRED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>Resume bounded repair from stored evidence</button>}
       {data.run?.status === "PILOT_PASS" && <p className="stateBanner">Pilot PASS. Full 166-shot production remains locked pending review.</p>}
       {data.run?.status === "REPAIR_REQUIRED" && <p className="stateBanner errorState">Pilot repair required. No full-scale dispatch is authorized.</p>}
     </section>}
