@@ -16,7 +16,7 @@ type Snapshot = {
   authorization: null | { id: string; status: string; shotCount: number; maxRemoteRequests: number; maxActualSpendUsd: number; authorizedAt: string; revokedAt?: string; modelPolicy: Record<string, unknown> };
   provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
   architecture: { version: string; status: string; principle: string; planes: Array<{ id: string; name: string; status: string; responsibility: string }>; qualityLadder: Array<{ order: number; name: string; exit: string }>; scalePolicy: { tranches: string[]; concurrency: string; stopConditions: string[]; resume: string } };
-  mediaExecution: { configured: boolean; executor: null | { id: string; status: string; version: string; lastSeenAt: string; capabilities: string[] }; counts: { queued: number; leased: number; complete: number; failed: number; blocked: number }; jobs: Array<{ id: string; briefId: string; type: string; status: string; attempt: number; maxAttempts: number; leaseOwner?: string; error?: string; createdAt: string; completedAt?: string }>; evidence: Array<{ id: string; briefId: string; type: string; status: string; technicalStatus: string; hash: string; createdAt: string; probe: { durationSeconds?: number; width?: number; height?: number; codec?: string; averageFrameRate?: string }; sourceQa: null | { status: string; score: number; dimensions: Record<string, number>; findings: string[]; repair: { replacementQuery?: string; sourceLayerContract?: string } }; frames: Array<{ role: string; timestampSeconds: number; width: number; height: number; mimeType: string; fileId: string; previewUrl: string }> }>; sourceQaActive: boolean; nextGate: string };
+  mediaExecution: { configured: boolean; executor: null | { id: string; status: string; version: string; lastSeenAt: string; capabilities: string[] }; counts: { queued: number; leased: number; complete: number; failed: number; blocked: number }; jobs: Array<{ id: string; briefId: string; type: string; status: string; attempt: number; maxAttempts: number; leaseOwner?: string; error?: string; createdAt: string; completedAt?: string }>; evidence: Array<{ id: string; briefId: string; type: string; status: string; technicalStatus: string; hash: string; createdAt: string; probe: { durationSeconds?: number; width?: number; height?: number; codec?: string; averageFrameRate?: string }; sourceQa: null | { status: string; score: number; dimensions: Record<string, number>; findings: string[]; repair: { replacementQuery?: string; sourceLayerContract?: string } }; frames: Array<{ role: string; timestampSeconds: number; width: number; height: number; mimeType: string; fileId: string; previewUrl: string }> }>; sourceQaActive: boolean; composite: { active: boolean; rubric: string; status: string; winner: string | null; score: number; dimensions: Record<string, number>; findings: string[]; repair: { exactRepair?: string }; candidates: Array<{ candidate: string; scores: Record<string, number>; frames: Array<{ state: string; fileId: string; previewUrl: string }> }> }; nextGate: string };
   pilot: { materialized: number; audited: number; total: number; percent: number; items: Array<{ id: string; briefId: string; route: string; family: string; meaning: string; status: string; file: null | { id: string; provider: string; mimeType: string; bytes: number; hash: string; previewUrl: string }; overlay: null | { id: string; previewUrl: string }; tournament: null | { status: string; score: number; candidateCount: number; providerCoverage: number; championId?: string; bestCandidateId?: string; bestReason?: string; repairAttempt: number; assignedPixelJob?: string }; audit: null | { status: string; score: number; findings: string[] } }> };
   requestLedger: { total: number; planned: number; active: number; complete: number; incomplete: number; actualCostUsd: number; recent: Array<{ id: string; briefId: string; phase: string; provider: string; modelId: string; status: string; inputTokens: number; outputTokens: number; reasoningTokens: number; actualCostUsd: number; error?: string; createdAt: string }> };
 };
@@ -52,6 +52,11 @@ export default function MaterialProductionPage() {
     const timer = window.setTimeout(() => void sourceQa(true), 2500);
     return () => window.clearTimeout(timer);
   }, [data?.mediaExecution.sourceQaActive, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (!data?.mediaExecution.composite.active || working) return;
+    const timer = window.setTimeout(() => void compositeTournament(true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [data?.mediaExecution.composite.active, data?.requestLedger.active, working]);
   async function build() {
     setWorking("BUILD"); setError(null);
     try {
@@ -122,6 +127,16 @@ export default function MaterialProductionPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Source replacement failed"); }
     finally { setWorking(null); }
   }
+  async function compositeTournament(quiet = false) {
+    setWorking("RUN_COMPOSITE_TOURNAMENT"); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "RUN_COMPOSITE_TOURNAMENT" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Composite tournament failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Composite tournament failed"); }
+    finally { setWorking(null); }
+  }
   if (!data) return <main className="shotShell"><p className="stateBanner">{error || "Loading Stage 09 production contract…"}</p></main>;
   const ready = ["READY", "PILOT_READY", "PILOT_AUTHORIZED", "PILOT_PAUSED", "PILOT_PASS", "REPAIR_REQUIRED"].includes(data.stage.status);
   const failedTournament = data.pilot.items.find((item) => item.tournament?.status === "NO_PIXEL_CHAMPION");
@@ -158,6 +173,7 @@ export default function MaterialProductionPage() {
         <div><b>Execution contract</b><span>Private transport auth → executor auth → bounded lease → FFPROBE → 10% / 50% / 90% frames → SHA-256/read-back → evidence registry</span><small>960×540 JPEG · exact three-frame set · source duration tolerance 250ms · no thumbnail substitution · zero AI authority</small></div>
         {!data.mediaExecution.jobs.some((job) => ["QUEUED", "LEASED", "COMPLETE"].includes(job.status)) && <button onClick={() => void planExecution()} disabled={Boolean(working)}>{working === "PLAN_ROOT_CAUSE_EXECUTION" ? "Creating bounded job…" : "Create root-cause media job · $0"}</button>}
         {data.mediaExecution.nextGate === "SOURCE_REPLACEMENT" && <button onClick={() => void replaceSource()} disabled={Boolean(working)}>{working === "REPLACE_SOURCE_CANDIDATE" ? "Searching, selecting and storing one replacement…" : "Run one bounded source replacement"}</button>}
+        {data.mediaExecution.nextGate === "COMPOSITE_TOURNAMENT" && <button onClick={() => void compositeTournament()} disabled={Boolean(working)}>{working === "RUN_COMPOSITE_TOURNAMENT" ? "Building and judging three composites…" : "Run 3-candidate composite tournament · 1 request"}</button>}
       </div>
       {!data.mediaExecution.configured && <p className="stateBanner errorState">Add MEDIA_EXECUTOR_SHARED_SECRET in Factory Connections before starting the executor. Creating the job itself makes no provider or AI request.</p>}
       {data.mediaExecution.jobs.length > 0 && <div className="mediaExecutionJobs">{data.mediaExecution.jobs.map((job)=><article key={job.id}><span><b>{job.briefId}</b><small>{job.type.replaceAll("_", " ")}</small></span><strong>{job.status}</strong><span><b>{job.attempt}/{job.maxAttempts}</b><small>{job.error || job.leaseOwner || "Stored and resumable"}</small></span></article>)}</div>}
@@ -167,6 +183,11 @@ export default function MaterialProductionPage() {
         {!evidence.sourceQa && <button onClick={() => void sourceQa()} disabled={Boolean(working) || data.mediaExecution.sourceQaActive}>{data.mediaExecution.sourceQaActive ? "AI inspecting actual pixels…" : "Run source-frame semantic QA · 1 bounded request"}</button>}
         {evidence.sourceQa && <aside className={evidence.sourceQa.status === "PASS" ? "pass" : "fail"}><b>{evidence.sourceQa.status} · {evidence.sourceQa.score}/100</b><span>{Object.entries(evidence.sourceQa.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{evidence.sourceQa.findings.map((finding)=><small key={finding}>{finding}</small>)}{evidence.sourceQa.repair.replacementQuery && <p><b>Replacement query</b> {evidence.sourceQa.repair.replacementQuery}</p>}{evidence.sourceQa.repair.sourceLayerContract && <p><b>Source contract</b> {evidence.sourceQa.repair.sourceLayerContract}</p>}</aside>}
       </section>)}
+      {(data.mediaExecution.composite.active || data.mediaExecution.composite.candidates.some((candidate) => candidate.frames.length > 0)) && <section className="compositeTournamentEvidence">
+        <header><div><p>ACTUAL HYBRID PIXELS · {data.mediaExecution.composite.rubric}</p><h3>Three compositions compete. One may advance.</h3><span>Every candidate uses the same accepted source lineage and stores distinct ENTRY / MIDPOINT / EXIT frames.</span></div><strong>{data.mediaExecution.composite.active ? "AI ADJUDICATION RUNNING" : `${data.mediaExecution.composite.status} · ${data.mediaExecution.composite.score}/100`}</strong></header>
+        <div>{data.mediaExecution.composite.candidates.map((candidate)=><article key={candidate.candidate} className={data.mediaExecution.composite.winner === candidate.candidate ? "winner" : ""}><h4>Candidate {candidate.candidate}{data.mediaExecution.composite.winner === candidate.candidate ? " · WINNER" : ""}</h4><div>{candidate.frames.map((frame)=><figure key={frame.fileId}><Image src={frame.previewUrl} alt={`candidate ${candidate.candidate} ${frame.state.toLowerCase()}`} width={960} height={540} unoptimized /><figcaption>{frame.state}</figcaption></figure>)}</div>{Object.keys(candidate.scores).length > 0 && <small>{Object.entries(candidate.scores).map(([key,value]) => `${key} ${value}`).join(" · ")}</small>}</article>)}</div>
+        {data.mediaExecution.composite.findings.length > 0 && <aside className={data.mediaExecution.composite.status === "PASS" ? "pass" : "fail"}><b>{data.mediaExecution.composite.status} · winner {data.mediaExecution.composite.winner}</b><span>{Object.entries(data.mediaExecution.composite.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{data.mediaExecution.composite.findings.map((finding)=><small key={finding}>{finding}</small>)}{data.mediaExecution.composite.repair.exactRepair && <p><b>Exact repair</b> {data.mediaExecution.composite.repair.exactRepair}</p>}</aside>}
+      </section>}
     </section>
     <section className="shotDoctrine">
       <header><p>MATERIAL FUNNEL · LOCKED</p><h2>Deterministic first. Expensive intelligence last.</h2><span>Pilot production stays unauthorized until this contract passes.</span></header>

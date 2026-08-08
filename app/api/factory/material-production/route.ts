@@ -8,6 +8,7 @@ const STAGE_ID = `${PROGRAM_ID}-STAGE-${STAGE}`;
 const THRESHOLD = 92;
 const DEFAULT_MODEL = "gpt-5.6-sol";
 const SOURCE_QA_RUBRIC = "SOURCE_LAYER_QA_V2";
+const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V1";
 const MODEL_OPTIONS = [
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", description: "Maximum quality" },
   { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", description: "Balanced quality and speed" },
@@ -68,6 +69,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_media_jobs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,source_file_id text NOT NULL,job_type text NOT NULL,status text DEFAULT 'QUEUED' NOT NULL,priority integer DEFAULT 100 NOT NULL,attempt integer DEFAULT 0 NOT NULL,max_attempts integer DEFAULT 2 NOT NULL,lease_owner text,lease_token_hash text,lease_expires_at text,contract_json text NOT NULL,output_json text,error text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_media_evidence (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,job_id text NOT NULL,evidence_type text NOT NULL,status text DEFAULT 'VERIFIED' NOT NULL,content_json text NOT NULL,content_hash text NOT NULL,runtime_key text NOT NULL,drive_file_id text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_source_frame_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,evidence_id text NOT NULL,status text DEFAULT 'QA_REQUIRED' NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,repair_json text DEFAULT '{}' NOT NULL,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_composite_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,evidence_id text NOT NULL,rubric_version text NOT NULL,status text DEFAULT 'QA_REQUIRED' NOT NULL,winner text,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,candidates_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,repair_json text DEFAULT '{}' NOT NULL,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
 ] as const;
 
@@ -210,6 +212,7 @@ async function snapshot() {
   const mediaJobs = authorization ? await rows(db, "SELECT * FROM v7_media_jobs WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
   const mediaEvidence = authorization ? await rows(db, "SELECT * FROM v7_media_evidence WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
   const sourceAudits = authorization ? await rows(db, "SELECT * FROM v7_source_frame_audits WHERE authorization_id=? ORDER BY updated_at DESC", authorization.id) : [];
+  const compositeAudits = authorization ? await rows(db, "SELECT * FROM v7_composite_audits WHERE authorization_id=? ORDER BY updated_at DESC", authorization.id) : [];
   const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
@@ -220,9 +223,13 @@ async function snapshot() {
   const executorAge = executor?.last_seen_at ? Date.now() - new Date(String(executor.last_seen_at)).getTime() : Number.POSITIVE_INFINITY;
   const executorOnline = executorAge < 120_000;
   const sourceEvidence = mediaEvidence.find((item) => item.evidence_type === "SOURCE_FRAME_SET");
-  const sourceAudit = sourceEvidence ? sourceAudits.find((item) => item.evidence_id === sourceEvidence.id) : null;
+  const sourceAudit = sourceEvidence ? sourceAudits.find((item) => { if (item.evidence_id !== sourceEvidence.id) return false; try { return rec(JSON.parse(String(item.repair_json || "{}"))).rubricVersion === SOURCE_QA_RUBRIC; } catch { return false; } }) : null;
   const sourceEvidenceReady = sourceAudit?.status === "PASS";
   const sourceQaActive = requestRows.some((row) => row.phase === "SOURCE_FRAME_QA" && ["QUEUED", "IN_PROGRESS"].includes(String(row.status)));
+  const compositeAudit = sourceEvidence ? compositeAudits.find((item) => item.evidence_id === sourceEvidence.id && item.rubric_version === COMPOSITE_QA_RUBRIC) : null;
+  const compositeActive = requestRows.some((row) => row.phase === "COMPOSITE_TOURNAMENT" && ["QUEUED", "IN_PROGRESS"].includes(String(row.status)));
+  const compositeContent = compositeAudit?.candidates_json ? rec(JSON.parse(String(compositeAudit.candidates_json))) : {};
+  const compositeCandidates = ["A", "B", "C"].map((candidate) => ({ candidate, scores: rec(compositeContent[candidate]), frames: ["ENTRY", "MIDPOINT", "EXIT"].map((state) => { const file = files.find((item) => item.brief_id === sourceEvidence?.brief_id && item.asset_role === `COMPOSITE_${candidate}_${state}`); return file ? { state, fileId: file.id, previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(file.id))}` } : null; }).filter(Boolean) }));
   return {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
     provider: { model: setting.modelId, reasoningEffort: setting.reasoningEffort, modelOptions: MODEL_OPTIONS, reasoningOptions: REASONING_OPTIONS },
@@ -244,7 +251,8 @@ async function snapshot() {
         return { id: item.id, briefId: item.brief_id, type: item.evidence_type, status: audit?.status || item.status, technicalStatus: item.status, hash: clean(item.content_hash).slice(0, 12), createdAt: item.created_at, probe: rec(content.probe), sourceQa: audit ? { status: audit.status, score: Number(audit.score), dimensions: rec(JSON.parse(String(audit.dimensions_json || "{}"))), findings: arr(JSON.parse(String(audit.findings_json || "[]"))), repair: rec(JSON.parse(String(audit.repair_json || "{}"))) } : null, frames: arr(content.frames).map(rec).map((frame) => ({ role: clean(frame.role), timestampSeconds: Number(frame.timestampSeconds), width: Number(frame.width), height: Number(frame.height), mimeType: clean(frame.mimeType), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })) };
       }),
       sourceQaActive,
-      nextGate: sourceEvidenceReady ? "COMPOSITE_TOURNAMENT" : sourceEvidence ? sourceQaActive ? "SOURCE_FRAME_QA_RUNNING" : sourceAudit?.status === "REPAIR_REQUIRED" ? "SOURCE_REPLACEMENT" : "SOURCE_FRAME_QA" : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET",
+      composite: { active: compositeActive, rubric: COMPOSITE_QA_RUBRIC, status: compositeAudit?.status || "REQUIRED", winner: compositeAudit?.winner || null, score: Number(compositeAudit?.score || 0), dimensions: compositeAudit ? rec(JSON.parse(String(compositeAudit.dimensions_json || "{}"))) : {}, findings: compositeAudit ? arr(JSON.parse(String(compositeAudit.findings_json || "[]"))) : [], repair: compositeAudit ? rec(JSON.parse(String(compositeAudit.repair_json || "{}"))) : {}, candidates: compositeCandidates },
+      nextGate: sourceEvidenceReady ? compositeActive ? "COMPOSITE_TOURNAMENT_RUNNING" : !compositeAudit ? "COMPOSITE_TOURNAMENT" : compositeAudit.status === "PASS" ? "MOTION_PROOF" : "COMPOSITE_REPAIR" : sourceEvidence ? sourceQaActive ? "SOURCE_FRAME_QA_RUNNING" : sourceAudit?.status === "REPAIR_REQUIRED" ? "SOURCE_REPLACEMENT" : "SOURCE_FRAME_QA" : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET",
     },
   };
 }
@@ -452,7 +460,7 @@ function joinBytes(parts: Uint8Array[]) { const length = parts.reduce((sum, part
 function crc32(bytes: Uint8Array) { let crc = 0xffffffff; for (const byte of bytes) { crc ^= byte; for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1)); } return (crc ^ 0xffffffff) >>> 0; }
 function pngChunk(type: string, data: Uint8Array) { const name = new TextEncoder().encode(type), body = joinBytes([name,data]); return joinBytes([u32(data.length),body,u32(crc32(body))]); }
 function deflateStored(raw: Uint8Array) { const parts: Uint8Array[] = [new Uint8Array([0x78,0x01])]; for (let offset = 0; offset < raw.length;) { const length = Math.min(65535,raw.length-offset), final = offset + length >= raw.length ? 1 : 0; parts.push(new Uint8Array([final,length&255,(length>>>8)&255,(~length)&255,((~length)>>>8)&255]),raw.slice(offset,offset+length)); offset += length; } let a=1,b=0; for (const byte of raw) { a=(a+byte)%65521; b=(b+a)%65521; } parts.push(u32(((b<<16)|a)>>>0)); return joinBytes(parts); }
-function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array; width: number; height: number }) {
+function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array; width: number; height: number }, layout: "A" | "B" | "C" = "A") {
   const width=960,height=540,pixels=new Uint8Array(width*height*4), raw=new Uint8Array(height*(1+width*4));
   const color=(hex:string)=>[Number.parseInt(hex.slice(1,3),16),Number.parseInt(hex.slice(3,5),16),Number.parseInt(hex.slice(5,7),16),255] as const;
   const fill=(x:number,y:number,w:number,h:number,hex:string)=>{const c=color(hex);for(let py=Math.max(0,y);py<Math.min(height,y+h);py++)for(let px=Math.max(0,x);px<Math.min(width,x+w);px++){const i=(py*width+px)*4;pixels.set(c,i);}};
@@ -470,19 +478,29 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
     const scale=Math.max(width/background.width,height/background.height),sourceWidth=width/scale,sourceHeight=height/scale,sourceX=(background.width-sourceWidth)/2,sourceY=(background.height-sourceHeight)/2;
     for(let y=0;y<height;y++)for(let x=0;x<width;x++){const sx=Math.min(background.width-1,Math.max(0,Math.floor(sourceX+x/scale))),sy=Math.min(background.height-1,Math.max(0,Math.floor(sourceY+y/scale))),source=(sy*background.width+sx)*4,target=(y*width+x)*4;pixels[target]=Math.round(background.data[source]*.58);pixels[target+1]=Math.round(background.data[source+1]*.58);pixels[target+2]=Math.round(background.data[source+2]*.58);pixels[target+3]=255;}
     fill(0,0,18,height,"#74c69d");
-    if(clean(brief.briefId)==="MP-001") {
-      // The real checkout remains context; the authored reader makes credit tender unmistakable.
-      fill(58,104,348,350,"#173f38"); fill(82,132,300,112,"#f5edcf");
-      text(state===0?"-----":"$100.00",state===0?148:112,166,state===0?6:7,"#0d3f32");
-      text(state===2?"PROCESSING":"CREDIT",state===2?105:142,260,state===2?3:4,"#fffdf5");
-      [[112,324],[184,324],[256,324],[112,378],[184,378],[256,378]].forEach(([x,y])=>fill(x,y,38,28,"#d9f1e4"));
-      fill(132,438,198,8,"#74c69d");
+    if (layout === "A") {
+      // Split proof: authentic checkout on the left, authored transaction state on the right.
+      fill(44,84,380,388,"#173f38"); fill(70,112,328,122,"#f5edcf");
+      text(state===0?"-----":"$100.00",state===0?142:103,151,state===0?6:7,"#0d3f32");
+      text(state===2?"PROCESSING":"CREDIT",state===2?91:143,260,state===2?3:4,"#fffdf5");
+      [[102,330],[178,330],[254,330],[102,388],[178,388],[254,388]].forEach(([x,y])=>fill(x,y,42,30,"#d9f1e4"));
+      fill(476,86,420,368,"#f5edcf"); fill(506,116,360,54,"#d9f1e4");
+      text(heading,540,132,3,"#0d3f32"); text(main,main.length>10?520:555,226,main.length>10?5:8,"#0d3f32");
+      if(sub) text(sub,sub.length>11?535:600,340,4,"#0d3f32"); fill(570,382,230+state*40,12,state===2?"#74c69d":"#7b958c");
+    } else if (layout === "B") {
+      // Documentary rail: preserve maximum live-action area and bind one clean state strip to the bottom.
+      fill(0,350,960,190,"#f5edcf"); fill(0,350,960,12,"#74c69d");
+      fill(42,388,258,104,"#173f38"); text(heading,65,409,3,"#fffdf5");
+      text(main,main.length>10?352:382,392,main.length>10?5:7,"#0d3f32");
+      if(sub) text(sub,650,417,3,"#0d3f32");
+      [0,1,2].forEach((index)=>fill(650+index*74,472,54,12,index<=state?"#2d8063":"#b7c9c2"));
+    } else {
+      // Focus lens: a compact state card leaves the card-tender action visible and adds an explicit progression ladder.
+      fill(45,42,870,86,"#173f38"); text(heading,78,70,4,"#fffdf5");
+      fill(548,160,332,300,"#f5edcf"); text(main,main.length>10?574:602,208,main.length>10?4:6,"#0d3f32");
+      if(sub) text(sub,596,286,3,"#0d3f32");
+      ["READY","AMOUNT","STATE"].forEach((label,index)=>{fill(582,340+index*38,40,18,index<=state?"#2d8063":"#b7c9c2");text(label,640,338+index*38,2,"#0d3f32");});
     }
-    fill(476,86,420,368,"#f5edcf"); fill(506,116,360,54,"#d9f1e4");
-    text(heading,540,132,3,"#0d3f32");
-    text(main,main.length>10?520:555,226,main.length>10?5:8,"#0d3f32");
-    if(sub) text(sub,sub.length>11?535:600,340,4,"#0d3f32");
-    fill(570,382,230+state*40,12,state===2?"#74c69d":"#7b958c");
     for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
   }
   fill(0,0,width,height,"#0d3f32");fill(0,0,18,height,"#74c69d");wrap(short(brief.viewerMustUnderstand,92),45).slice(0,2).forEach((line,index)=>text(line,48,45+index*42,4,"#fffdf5"));
@@ -495,7 +513,8 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
   for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
 }
 
-async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row, options: { role: "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT" | "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT"; identity?: string; bytes: Uint8Array; mimeType: string; extension: string; sourceType: string; provider: string; providerAssetId?: string; sourceUrl?: string; landingUrl?: string; licenseCode: string; width: number; height: number; duration?: number; thumbnailUrl?: string }) {
+type MaterialRole = "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT" | "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT" | "COMPOSITE_A_ENTRY" | "COMPOSITE_A_MIDPOINT" | "COMPOSITE_A_EXIT" | "COMPOSITE_B_ENTRY" | "COMPOSITE_B_MIDPOINT" | "COMPOSITE_B_EXIT" | "COMPOSITE_C_ENTRY" | "COMPOSITE_C_MIDPOINT" | "COMPOSITE_C_EXIT";
+async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row, options: { role: MaterialRole; identity?: string; bytes: Uint8Array; mimeType: string; extension: string; sourceType: string; provider: string; providerAssetId?: string; sourceUrl?: string; landingUrl?: string; licenseCode: string; width: number; height: number; duration?: number; thumbnailUrl?: string }) {
   if (!env.BUCKET) throw new Error("R2 material storage is unavailable");
   const identity = clean(options.identity).replace(/[^a-zA-Z0-9_-]/g, "").slice(-48), suffix = identity ? `${identity}-` : "";
   const id = `${briefRow.id}-${suffix}${options.role}`, hash = await shaBytes(options.bytes), key = `v7/material-production/${authorization.run_id}/pilot/${clean(briefRow.id).split("-").at(-1)}-${suffix}${options.role.toLowerCase()}.${options.extension}`;
@@ -529,6 +548,8 @@ async function materializeOne(env: Env, db: DB, authorization: Row, briefRow: Ro
 
 const visionSchema = { type: "object", additionalProperties: false, properties: { semanticFit: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, composition: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, authenticity: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", maxItems: 5, items: { type: "string", minLength: 6, maxLength: 180 } }, exactRepair: { type: "string", minLength: 6, maxLength: 240 } }, required: ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "overall", "decision", "findings", "exactRepair"] };
 const sourceFrameQaSchema = { type: "object", additionalProperties: false, properties: { semanticSpecificity: { type: "integer", minimum: 0, maximum: 100 }, contradictionSafety: { type: "integer", minimum: 0, maximum: 100 }, contextFit: { type: "integer", minimum: 0, maximum: 100 }, frameDifferentiation: { type: "integer", minimum: 0, maximum: 100 }, mobileClarity: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", minItems: 1, maxItems: 5, items: { type: "string", minLength: 8, maxLength: 220 } }, replacementQuery: { type: "string", minLength: 8, maxLength: 180 }, sourceLayerContract: { type: "string", minLength: 8, maxLength: 260 } }, required: ["semanticSpecificity", "contradictionSafety", "contextFit", "frameDifferentiation", "mobileClarity", "overall", "decision", "findings", "replacementQuery", "sourceLayerContract"] };
+const compositeCandidateSchema = { type: "object", additionalProperties: false, properties: { semanticFit: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, composition: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, authenticity: { type: "integer", minimum: 0, maximum: 100 }, progression: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 } }, required: ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "progression", "overall"] };
+const compositeTournamentSchema = { type: "object", additionalProperties: false, properties: { winner: { type: "string", enum: ["A", "B", "C"] }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, candidateA: compositeCandidateSchema, candidateB: compositeCandidateSchema, candidateC: compositeCandidateSchema, findings: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 8, maxLength: 220 } }, exactRepair: { type: "string", minLength: 8, maxLength: 260 } }, required: ["winner", "decision", "candidateA", "candidateB", "candidateC", "findings", "exactRepair"] };
 function output(payload: Row) { if (typeof payload.output_text === "string") return payload.output_text; for (const item of arr(payload.output)) for (const block of arr(rec(item).content)) if (typeof rec(block).text === "string") return String(rec(block).text); throw new Error("OpenAI returned no structured pixel audit"); }
 
 async function sourceFrameQa() {
@@ -574,6 +595,66 @@ async function sourceFrameQa() {
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`SOURCE_FRAME_QA_START_FAILED · ${response.status}`); }
   const payload = await response.json() as Row;
   if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("SOURCE_FRAME_QA_PROVIDER_ID_MISSING"); }
+  await db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, new Date().toISOString(), requestId).run();
+  return snapshot();
+}
+
+async function compositeTournament() {
+  const env = await runtime(), db = env.DB!, { authorization } = await current(db);
+  if (!authorization || !env.OPENAI_API_KEY || !env.BUCKET) throw new Error("COMPOSITE_TOURNAMENT_CONFIGURATION_REQUIRED");
+  const evidence = await db.prepare("SELECT * FROM v7_media_evidence WHERE authorization_id=? AND evidence_type='SOURCE_FRAME_SET' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!evidence) throw new Error("SOURCE_FRAME_EVIDENCE_MISSING");
+  const sourceAudit = await db.prepare("SELECT * FROM v7_source_frame_audits WHERE evidence_id=? AND status='PASS' AND repair_json LIKE ? ORDER BY updated_at DESC LIMIT 1").bind(evidence.id, `%${SOURCE_QA_RUBRIC}%`).first<Row>();
+  if (!sourceAudit) throw new Error("SOURCE_FRAME_SEMANTIC_PASS_REQUIRED");
+  const existing = await db.prepare("SELECT * FROM v7_composite_audits WHERE evidence_id=? AND rubric_version=? ORDER BY updated_at DESC LIMIT 1").bind(evidence.id, COMPOSITE_QA_RUBRIC).first<Row>();
+  if (existing) return snapshot();
+  const active = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND brief_id=? AND phase='COMPOSITE_TOURNAMENT' AND status IN ('QUEUED','IN_PROGRESS') ORDER BY created_at DESC LIMIT 1").bind(authorization.id, evidence.brief_id).first<Row>();
+  if (active) {
+    const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(active.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`COMPOSITE_TOURNAMENT_STATUS_FAILED · ${response.status}`);
+    const payload = await response.json() as Row, status = clean(payload.status);
+    if (["queued", "in_progress"].includes(status)) { await db.prepare("UPDATE v7_material_requests SET status=?,updated_at=? WHERE id=?").bind(status.toUpperCase(), new Date().toISOString(), active.id).run(); return snapshot(); }
+    const usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: clean(authorization.run_id), stageKey: STAGE, costType: "HYBRID_COMPOSITE_TOURNAMENT", payload, fallbackModel: clean(active.model_id) || DEFAULT_MODEL });
+    await db.prepare("UPDATE v7_material_requests SET status=?,input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,error=?,updated_at=? WHERE id=?").bind(status === "completed" ? "COMPLETE" : "BLOCKED_INCOMPLETE", usage.inputTokens, usage.outputTokens, usage.reasoningTokens, usage.actualUsd, status === "completed" ? null : clean(rec(payload.incomplete_details).reason || rec(payload.error).message || status), new Date().toISOString(), active.id).run();
+    await syncRunTotals(db, clean(authorization.run_id));
+    if (status !== "completed") throw new Error("COMPOSITE_TOURNAMENT_PROVIDER_INCOMPLETE · no automatic retry");
+    const result = JSON.parse(output(payload)) as Row, winner = clean(result.winner), winnerScores = rec(result[`candidate${winner}`]), dimensions = ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "progression"], hardPass = dimensions.every((key) => Number(winnerScores[key]) >= 86) && Number(winnerScores.overall) >= 90 && result.decision === "PASS", now = new Date().toISOString();
+    const selectedFiles = await rows(db, "SELECT id,asset_role,content_hash FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role LIKE ? ORDER BY asset_role", authorization.id, evidence.brief_id, `COMPOSITE_${winner}_%`);
+    await db.batch([
+      db.prepare("INSERT INTO v7_composite_audits (id,program_id,run_id,authorization_id,brief_id,evidence_id,rubric_version,status,winner,score,dimensions_json,candidates_json,findings_json,repair_json,provider_response_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(`${evidence.id}-${COMPOSITE_QA_RUBRIC}`, PROGRAM_ID, authorization.run_id, authorization.id, evidence.brief_id, evidence.id, COMPOSITE_QA_RUBRIC, hardPass ? "PASS" : "REPAIR_REQUIRED", winner, Number(winnerScores.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(winnerScores[key])]))), JSON.stringify({ A: rec(result.candidateA), B: rec(result.candidateB), C: rec(result.candidateC), selectedFileIds: selectedFiles.map((file) => file.id), sourceEvidenceHash: evidence.content_hash }), JSON.stringify(arr(result.findings)), JSON.stringify({ exactRepair: clean(result.exactRepair) }), payload.id, now, now),
+      db.prepare("UPDATE v7_stage_states SET blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(hardPass ? "MOTION_PROOF_REQUIRED" : "COMPOSITE_REPAIR_REQUIRED", hardPass ? `${evidence.brief_id} composite ${winner} passed at ${Number(winnerScores.overall)}/100 · motion proof remains locked` : `${evidence.brief_id} composite tournament rejected at ${Number(winnerScores.overall)}/100 · bounded compositor repair required`, now, STAGE_ID),
+    ]);
+    return snapshot();
+  }
+  const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(evidence.brief_id).first<Row>();
+  if (!briefRow) throw new Error("COMPOSITE_BRIEF_MISSING");
+  const brief = JSON.parse(String(briefRow.content_json)) as Row, evidenceContent = rec(JSON.parse(String(evidence.content_json))), frames = arr(evidenceContent.frames).map(rec);
+  if (frames.length !== 3) throw new Error("SOURCE_FRAME_SET_INCOMPLETE");
+  const decodedFrames: Array<{ data: Uint8Array; width: number; height: number }> = [];
+  for (const frame of frames) {
+    const file = await db.prepare("SELECT runtime_key,mime_type FROM v7_material_files WHERE id=?").bind(frame.fileId).first<Row>();
+    if (!file) throw new Error(`SOURCE_FRAME_FILE_MISSING · ${clean(frame.role)}`);
+    const object = await env.BUCKET.get(clean(file.runtime_key)); if (!object) throw new Error(`SOURCE_FRAME_BYTES_MISSING · ${clean(frame.role)}`);
+    const bytes = new Uint8Array(await new Response(object.body).arrayBuffer()), mime = clean(file.mime_type);
+    if (!/jpe?g/i.test(mime)) throw new Error(`COMPOSITE_SOURCE_FORMAT_UNSUPPORTED · ${mime}`);
+    const decoded = jpeg.decode(bytes, { useTArray: true, formatAsRGBA: true });
+    decodedFrames.push({ data: decoded.data as Uint8Array, width: decoded.width, height: decoded.height });
+  }
+  const layouts = ["A", "B", "C"] as const, states = [["ENTRY",0],["MIDPOINT",1],["EXIT",2]] as const, imageUrls: string[] = [];
+  for (const layout of layouts) for (const [name, state] of states) {
+    const role = `COMPOSITE_${layout}_${name}` as MaterialRole, bytes = ownedPng(brief, state, decodedFrames[state], layout);
+    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `${COMPOSITE_QA_RUBRIC}-${clean(evidence.content_hash).slice(0, 12)}`, bytes, mimeType: "image/png", extension: "png", sourceType: `HYBRID_COMPOSITE_${layout}`, provider: "FRAMEFLOW_OWNED", providerAssetId: clean(evidence.id), sourceUrl: clean(evidence.id), landingUrl: clean(evidence.id), licenseCode: "HYBRID_SOURCE_PLUS_CHANNEL_OWNED", width: 960, height: 540 });
+    const stored = await db.prepare("SELECT runtime_key FROM v7_material_files WHERE id=?").bind(fileId).first<Row>(), object = stored ? await env.BUCKET.get(clean(stored.runtime_key)) : null;
+    if (!object) throw new Error(`COMPOSITE_BYTES_MISSING · ${role}`);
+    imageUrls.push(`data:image/png;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`);
+  }
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(evidence.brief_id), "COMPOSITE_TOURNAMENT", "OPENAI", setting.modelId, setting.reasoningEffort, 1800, 4000);
+  const content: Row[] = [{ type: "input_text", text: `You are adjudicating ${COMPOSITE_QA_RUBRIC} for a premium US documentary. The nine images are ordered A-entry, A-midpoint, A-exit, B-entry, B-midpoint, B-exit, C-entry, C-midpoint, C-exit. Compare three materially different audience-facing hybrid compositions built from the same already-approved real checkout frames. Judge the finished pixels only. Select one winner; do not average candidates. The winner must visibly communicate the frozen clause, preserve authentic card-tender context, avoid production metadata and unsupported claims, remain readable on mobile, and show meaningful state progression. Exact $100.00, CREDIT and PROCESSING are authored illustrative states and are permitted. PASS requires every winner dimension >=86 and overall >=90. If none passes, choose the least-bad candidate and return REPAIR. Return English only.\n\nFROZEN SHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
+  for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 4000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_composite_tournament", strict: true, schema: compositeTournamentSchema } } }), signal: AbortSignal.timeout(30000) });
+  if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`COMPOSITE_TOURNAMENT_START_FAILED · ${response.status}`); }
+  const payload = await response.json() as Row;
+  if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("COMPOSITE_TOURNAMENT_PROVIDER_ID_MISSING"); }
   await db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, new Date().toISOString(), requestId).run();
   return snapshot();
 }
@@ -949,6 +1030,7 @@ export async function POST(request: Request) {
     if (body.action === "RESUME_PILOT") return Response.json(await resumePilot(), { status: 202 });
     if (body.action === "PLAN_ROOT_CAUSE_EXECUTION") return Response.json(await planRootCauseExecution(), { status: 201 });
     if (body.action === "RUN_SOURCE_FRAME_QA") return Response.json(await sourceFrameQa(), { status: 202 });
+    if (body.action === "RUN_COMPOSITE_TOURNAMENT") return Response.json(await compositeTournament(), { status: 202 });
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
     if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);
     if (body.action === "CLAIM_MEDIA_JOB") return await claimMediaJob(request, body);
