@@ -231,7 +231,10 @@ async function snapshot() {
       executor: executor ? { id: executor.id, status: executorOnline ? "ONLINE" : "OFFLINE", version: executor.version, lastSeenAt: executor.last_seen_at, capabilities: JSON.parse(String(executor.capabilities_json || "[]")) } : null,
       counts: Object.fromEntries(["QUEUED", "LEASED", "COMPLETE", "FAILED", "BLOCKED"].map((status) => [status.toLowerCase(), mediaJobs.filter((job) => job.status === status).length])),
       jobs: mediaJobs.slice(0, 12).map((job) => ({ id: job.id, briefId: job.brief_id, type: job.job_type, status: job.status, attempt: Number(job.attempt), maxAttempts: Number(job.max_attempts), leaseOwner: job.lease_owner, error: job.error, createdAt: job.created_at, completedAt: job.completed_at })),
-      evidence: mediaEvidence.slice(0, 12).map((item) => ({ id: item.id, briefId: item.brief_id, type: item.evidence_type, status: item.status, hash: clean(item.content_hash).slice(0, 12), createdAt: item.created_at })),
+      evidence: mediaEvidence.slice(0, 12).map((item) => {
+        let content: Row = {}; try { content = rec(JSON.parse(String(item.content_json || "{}"))); } catch { content = {}; }
+        return { id: item.id, briefId: item.brief_id, type: item.evidence_type, status: item.status, hash: clean(item.content_hash).slice(0, 12), createdAt: item.created_at, probe: rec(content.probe), frames: arr(content.frames).map(rec).map((frame) => ({ role: clean(frame.role), timestampSeconds: Number(frame.timestampSeconds), width: Number(frame.width), height: Number(frame.height), mimeType: clean(frame.mimeType), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })) };
+      }),
       nextGate: sourceEvidenceReady ? "COMPOSITE_TOURNAMENT" : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET",
     },
   };
