@@ -16,6 +16,7 @@ type Snapshot = {
   authorization: null | { id: string; status: string; shotCount: number; maxRemoteRequests: number; maxActualSpendUsd: number; authorizedAt: string; revokedAt?: string; modelPolicy: Record<string, unknown> };
   provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
   architecture: { version: string; status: string; principle: string; planes: Array<{ id: string; name: string; status: string; responsibility: string }>; qualityLadder: Array<{ order: number; name: string; exit: string }>; scalePolicy: { tranches: string[]; concurrency: string; stopConditions: string[]; resume: string } };
+  mediaExecution: { configured: boolean; executor: null | { id: string; status: string; version: string; lastSeenAt: string; capabilities: string[] }; counts: { queued: number; leased: number; complete: number; failed: number; blocked: number }; jobs: Array<{ id: string; briefId: string; type: string; status: string; attempt: number; maxAttempts: number; leaseOwner?: string; error?: string; createdAt: string; completedAt?: string }>; evidence: Array<{ id: string; briefId: string; type: string; status: string; hash: string; createdAt: string }>; nextGate: string };
   pilot: { materialized: number; audited: number; total: number; percent: number; items: Array<{ id: string; briefId: string; route: string; family: string; meaning: string; status: string; file: null | { id: string; provider: string; mimeType: string; bytes: number; hash: string; previewUrl: string }; overlay: null | { id: string; previewUrl: string }; tournament: null | { status: string; score: number; candidateCount: number; providerCoverage: number; championId?: string; bestCandidateId?: string; bestReason?: string; repairAttempt: number; assignedPixelJob?: string }; audit: null | { status: string; score: number; findings: string[] } }> };
   requestLedger: { total: number; planned: number; active: number; complete: number; incomplete: number; actualCostUsd: number; recent: Array<{ id: string; briefId: string; phase: string; provider: string; modelId: string; status: string; inputTokens: number; outputTokens: number; reasoningTokens: number; actualCostUsd: number; error?: string; createdAt: string }> };
 };
@@ -86,6 +87,16 @@ export default function MaterialProductionPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Model selection failed"); }
     finally { setWorking(null); }
   }
+  async function planExecution() {
+    setWorking("PLAN_ROOT_CAUSE_EXECUTION"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PLAN_ROOT_CAUSE_EXECUTION" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Media execution planning failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Media execution planning failed"); }
+    finally { setWorking(null); }
+  }
   if (!data) return <main className="shotShell"><p className="stateBanner">{error || "Loading Stage 09 production contract…"}</p></main>;
   const ready = ["READY", "PILOT_READY", "PILOT_AUTHORIZED", "PILOT_PAUSED", "PILOT_PASS", "REPAIR_REQUIRED"].includes(data.stage.status);
   const failedTournament = data.pilot.items.find((item) => item.tournament?.status === "NO_PIXEL_CHAMPION");
@@ -109,6 +120,21 @@ export default function MaterialProductionPage() {
       <header><div><p>STAGE 09 TARGET ARCHITECTURE · {data.architecture.version}</p><h2>Quality and scale are governed by separate production planes.</h2><span>{data.architecture.principle}</span></div><strong>{data.architecture.status.replaceAll("_", " ")}</strong></header>
       <div className="materialPlanes">{data.architecture.planes.map((plane)=><article key={plane.id} className={plane.status.toLowerCase()}><small>{plane.status}</small><h3>{plane.name}</h3><p>{plane.responsibility}</p></article>)}</div>
       <div className="materialQualityLadder"><div><p>QUALITY LADDER</p>{data.architecture.qualityLadder.map((gate)=><article key={gate.order}><b>{String(gate.order).padStart(2,"0")}</b><span><strong>{gate.name}</strong><small>{gate.exit}</small></span></article>)}</div><aside><p>SCALE GOVERNOR</p><strong>{data.architecture.scalePolicy.tranches.join(" → ")}</strong><span>{data.architecture.scalePolicy.concurrency}</span><small>{data.architecture.scalePolicy.stopConditions.join(" · ")}</small></aside></div>
+    </section>
+    <section className="mediaExecutionPlane">
+      <header><div><p>MEDIA EXECUTION PLANE · V1</p><h2>Actual video bytes become decoded, inspectable frame evidence.</h2><span>The executor is isolated from AI orchestration. It can only claim authorized media jobs, verify source hashes and return bounded outputs.</span></div><strong>{data.mediaExecution.executor?.status || (data.mediaExecution.configured ? "WAITING FOR EXECUTOR" : "CONFIGURATION REQUIRED")}</strong></header>
+      <div className="mediaExecutionMetrics">
+        <article><small>QUEUE</small><b>{data.mediaExecution.counts.queued}</b><span>checkpointed jobs</span></article>
+        <article><small>ACTIVE LEASE</small><b>{data.mediaExecution.counts.leased}</b><span>10-minute bounded lease</span></article>
+        <article><small>VERIFIED</small><b>{data.mediaExecution.counts.complete}</b><span>source-frame sets</span></article>
+        <article><small>NEXT GATE</small><b>{data.mediaExecution.nextGate.replaceAll("_", " ")}</b><span>scale remains locked</span></article>
+      </div>
+      <div className="mediaExecutionContract">
+        <div><b>Execution contract</b><span>FFPROBE → 10% frame → 50% frame → 90% frame → SHA-256/read-back → evidence registry</span><small>960×540 JPEG · exact three-frame set · source duration tolerance 250ms · no thumbnail substitution</small></div>
+        {!data.mediaExecution.jobs.some((job) => ["QUEUED", "LEASED", "COMPLETE"].includes(job.status)) && <button onClick={() => void planExecution()} disabled={Boolean(working)}>{working === "PLAN_ROOT_CAUSE_EXECUTION" ? "Creating bounded job…" : "Create root-cause media job · $0"}</button>}
+      </div>
+      {!data.mediaExecution.configured && <p className="stateBanner errorState">Add MEDIA_EXECUTOR_SHARED_SECRET in Factory Connections before starting the executor. Creating the job itself makes no provider or AI request.</p>}
+      {data.mediaExecution.jobs.length > 0 && <div className="mediaExecutionJobs">{data.mediaExecution.jobs.map((job)=><article key={job.id}><span><b>{job.briefId}</b><small>{job.type.replaceAll("_", " ")}</small></span><strong>{job.status}</strong><span><b>{job.attempt}/{job.maxAttempts}</b><small>{job.error || job.leaseOwner || "Stored and resumable"}</small></span></article>)}</div>}
     </section>
     <section className="shotDoctrine">
       <header><p>MATERIAL FUNNEL · LOCKED</p><h2>Deterministic first. Expensive intelligence last.</h2><span>Pilot production stays unauthorized until this contract passes.</span></header>

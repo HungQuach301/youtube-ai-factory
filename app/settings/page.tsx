@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type Connection = {
-  id: string; name: string; group: "AI_GENERATION" | "VOICE_SOUND" | "MEDIA_SOURCING" | "STORAGE_LIBRARY" | "DISTRIBUTION_ANALYTICS";
+  id: string; name: string; group: "AI_GENERATION" | "VOICE_SOUND" | "MEDIA_SOURCING" | "MEDIA_EXECUTION" | "STORAGE_LIBRARY" | "DISTRIBUTION_ANALYTICS";
   status: "CONNECTED" | "KEY_REQUIRED" | "CONFIG_REQUIRED" | "OAUTH_SETUP" | "BLOCKED";
   capability: string; requiredKeys: string[]; securityModel: string; nextAction: string;
 };
@@ -19,6 +19,7 @@ const groupMeta: Record<Connection["group"], { title: string; description: strin
   AI_GENERATION: { title: "AI & generation", description: "Intelligence, writing, critics and generative adapters" },
   VOICE_SOUND: { title: "Voice & sound", description: "Narrator identity, speech production and audio QA" },
   MEDIA_SOURCING: { title: "Media sourcing", description: "Free and paid footage, images and rights evidence" },
+  MEDIA_EXECUTION: { title: "Media execution", description: "Deterministic video probing, frame extraction and render workers" },
   STORAGE_LIBRARY: { title: "Storage & personal library", description: "Factory records, private media and user-selected cloud files" },
   DISTRIBUTION_ANALYTICS: { title: "Distribution & analytics", description: "YouTube discovery, publishing, measurement and learning" },
 };

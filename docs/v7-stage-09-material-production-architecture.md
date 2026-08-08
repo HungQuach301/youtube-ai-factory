@@ -216,3 +216,49 @@ The Hybrid Compositor must preserve the documentary provider frame as context wh
 - **ADR-048 — Scale requires sequence evidence.** Per-shot PASS cannot authorize full production. A representative 30-second playback must prove continuity, variety, rhythm and audio handoff.
 - **ADR-049 — Backpressure protects both quality and spend.** Concurrency responds to defect rate, duplicate rate, provider health, queue age and measured cost variance; any P0 stops dispatch.
 - **ADR-050 — Root-cause recovery changes a mechanism.** A failed full-unit retry remains locked until a stored diagnosis names the changed source, renderer, QA or execution mechanism. Cosmetic reruns are prohibited.
+
+## Wave 09.5 — Media Execution Plane V1
+
+Wave 09.5 implements the durable boundary between orchestration and binary media work. It does not authorize a new visual, AI request or production tranche. It creates one root-cause source-frame job and proves that a separately operated executor can transform the already stored provider MP4 into inspectable evidence without substituting a thumbnail.
+
+### Runtime topology
+
+| Component | Owns | Must not do |
+|---|---|---|
+| Sites control plane | authorization, durable queue, leases, state transitions, evidence references and gates | decode video, run ffmpeg or infer media completion |
+| D1 media queue | immutable contract, attempt count, lease owner, expiry, result and terminal failure | contain binary frames or credentials |
+| R2 runtime store | original video, extracted frames and evidence manifest | represent an asset without checksum/read-back |
+| Google Drive archive | reusable originals and immutable evidence manifests | replace runtime state or queue truth |
+| Media executor | ffprobe, SHA-256, exact frame extraction and bounded upload | select creative meaning, call AI or advance scale |
+
+### Source-frame job contract
+
+1. The control plane chooses only the current root-cause brief and its already stored primary video.
+2. Planning creates one `SOURCE_FRAME_EXTRACTION` job and costs $0.
+3. An executor heartbeat proves `ffprobe`, `ffmpeg`, SHA-256 and 960×540 JPEG capability.
+4. A worker claims one job under a ten-minute lease. Expired leases are recoverable once; attempt exhaustion becomes a terminal failure.
+5. The source download is authorized by both executor secret and per-job lease token.
+6. The worker verifies the downloaded bytes against the frozen source SHA-256.
+7. `ffprobe` supplies codec, original dimensions, duration and frame-rate evidence.
+8. The worker extracts exact 10%, 50% and 90% frames using cover fit at 960×540.
+9. Completion is rejected unless source hash, duration tolerance, image signatures, dimensions, frame roles and byte-size bounds all pass.
+10. Frames and manifest are stored in R2 and Google Drive before the job becomes `COMPLETE`.
+
+### Scaling and recovery behavior
+
+- The executor claims at most one job per lease and never generates more work.
+- Page refresh cannot duplicate a job; job identity and lease state are durable.
+- Completion is idempotent by job/evidence identity.
+- A worker crash preserves the job and source; the lease expires and one bounded recovery is allowed.
+- No OpenAI or media-provider request is emitted by job planning, heartbeat, claim or source-frame completion.
+- A verified frame set unlocks only the composite tournament. It does not unlock pilot continuation or full production.
+
+### Additional locked decisions
+
+- **ADR-051 — Binary execution is capability-isolated.** The media worker owns deterministic transforms only; it cannot select meaning, alter the frozen contract or authorize scale.
+- **ADR-052 — Queue state is durable and lease-based.** One job has one active lease, a fixed expiry and a bounded attempt count; browser lifetime is irrelevant.
+- **ADR-053 — Source hash crosses the trust boundary.** A worker must return the same SHA-256 as the stored original before any extracted frame is accepted.
+- **ADR-054 — Frame evidence is exact and role-complete.** ENTRY, MIDPOINT and EXIT are mandatory, unique and production-sized; a provider poster cannot fill any role.
+- **ADR-055 — Media completion requires two stores.** R2 read-back and Google Drive archive references are recorded before evidence becomes verified.
+- **ADR-056 — Execution readiness is observable.** Configuration, heartbeat, queue depth, active lease, failure and evidence counts are visible in the Stage 09 control plane.
+- **ADR-057 — Deterministic media work has zero AI authority.** The executor never calls an AI model. Semantic and composite adjudication remain separate, explicitly authorized gates.

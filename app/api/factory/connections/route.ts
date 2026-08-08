@@ -6,12 +6,13 @@ type RuntimeEnv = {
   PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string;
   SHUTTERSTOCK_CONSUMER_KEY?: string; SHUTTERSTOCK_CONSUMER_SECRET?: string;
   GOOGLE_DRIVE_CLIENT_ID?: string; GOOGLE_DRIVE_CLIENT_SECRET?: string; GOOGLE_DRIVE_TOKEN_KEY?: string;
+  MEDIA_EXECUTOR_SHARED_SECRET?: string;
 };
 
 type ConnectionStatus = "CONNECTED" | "KEY_REQUIRED" | "CONFIG_REQUIRED" | "OAUTH_SETUP" | "BLOCKED";
 
 type FactoryConnection = {
-  id: string; name: string; group: "AI_GENERATION" | "VOICE_SOUND" | "MEDIA_SOURCING" | "STORAGE_LIBRARY" | "DISTRIBUTION_ANALYTICS";
+  id: string; name: string; group: "AI_GENERATION" | "VOICE_SOUND" | "MEDIA_SOURCING" | "MEDIA_EXECUTION" | "STORAGE_LIBRARY" | "DISTRIBUTION_ANALYTICS";
   status: ConnectionStatus; capability: string; requiredKeys: string[]; securityModel: string; nextAction: string;
 };
 
@@ -33,6 +34,7 @@ async function connectionCatalog() {
     { id: "pexels", name: "Pexels", group: "MEDIA_SOURCING", status: configured(env.PEXELS_API_KEY) ? "CONNECTED" : "KEY_REQUIRED", capability: "Landscape photo and video discovery for visual beat candidates.", requiredKeys: ["PEXELS_API_KEY"], securityModel: "Protected server secret · source license retained", nextAction: configured(env.PEXELS_API_KEY) ? "Ready for unified search" : "Add PEXELS_API_KEY" },
     { id: "pixabay", name: "Pixabay", group: "MEDIA_SOURCING", status: configured(env.PIXABAY_API_KEY) ? "CONNECTED" : "KEY_REQUIRED", capability: "Photo and footage discovery with commercial-use license references.", requiredKeys: ["PIXABAY_API_KEY"], securityModel: "Protected server secret · source license retained", nextAction: configured(env.PIXABAY_API_KEY) ? "Ready for unified search" : "Add PIXABAY_API_KEY" },
     { id: "shutterstock", name: "Shutterstock", group: "MEDIA_SOURCING", status: configured(env.SHUTTERSTOCK_CONSUMER_KEY) && configured(env.SHUTTERSTOCK_CONSUMER_SECRET) ? "CONNECTED" : "KEY_REQUIRED", capability: "Paid image and footage search with a separate purchase and rights-evidence gate.", requiredKeys: ["SHUTTERSTOCK_CONSUMER_KEY", "SHUTTERSTOCK_CONSUMER_SECRET"], securityModel: "Protected server secrets · license proof required before use", nextAction: configured(env.SHUTTERSTOCK_CONSUMER_KEY) && configured(env.SHUTTERSTOCK_CONSUMER_SECRET) ? "Search ready · license handoff retained" : "Add consumer key + secret" },
+    { id: "media_executor", name: "Media Execution Worker", group: "MEDIA_EXECUTION", status: configured(env.MEDIA_EXECUTOR_SHARED_SECRET) ? "CONNECTED" : "KEY_REQUIRED", capability: "Queue-backed ffprobe, ffmpeg frame extraction, source-hash verification and bounded media transforms.", requiredKeys: ["MEDIA_EXECUTOR_SHARED_SECRET"], securityModel: "Protected shared secret + per-job lease token · no AI authority", nextAction: configured(env.MEDIA_EXECUTOR_SHARED_SECRET) ? "Worker authentication ready · start executor heartbeat" : "Add a strong random executor secret" },
     { id: "database", name: "Factory Database", group: "STORAGE_LIBRARY", status: env.DB ? "CONNECTED" : "BLOCKED", capability: "Projects, workflow state, evidence, gates, rights ledger and audit history.", requiredKeys: [], securityModel: "Factory-owned durable database", nextAction: env.DB ? "Connected · shared by every project" : "Database binding required" },
     { id: "owned_vault", name: "Owned Media Vault", group: "STORAGE_LIBRARY", status: env.BUCKET ? "CONNECTED" : "BLOCKED", capability: "Private personal images, footage, narration stems and rendered masters.", requiredKeys: [], securityModel: "Private object storage · per-asset provenance", nextAction: env.BUCKET ? "Connected · shared factory library" : "Storage binding required" },
     { id: "google_drive", name: "Google Drive", group: "STORAGE_LIBRARY", status: driveConfigured ? driveConnection?.status === "VERIFIED" ? "CONNECTED" : "OAUTH_SETUP" : "CONFIG_REQUIRED", capability: "Primary user-owned canonical archive for verified assets, rights evidence, masters and recovery.", requiredKeys: ["GOOGLE_DRIVE_CLIENT_ID", "GOOGLE_DRIVE_CLIENT_SECRET", "GOOGLE_DRIVE_TOKEN_KEY"], securityModel: "OAuth drive.file · AES-GCM token vault · round-trip evidence", nextAction: !driveConfigured ? "Add the three protected Drive values" : driveConnection?.status === "VERIFIED" ? "Canonical archive verified" : "Authorize Google Drive in Storage settings" },
@@ -81,6 +83,7 @@ async function testConnection(provider: string) {
     else if (provider === "pixabay") await fetchChecked(`https://pixabay.com/api/?key=${encodeURIComponent(env.PIXABAY_API_KEY || "")}&q=money&per_page=3&safesearch=true`);
     else if (provider === "shutterstock") await fetchChecked("https://api.shutterstock.com/v2/images/search?query=money&page=1&per_page=5&view=minimal", shutterstockHeaders(env));
     else if (provider === "google_drive") await verifyDriveConnection();
+    else if (provider === "media_executor") return { provider, status: "CONNECTED", latencyMs: Date.now() - startedAt, message: "Executor authentication is configured; Stage 09 heartbeat confirms runtime health" };
     else if (provider === "youtube") await fetchChecked(`https://www.googleapis.com/youtube/v3/videos?part=id&id=dQw4w9WgXcQ&key=${encodeURIComponent(env.YOUTUBE_API_KEY || "")}`);
     return { provider, status: "CONNECTED", latencyMs: Date.now() - startedAt, message: provider === "database" || provider === "owned_vault" ? "Factory binding is available" : provider === "elevenlabs" ? "ElevenLabs API key authenticated · Text-to-Speech remains protected server-side" : "Server-side connection test passed" };
   } catch (error) {

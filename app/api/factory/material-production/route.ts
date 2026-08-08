@@ -18,7 +18,7 @@ type Statement = { bind: (...values: unknown[]) => Statement; run: () => Promise
 type DB = { prepare: (query: string) => Statement; batch: (statements: Statement[]) => Promise<unknown> };
 type BucketObject = { body: ReadableStream; httpMetadata?: { contentType?: string } };
 type Bucket = { put: (key: string, value: string | ArrayBuffer | Uint8Array, options?: Record<string, unknown>) => Promise<unknown>; head: (key: string) => Promise<unknown>; get: (key: string) => Promise<BucketObject | null> };
-type Env = { DB?: DB; BUCKET?: Bucket; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?: string; PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string; SHUTTERSTOCK_CONSUMER_KEY?: string };
+type Env = { DB?: DB; BUCKET?: Bucket; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?: string; PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string; SHUTTERSTOCK_CONSUMER_KEY?: string; MEDIA_EXECUTOR_SHARED_SECRET?: string };
 type Row = Record<string, unknown>;
 type Candidate = { id: string; provider: string; title: string; sourceUrl: string; assetUrl: string; thumbnailUrl: string; licenseCode: string; licenseUrl: string; width: number; height: number; duration: number; score: number };
 
@@ -63,6 +63,9 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_material_tournaments (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,status text NOT NULL,champion_candidate_id text,score integer DEFAULT 0 NOT NULL,candidate_count integer DEFAULT 0 NOT NULL,provider_coverage integer DEFAULT 0 NOT NULL,content_json text NOT NULL,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_material_files (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,asset_role text DEFAULT 'PRIMARY' NOT NULL,source_type text NOT NULL,provider text NOT NULL,provider_asset_id text,source_url text,landing_url text,license_code text NOT NULL,mime_type text NOT NULL,width integer NOT NULL,height integer NOT NULL,duration_seconds real DEFAULT 0 NOT NULL,byte_size integer NOT NULL,content_hash text NOT NULL,runtime_key text NOT NULL,drive_file_id text NOT NULL,thumbnail_url text,status text DEFAULT 'STORED_VERIFIED' NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_material_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,file_id text NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text NOT NULL,provider_response_id text,findings_json text DEFAULT '[]' NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_media_executors (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,status text DEFAULT 'OFFLINE' NOT NULL,version text NOT NULL,capabilities_json text DEFAULT '[]' NOT NULL,last_seen_at text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_media_jobs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,source_file_id text NOT NULL,job_type text NOT NULL,status text DEFAULT 'QUEUED' NOT NULL,priority integer DEFAULT 100 NOT NULL,attempt integer DEFAULT 0 NOT NULL,max_attempts integer DEFAULT 2 NOT NULL,lease_owner text,lease_token_hash text,lease_expires_at text,contract_json text NOT NULL,output_json text,error text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_media_evidence (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,job_id text NOT NULL,evidence_type text NOT NULL,status text DEFAULT 'VERIFIED' NOT NULL,content_json text NOT NULL,content_hash text NOT NULL,runtime_key text NOT NULL,drive_file_id text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
 ] as const;
 
@@ -75,6 +78,35 @@ async function sha(value: string) { return shaBytes(new TextEncoder().encode(val
 function escapeXml(value: string) { return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 function short(value: unknown, length = 72) { const text = clean(value); return text.length <= length ? text : `${text.slice(0, length - 1)}…`; }
 function base64(bytes: Uint8Array) { let value = ""; for (const byte of bytes) value += String.fromCharCode(byte); return btoa(value); }
+function architectureSnapshot(executorConfigured: boolean, executorOnline: boolean, sourceEvidenceReady: boolean) {
+  return {
+    ...STAGE09_ARCHITECTURE,
+    planes: STAGE09_ARCHITECTURE.planes.map((plane) => {
+      if (plane.id === "SOURCE") return { ...plane, status: sourceEvidenceReady ? "READY" : executorConfigured ? "READY_TO_EXECUTE" : "BLOCKED_CONFIGURATION" };
+      if (plane.id === "EXECUTION") return { ...plane, status: executorOnline ? "READY" : executorConfigured ? "WAITING_FOR_HEARTBEAT" : "BLOCKED_CONFIGURATION" };
+      return plane;
+    }),
+  };
+}
+
+async function secretMatches(provided: string, expected: string) {
+  if (!provided || !expected) return false;
+  const [left, right] = await Promise.all([sha(provided), sha(expected)]);
+  return left === right;
+}
+
+function decodeBase64(value: string) {
+  const normalized = value.replace(/^data:[^;]+;base64,/, "");
+  const binary = atob(normalized), bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+function validImage(bytes: Uint8Array, mimeType: string) {
+  if (mimeType === "image/png") return bytes.length > 8 && bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71;
+  if (mimeType === "image/jpeg") return bytes.length > 4 && bytes[0] === 255 && bytes[1] === 216 && bytes.at(-2) === 255 && bytes.at(-1) === 217;
+  return false;
+}
 
 async function runtime() {
   const { env } = await import("cloudflare:workers");
@@ -172,22 +204,36 @@ async function snapshot() {
   const files = authorization ? await rows(db, "SELECT * FROM v7_material_files WHERE authorization_id=? ORDER BY created_at ASC", authorization.id) : [];
   const audits = authorization ? await rows(db, "SELECT * FROM v7_material_audits WHERE authorization_id=? ORDER BY created_at ASC", authorization.id) : [];
   const tournaments = authorization ? await rows(db, "SELECT * FROM v7_material_tournaments WHERE authorization_id=? ORDER BY created_at ASC", authorization.id) : [];
+  const mediaJobs = authorization ? await rows(db, "SELECT * FROM v7_media_jobs WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
+  const mediaEvidence = authorization ? await rows(db, "SELECT * FROM v7_media_evidence WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
+  const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
   let shotCount = 0; try { shotCount = (await upstream(db)).shots.length; } catch { shotCount = 0; }
   const primaryFiles = files.filter((file) => file.asset_role === "PRIMARY");
   const items = pilotBriefs.map((brief) => { const value = JSON.parse(String(brief.content_json)) as Row, file = primaryFiles.find((item) => item.brief_id === brief.id), overlay = files.find((item) => item.brief_id === brief.id && item.asset_role === "OVERLAY"), auditRow = audits.find((item) => item.brief_id === brief.id), tournament = tournaments.find((item) => item.brief_id === brief.id), tournamentContent = tournament?.content_json ? rec(JSON.parse(String(tournament.content_json))) : {}; return { id: brief.id, briefId: value.briefId, route: value.route, family: value.primaryFamily, meaning: value.viewerMustUnderstand, status: auditRow?.status || file?.status || brief.status, file: file ? { id: file.id, provider: file.provider, mimeType: file.mime_type, bytes: Number(file.byte_size), hash: clean(file.content_hash).slice(0, 12), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(file.id))}` } : null, overlay: overlay ? { id: overlay.id, previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(overlay.id))}` } : null, tournament: tournament ? { status: tournament.status, score: Number(tournament.score), candidateCount: Number(tournament.candidate_count), providerCoverage: Number(tournament.provider_coverage), championId: tournament.champion_candidate_id, bestCandidateId: tournamentContent.bestCandidateId || null, bestReason: tournamentContent.bestReason || null, repairAttempt: Number(tournamentContent.repairAttempt || 0), assignedPixelJob: tournamentContent.assignedPixelJob || null } : null, audit: auditRow ? { status: auditRow.status, score: Number(auditRow.score), findings: JSON.parse(String(auditRow.findings_json || "[]")) } : null }; });
   const uniqueMaterialized = new Set(primaryFiles.map((file) => String(file.brief_id))).size;
+  const executorAge = executor?.last_seen_at ? Date.now() - new Date(String(executor.last_seen_at)).getTime() : Number.POSITIVE_INFINITY;
+  const executorOnline = executorAge < 120_000;
+  const sourceEvidenceReady = mediaEvidence.some((item) => item.evidence_type === "SOURCE_FRAME_SET" && item.status === "VERIFIED");
   return {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
     provider: { model: setting.modelId, reasoningEffort: setting.reasoningEffort, modelOptions: MODEL_OPTIONS, reasoningOptions: REASONING_OPTIONS },
-    architecture: STAGE09_ARCHITECTURE,
+    architecture: architectureSnapshot(Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET), executorOnline, sourceEvidenceReady),
     policy: { execution: "ZERO_SPEND_DRY_RUN_THEN_AUTHORIZED_TRANCHES", pilotShots: "8–12", expectedOutputTokens: "500–16000", safetyCeilings: "3000/8000/16000/32000", maxRetry: 1, retryPolicy: "DELTA_ONLY", incompletePolicy: "BLOCK_GATE", factualVisuals: "CODE_NATIVE", evidence: "STORED_PIXELS_AND_CHECKSUM" },
     run: run ? { id: run.id, status: run.status, score: Number(run.score), briefCount: Number(run.brief_count), pilotCount: Number(run.pilot_count), remoteRequests: Number(run.remote_requests), actualCostUsd: Number(run.actual_cost_usd), gates: JSON.parse(String(run.gate_json || "[]")) } : null,
     artifact: content ? { contentHash: artifact?.content_hash, runtimeKey: artifact?.runtime_key, driveFileId: artifact?.drive_file_id, pilotIds: content.pilotIds, routeMix: content.routeMix, modelMix: content.modelMix, sampleBriefs: arr(content.briefs).slice(0, 8) } : null,
     authorization: authorization ? { id: authorization.id, runId: authorization.run_id, scope: authorization.scope, status: authorization.status, shotCount: Number(authorization.shot_count), maxRemoteRequests: Number(authorization.max_remote_requests), maxActualSpendUsd: Number(authorization.max_actual_spend_usd), modelPolicy: JSON.parse(String(authorization.model_policy_json || "{}")), authorizedAt: authorization.authorized_at, revokedAt: authorization.revoked_at } : null,
     pilot: { materialized: uniqueMaterialized, audited: audits.filter((item) => ["PASS", "REPAIR_REQUIRED"].includes(String(item.status))).length, total: pilotBriefs.length, percent: pilotBriefs.length ? Math.round((uniqueMaterialized + audits.length) / (pilotBriefs.length * 2) * 100) : 0, items },
     requestLedger: { total: requestRows.length, planned: requestRows.filter((row) => row.status === "PLANNED").length, active: requestRows.filter((row) => ["QUEUED", "IN_PROGRESS"].includes(String(row.status))).length, complete: requestRows.filter((row) => row.status === "COMPLETE").length, incomplete: requestRows.filter((row) => row.status === "BLOCKED_INCOMPLETE").length, actualCostUsd: requestRows.reduce((sum, row) => sum + Number(row.actual_cost_usd || 0), 0), recent: requestRows.slice(0, 20).map((row) => ({ id: row.id, briefId: row.brief_id, phase: row.phase, provider: row.provider, modelId: row.model_id, status: row.status, inputTokens: Number(row.input_tokens), outputTokens: Number(row.output_tokens), reasoningTokens: Number(row.reasoning_tokens), actualCostUsd: Number(row.actual_cost_usd), error: row.error, createdAt: row.created_at })) },
+    mediaExecution: {
+      configured: Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET),
+      executor: executor ? { id: executor.id, status: executorOnline ? "ONLINE" : "OFFLINE", version: executor.version, lastSeenAt: executor.last_seen_at, capabilities: JSON.parse(String(executor.capabilities_json || "[]")) } : null,
+      counts: Object.fromEntries(["QUEUED", "LEASED", "COMPLETE", "FAILED", "BLOCKED"].map((status) => [status.toLowerCase(), mediaJobs.filter((job) => job.status === status).length])),
+      jobs: mediaJobs.slice(0, 12).map((job) => ({ id: job.id, briefId: job.brief_id, type: job.job_type, status: job.status, attempt: Number(job.attempt), maxAttempts: Number(job.max_attempts), leaseOwner: job.lease_owner, error: job.error, createdAt: job.created_at, completedAt: job.completed_at })),
+      evidence: mediaEvidence.slice(0, 12).map((item) => ({ id: item.id, briefId: item.brief_id, type: item.evidence_type, status: item.status, hash: clean(item.content_hash).slice(0, 12), createdAt: item.created_at })),
+      nextGate: sourceEvidenceReady ? "COMPOSITE_TOURNAMENT" : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET",
+    },
   };
 }
 
@@ -437,7 +483,7 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
   for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
 }
 
-async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row, options: { role: "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT"; bytes: Uint8Array; mimeType: string; extension: string; sourceType: string; provider: string; providerAssetId?: string; sourceUrl?: string; landingUrl?: string; licenseCode: string; width: number; height: number; duration?: number; thumbnailUrl?: string }) {
+async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row, options: { role: "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT" | "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT"; bytes: Uint8Array; mimeType: string; extension: string; sourceType: string; provider: string; providerAssetId?: string; sourceUrl?: string; landingUrl?: string; licenseCode: string; width: number; height: number; duration?: number; thumbnailUrl?: string }) {
   if (!env.BUCKET) throw new Error("R2 material storage is unavailable");
   const id = `${briefRow.id}-${options.role}`, hash = await shaBytes(options.bytes), key = `v7/material-production/${authorization.run_id}/pilot/${clean(briefRow.id).split("-").at(-1)}-${options.role.toLowerCase()}.${options.extension}`;
   await env.BUCKET.put(key, options.bytes, { httpMetadata: { contentType: options.mimeType }, customMetadata: { sha256: hash, briefId: String(briefRow.id), role: options.role, provider: options.provider, licenseCode: options.licenseCode } });
@@ -671,6 +717,113 @@ async function resumePilot() {
   return snapshot();
 }
 
+async function planRootCauseExecution() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("MATERIAL_RUN_REQUIRED");
+  if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
+  const brief = await repairedPilotBrief(db, authorization) || await db.prepare("SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds LIMIT 1").bind(run.id).first<Row>();
+  if (!brief) throw new Error("ROOT_CAUSE_BRIEF_NOT_FOUND");
+  const source = await db.prepare("SELECT * FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role='PRIMARY' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  if (!source || !clean(source.mime_type).startsWith("video/")) throw new Error("ROOT_CAUSE_SOURCE_VIDEO_REQUIRED");
+  const existing = await db.prepare("SELECT id,status FROM v7_media_jobs WHERE authorization_id=? AND brief_id=? AND job_type='SOURCE_FRAME_EXTRACTION' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  if (existing && ["QUEUED", "LEASED", "COMPLETE"].includes(clean(existing.status))) return snapshot();
+  const now = new Date().toISOString(), id = `${brief.id}-SOURCE-FRAMES-${Date.now()}`;
+  const contract = {
+    version: "MEDIA_EXECUTION_CONTRACT_V1",
+    sourceFileId: source.id,
+    sourceHash: source.content_hash,
+    sourceMimeType: source.mime_type,
+    expectedDurationSeconds: Number(source.duration_seconds || 0),
+    operations: ["FFPROBE", "FRAME_ENTRY", "FRAME_MIDPOINT", "FRAME_EXIT"],
+    samplePositions: [{ role: "ENTRY", ratio: 0.1 }, { role: "MIDPOINT", ratio: 0.5 }, { role: "EXIT", ratio: 0.9 }],
+    output: { mimeType: "image/jpeg", width: 960, height: 540, fit: "cover", jpegQuality: 88 },
+    acceptance: { exactFrameCount: 3, sourceHashMustMatch: true, durationToleranceSeconds: 0.25, noThumbnailSubstitution: true, noAudienceOverlay: true },
+  };
+  await db.batch([
+    db.prepare("INSERT INTO v7_media_jobs (id,program_id,run_id,authorization_id,brief_id,source_file_id,job_type,status,priority,attempt,max_attempts,contract_json,created_at,updated_at) VALUES (?,?,?,?,?,?,'SOURCE_FRAME_EXTRACTION','QUEUED',100,0,2,?,?,?)").bind(id, PROGRAM_ID, run.id, authorization.id, brief.id, source.id, JSON.stringify(contract), now, now),
+    db.prepare("UPDATE v7_stage_states SET blocker='MEDIA_EXECUTION_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${brief.id} source-frame job queued · no AI/provider request · scale remains locked`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function requireExecutor(request: Request, env: Env) {
+  const supplied = clean(request.headers.get("x-frameflow-executor-key"));
+  if (!env.MEDIA_EXECUTOR_SHARED_SECRET || !(await secretMatches(supplied, env.MEDIA_EXECUTOR_SHARED_SECRET))) throw new Error("MEDIA_EXECUTOR_UNAUTHORIZED");
+}
+
+async function executorHeartbeat(request: Request, body: Row) {
+  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
+  const id = clean(body.executorId) || "default-media-executor", version = clean(body.version) || "unknown", capabilities = arr(body.capabilities).map(clean).filter(Boolean).slice(0, 20), now = new Date().toISOString();
+  await db.prepare("INSERT INTO v7_media_executors (id,program_id,status,version,capabilities_json,last_seen_at,created_at,updated_at) VALUES (?,?,'ONLINE',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='ONLINE',version=excluded.version,capabilities_json=excluded.capabilities_json,last_seen_at=excluded.last_seen_at,updated_at=excluded.updated_at").bind(id, PROGRAM_ID, version, JSON.stringify(capabilities), now, now, now).run();
+  return Response.json({ status: "READY", executorId: id, serverTime: now });
+}
+
+async function claimMediaJob(request: Request, body: Row) {
+  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
+  const owner = clean(body.executorId) || "default-media-executor", now = new Date().toISOString(), expiry = new Date(Date.now() + 10 * 60_000).toISOString();
+  await db.prepare("UPDATE v7_media_jobs SET status='QUEUED',lease_owner=NULL,lease_token_hash=NULL,lease_expires_at=NULL,updated_at=? WHERE program_id=? AND status='LEASED' AND lease_expires_at<? AND attempt<max_attempts").bind(now, PROGRAM_ID, now).run();
+  await db.prepare("UPDATE v7_media_jobs SET status='FAILED',error='LEASE_EXHAUSTED',updated_at=? WHERE program_id=? AND status='LEASED' AND lease_expires_at<? AND attempt>=max_attempts").bind(now, PROGRAM_ID, now).run();
+  const job = await db.prepare("SELECT * FROM v7_media_jobs WHERE program_id=? AND status='QUEUED' AND attempt<max_attempts ORDER BY priority DESC,created_at ASC LIMIT 1").bind(PROGRAM_ID).first<Row>();
+  if (!job) return Response.json({ status: "IDLE", retryAfterSeconds: 15 });
+  const leaseToken = crypto.randomUUID(), tokenHash = await sha(leaseToken);
+  await db.prepare("UPDATE v7_media_jobs SET status='LEASED',attempt=attempt+1,lease_owner=?,lease_token_hash=?,lease_expires_at=?,updated_at=? WHERE id=? AND status='QUEUED'").bind(owner, tokenHash, expiry, now, job.id).run();
+  const claimed = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED' AND lease_owner=?").bind(job.id, owner).first<Row>();
+  if (!claimed) return Response.json({ status: "RETRY", retryAfterSeconds: 2 }, { status: 409 });
+  return Response.json({ status: "LEASED", job: { id: claimed.id, type: claimed.job_type, briefId: claimed.brief_id, attempt: Number(claimed.attempt), maxAttempts: Number(claimed.max_attempts), leaseExpiresAt: claimed.lease_expires_at, leaseToken, sourceDownloadUrl: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}`, contract: JSON.parse(String(claimed.contract_json)) } });
+}
+
+async function executionSource(request: Request) {
+  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
+  if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
+  const url = new URL(request.url), jobId = clean(url.searchParams.get("executionSource")), leaseToken = clean(url.searchParams.get("leaseToken"));
+  const job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(jobId).first<Row>();
+  if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
+  const file = await db.prepare("SELECT runtime_key,mime_type,content_hash FROM v7_material_files WHERE id=?").bind(job.source_file_id).first<Row>();
+  if (!file) throw new Error("MEDIA_SOURCE_FILE_NOT_FOUND");
+  const object = await env.BUCKET.get(clean(file.runtime_key)); if (!object) throw new Error("MEDIA_SOURCE_BYTES_NOT_FOUND");
+  return new Response(object.body, { headers: { "content-type": clean(file.mime_type), "x-content-sha256": clean(file.content_hash), "cache-control": "private, no-store" } });
+}
+
+async function completeMediaJob(request: Request, body: Row) {
+  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
+  if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
+  const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(jobId).first<Row>();
+  if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
+  const source = await db.prepare("SELECT * FROM v7_material_files WHERE id=?").bind(job.source_file_id).first<Row>(), brief = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(job.brief_id).first<Row>(), authorization = await db.prepare("SELECT * FROM v7_material_authorizations WHERE id=?").bind(job.authorization_id).first<Row>();
+  if (!source || !brief || !authorization) throw new Error("MEDIA_JOB_LINEAGE_MISSING");
+  const probe = rec(body.probe), frames = arr(body.frames).map(rec), contract = rec(JSON.parse(String(job.contract_json))), expected = rec(contract.output), requiredRoles = ["ENTRY", "MIDPOINT", "EXIT"];
+  if (clean(body.sourceHash) !== clean(source.content_hash)) throw new Error("MEDIA_SOURCE_HASH_MISMATCH");
+  if (frames.length !== 3 || !requiredRoles.every((role) => frames.filter((frame) => clean(frame.role) === role).length === 1)) throw new Error("MEDIA_FRAME_SET_INVALID");
+  if (Math.abs(Number(probe.durationSeconds) - Number(source.duration_seconds || 0)) > 0.25) throw new Error("MEDIA_DURATION_MISMATCH");
+  const storedFrameIds: string[] = [];
+  for (const frame of frames) {
+    const role = clean(frame.role), mimeType = clean(frame.mimeType), bytes = decodeBase64(clean(frame.base64));
+    if (Number(frame.width) !== Number(expected.width) || Number(frame.height) !== Number(expected.height) || !validImage(bytes, mimeType) || bytes.byteLength < 20_000 || bytes.byteLength > 2_500_000) throw new Error(`MEDIA_FRAME_INVALID · ${role}`);
+    const storedRole = (`SOURCE_${role}`) as "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT";
+    storedFrameIds.push(await storeMaterial(env, db, authorization, brief, { role: storedRole, bytes, mimeType, extension: mimeType === "image/png" ? "png" : "jpg", sourceType: "DECODED_SOURCE_FRAME", provider: "MEDIA_EXECUTOR", providerAssetId: clean(source.provider_asset_id), sourceUrl: clean(source.source_url), landingUrl: clean(source.landing_url), licenseCode: clean(source.license_code), width: Number(frame.width), height: Number(frame.height), duration: Number(frame.timestampSeconds) }));
+  }
+  const evidence = { version: "SOURCE_FRAME_EVIDENCE_V1", jobId, briefId: job.brief_id, sourceFileId: source.id, sourceHash: source.content_hash, probe, frames: frames.map((frame, index) => ({ role: clean(frame.role), timestampSeconds: Number(frame.timestampSeconds), width: Number(frame.width), height: Number(frame.height), mimeType: clean(frame.mimeType), fileId: storedFrameIds[index] })), completedAt: new Date().toISOString() };
+  const json = JSON.stringify(evidence, null, 2), hash = await sha(json), key = `v7/material-production/${job.run_id}/execution/${jobId}-evidence.json`;
+  await env.BUCKET.put(key, json, { httpMetadata: { contentType: "application/json" }, customMetadata: { contentHash: hash, jobId, briefId: clean(job.brief_id) } });
+  const drive = await storeDriveJsonArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Material Production", "Execution Evidence"], fileName: `${jobId}-evidence.json`, content: json, artifactId: `${jobId}-EVIDENCE`, contentHash: hash });
+  const now = new Date().toISOString();
+  await db.batch([
+    db.prepare("INSERT INTO v7_media_evidence (id,program_id,run_id,authorization_id,brief_id,job_id,evidence_type,status,content_json,content_hash,runtime_key,drive_file_id,created_at) VALUES (?,?,?,?,?,?,'SOURCE_FRAME_SET','VERIFIED',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='VERIFIED',content_json=excluded.content_json,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id").bind(`${jobId}-EVIDENCE`, PROGRAM_ID, job.run_id, job.authorization_id, job.brief_id, jobId, json, hash, key, drive.id, now),
+    db.prepare("UPDATE v7_media_jobs SET status='COMPLETE',output_json=?,error=NULL,completed_at=?,updated_at=?,lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?").bind(JSON.stringify({ evidenceId: `${jobId}-EVIDENCE`, frameFileIds: storedFrameIds }), now, now, jobId),
+    db.prepare("UPDATE v7_stage_states SET blocker='COMPOSITE_TOURNAMENT_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${job.brief_id} actual source frames verified · composite tournament remains locked`, now, STAGE_ID),
+  ]);
+  return Response.json({ status: "COMPLETE", jobId, evidenceId: `${jobId}-EVIDENCE`, frameFileIds: storedFrameIds });
+}
+
+async function failMediaJob(request: Request, body: Row) {
+  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
+  const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(jobId).first<Row>();
+  if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash)) throw new Error("MEDIA_JOB_LEASE_INVALID");
+  const retry = Number(job.attempt) < Number(job.max_attempts), now = new Date().toISOString();
+  await db.prepare("UPDATE v7_media_jobs SET status=?,error=?,lease_owner=NULL,lease_token_hash=NULL,lease_expires_at=NULL,updated_at=? WHERE id=?").bind(retry ? "QUEUED" : "FAILED", short(body.error, 300) || "MEDIA_EXECUTION_FAILED", now, jobId).run();
+  return Response.json({ status: retry ? "QUEUED" : "FAILED", jobId, retryRemaining: Math.max(0, Number(job.max_attempts) - Number(job.attempt)) });
+}
+
 async function materialFile(request: Request) {
   const env = await runtime(), db = env.DB!, id = new URL(request.url).searchParams.get("file");
   if (!id || !env.BUCKET) return Response.json({ error: "Material file not found" }, { status: 404 });
@@ -680,10 +833,10 @@ async function materialFile(request: Request) {
   return new Response(object.body, { headers: { "content-type": file.mime_type, "cache-control": "private, max-age=300", "content-disposition": "inline" } });
 }
 
-export async function GET(request: Request) { try { if (new URL(request.url).searchParams.has("file")) return materialFile(request); return Response.json(await snapshot()); } catch (error) { return Response.json({ error: error instanceof Error ? error.message : "Stage 09 could not load" }, { status: 500 }); } }
+export async function GET(request: Request) { try { const params = new URL(request.url).searchParams; if (params.has("executionSource")) return executionSource(request); if (params.has("file")) return materialFile(request); return Response.json(await snapshot()); } catch (error) { const message = error instanceof Error ? error.message : "Stage 09 could not load"; return Response.json({ error: message }, { status: /UNAUTHORIZED|LEASE_INVALID/.test(message) ? 401 : /NOT_FOUND|MISSING/.test(message) ? 404 : 500 }); } }
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { action?: string; modelId?: string; reasoningEffort?: string };
+    const body = await request.json() as Row;
     if (body.action === "BUILD_DRY_RUN") return Response.json(await buildDryRun(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT") return Response.json(await authorizePilot(), { status: 201 });
     if (body.action === "REVOKE_PILOT") return Response.json(await revokePilot());
@@ -692,9 +845,19 @@ export async function POST(request: Request) {
     if (body.action === "STEP_PILOT") return Response.json(await stepPilot(), { status: 202 });
     if (body.action === "STOP_PILOT") return Response.json(await stopPilot());
     if (body.action === "RESUME_PILOT") return Response.json(await resumePilot(), { status: 202 });
+    if (body.action === "PLAN_ROOT_CAUSE_EXECUTION") return Response.json(await planRootCauseExecution(), { status: 201 });
+    if (body.action === "EXECUTOR_HEARTBEAT") return executorHeartbeat(request, body);
+    if (body.action === "CLAIM_MEDIA_JOB") return claimMediaJob(request, body);
+    if (body.action === "COMPLETE_MEDIA_JOB") return completeMediaJob(request, body);
+    if (body.action === "FAIL_MEDIA_JOB") return failMediaJob(request, body);
     return Response.json({ error: "Unsupported Stage 09 action" }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Stage 09 failed";
-    return Response.json({ error: message }, { status: /NOT_FROZEN|INCOMPLETE|REQUIRED|BLOCKED|CIRCUIT|ACTIVE|MISSING|NOT_FOUND|PIXEL|CANDIDATE/.test(message) ? 409 : 500 });
+    const status = /UNAUTHORIZED/.test(message)
+      ? 401
+      : /NOT_FROZEN|INCOMPLETE|REQUIRED|BLOCKED|CIRCUIT|ACTIVE|MISSING|NOT_FOUND|PIXEL|CANDIDATE|LEASE_INVALID/.test(message)
+        ? 409
+        : 500;
+    return Response.json({ error: message }, { status });
   }
 }
