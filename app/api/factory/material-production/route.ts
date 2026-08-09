@@ -12,6 +12,7 @@ const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V5";
 const PREVIOUS_COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V4";
 const MOTION_RENDERER_VERSION = "FRAMEFLOW_MOTION_PROOF_V1";
 const MOTION_QA_RUBRIC = "MOTION_PROOF_QA_V1";
+const MOTION_RIGHTS_BUNDLE_VERSION = "MOTION_RIGHTS_BUNDLE_V1";
 const MODEL_OPTIONS = [
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", description: "Maximum quality" },
   { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", description: "Balanced quality and speed" },
@@ -74,6 +75,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_source_frame_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,evidence_id text NOT NULL,status text DEFAULT 'QA_REQUIRED' NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,repair_json text DEFAULT '{}' NOT NULL,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_composite_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,evidence_id text NOT NULL,rubric_version text NOT NULL,status text DEFAULT 'QA_REQUIRED' NOT NULL,winner text,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,candidates_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,repair_json text DEFAULT '{}' NOT NULL,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_motion_proofs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,champion text NOT NULL,composite_rubric text NOT NULL,renderer_version text NOT NULL,status text DEFAULT 'RENDER_REQUIRED' NOT NULL,motion_file_id text,evidence_id text,source_hashes_json text NOT NULL,duration_seconds real NOT NULL,fps integer DEFAULT 30 NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,provider_response_id text,content_hash text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_motion_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,proof_id text NOT NULL,rubric_version text NOT NULL,attempt integer NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,evidence_bundle_json text DEFAULT '{}' NOT NULL,evidence_bundle_hash text NOT NULL,request_id text,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
 ] as const;
 
@@ -222,6 +224,7 @@ async function snapshot() {
   const sourceAudits = authorization ? await rows(db, "SELECT * FROM v7_source_frame_audits WHERE authorization_id=? ORDER BY updated_at DESC", authorization.id) : [];
   const compositeAudits = authorization ? await rows(db, "SELECT * FROM v7_composite_audits WHERE authorization_id=? ORDER BY updated_at DESC", authorization.id) : [];
   const motionProofs = authorization ? await rows(db, "SELECT * FROM v7_motion_proofs WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
+  const motionAudits = authorization ? await rows(db, "SELECT * FROM v7_motion_audits WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
   const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
@@ -246,6 +249,7 @@ async function snapshot() {
   const compositeIdentity = sourceEvidence ? `${displayedCompositeRubric}-${clean(sourceEvidence.content_hash).slice(0, 12)}` : "";
   const compositeCandidates = ["A", "B", "C"].map((candidate) => ({ candidate, scores: rec(compositeContent[candidate]), frames: ["ENTRY", "MIDPOINT", "EXIT"].map((state) => { const file = files.find((item) => item.brief_id === sourceEvidence?.brief_id && item.asset_role === `COMPOSITE_${candidate}_${state}` && clean(item.id).includes(compositeIdentity)); return file ? { state, fileId: file.id, previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(file.id))}` } : null; }).filter(Boolean) }));
   const motionProof = motionProofs[0] || null;
+  const motionRightsRepairAvailable = motionProof?.status === "REPAIR_REQUIRED" && arr(JSON.parse(String(motionProof.findings_json || "[]"))).some((finding) => /rights record|authorization for the checkout imagery/i.test(clean(finding)));
   const motionEvidence = motionProof?.evidence_id ? mediaEvidence.find((item) => item.id === motionProof.evidence_id) : null;
   let motionContent: Row = {}; try { motionContent = motionEvidence ? rec(JSON.parse(String(motionEvidence.content_json || "{}"))) : {}; } catch { motionContent = {}; }
   const motionJob = mediaJobs.find((job) => job.job_type === "MOTION_PROOF_RENDER");
@@ -257,6 +261,7 @@ async function snapshot() {
             : !motionProof ? "MOTION_PROOF_PLAN"
               : ["QUEUED", "LEASED"].includes(clean(motionJob?.status)) ? "MOTION_RENDER_RUNNING"
                 : motionQaActive ? "MOTION_QA_RUNNING"
+                  : motionRightsRepairAvailable ? "MOTION_RIGHTS_EVIDENCE_REPAIR"
                   : motionProof.status === "QA_REQUIRED" ? "MOTION_QA"
                     : motionProof.status === "PASS" ? "SEQUENCE_PROOF"
                       : "MOTION_PROOF_BLOCKED"
@@ -284,7 +289,7 @@ async function snapshot() {
       }),
       sourceQaActive,
       composite: { active: compositeActive, rubric: displayedCompositeRubric, status: compositeAudit?.status || "REQUIRED", winner: compositeAudit?.winner || null, score: Number(compositeAudit?.score || 0), dimensions: compositeAudit ? rec(JSON.parse(String(compositeAudit.dimensions_json || "{}"))) : {}, findings: compositeAudit ? arr(JSON.parse(String(compositeAudit.findings_json || "[]"))) : [], repair: compositeAudit ? rec(JSON.parse(String(compositeAudit.repair_json || "{}"))) : {}, candidates: compositeCandidates },
-      motionProof: motionProof ? { id: motionProof.id, status: motionProof.status, champion: motionProof.champion, renderer: motionProof.renderer_version, durationSeconds: Number(motionProof.duration_seconds), fps: Number(motionProof.fps), score: Number(motionProof.score), dimensions: rec(JSON.parse(String(motionProof.dimensions_json || "{}"))), findings: arr(JSON.parse(String(motionProof.findings_json || "[]"))), motionFileId: motionProof.motion_file_id || null, previewUrl: motionProof.motion_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(motionProof.motion_file_id))}` : null, contentHash: motionProof.content_hash || null, sourceHashes: arr(JSON.parse(String(motionProof.source_hashes_json || "[]"))), sampleFrames: arr(motionContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })) } : null,
+      motionProof: motionProof ? { id: motionProof.id, status: motionProof.status, champion: motionProof.champion, renderer: motionProof.renderer_version, durationSeconds: Number(motionProof.duration_seconds), fps: Number(motionProof.fps), score: Number(motionProof.score), dimensions: rec(JSON.parse(String(motionProof.dimensions_json || "{}"))), findings: arr(JSON.parse(String(motionProof.findings_json || "[]"))), motionFileId: motionProof.motion_file_id || null, previewUrl: motionProof.motion_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(motionProof.motion_file_id))}` : null, contentHash: motionProof.content_hash || null, sourceHashes: arr(JSON.parse(String(motionProof.source_hashes_json || "[]"))), sampleFrames: arr(motionContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })), rightsRepairAvailable: motionRightsRepairAvailable, audits: motionAudits.filter((audit) => audit.proof_id === motionProof.id).map((audit) => ({ attempt: Number(audit.attempt), status: clean(audit.status), score: Number(audit.score), evidenceBundleHash: clean(audit.evidence_bundle_hash), providerResponseId: clean(audit.provider_response_id), createdAt: clean(audit.created_at) })) } : null,
       motionQaActive,
       nextGate,
     },
@@ -1166,6 +1171,40 @@ async function completeMotionProof(request: Request, body: Row) {
   return Response.json({ status: "COMPLETE", proofId: proof.id, evidenceId: `${proof.id}-EVIDENCE`, motionFileId, frameFileIds: storedFrames.map((frame) => frame.fileId) });
 }
 
+async function motionRightsBundle(db: DB, proof: Row) {
+  const sourceRefs = arr(JSON.parse(String(proof.source_hashes_json || "[]"))).map(rec), sourceAssets: Row[] = [];
+  for (const source of sourceRefs) {
+    const file = await db.prepare("SELECT id,asset_role,source_type,provider,provider_asset_id,source_url,landing_url,license_code,content_hash,runtime_key,drive_file_id,status FROM v7_material_files WHERE id=?").bind(clean(source.fileId)).first<Row>();
+    if (!file || clean(file.content_hash) !== clean(source.sha256) || !clean(file.license_code) || !clean(file.runtime_key) || !clean(file.drive_file_id) || clean(file.status) !== "STORED_VERIFIED") throw new Error(`MOTION_RIGHTS_SOURCE_INVALID · ${clean(source.state)}`);
+    sourceAssets.push({ state: clean(source.state), fileId: clean(file.id), sha256: clean(file.content_hash), assetRole: clean(file.asset_role), sourceType: clean(file.source_type), provider: clean(file.provider), providerAssetId: clean(file.provider_asset_id), sourceUrl: clean(file.source_url), landingUrl: clean(file.landing_url), licenseCode: clean(file.license_code), storageStatus: clean(file.status), runtimeStored: true, driveStored: true });
+  }
+  const motionFile = await db.prepare("SELECT id,asset_role,source_type,provider,provider_asset_id,license_code,content_hash,runtime_key,drive_file_id,status FROM v7_material_files WHERE id=?").bind(proof.motion_file_id).first<Row>();
+  const evidence = await db.prepare("SELECT id,status,content_hash,runtime_key,drive_file_id FROM v7_media_evidence WHERE id=? AND evidence_type='MOTION_PROOF'").bind(proof.evidence_id).first<Row>();
+  if (sourceAssets.length !== 3 || !motionFile || !evidence || !clean(motionFile.license_code) || !clean(motionFile.content_hash) || !clean(motionFile.runtime_key) || !clean(motionFile.drive_file_id) || clean(motionFile.status) !== "STORED_VERIFIED" || clean(evidence.status) !== "TECHNICALLY_VERIFIED" || !clean(evidence.runtime_key) || !clean(evidence.drive_file_id)) throw new Error("MOTION_RIGHTS_BUNDLE_INCOMPLETE");
+  const bundle = { version: MOTION_RIGHTS_BUNDLE_VERSION, proofId: clean(proof.id), champion: clean(proof.champion), declaration: "The stored WebM is channel-owned output rendered only from the three authorized source/composite assets listed below. Rights and provenance are registry evidence and are not required to appear in audience-facing pixels.", motionOutput: { fileId: clean(motionFile.id), sha256: clean(motionFile.content_hash), assetRole: clean(motionFile.asset_role), sourceType: clean(motionFile.source_type), provider: clean(motionFile.provider), providerAssetId: clean(motionFile.provider_asset_id), licenseCode: clean(motionFile.license_code), storageStatus: clean(motionFile.status), runtimeStored: true, driveStored: true }, sourceAssets, technicalEvidence: { evidenceId: clean(evidence.id), sha256: clean(evidence.content_hash), status: clean(evidence.status), runtimeStored: true, driveStored: true } };
+  return { bundle, hash: await sha(JSON.stringify(bundle)) };
+}
+
+async function prepareMotionRightsRepair() {
+  const env = await runtime(), db = env.DB!, { authorization } = await current(db);
+  if (!authorization) throw new Error("MOTION_RIGHTS_AUTHORIZATION_MISSING");
+  const proof = await db.prepare("SELECT * FROM v7_motion_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!proof || proof.status !== "REPAIR_REQUIRED") throw new Error("MOTION_RIGHTS_REPAIR_NOT_READY");
+  const findings = arr(JSON.parse(String(proof.findings_json || "[]")));
+  if (!findings.some((finding) => /rights record|authorization for the checkout imagery/i.test(clean(finding)))) throw new Error("MOTION_RIGHTS_REPAIR_SCOPE_MISMATCH");
+  const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
+  if (active) throw new Error("MOTION_RIGHTS_REPAIR_BLOCKED_ACTIVE_REQUEST");
+  const request = await db.prepare("SELECT id FROM v7_material_requests WHERE provider_response_id=? AND phase='MOTION_PROOF_QA' LIMIT 1").bind(proof.provider_response_id).first<Row>();
+  const { bundle, hash } = await motionRightsBundle(db, proof), now = new Date().toISOString();
+  await db.batch([
+    db.prepare("INSERT INTO v7_motion_audits (id,program_id,run_id,authorization_id,brief_id,proof_id,rubric_version,attempt,status,score,dimensions_json,findings_json,evidence_bundle_json,evidence_bundle_hash,request_id,provider_response_id,created_at) VALUES (?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(`${proof.id}-${clean(proof.provider_response_id) || "ATTEMPT-1"}`, PROGRAM_ID, proof.run_id, proof.authorization_id, proof.brief_id, proof.id, MOTION_QA_RUBRIC, clean(proof.status), Number(proof.score), String(proof.dimensions_json || "{}"), String(proof.findings_json || "[]"), JSON.stringify(bundle), hash, request?.id || null, proof.provider_response_id || null, now),
+    db.prepare("UPDATE v7_motion_proofs SET status='QA_REQUIRED',updated_at=? WHERE id=?").bind(now, proof.id),
+    db.prepare("UPDATE v7_material_runs SET status='MOTION_PROOF_REQUIRED' WHERE id=?").bind(authorization.run_id),
+    db.prepare("UPDATE v7_stage_states SET status='MOTION_QA_REQUIRED',blocker='MOTION_RIGHTS_BUNDLE_ATTACHED_REQA_APPROVAL_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Motion rights bundle attached and verified · SHA ${hash.slice(0, 12)} · prior QA ${Number(proof.score)}/100 preserved · no new QA request dispatched`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
 async function motionProofQa() {
   const env = await runtime(), db = env.DB!, { authorization } = await current(db);
   if (!authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("MOTION_QA_CONFIGURATION_REQUIRED");
@@ -1185,8 +1224,10 @@ async function motionProofQa() {
       await db.batch([db.prepare("UPDATE v7_motion_proofs SET status='BLOCKED_INCOMPLETE',provider_response_id=?,updated_at=? WHERE id=?").bind(payload.id || active.provider_response_id, now, proof.id), db.prepare("UPDATE v7_stage_states SET status='MOTION_PROOF_BLOCKED',blocker='MOTION_QA_PROVIDER_INCOMPLETE',evidence_summary='Motion QA provider output incomplete · no automatic retry',updated_at=? WHERE id=?").bind(now, STAGE_ID)]);
       return snapshot();
     }
-    const result = JSON.parse(output(payload)) as Row, dimensions = ["semanticContinuity", "factualSafety", "transitionQuality", "mobileLegibility", "timingFit"], hardPass = dimensions.every((key) => Number(result[key]) >= 86) && Number(result.overall) >= 90 && result.decision === "PASS", status = hardPass ? "PASS" : "REPAIR_REQUIRED";
+    const result = JSON.parse(output(payload)) as Row, dimensions = ["semanticContinuity", "factualSafety", "transitionQuality", "mobileLegibility", "timingFit"], hardPass = dimensions.every((key) => Number(result[key]) >= 86) && Number(result.overall) >= 90 && result.decision === "PASS", status = hardPass ? "PASS" : "REPAIR_REQUIRED", rights = await motionRightsBundle(db, proof);
+    const priorAudits = await rows(db, "SELECT id FROM v7_motion_audits WHERE proof_id=?", proof.id), attempt = priorAudits.length + 1;
     await db.batch([
+      db.prepare("INSERT INTO v7_motion_audits (id,program_id,run_id,authorization_id,brief_id,proof_id,rubric_version,attempt,status,score,dimensions_json,findings_json,evidence_bundle_json,evidence_bundle_hash,request_id,provider_response_id,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(`${proof.id}-${payload.id || active.provider_response_id}`, PROGRAM_ID, proof.run_id, proof.authorization_id, proof.brief_id, proof.id, MOTION_QA_RUBRIC, attempt, status, Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean)), JSON.stringify(rights.bundle), rights.hash, active.id, payload.id || active.provider_response_id, now),
       db.prepare("UPDATE v7_motion_proofs SET status=?,score=?,dimensions_json=?,findings_json=?,provider_response_id=?,updated_at=? WHERE id=?").bind(status, Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean)), payload.id || active.provider_response_id, now, proof.id),
       db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(hardPass ? "SEQUENCE_PROOF_REQUIRED" : "MOTION_REPAIR_REQUIRED", authorization.run_id),
       db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(hardPass ? "SEQUENCE_PROOF_REQUIRED" : "MOTION_REPAIR_REQUIRED", hardPass ? "30_SECOND_SEQUENCE_PROOF_REQUIRED" : "MOTION_PROOF_REPAIR_REQUIRED", hardPass ? `Champion C motion proof passed at ${Number(result.overall)}/100 · 30-second sequence remains locked` : `Champion C motion proof requires bounded repair at ${Number(result.overall)}/100`, now, STAGE_ID),
@@ -1204,8 +1245,8 @@ async function motionProofQa() {
     imageUrls.push(`data:image/jpeg;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`);
   }
   if (imageUrls.length !== 3) throw new Error("MOTION_QA_FRAME_SET_INCOMPLETE");
-  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(proof.brief_id), "MOTION_PROOF_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1600, 4000);
-  const content: Row[] = [{ type: "input_text", text: `Judge the three supplied frames sampled at 10%, 50% and 90% from the actual stored WebM motion proof for champion C. They are not planning stills. Verify semantic continuity, factual safety, meaningful transition, mobile legibility and fit to the exact ${Number(proof.duration_seconds).toFixed(2)}-second narration window. The renderer is deterministic, 30fps, silent, and introduces no new text; audio-handoff intent remains metadata and must not be invented from pixels. PASS requires every dimension >=86 and overall >=90. Return only JSON.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, entryState: brief.entryState, motion: brief.motion, exitState: brief.exitState, audioBinding: brief.audioBinding, acceptance: brief.acceptance, startSeconds: briefRow.start_seconds, endSeconds: briefRow.end_seconds })}\n\nTECHNICAL EVIDENCE:\n${JSON.stringify({ renderer: proof.renderer_version, durationSeconds: proof.duration_seconds, fps: proof.fps, motionHash: proof.content_hash, sourceHashes: JSON.parse(String(proof.source_hashes_json)) })}` }];
+  const rights = await motionRightsBundle(db, proof), setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(proof.brief_id), "MOTION_PROOF_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1600, 4000);
+  const content: Row[] = [{ type: "input_text", text: `Judge the three supplied frames sampled at 10%, 50% and 90% from the actual stored WebM motion proof for champion C. They are not planning stills. Verify semantic continuity, factual safety, meaningful transition, mobile legibility and fit to the exact ${Number(proof.duration_seconds).toFixed(2)}-second narration window. The renderer is deterministic, 30fps, silent, and introduces no new text; audio-handoff intent remains metadata and must not be invented from pixels. Rights and provenance are registry evidence, not audience-facing content: validate them from the supplied RIGHTS AND PROVENANCE RECORD and never require a license notice to appear in the frames. PASS requires every dimension >=86 and overall >=90. Return only JSON.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, entryState: brief.entryState, motion: brief.motion, exitState: brief.exitState, audioBinding: brief.audioBinding, acceptance: brief.acceptance, startSeconds: briefRow.start_seconds, endSeconds: briefRow.end_seconds })}\n\nTECHNICAL EVIDENCE:\n${JSON.stringify({ renderer: proof.renderer_version, durationSeconds: proof.duration_seconds, fps: proof.fps, motionHash: proof.content_hash, sourceHashes: JSON.parse(String(proof.source_hashes_json)) })}\n\nRIGHTS AND PROVENANCE RECORD · SHA-256 ${rights.hash}:\n${JSON.stringify(rights.bundle)}` }];
   for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 4000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_motion_proof_qa", strict: true, schema: motionQaSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`MOTION_QA_START_FAILED · ${response.status}`); }
@@ -1253,6 +1294,7 @@ export async function POST(request: Request) {
     if (body.action === "PLAN_MOTION_PROOF") return Response.json(await planMotionProof(), { status: 201 });
     if (body.action === "ISSUE_MOTION_EXECUTOR_BOOTSTRAP") return Response.json(await issueMotionExecutorBootstrap(), { status: 201 });
     if (body.action === "RUN_MOTION_QA") return Response.json(await motionProofQa(), { status: 202 });
+    if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
     if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);
     if (body.action === "CLAIM_MEDIA_JOB") return await claimMediaJob(request, body);

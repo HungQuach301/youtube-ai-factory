@@ -5,6 +5,7 @@ import test from "node:test";
 const route = await readFile(new URL("../app/api/factory/material-production/route.ts", import.meta.url), "utf8");
 const executor = await readFile(new URL("../scripts/media-executor.mjs", import.meta.url), "utf8");
 const migration = await readFile(new URL("../drizzle/0020_goofy_chimera.sql", import.meta.url), "utf8");
+const rightsMigration = await readFile(new URL("../drizzle/0021_material_gateway.sql", import.meta.url), "utf8");
 
 test("motion proof is gated by frozen continuity and champion C", () => {
   assert.match(route, /checkpoint_code='CONTINUITY_HARDENING_01'/);
@@ -40,4 +41,20 @@ test("motion proof state has a durable migration", () => {
   assert.match(migration, /CREATE TABLE `v7_motion_proofs`/);
   assert.match(migration, /`source_hashes_json` text NOT NULL/);
   assert.match(migration, /`provider_response_id` text/);
+});
+
+test("rights evidence repair preserves the failed audit before re-adjudication", () => {
+  assert.match(route, /MOTION_RIGHTS_BUNDLE_V1/);
+  assert.match(route, /MOTION_RIGHTS_REPAIR_SCOPE_MISMATCH/);
+  assert.match(route, /prior QA \$\{Number\(proof\.score\)\}\/100 preserved · no new QA request dispatched/);
+  assert.match(route, /PREPARE_MOTION_RIGHTS_REPAIR/);
+  assert.match(rightsMigration, /CREATE TABLE `v7_motion_audits`/);
+  assert.match(rightsMigration, /`evidence_bundle_hash` text NOT NULL/);
+});
+
+test("motion QA receives verified rights lineage without changing pixels", () => {
+  assert.match(route, /Rights and provenance are registry evidence, not audience-facing content/);
+  assert.match(route, /RIGHTS AND PROVENANCE RECORD · SHA-256/);
+  assert.match(route, /MOTION_RIGHTS_SOURCE_INVALID/);
+  assert.match(route, /storageStatus: clean\(file\.status\)/);
 });

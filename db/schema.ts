@@ -913,3 +913,23 @@ export const v7MotionProofs = sqliteTable("v7_motion_proofs", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const v7MotionAudits = sqliteTable("v7_motion_audits", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  authorizationId: text("authorization_id").notNull(),
+  briefId: text("brief_id").notNull(),
+  proofId: text("proof_id").notNull(),
+  rubricVersion: text("rubric_version").notNull(),
+  attempt: integer("attempt").notNull(),
+  status: text("status").notNull(),
+  score: integer("score").notNull().default(0),
+  dimensionsJson: text("dimensions_json").notNull().default("{}"),
+  findingsJson: text("findings_json").notNull().default("[]"),
+  evidenceBundleJson: text("evidence_bundle_json").notNull().default("{}"),
+  evidenceBundleHash: text("evidence_bundle_hash").notNull(),
+  requestId: text("request_id"),
+  providerResponseId: text("provider_response_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
