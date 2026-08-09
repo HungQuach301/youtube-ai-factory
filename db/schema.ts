@@ -994,3 +994,25 @@ export const v7ArchetypeQualifications = sqliteTable("v7_archetype_qualification
   blocker: text("blocker"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const v7ArchetypeCertifications = sqliteTable("v7_archetype_certifications", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  baselineId: text("baseline_id").notNull(),
+  authorizationId: text("authorization_id").notNull(),
+  archetype: text("archetype").notNull(),
+  briefId: text("brief_id").notNull(),
+  rendererVersion: text("renderer_version").notNull(),
+  status: text("status").notNull(),
+  frameIdsJson: text("frame_ids_json").notNull(),
+  frameHashesJson: text("frame_hashes_json").notNull(),
+  lintJson: text("lint_json").notNull(),
+  requestId: text("request_id"),
+  providerResponseId: text("provider_response_id"),
+  score: integer("score").notNull().default(0),
+  dimensionsJson: text("dimensions_json").notNull().default("{}"),
+  findingsJson: text("findings_json").notNull().default("[]"),
+  attempt: integer("attempt").notNull().default(1),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

@@ -122,3 +122,13 @@ test("commercial reliability baseline quarantines production and compiles hardes
   assert.match(route, /neutral confirmation/);
   assert.match(route, /ARCHETYPE_CERTIFICATION_REQUIRED/);
 });
+
+test("hardest-first certification uses owned controlled-state pixels and one scoped QA", () => {
+  assert.match(route, /BUILD_HARDEST_ARCHETYPE_CERTIFICATION/);
+  assert.match(route, /CONTROLLED_TRANSACTION_STATE_UI_V1/);
+  assert.match(route, /THREE_DISTINCT_FRAMES/);
+  assert.match(route, /ARCHETYPE_CERTIFICATION_QA/);
+  assert.match(route, /phase\.startsWith\("ARCHETYPE_CERTIFICATION"\)/);
+  assert.match(route, /every\(\(key\) => Number\(result\[key\]\) >= 90\)/);
+  assert.match(route, /production execution remains frozen/);
+});

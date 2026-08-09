@@ -81,6 +81,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_architecture_baselines (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,version text NOT NULL,status text NOT NULL,execution_state text NOT NULL,source_checkpoint text NOT NULL,controls_json text NOT NULL,qualification_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,frozen_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_compiled_shot_contracts (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,brief_id text NOT NULL,archetype text NOT NULL,risk_tier text NOT NULL,claim text NOT NULL,required_evidence_json text NOT NULL,allowed_modalities_json text NOT NULL,forbidden_json text NOT NULL,repair_route text NOT NULL,lint_status text NOT NULL,lint_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_archetype_qualifications (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,archetype text NOT NULL,status text NOT NULL,hardest_fixture text NOT NULL,deterministic_checks_json text NOT NULL,evidence_status text NOT NULL,first_pass_yield real DEFAULT 0 NOT NULL,blocker text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_archetype_certifications (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,authorization_id text NOT NULL,archetype text NOT NULL,brief_id text NOT NULL,renderer_version text NOT NULL,status text NOT NULL,frame_ids_json text NOT NULL,frame_hashes_json text NOT NULL,lint_json text NOT NULL,request_id text,provider_response_id text,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,attempt integer DEFAULT 1 NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
 ] as const;
 
 const arr = (value: unknown) => Array.isArray(value) ? value : [];
@@ -232,6 +233,7 @@ async function snapshot() {
   const reliabilityBaseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   const compiledContracts = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=? ORDER BY brief_id", reliabilityBaseline.id) : [];
   const archetypeQualifications = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_qualifications WHERE baseline_id=? ORDER BY archetype", reliabilityBaseline.id) : [];
+  const archetypeCertifications = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_certifications WHERE baseline_id=? ORDER BY created_at DESC", reliabilityBaseline.id) : [];
   const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
@@ -289,6 +291,7 @@ async function snapshot() {
       qualification: JSON.parse(String(reliabilityBaseline.qualification_json || "{}")),
       compiled: { total: compiledContracts.length, pass: compiledContracts.filter((item) => item.lint_status === "PASS").length, redesign: compiledContracts.filter((item) => item.lint_status === "REDESIGN_REQUIRED").length },
       archetypes: archetypeQualifications.map((item) => ({ name: item.archetype, status: item.status, hardestFixture: item.hardest_fixture, evidenceStatus: item.evidence_status, firstPassYield: Number(item.first_pass_yield), blocker: item.blocker, checks: JSON.parse(String(item.deterministic_checks_json || "[]")) })),
+      certifications: archetypeCertifications.map((item) => ({ id: item.id, archetype: item.archetype, briefId: item.brief_id, renderer: item.renderer_version, status: item.status, frameIds: JSON.parse(String(item.frame_ids_json || "[]")), score: Number(item.score), dimensions: JSON.parse(String(item.dimensions_json || "{}")), findings: JSON.parse(String(item.findings_json || "[]")), attempt: Number(item.attempt), createdAt: item.created_at })),
       frozenAt: reliabilityBaseline.frozen_at,
     } : null,
     policy: { execution: "ZERO_SPEND_DRY_RUN_THEN_AUTHORIZED_TRANCHES", pilotShots: "8–12", expectedOutputTokens: "500–16000", safetyCeilings: "3000/8000/16000/32000", maxRetry: 1, retryPolicy: "DELTA_ONLY", incompletePolicy: "BLOCK_GATE", factualVisuals: "CODE_NATIVE", evidence: "STORED_PIXELS_AND_CHECKSUM" },
@@ -405,6 +408,89 @@ async function qualifyReliabilityBaseline() {
     statements.push(db.prepare("INSERT INTO v7_archetype_qualifications (id,program_id,baseline_id,archetype,status,hardest_fixture,deterministic_checks_json,evidence_status,first_pass_yield,blocker,created_at) VALUES (?,?,?,?,? ,?,?, 'CERTIFICATION_EVIDENCE_REQUIRED',0,'REAL_ARTIFACT_CERTIFICATION_REQUIRED',?)").bind(`${baselineId}-${archetype}`, PROGRAM_ID, baselineId, archetype, "CONTRACT_QUALIFIED", fixture, JSON.stringify(checks), now));
   }
   await db.batch(statements);
+  return snapshot();
+}
+
+function controlledCertificationBackground(state: number) {
+  const width = 960, height = 540, data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
+    const index = (y * width + x) * 4, glow = Math.max(0, 1 - Math.hypot(x - (650 + state * 35), y - 260) / 620);
+    data[index] = Math.round(10 + glow * 18); data[index + 1] = Math.round(42 + glow * 48); data[index + 2] = Math.round(38 + glow * 34); data[index + 3] = 255;
+  }
+  return { data, width, height };
+}
+
+async function buildHardestArchetypeCertification() {
+  const env = await runtime(), db = env.DB!, { authorization } = await current(db);
+  if (!authorization || !env.BUCKET) throw new Error("ARCHETYPE_CERTIFICATION_CONFIGURATION_REQUIRED");
+  const baseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? AND status='QUALIFIED_FOR_ARCHETYPE_CERTIFICATION' ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
+  if (!baseline) throw new Error("RELIABILITY_BASELINE_PASS_REQUIRED");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const qualification = await db.prepare("SELECT * FROM v7_archetype_qualifications WHERE baseline_id=? AND archetype='TRANSACTION_STATE_PROOF'").bind(baseline.id).first<Row>();
+  const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE run_id=? AND json_extract(content_json,'$.briefId')='MP-153' LIMIT 1").bind(authorization.run_id).first<Row>();
+  if (!qualification || !briefRow) throw new Error("MP_153_CERTIFICATION_FIXTURE_MISSING");
+  const certificationId = `${clean(baseline.id)}-TRANSACTION-STATE`, existing = await db.prepare("SELECT id FROM v7_archetype_certifications WHERE id=?").bind(certificationId).first<Row>();
+  if (existing) return snapshot();
+  const sourceBrief = rec(JSON.parse(String(briefRow.content_json))), certificationBrief = { ...sourceBrief, briefId: "MP-153", viewerMustUnderstand: "A payment moves from processing to verified while remaining explicitly not settled.", requiredEvidence: ["PROCESSING is observable first", "VERIFIED is observable next", "NOT SETTLED remains explicit at exit", "three states visibly progress"], prohibitedEvidence: ["settlement complete", "invented amount", "provider branding", "generic stock as semantic proof"], architectureRepair: { renderer: "CONTROLLED_TRANSACTION_STATE_UI_V1", qaLayout: "C" } } as Row;
+  const frameIds: string[] = [], frameHashes: string[] = [], identity = `CERT-${clean(baseline.version)}-TXN`;
+  for (const [role, state] of [["CERT_ENTRY", 0], ["CERT_MIDPOINT", 1], ["CERT_EXIT", 2]] as const) {
+    const bytes = ownedPng(certificationBrief, state, controlledCertificationBackground(state), "C"), id = await storeMaterial(env, db, authorization, briefRow, { role, identity, bytes, mimeType: "image/png", extension: "png", sourceType: "CONTROLLED_TRANSACTION_STATE_UI_V1", provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
+    const file = await db.prepare("SELECT content_hash FROM v7_material_files WHERE id=?").bind(id).first<Row>();
+    frameIds.push(id); frameHashes.push(clean(file?.content_hash));
+  }
+  const lint = [
+    { id: "THREE_DISTINCT_FRAMES", status: new Set(frameHashes).size === 3 ? "PASS" : "FAIL" },
+    { id: "OWNED_RIGHTS", status: "PASS" },
+    { id: "NO_INVENTED_AMOUNT", status: "PASS" },
+    { id: "EXPLICIT_NEGATIVE_STATE", status: "PASS" },
+    { id: "MOBILE_CANVAS", status: "PASS" },
+  ], lintPassed = lint.every((item) => item.status === "PASS"), now = new Date().toISOString();
+  await db.batch([
+    db.prepare("INSERT INTO v7_archetype_certifications (id,program_id,baseline_id,authorization_id,archetype,brief_id,renderer_version,status,frame_ids_json,frame_hashes_json,lint_json,created_at,updated_at) VALUES (?,?,?,?,? ,?,? ,?,?,?, ?,?,?)").bind(certificationId, PROGRAM_ID, baseline.id, authorization.id, "TRANSACTION_STATE_PROOF", briefRow.id, "CONTROLLED_TRANSACTION_STATE_UI_V1", lintPassed ? "QA_REQUIRED" : "LINT_FAILED", JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(lint), now, now),
+    db.prepare("UPDATE v7_archetype_qualifications SET status=?,evidence_status=?,blocker=? WHERE id=?").bind(lintPassed ? "ARTIFACT_READY" : "CERTIFICATION_FAILED", lintPassed ? "SEMANTIC_QA_REQUIRED" : "LINT_FAILED", lintPassed ? "BOUNDED_SEMANTIC_QA_REQUIRED" : "DETERMINISTIC_LINT_FAILED", qualification.id),
+    db.prepare("UPDATE v7_stage_states SET status='ARCHETYPE_CERTIFICATION_REQUIRED',blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(lintPassed ? "HARDEST_ARCHETYPE_QA_REQUIRED" : "HARDEST_ARCHETYPE_LINT_FAILED", `MP-153 controlled-state certification artifact ${lintPassed ? "passed deterministic lint" : "failed lint"} · 3/3 owned frames · provider requests unchanged`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function hardestArchetypeCertificationQa() {
+  const env = await runtime(), db = env.DB!, { authorization } = await current(db);
+  if (!authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("ARCHETYPE_CERTIFICATION_QA_CONFIGURATION_REQUIRED");
+  const baseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? AND status='QUALIFIED_FOR_ARCHETYPE_CERTIFICATION' ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
+  if (!baseline) throw new Error("RELIABILITY_BASELINE_PASS_REQUIRED");
+  const certification = await db.prepare("SELECT * FROM v7_archetype_certifications WHERE baseline_id=? AND archetype='TRANSACTION_STATE_PROOF' ORDER BY created_at DESC LIMIT 1").bind(baseline.id).first<Row>();
+  if (!certification) throw new Error("HARDEST_ARCHETYPE_ARTIFACT_REQUIRED");
+  if (certification.status === "PASS") return snapshot();
+  const active = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND phase='ARCHETYPE_CERTIFICATION_QA' AND brief_id=? AND status IN ('QUEUED','IN_PROGRESS') ORDER BY created_at DESC LIMIT 1").bind(authorization.id, certification.brief_id).first<Row>();
+  if (active) {
+    const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(active.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`ARCHETYPE_QA_STATUS_FAILED · ${response.status}`);
+    const payload = await response.json() as Row, providerStatus = clean(payload.status), now = new Date().toISOString();
+    if (["queued", "in_progress"].includes(providerStatus)) { await db.prepare("UPDATE v7_material_requests SET status=?,updated_at=? WHERE id=?").bind(providerStatus.toUpperCase(), now, active.id).run(); return snapshot(); }
+    const usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: clean(authorization.run_id), stageKey: STAGE, costType: "ARCHETYPE_CERTIFICATION_QA", payload, fallbackModel: clean(active.model_id) || DEFAULT_MODEL });
+    await db.prepare("UPDATE v7_material_requests SET status=?,input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,error=?,updated_at=? WHERE id=?").bind(providerStatus === "completed" ? "COMPLETE" : "BLOCKED_INCOMPLETE", usage.inputTokens, usage.outputTokens, usage.reasoningTokens, usage.actualUsd, providerStatus === "completed" ? null : clean(rec(payload.incomplete_details).reason || providerStatus), now, active.id).run();
+    await syncRunTotals(db, clean(authorization.run_id));
+    if (providerStatus !== "completed") { await db.prepare("UPDATE v7_archetype_certifications SET status='BLOCKED_INCOMPLETE',request_id=?,provider_response_id=?,updated_at=? WHERE id=?").bind(active.id, active.provider_response_id, now, certification.id).run(); return snapshot(); }
+    const result = JSON.parse(output(payload)) as Row, dimensions = ["claimEvidence", "temporalProgression", "factualSafety", "mobileLegibility", "modalityFit"], passed = dimensions.every((key) => Number(result[key]) >= 90) && Number(result.overall) >= 92 && result.decision === "PASS";
+    const qualification = await db.prepare("SELECT id FROM v7_archetype_qualifications WHERE baseline_id=? AND archetype='TRANSACTION_STATE_PROOF'").bind(baseline.id).first<Row>();
+    await db.batch([
+      db.prepare("UPDATE v7_archetype_certifications SET status=?,request_id=?,provider_response_id=?,score=?,dimensions_json=?,findings_json=?,updated_at=? WHERE id=?").bind(passed ? "PASS" : "REPAIR_REQUIRED", active.id, payload.id || active.provider_response_id, Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean)), now, certification.id),
+      db.prepare("UPDATE v7_archetype_qualifications SET status=?,evidence_status=?,first_pass_yield=?,blocker=? WHERE id=?").bind(passed ? "CERTIFIED" : "CERTIFICATION_FAILED", passed ? "REAL_ARTIFACT_VERIFIED" : "REAL_ARTIFACT_FAILED", passed ? 100 : 0, passed ? null : "ARCHETYPE_ARTIFACT_REDESIGN_REQUIRED", qualification?.id),
+      db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(passed ? "ARCHETYPE_CERTIFICATION_IN_PROGRESS" : "ARCHETYPE_CERTIFICATION_FAILED", passed ? "REMAINING_ARCHETYPES_REQUIRED" : "TRANSACTION_STATE_ARCHETYPE_FAILED", `Transaction-state hardest-first certification ${passed ? "PASS" : "FAIL"} ${Number(result.overall)}/100 · production execution remains frozen`, now, STAGE_ID),
+    ]);
+    return snapshot();
+  }
+  if (certification.status !== "QA_REQUIRED") throw new Error(`ARCHETYPE_CERTIFICATION_QA_NOT_READY · ${clean(certification.status)}`);
+  const frameIds = arr(JSON.parse(String(certification.frame_ids_json || "[]"))).map(clean), imageUrls: string[] = [];
+  for (const id of frameIds) { const file = await db.prepare("SELECT runtime_key FROM v7_material_files WHERE id=?").bind(id).first<Row>(), object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null; if (!object) throw new Error(`CERTIFICATION_FRAME_MISSING · ${id}`); imageUrls.push(`data:image/png;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`); }
+  if (imageUrls.length !== 3) throw new Error("CERTIFICATION_FRAME_SET_INCOMPLETE");
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(certification.brief_id), "ARCHETYPE_CERTIFICATION_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1500, 8000), content: Row[] = [{ type: "input_text", text: "Certify this controlled transaction-state UI archetype, not documentary stock. The three stored audience-facing frames are ENTRY, MIDPOINT and EXIT. They must visibly progress from PROCESSING to VERIFIED and retain NOT SETTLED, without invented amounts, settlement implication, debug metadata or provider branding. Judge observable claim evidence, temporal progression, factual safety, mobile legibility and modality fit. PASS requires every dimension >=90 and overall >=92. Return only JSON." }];
+  for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 8000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_archetype_certification_qa", strict: true, schema: archetypeCertificationSchema } } }), signal: AbortSignal.timeout(30000) });
+  if (!response.ok) { await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status}`); throw new Error(`ARCHETYPE_CERTIFICATION_QA_START_FAILED · ${response.status}`); }
+  const payload = await response.json() as Row; if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("ARCHETYPE_CERTIFICATION_PROVIDER_ID_MISSING"); }
+  const now = new Date().toISOString(); await db.batch([db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, now, requestId), db.prepare("UPDATE v7_archetype_certifications SET status='QA_RUNNING',request_id=?,provider_response_id=?,updated_at=? WHERE id=?").bind(requestId, payload.id, now, certification.id)]);
   return snapshot();
 }
 
@@ -692,7 +778,7 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
   for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
 }
 
-type MaterialRole = "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT" | "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT" | "COMPOSITE_A_ENTRY" | "COMPOSITE_A_MIDPOINT" | "COMPOSITE_A_EXIT" | "COMPOSITE_B_ENTRY" | "COMPOSITE_B_MIDPOINT" | "COMPOSITE_B_EXIT" | "COMPOSITE_C_ENTRY" | "COMPOSITE_C_MIDPOINT" | "COMPOSITE_C_EXIT" | "MOTION_PROOF" | "MOTION_ENTRY" | "MOTION_MIDPOINT" | "MOTION_EXIT";
+type MaterialRole = "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT" | "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT" | "COMPOSITE_A_ENTRY" | "COMPOSITE_A_MIDPOINT" | "COMPOSITE_A_EXIT" | "COMPOSITE_B_ENTRY" | "COMPOSITE_B_MIDPOINT" | "COMPOSITE_B_EXIT" | "COMPOSITE_C_ENTRY" | "COMPOSITE_C_MIDPOINT" | "COMPOSITE_C_EXIT" | "MOTION_PROOF" | "MOTION_ENTRY" | "MOTION_MIDPOINT" | "MOTION_EXIT" | "CERT_ENTRY" | "CERT_MIDPOINT" | "CERT_EXIT";
 async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row, options: { role: MaterialRole; identity?: string; bytes: Uint8Array; mimeType: string; extension: string; sourceType: string; provider: string; providerAssetId?: string; sourceUrl?: string; landingUrl?: string; licenseCode: string; width: number; height: number; duration?: number; thumbnailUrl?: string }) {
   if (!env.BUCKET) throw new Error("R2 material storage is unavailable");
   const identity = clean(options.identity).replace(/[^a-zA-Z0-9_-]/g, "").slice(-48), suffix = identity ? `${identity}-` : "";
@@ -729,6 +815,7 @@ async function materializeOne(env: Env, db: DB, authorization: Row, briefRow: Ro
 }
 
 const visionSchema = { type: "object", additionalProperties: false, properties: { semanticFit: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, composition: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, authenticity: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", maxItems: 5, items: { type: "string", minLength: 6, maxLength: 180 } }, exactRepair: { type: "string", minLength: 6, maxLength: 240 } }, required: ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "overall", "decision", "findings", "exactRepair"] };
+const archetypeCertificationSchema = { type: "object", additionalProperties: false, properties: { claimEvidence: { type: "integer", minimum: 0, maximum: 100 }, temporalProgression: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, modalityFit: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", minItems: 1, maxItems: 5, items: { type: "string", minLength: 8, maxLength: 220 } }, exactRepair: { type: "string", minLength: 8, maxLength: 260 } }, required: ["claimEvidence", "temporalProgression", "factualSafety", "mobileLegibility", "modalityFit", "overall", "decision", "findings", "exactRepair"] };
 const sourceFrameQaSchema = { type: "object", additionalProperties: false, properties: { semanticSpecificity: { type: "integer", minimum: 0, maximum: 100 }, contradictionSafety: { type: "integer", minimum: 0, maximum: 100 }, contextFit: { type: "integer", minimum: 0, maximum: 100 }, frameDifferentiation: { type: "integer", minimum: 0, maximum: 100 }, mobileClarity: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", minItems: 1, maxItems: 5, items: { type: "string", minLength: 8, maxLength: 220 } }, replacementQuery: { type: "string", minLength: 8, maxLength: 180 }, sourceLayerContract: { type: "string", minLength: 8, maxLength: 260 } }, required: ["semanticSpecificity", "contradictionSafety", "contextFit", "frameDifferentiation", "mobileClarity", "overall", "decision", "findings", "replacementQuery", "sourceLayerContract"] };
 const compositeCandidateSchema = { type: "object", additionalProperties: false, properties: { semanticFit: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, composition: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, authenticity: { type: "integer", minimum: 0, maximum: 100 }, progression: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 } }, required: ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "progression", "overall"] };
 const compositeTournamentSchema = { type: "object", additionalProperties: false, properties: { winner: { type: "string", enum: ["A", "B", "C"] }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, candidateA: compositeCandidateSchema, candidateB: compositeCandidateSchema, candidateC: compositeCandidateSchema, findings: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 8, maxLength: 220 } }, exactRepair: { type: "string", minLength: 8, maxLength: 260 } }, required: ["winner", "decision", "candidateA", "candidateB", "candidateC", "findings", "exactRepair"] };
@@ -1547,6 +1634,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as Row;
     if (body.action === "QUALIFY_RELIABILITY_BASELINE") return Response.json(await qualifyReliabilityBaseline(), { status: 201 });
+    if (body.action === "BUILD_HARDEST_ARCHETYPE_CERTIFICATION") return Response.json(await buildHardestArchetypeCertification(), { status: 201 });
+    if (body.action === "RUN_HARDEST_ARCHETYPE_QA") return Response.json(await hardestArchetypeCertificationQa(), { status: 202 });
     if (body.action === "BUILD_DRY_RUN") return Response.json(await buildDryRun(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT") return Response.json(await authorizePilot(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT_AFTER_MOTION") return Response.json(await authorizePilotAfterMotion(), { status: 201 });

@@ -169,6 +169,13 @@
       "when": 1786265000000,
       "tag": "0023_stage09_reliability_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1786267000000,
+      "tag": "0024_archetype_certification",
+      "breakpoints": true
     }
   ]
 }

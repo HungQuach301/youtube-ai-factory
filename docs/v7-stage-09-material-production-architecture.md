@@ -203,6 +203,8 @@ Eight archetypes enter contract qualification independently: transaction-state p
 
 The dispatch firewall is systemic: while the reliability baseline is `FROZEN`, normal discovery, tournament, render-QA and retry phases cannot create a provider request. Only an explicitly scoped `ARCHETYPE_CERTIFICATION` phase may later open after its own bounded authorization.
 
+Hardest-first evidence begins with MP-153. The `CONTROLLED_TRANSACTION_STATE_UI_V1` renderer creates three channel-owned states, runs checksum/read-back and deterministic lint, and only then permits one `ARCHETYPE_CERTIFICATION_QA` request. Certification uses a stricter 90 floor per dimension and 92 overall; a PASS certifies only `TRANSACTION_STATE_PROOF`, never the remaining archetypes or pilot production.
+
 - **ADR-054 — Production execution and architecture qualification are separate lifecycles.** A batch cannot mutate its compiler, renderer or ledger contract while producing release artifacts.
 - **ADR-055 — Claims compile before pixels are acquired.** A shot without observable evidence, allowed modality and forbidden assumptions fails at zero spend.
 - **ADR-056 — Archetypes certify hardest-first.** A passing easy champion never authorizes an untested semantic class.

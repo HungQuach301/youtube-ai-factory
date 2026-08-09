@@ -1,0 +1,21 @@
+CREATE TABLE `v7_archetype_certifications` (
+	`id` text PRIMARY KEY NOT NULL,
+	`program_id` text NOT NULL,
+	`baseline_id` text NOT NULL,
+	`authorization_id` text NOT NULL,
+	`archetype` text NOT NULL,
+	`brief_id` text NOT NULL,
+	`renderer_version` text NOT NULL,
+	`status` text NOT NULL,
+	`frame_ids_json` text NOT NULL,
+	`frame_hashes_json` text NOT NULL,
+	`lint_json` text NOT NULL,
+	`request_id` text,
+	`provider_response_id` text,
+	`score` integer DEFAULT 0 NOT NULL,
+	`dimensions_json` text DEFAULT '{}' NOT NULL,
+	`findings_json` text DEFAULT '[]' NOT NULL,
+	`attempt` integer DEFAULT 1 NOT NULL,
+	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
+);

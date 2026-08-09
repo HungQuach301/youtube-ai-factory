@@ -16,7 +16,7 @@ type Snapshot = {
   authorization: null | { id: string; status: string; shotCount: number; maxRemoteRequests: number; maxActualSpendUsd: number; authorizedAt: string; revokedAt?: string; modelPolicy: Record<string, unknown> };
   provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
   architecture: { version: string; status: string; principle: string; planes: Array<{ id: string; name: string; status: string; responsibility: string }>; qualityLadder: Array<{ order: number; name: string; exit: string }>; scalePolicy: { tranches: string[]; concurrency: string; stopConditions: string[]; resume: string } };
-  reliability: null | { version: string; status: string; executionState: string; sourceCheckpoint: string; controls: string[]; qualification: { status: string; score: number; productionDispatch: string; next: string }; compiled: { total: number; pass: number; redesign: number }; archetypes: Array<{ name: string; status: string; hardestFixture: string; evidenceStatus: string; firstPassYield: number; blocker?: string; checks: string[] }>; frozenAt: string };
+  reliability: null | { version: string; status: string; executionState: string; sourceCheckpoint: string; controls: string[]; qualification: { status: string; score: number; productionDispatch: string; next: string }; compiled: { total: number; pass: number; redesign: number }; archetypes: Array<{ name: string; status: string; hardestFixture: string; evidenceStatus: string; firstPassYield: number; blocker?: string; checks: string[] }>; certifications: Array<{ id: string; archetype: string; briefId: string; renderer: string; status: string; frameIds: string[]; score: number; dimensions: Record<string, number>; findings: string[]; attempt: number; createdAt: string }>; frozenAt: string };
   mediaExecution: { configured: boolean; executor: null | { id: string; status: string; version: string; lastSeenAt: string; capabilities: string[] }; counts: { queued: number; leased: number; complete: number; failed: number; blocked: number }; jobs: Array<{ id: string; briefId: string; type: string; status: string; attempt: number; maxAttempts: number; leaseOwner?: string; error?: string; createdAt: string; completedAt?: string }>; evidence: Array<{ id: string; briefId: string; type: string; status: string; technicalStatus: string; hash: string; createdAt: string; probe: { durationSeconds?: number; width?: number; height?: number; codec?: string; averageFrameRate?: string }; sourceQa: null | { status: string; score: number; dimensions: Record<string, number>; findings: string[]; repair: { replacementQuery?: string; sourceLayerContract?: string } }; frames: Array<{ role: string; timestampSeconds: number; width: number; height: number; mimeType: string; fileId: string; previewUrl: string }> }>; sourceQaActive: boolean; composite: { active: boolean; rubric: string; status: string; winner: string | null; score: number; dimensions: Record<string, number>; findings: string[]; repair: { exactRepair?: string }; candidates: Array<{ candidate: string; scores: Record<string, number>; frames: Array<{ state: string; fileId: string; previewUrl: string }> }> }; motionProof: null | { id: string; status: string; champion: string; renderer: string; durationSeconds: number; fps: number; score: number; dimensions: Record<string, number>; findings: string[]; motionFileId: string | null; previewUrl: string | null; contentHash: string | null; sourceHashes: Array<{ state: string; fileId: string; sha256: string }>; sampleFrames: Array<{ role: string; timestampSeconds: number; fileId: string; previewUrl: string }>; rightsRepairAvailable: boolean; audits: Array<{ attempt: number; status: string; score: number; evidenceBundleHash: string; providerResponseId: string; createdAt: string }> }; motionQaActive: boolean; nextGate: string };
   pilot: { materialized: number; audited: number; total: number; percent: number; items: Array<{ id: string; briefId: string; route: string; family: string; meaning: string; materialStatus: string; pixelQaStatus: string; file: null | { id: string; provider: string; mimeType: string; bytes: number; hash: string; previewUrl: string }; overlay: null | { id: string; previewUrl: string }; tournament: null | { status: string; score: number; candidateCount: number; providerCoverage: number; championId?: string; bestCandidateId?: string; bestReason?: string; repairAttempt: number; assignedPixelJob?: string }; audit: null | { status: string; score: number; findings: string[] } }> };
   requestLedger: { total: number; planned: number; active: number; complete: number; incomplete: number; actualCostUsd: number; recent: Array<{ id: string; briefId: string; phase: string; provider: string; modelId: string; status: string; inputTokens: number; outputTokens: number; reasoningTokens: number; actualCostUsd: number; error?: string; createdAt: string }> };
@@ -63,6 +63,11 @@ export default function MaterialProductionPage() {
     const timer = window.setTimeout(() => void motionAction("RUN_MOTION_QA", true), 2500);
     return () => window.clearTimeout(timer);
   }, [data?.mediaExecution.motionQaActive, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (data?.reliability?.certifications[0]?.status !== "QA_RUNNING" || working) return;
+    const timer = window.setTimeout(() => void hardestCertification("RUN_HARDEST_ARCHETYPE_QA", true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [data?.reliability?.certifications, data?.requestLedger.active, working]);
   async function build() {
     setWorking("BUILD"); setError(null);
     try {
@@ -81,6 +86,16 @@ export default function MaterialProductionPage() {
       if (!response.ok) throw new Error(payload.error || "Reliability qualification failed");
       setData(payload);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Reliability qualification failed"); }
+    finally { setWorking(null); }
+  }
+  async function hardestCertification(action: "BUILD_HARDEST_ARCHETYPE_CERTIFICATION" | "RUN_HARDEST_ARCHETYPE_QA", quiet = false) {
+    setWorking(action); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Hardest-first archetype certification failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Hardest-first archetype certification failed"); }
     finally { setWorking(null); }
   }
   async function pilotAction(action: "AUTHORIZE_PILOT" | "AUTHORIZE_PILOT_AFTER_MOTION" | "REVOKE_PILOT") {
@@ -215,6 +230,9 @@ export default function MaterialProductionPage() {
           </div>
           <div className="reliabilityControls">{data.reliability.controls.map((control) => <span key={control}>{control.replaceAll("_", " ")}</span>)}</div>
           <div className="archetypeGrid">{data.reliability.archetypes.map((archetype) => <article key={archetype.name}><header><b>{archetype.name.replaceAll("_", " ")}</b><span>{archetype.status.replaceAll("_", " ")}</span></header><p>Hardest fixture · {archetype.hardestFixture}</p><small>{archetype.checks.join(" · ")}</small><footer>{archetype.evidenceStatus.replaceAll("_", " ")}</footer></article>)}</div>
+          {data.reliability.certifications.length === 0 && <div className="reliabilityStart"><p>Hardest-first certification starts with MP-153 as a controlled transaction-state UI. Rendering and deterministic lint cost $0; no other archetype or pilot unit can dispatch.</p><button onClick={() => void hardestCertification("BUILD_HARDEST_ARCHETYPE_CERTIFICATION")} disabled={Boolean(working)}>{working === "BUILD_HARDEST_ARCHETYPE_CERTIFICATION" ? "Rendering certification frames…" : "Build MP-153 certification artifact · $0"}</button></div>}
+          {data.reliability.certifications[0]?.status === "QA_REQUIRED" && <div className="reliabilityStart"><p>MP-153 has 3/3 owned, distinct frames and passed deterministic lint. One bounded semantic QA is permitted for this archetype only.</p><button onClick={() => void hardestCertification("RUN_HARDEST_ARCHETYPE_QA")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RUN_HARDEST_ARCHETYPE_QA" ? "Starting certification QA…" : "Run hardest-first certification QA · 1 request"}</button></div>}
+          {data.reliability.certifications[0] && <div className="certificationResult"><b>{data.reliability.certifications[0].archetype.replaceAll("_", " ")} · {data.reliability.certifications[0].status.replaceAll("_", " ")}</b><span>{data.reliability.certifications[0].renderer} · {data.reliability.certifications[0].frameIds.length}/3 frames · score {data.reliability.certifications[0].score}/100</span>{data.reliability.certifications[0].findings.map((finding) => <small key={finding}>{finding}</small>)}</div>}
           <p className="stateBanner">MP-153 is now a transaction-state qualification fixture. Generic stock is rejected before search; certification must use controlled UI, authored state animation or a verified hybrid.</p>
         </>}
     </section>
