@@ -206,3 +206,20 @@ test("8 of 8 certification closes with zero-spend regression before pilot", () =
   assert.match(route, /immutable legacy rows excluded/);
   assert.match(route, /PILOT_READY_NOT_STARTED/);
 });
+
+test("controlled canary leases exactly one hardest-first unit and freezes on failure", () => {
+  assert.match(route, /CONTROLLED_CANARY_V1/);
+  assert.match(route, /v7_pilot_canaries/);
+  assert.match(route, /AUTHORIZE_CONTROLLED_CANARY/);
+  assert.match(route, /ARCHETYPE_REGRESSION_PASS_100_REQUIRED/);
+  assert.match(route, /PILOT_REPLAY_10_OF_10_ZERO_SPEND_REQUIRED/);
+  assert.match(route, /execution_state='CANARY_ONLY'/);
+  assert.match(route, /CANARY_DISPATCH_FIREWALL/);
+  assert.match(route, /CANARY_CONCURRENCY_LIMIT/);
+  assert.match(route, /START_CONTROLLED_CANARY_UNIT/);
+  assert.match(route, /UNIT_PASS_REVIEW/);
+  assert.match(route, /RELEASE_NEXT_CONTROLLED_CANARY_UNIT/);
+  assert.match(route, /EXPLICIT_NEXT_UNIT_RELEASE_REQUIRED/);
+  assert.match(route, /CANARY_UNIT_GATE_FAILED/);
+  assert.match(route, /SEQUENCE_PROOF_READY_NOT_STARTED/);
+});

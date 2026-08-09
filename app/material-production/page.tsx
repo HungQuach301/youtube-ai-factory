@@ -14,6 +14,7 @@ type Snapshot = {
   run: null | { status: string; score: number; briefCount: number; pilotCount: number; remoteRequests: number; actualCostUsd: number; gates: Gate[] };
   artifact: null | { contentHash: string; routeMix: Record<string, number>; modelMix: Record<string, number>; sampleBriefs: Brief[]; pilotIds: string[] };
   authorization: null | { id: string; status: string; shotCount: number; maxRemoteRequests: number; maxActualSpendUsd: number; authorizedAt: string; revokedAt?: string; modelPolicy: Record<string, unknown> };
+  canary: null | { id: string; version: string; status: string; queue: Array<{ briefId: string; logicalId: string; archetype: string; riskTier: string; startSeconds: number }>; currentIndex: number; currentBriefId: string | null; releasedUnits: number; passedUnits: number; failedUnits: number; requestsBefore: number; costBefore: number; requestBudget: number; costBudget: number; activeRequestPeak: number; gates: Gate[]; createdAt: string; updatedAt: string };
   provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
   architecture: { version: string; status: string; principle: string; planes: Array<{ id: string; name: string; status: string; responsibility: string }>; qualityLadder: Array<{ order: number; name: string; exit: string }>; scalePolicy: { tranches: string[]; concurrency: string; stopConditions: string[]; resume: string } };
   reliability: null | { version: string; status: string; executionState: string; sourceCheckpoint: string; controls: string[]; qualification: { status: string; score: number; productionDispatch: string; next: string }; compiled: { total: number; pass: number; redesign: number }; archetypes: Array<{ name: string; status: string; hardestFixture: string; evidenceStatus: string; firstPassYield: number; blocker?: string; checks: string[] }>; certifications: Array<{ id: string; archetype: string; briefId: string; renderer: string; status: string; frameIds: string[]; score: number; dimensions: Record<string, number>; findings: string[]; attempt: number; createdAt: string }>; designAuthorizations: Array<{ id: string; archetype: string; sourceCertificationId: string; sourceRenderer: string; sourceScore: number; renderer: string; scope: string; status: string; certificationId: string | null; authorizedAt: string }>; regressions: Array<{ id: string; status: string; score: number; checks: Array<{ id: string; status: string; evidence: string }>; certificationIds: string[]; pilotReplay: { briefs: number; compiled: number; matches: boolean; dispatches: number; costDelta: number }; requestsBefore: number; requestsAfter: number; costBefore: number; costAfter: number; createdAt: string }>; frozenAt: string };
@@ -38,7 +39,7 @@ export default function MaterialProductionPage() {
   }, []);
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
   useEffect(() => {
-    if (!["PILOT_RUNNING", "PILOT_REPAIR_RUNNING"].includes(data?.run?.status || "") || working) return;
+    if (!["PILOT_RUNNING", "PILOT_REPAIR_RUNNING", "CANARY_UNIT_RUNNING"].includes(data?.run?.status || "") || working) return;
     const timer = window.setTimeout(() => {
       setWorking("STEP_PILOT");
       void fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "STEP_PILOT" }) })
@@ -107,6 +108,16 @@ export default function MaterialProductionPage() {
       if (!response.ok) throw new Error(payload.error || "Pilot authorization failed");
       setData(payload);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Pilot authorization failed"); }
+    finally { setWorking(null); }
+  }
+  async function canaryAction(action: "AUTHORIZE_CONTROLLED_CANARY" | "START_CONTROLLED_CANARY_UNIT" | "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") {
+    setWorking(action); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Controlled canary action failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Controlled canary action failed"); }
     finally { setWorking(null); }
   }
   async function execute(action: "START_PILOT" | "STEP_PILOT" | "STOP_PILOT" | "RESUME_PILOT", quiet = false) {
@@ -245,6 +256,24 @@ export default function MaterialProductionPage() {
           <p className="stateBanner">MP-153 is now a transaction-state qualification fixture. Generic stock is rejected before search; certification must use controlled UI, authored state animation or a verified hybrid.</p>
         </>}
     </section>
+    {data.reliability?.regressions[0]?.status === "PASS" && data.reliability.regressions[0].score === 100 && <section className="reliabilityBaseline">
+      <header><div><p>CONTROLLED CANARY · 10 SHOTS</p><h2>One leased unit must pass before the next unit can move.</h2><span>Hardest-first order, one active request maximum, immutable completed evidence, automatic local stop on any failed unit gate. Sequence proof and scale stay locked.</span></div><strong>{data.canary?.status.replaceAll("_", " ") || "READY NOT STARTED"}</strong></header>
+      {!data.canary && <div className="reliabilityStart"><p>Authorize the 10-shot queue from the certified compiler replay. This is a zero-spend action and does not dispatch a provider request.</p><button onClick={() => void canaryAction("AUTHORIZE_CONTROLLED_CANARY")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "AUTHORIZE_CONTROLLED_CANARY" ? "Authorizing controlled canary…" : "Authorize controlled canary · $0"}</button></div>}
+      {data.canary && <>
+        <div className="reliabilityMetrics">
+          <article><small>PROGRESS</small><b>{data.canary.passedUnits}/10</b><span>unit gates passed</span></article>
+          <article><small>CURRENT LEASE</small><b>{data.canary.queue[data.canary.currentIndex]?.logicalId || "COMPLETE"}</b><span>{data.canary.queue[data.canary.currentIndex]?.archetype.replaceAll("_", " ") || "queue closed"}</span></article>
+          <article><small>CONCURRENCY</small><b>{data.requestLedger.active}/1</b><span>active provider request</span></article>
+          <article><small>BOUNDED DELTA</small><b>{Math.max(0, data.requestLedger.total - data.canary.requestsBefore)}/{data.canary.requestBudget}</b><span>${Math.max(0, data.requestLedger.actualCostUsd - data.canary.costBefore).toFixed(6)} / ${data.canary.costBudget.toFixed(2)}</span></article>
+        </div>
+        <div className="reliabilityControls">{data.canary.queue.map((item, index) => <span key={item.briefId}>{index < data.canary!.passedUnits ? "PASS" : index === data.canary!.currentIndex ? data.canary!.status.replaceAll("_", " ") : "LOCKED"} · {item.logicalId} · {item.riskTier}</span>)}</div>
+        {data.canary.status === "AUTHORIZED" && <div className="reliabilityStart"><p>Only {data.canary.queue[data.canary.currentIndex]?.logicalId} will be released. Every later unit remains locked.</p><button onClick={() => void canaryAction("START_CONTROLLED_CANARY_UNIT")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "START_CONTROLLED_CANARY_UNIT" ? "Releasing leased unit…" : `Release ${data.canary.queue[data.canary.currentIndex]?.logicalId} only`}</button></div>}
+        {data.canary.status === "UNIT_RUNNING" && <p className="stateBanner">{data.canary.queue[data.canary.currentIndex]?.logicalId} is the only leased unit. Materialization and Pixel QA run sequentially; the queue pauses automatically at terminal QA.</p>}
+        {data.canary.status === "UNIT_PASS_REVIEW" && <div className="reliabilityStart"><p>The current unit passed stored-byte, rights/hash, Pixel QA and physical-uniqueness gates. Releasing the next unit is a separate zero-spend control action.</p><button onClick={() => void canaryAction("RELEASE_NEXT_CONTROLLED_CANARY_UNIT")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RELEASE_NEXT_CONTROLLED_CANARY_UNIT" ? "Closing unit checkpoint…" : data.canary.passedUnits === data.canary.queue.length ? "Close controlled canary" : "Close checkpoint & prepare next unit"}</button></div>}
+        {data.canary.status === "FAILED" && <p className="stateBanner errorState">Controlled canary stopped locally. Completed units remain immutable; later units, sequence proof and scale are blocked.</p>}
+        {data.canary.status === "PASS" && <p className="stateBanner">Controlled canary PASS. Sequence proof is ready but not started; scale remains blocked.</p>}
+      </>}
+    </section>}
     <section className="materialArchitecture">
       <header><div><p>STAGE 09 TARGET ARCHITECTURE · {data.architecture.version}</p><h2>Quality and scale are governed by separate production planes.</h2><span>{data.architecture.principle}</span></div><strong>{data.architecture.status.replaceAll("_", " ")}</strong></header>
       <div className="materialPlanes">{data.architecture.planes.map((plane)=><article key={plane.id} className={plane.status.toLowerCase()}><small>{plane.status}</small><h3>{plane.name}</h3><p>{plane.responsibility}</p></article>)}</div>

@@ -16,6 +16,7 @@ const MOTION_RIGHTS_BUNDLE_VERSION = "MOTION_RIGHTS_BUNDLE_V1";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
 const DATA_VISUALIZATION_V3 = "RECONCILED_WATERFALL_PRIMITIVES_V3";
 const ARCHETYPE_REGRESSION_VERSION = "ARCHETYPE_REGRESSION_V2";
+const CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
 const ARCHETYPE_CERTIFICATION_ORDER = [
   "TRANSACTION_STATE_PROOF",
   "SOURCE_AUTHORED_HYBRID",
@@ -96,6 +97,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_archetype_certifications (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,authorization_id text NOT NULL,archetype text NOT NULL,brief_id text NOT NULL,renderer_version text NOT NULL,status text NOT NULL,frame_ids_json text NOT NULL,frame_hashes_json text NOT NULL,lint_json text NOT NULL,request_id text,provider_response_id text,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,attempt integer DEFAULT 1 NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_archetype_design_authorizations (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,archetype text NOT NULL,source_certification_id text NOT NULL,source_renderer_version text NOT NULL,source_score integer NOT NULL,new_renderer_version text NOT NULL,scope text NOT NULL,status text NOT NULL,certification_id text,authorized_at text NOT NULL,completed_at text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_archetype_regressions (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,status text NOT NULL,score integer NOT NULL,checks_json text NOT NULL,certification_ids_json text NOT NULL,pilot_replay_json text NOT NULL,remote_requests_before integer NOT NULL,remote_requests_after integer NOT NULL,actual_cost_before real NOT NULL,actual_cost_after real NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_pilot_canaries (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,regression_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,version text NOT NULL,status text NOT NULL,queue_json text NOT NULL,current_index integer DEFAULT 0 NOT NULL,current_brief_id text,released_units integer DEFAULT 0 NOT NULL,passed_units integer DEFAULT 0 NOT NULL,failed_units integer DEFAULT 0 NOT NULL,requests_before integer DEFAULT 0 NOT NULL,cost_before real DEFAULT 0 NOT NULL,request_budget integer DEFAULT 40 NOT NULL,cost_budget real DEFAULT 10 NOT NULL,active_request_peak integer DEFAULT 0 NOT NULL,gate_json text DEFAULT '[]' NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
 ] as const;
 
 const arr = (value: unknown) => Array.isArray(value) ? value : [];
@@ -250,6 +252,7 @@ async function snapshot() {
   const archetypeCertifications = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_certifications WHERE baseline_id=? ORDER BY created_at DESC", reliabilityBaseline.id) : [];
   const archetypeDesignAuthorizations = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_design_authorizations WHERE baseline_id=? ORDER BY created_at DESC", reliabilityBaseline.id) : [];
   const archetypeRegressions = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_regressions WHERE baseline_id=? ORDER BY created_at DESC", reliabilityBaseline.id) : [];
+  const controlledCanary = run ? await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
   const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
@@ -316,6 +319,7 @@ async function snapshot() {
     run: run ? { id: run.id, status: run.status, score: Number(run.score), briefCount: Number(run.brief_count), pilotCount: Number(run.pilot_count), remoteRequests: Number(run.remote_requests), actualCostUsd: Number(run.actual_cost_usd), gates: JSON.parse(String(run.gate_json || "[]")) } : null,
     artifact: content ? { contentHash: artifact?.content_hash, runtimeKey: artifact?.runtime_key, driveFileId: artifact?.drive_file_id, pilotIds: content.pilotIds, routeMix: content.routeMix, modelMix: content.modelMix, sampleBriefs: arr(content.briefs).slice(0, 8) } : null,
     authorization: authorization ? { id: authorization.id, runId: authorization.run_id, scope: authorization.scope, status: authorization.status, shotCount: Number(authorization.shot_count), maxRemoteRequests: Number(authorization.max_remote_requests), maxActualSpendUsd: Number(authorization.max_actual_spend_usd), modelPolicy: JSON.parse(String(authorization.model_policy_json || "{}")), authorizedAt: authorization.authorized_at, revokedAt: authorization.revoked_at } : null,
+    canary: controlledCanary ? { id: controlledCanary.id, version: controlledCanary.version, status: controlledCanary.status, queue: JSON.parse(String(controlledCanary.queue_json || "[]")), currentIndex: Number(controlledCanary.current_index), currentBriefId: controlledCanary.current_brief_id || null, releasedUnits: Number(controlledCanary.released_units), passedUnits: Number(controlledCanary.passed_units), failedUnits: Number(controlledCanary.failed_units), requestsBefore: Number(controlledCanary.requests_before), costBefore: Number(controlledCanary.cost_before), requestBudget: Number(controlledCanary.request_budget), costBudget: Number(controlledCanary.cost_budget), activeRequestPeak: Number(controlledCanary.active_request_peak), gates: JSON.parse(String(controlledCanary.gate_json || "[]")), createdAt: controlledCanary.created_at, updatedAt: controlledCanary.updated_at } : null,
     pilot: { materialized: uniqueMaterialized, audited: audits.filter((item) => ["PASS", "REPAIR_REQUIRED"].includes(String(item.status))).length, total: pilotBriefs.length, percent: pilotBriefs.length ? Math.round((uniqueMaterialized + audits.length) / (pilotBriefs.length * 2) * 100) : 0, items },
     requestLedger: { total: requestRows.length, planned: requestRows.filter((row) => row.status === "PLANNED").length, active: requestRows.filter((row) => ["QUEUED", "IN_PROGRESS"].includes(String(row.status))).length, complete: requestRows.filter((row) => row.status === "COMPLETE").length, incomplete: requestRows.filter((row) => row.status === "BLOCKED_INCOMPLETE").length, actualCostUsd: requestRows.reduce((sum, row) => sum + Number(row.actual_cost_usd || 0), 0), recent: requestRows.slice(0, 20).map((row) => ({ id: row.id, briefId: row.brief_id, phase: row.phase, provider: row.provider, modelId: row.model_id, status: row.status, inputTokens: Number(row.input_tokens), outputTokens: Number(row.output_tokens), reasoningTokens: Number(row.reasoning_tokens), actualCostUsd: Number(row.actual_cost_usd), error: row.error, createdAt: row.created_at })) },
     mediaExecution: {
@@ -750,6 +754,124 @@ async function runArchetypeRegression() {
   return snapshot();
 }
 
+async function authorizeControlledCanary() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("CONTROLLED_CANARY_RUN_REQUIRED");
+  const baseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
+  if (!baseline || clean(baseline.status) !== "QUALIFIED_FOR_ARCHETYPE_CERTIFICATION" || !["FROZEN", "CANARY_ONLY"].includes(clean(baseline.execution_state))) throw new Error("RELIABILITY_BASELINE_FROZEN_REQUIRED");
+  const regression = await db.prepare("SELECT * FROM v7_archetype_regressions WHERE baseline_id=? AND status='PASS' AND score=100 ORDER BY created_at DESC LIMIT 1").bind(baseline.id).first<Row>();
+  if (!regression) throw new Error("ARCHETYPE_REGRESSION_PASS_100_REQUIRED");
+  const replay = rec(JSON.parse(String(regression.pilot_replay_json || "{}")));
+  if (Number(replay.briefs) !== 10 || Number(replay.compiled) !== 10 || replay.matches !== true || Number(replay.dispatches) !== 0 || Number(replay.costDelta) !== 0) throw new Error("PILOT_REPLAY_10_OF_10_ZERO_SPEND_REQUIRED");
+  const certified = await db.prepare("SELECT COUNT(*) AS total FROM v7_archetype_qualifications WHERE baseline_id=? AND status='CERTIFIED'").bind(baseline.id).first<{ total: number }>();
+  if (Number(certified?.total || 0) !== ARCHETYPE_CERTIFICATION_ORDER.length) throw new Error("EIGHT_OF_EIGHT_ARCHETYPES_REQUIRED");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const canaryId = `${clean(baseline.id)}-${CONTROLLED_CANARY_VERSION}`, existing = await db.prepare("SELECT id FROM v7_pilot_canaries WHERE id=?").bind(canaryId).first<Row>();
+  if (existing) return snapshot();
+  const briefs = await rows(db, "SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id), contracts = await rows(db, "SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=?", baseline.id);
+  if (briefs.length !== 10 || contracts.length !== 10) throw new Error(`CONTROLLED_CANARY_SCOPE_INVALID · ${briefs.length} briefs / ${contracts.length} contracts`);
+  const queue = briefs.map((brief) => {
+    const content = rec(JSON.parse(String(brief.content_json || "{}"))), logicalId = clean(content.briefId), contract = contracts.find((item) => clean(item.brief_id) === logicalId);
+    if (!contract || clean(contract.lint_status) !== "PASS") throw new Error(`CANARY_CONTRACT_MISSING · ${logicalId}`);
+    return { briefId: clean(brief.id), logicalId, archetype: clean(contract.archetype), riskTier: clean(contract.risk_tier), startSeconds: Number(brief.start_seconds) };
+  }).sort((left, right) => (left.riskTier === "P1" ? 0 : 1) - (right.riskTier === "P1" ? 0 : 1) || ARCHETYPE_CERTIFICATION_ORDER.indexOf(left.archetype as typeof ARCHETYPE_CERTIFICATION_ORDER[number]) - ARCHETYPE_CERTIFICATION_ORDER.indexOf(right.archetype as typeof ARCHETYPE_CERTIFICATION_ORDER[number]) || left.startSeconds - right.startSeconds);
+  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>(), requestsBefore = Number(usage?.total || 0), costBefore = Number(usage?.cost || 0), now = new Date().toISOString();
+  const gates = [
+    { id: "RELIABILITY_BASELINE", status: "PASS", evidence: clean(baseline.version) },
+    { id: "ARCHETYPE_CERTIFICATION", status: "PASS", evidence: "8/8 certified" },
+    { id: "REGRESSION", status: "PASS", evidence: "100/100" },
+    { id: "PILOT_ROUTING_REPLAY", status: "PASS", evidence: "10/10 · 0 dispatch · $0 delta" },
+    { id: "ACTIVE_REQUESTS", status: "PASS", evidence: "0 active" },
+    { id: "LEASE_POLICY", status: "PASS", evidence: "one unit · one active request · explicit release" },
+  ];
+  const modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: CONTROLLED_CANARY_VERSION, dispatch: "ONE_UNIT_LEASE", concurrency: 1, release: "PASS_REVIEW_ONLY", productionScale: "BLOCKED", sequenceProof: "BLOCKED", requestBudget: 40, costBudgetUsd: 10 };
+  await db.batch([
+    db.prepare("INSERT INTO v7_pilot_canaries (id,program_id,baseline_id,regression_id,run_id,authorization_id,version,status,queue_json,current_index,current_brief_id,released_units,passed_units,failed_units,requests_before,cost_before,request_budget,cost_budget,active_request_peak,gate_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'AUTHORIZED',?,0,?,0,0,0,?,?,40,10,0,?,?,?)").bind(canaryId, PROGRAM_ID, baseline.id, regression.id, run.id, authorization.id, CONTROLLED_CANARY_VERSION, JSON.stringify(queue), queue[0]?.briefId || null, requestsBefore, costBefore, JSON.stringify(gates), now, now),
+    db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=?").bind(baseline.id),
+    db.prepare("UPDATE v7_material_authorizations SET scope='CONTROLLED_CANARY',status='AUTHORIZED',max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,updated_at=? WHERE id=?").bind(requestsBefore + 40, costBefore + 10, JSON.stringify(modelPolicy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED',mode='CONTROLLED_CANARY' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='CANARY_AUTHORIZED',blocker='CANARY_UNIT_NOT_RELEASED',evidence_summary='10-shot controlled canary authorized · hardest-first queue · one unit lease · sequence and scale blocked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function startControlledCanaryUnit() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("CONTROLLED_CANARY_RUN_REQUIRED");
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  if (!canary || clean(canary.status) !== "AUTHORIZED" || !clean(canary.current_brief_id)) throw new Error("CONTROLLED_CANARY_UNIT_NOT_AUTHORIZED");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("CANARY_CONCURRENCY_LIMIT");
+  const now = new Date().toISOString();
+  await db.batch([
+    db.prepare("UPDATE v7_pilot_canaries SET status='UNIT_RUNNING',released_units=released_units+1,updated_at=? WHERE id=? AND status='AUTHORIZED'").bind(now, canary.id),
+    db.prepare("UPDATE v7_material_runs SET status='CANARY_UNIT_RUNNING' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='CANARY_UNIT_RUNNING',blocker='LATER_CANARY_UNITS_LOCKED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(canary.current_brief_id)} leased · later units, sequence and scale locked`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, canary: Row, brief: Row) {
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) return;
+  const file = await db.prepare("SELECT * FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role='PRIMARY' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  const audit = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  const dimensions = audit ? rec(JSON.parse(String(audit.dimensions_json || "{}"))) : {}, dimensionFloor = Object.values(dimensions).length >= 5 && Object.values(dimensions).every((value) => Number(value) >= 86);
+  const duplicate = file ? await db.prepare("SELECT COUNT(DISTINCT brief_id) AS total FROM v7_material_files WHERE authorization_id=? AND asset_role='PRIMARY' AND content_hash=?").bind(authorization.id, file.content_hash).first<{ total: number }>() : null;
+  const checks = [
+    { id: "STORED_READ_BACK", status: file && clean(file.status) === "STORED_VERIFIED" && Number(file.byte_size) > 0 && clean(file.runtime_key) && clean(file.drive_file_id) ? "PASS" : "FAIL" },
+    { id: "RIGHTS_AND_HASH", status: file && clean(file.license_code) && clean(file.content_hash) ? "PASS" : "FAIL" },
+    { id: "PIXEL_QA", status: audit && clean(audit.status) === "PASS" && Number(audit.score) >= 90 && dimensionFloor ? "PASS" : "FAIL" },
+    { id: "PHYSICAL_UNIQUENESS", status: Number(duplicate?.total || 0) <= 1 ? "PASS" : "FAIL" },
+    { id: "ACTIVE_REQUESTS", status: "PASS" },
+  ], passed = checks.every((item) => item.status === "PASS"), now = new Date().toISOString();
+  if (!passed) {
+    await db.batch([
+      db.prepare("UPDATE v7_pilot_canaries SET status='FAILED',failed_units=failed_units+1,gate_json=?,updated_at=?,completed_at=? WHERE id=?").bind(JSON.stringify(checks), now, now, canary.id),
+      db.prepare("UPDATE v7_architecture_baselines SET execution_state='FROZEN' WHERE id=?").bind(canary.baseline_id),
+      db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(now, authorization.id),
+      db.prepare("UPDATE v7_material_runs SET status='CANARY_BLOCKED' WHERE id=?").bind(run.id),
+      db.prepare("UPDATE v7_stage_states SET status='CANARY_BLOCKED',blocker='CANARY_UNIT_GATE_FAILED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(brief.id)} failed controlled canary gate · later units, sequence and scale blocked`, now, STAGE_ID),
+    ]);
+    return;
+  }
+  await db.batch([
+    db.prepare("UPDATE v7_pilot_canaries SET status='UNIT_PASS_REVIEW',passed_units=passed_units+1,gate_json=?,updated_at=? WHERE id=? AND status='UNIT_RUNNING'").bind(JSON.stringify(checks), now, canary.id),
+    db.prepare("UPDATE v7_material_briefs SET status='CANARY_PASS' WHERE id=?").bind(brief.id),
+    db.prepare("UPDATE v7_material_runs SET status='CANARY_UNIT_PASS_REVIEW' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='CANARY_UNIT_PASS_REVIEW',blocker='EXPLICIT_NEXT_UNIT_RELEASE_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(brief.id)} PASS · stored bytes, rights/hash, Pixel QA and uniqueness verified · later units locked`, now, STAGE_ID),
+  ]);
+}
+
+async function releaseNextControlledCanaryUnit() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("CONTROLLED_CANARY_RUN_REQUIRED");
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  if (!canary || clean(canary.status) !== "UNIT_PASS_REVIEW") throw new Error("CANARY_UNIT_PASS_REVIEW_REQUIRED");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const queue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec), nextIndex = Number(canary.current_index) + 1, now = new Date().toISOString();
+  if (nextIndex >= queue.length) {
+    const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>(), requestDelta = Number(usage?.total || 0) - Number(canary.requests_before), costDelta = Number(usage?.cost || 0) - Number(canary.cost_before), passed = Number(canary.passed_units) === queue.length && requestDelta <= Number(canary.request_budget) && costDelta <= Number(canary.cost_budget);
+    await db.batch([
+      db.prepare("UPDATE v7_pilot_canaries SET status=?,current_index=?,current_brief_id=NULL,updated_at=?,completed_at=? WHERE id=?").bind(passed ? "PASS" : "FAILED", nextIndex, now, now, canary.id),
+      db.prepare("UPDATE v7_architecture_baselines SET execution_state='FROZEN' WHERE id=?").bind(canary.baseline_id),
+      db.prepare("UPDATE v7_material_authorizations SET status=?,completed_at=?,updated_at=? WHERE id=?").bind(passed ? "COMPLETED" : "PAUSED", now, now, authorization.id),
+      db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(passed ? "CANARY_PASS" : "CANARY_BLOCKED", run.id),
+      db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(passed ? "CANARY_PASS" : "CANARY_BLOCKED", passed ? "SEQUENCE_PROOF_READY_NOT_STARTED" : "CANARY_BUDGET_OR_YIELD_FAILED", `Controlled canary ${passed ? "PASS" : "FAIL"} · ${Number(canary.passed_units)}/${queue.length} units · request delta ${requestDelta} · cost delta $${costDelta.toFixed(6)} · scale locked`, now, STAGE_ID),
+    ]);
+    return snapshot();
+  }
+  const next = queue[nextIndex], nextBriefId = clean(next.briefId);
+  await db.batch([
+    db.prepare("UPDATE v7_pilot_canaries SET status='AUTHORIZED',current_index=?,current_brief_id=?,updated_at=? WHERE id=?").bind(nextIndex, nextBriefId, now, canary.id),
+    db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='CANARY_AUTHORIZED',blocker='CANARY_UNIT_NOT_RELEASED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${Number(canary.passed_units)}/${queue.length} units PASS · ${nextBriefId} is next · sequence and scale blocked`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
 async function repairNextArchetypeCertification() {
   const env = await runtime(), db = env.DB!, { authorization } = await current(db);
   if (!authorization) throw new Error("ARCHETYPE_CERTIFICATION_CONFIGURATION_REQUIRED");
@@ -890,6 +1012,13 @@ async function setModel(modelId: string, reasoningEffort: string) {
 async function newRequest(db: DB, authorization: Row, briefId: string, phase: string, provider: string, modelId = "none", reasoning = "none", expected = 0, maximum = 0) {
   const baseline = await db.prepare("SELECT execution_state FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION")) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
+  if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION")) {
+    const canary = await db.prepare("SELECT status,current_brief_id FROM v7_pilot_canaries WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+    const allowedPhases = ["DISCOVERY", "CANDIDATE_PIXEL_TOURNAMENT", "DOWNLOAD", "PIXEL_QA"];
+    if (!canary || clean(canary.status) !== "UNIT_RUNNING" || clean(canary.current_brief_id) !== clean(briefId) || !allowedPhases.includes(phase)) throw new Error("CANARY_DISPATCH_FIREWALL · only the leased unit and approved phases may dispatch");
+    const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+    if (Number(active?.total || 0) > 0) throw new Error("CANARY_CONCURRENCY_LIMIT · one active request maximum");
+  }
   const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>();
   if (Number(usage?.total || 0) >= Number(authorization.max_remote_requests)) throw new Error("PILOT_REQUEST_CIRCUIT_OPEN");
   if (Number(usage?.cost || 0) >= Number(authorization.max_actual_spend_usd)) throw new Error("PILOT_SPEND_CIRCUIT_OPEN");
@@ -1592,11 +1721,28 @@ async function closeRepairedUnitGate(db: DB, run: Row, authorization: Row, brief
 
 async function stepPilot() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
-  if (!run || !authorization || authorization.status !== "AUTHORIZED" || !["PILOT_RUNNING", "PILOT_REPAIR_RUNNING"].includes(clean(run.status))) return snapshot();
+  if (!run || !authorization || authorization.status !== "AUTHORIZED" || !["PILOT_RUNNING", "PILOT_REPAIR_RUNNING", "CANARY_UNIT_RUNNING"].includes(clean(run.status))) return snapshot();
+  const canary = clean(run.status) === "CANARY_UNIT_RUNNING" ? await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND status='UNIT_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
   const repairOnly = run.status === "PILOT_REPAIR_RUNNING";
   try {
     const active = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND provider='OPENAI' AND status IN ('QUEUED','IN_PROGRESS') ORDER BY created_at LIMIT 1").bind(authorization.id).first<Row>();
-    if (repairOnly) {
+    if (canary) {
+      const target = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=? AND pilot=1").bind(canary.current_brief_id, run.id).first<Row>();
+      if (!target) throw new Error("CANARY_LEASED_BRIEF_MISSING");
+      if (active && clean(active.brief_id) !== clean(target.id)) throw new Error("UNRELATED_REMOTE_REQUEST_ACTIVE_DURING_CANARY");
+      if (active) {
+        await pollVision(env, db, authorization, active);
+        const refreshed = await db.prepare("SELECT status FROM v7_material_requests WHERE id=?").bind(active.id).first<Row>();
+        if (!refreshed || !["QUEUED", "IN_PROGRESS"].includes(clean(refreshed.status))) await closeControlledCanaryUnit(db, run, authorization, canary, target);
+      } else {
+        const file = await db.prepare("SELECT id FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role='PRIMARY'").bind(authorization.id, target.id).first<Row>();
+        const audit = await db.prepare("SELECT status FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, target.id).first<Row>();
+        if (!file) { if (await claimBriefPhase(db, clean(target.id), "MATERIALIZING")) await materializeOne(env, db, authorization, target); }
+        else if (!audit) { if (await claimBriefPhase(db, clean(target.id), "QA_DISPATCHING")) await dispatchVision(env, db, authorization, target); }
+        else await closeControlledCanaryUnit(db, run, authorization, canary, target);
+      }
+    }
+    else if (repairOnly) {
       const target = await repairedPilotBrief(db, authorization);
       if (!target) throw new Error("REPAIRED_PILOT_UNIT_NOT_FOUND");
       if (active && active.brief_id !== target.id) throw new Error("UNRELATED_REMOTE_REQUEST_ACTIVE_DURING_REPAIR");
@@ -1626,12 +1772,21 @@ async function stepPilot() {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "PILOT_UNIT_FAILED", now = new Date().toISOString();
-    await db.batch([db.prepare("UPDATE v7_material_briefs SET status='REPAIR_REQUIRED' WHERE run_id=? AND pilot=1 AND status IN ('MATERIALIZING','QA_DISPATCHING')").bind(run.id), db.prepare("UPDATE v7_material_runs SET status='REPAIR_REQUIRED' WHERE id=?").bind(run.id), db.prepare("UPDATE v7_material_authorizations SET status='REPAIR_REQUIRED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_stage_states SET status='REPAIR_REQUIRED',blocker='PILOT_UNIT_FAILED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Stored work preserved · ${message}`, now, STAGE_ID)]);
+    if (canary) {
+      await db.batch([
+        db.prepare("UPDATE v7_material_briefs SET status='REPAIR_REQUIRED' WHERE id=? AND status IN ('MATERIALIZING','QA_DISPATCHING')").bind(canary.current_brief_id),
+        db.prepare("UPDATE v7_pilot_canaries SET status='FAILED',failed_units=failed_units+1,updated_at=?,completed_at=? WHERE id=?").bind(now, now, canary.id),
+        db.prepare("UPDATE v7_architecture_baselines SET execution_state='FROZEN' WHERE id=?").bind(canary.baseline_id),
+        db.prepare("UPDATE v7_material_runs SET status='CANARY_BLOCKED' WHERE id=?").bind(run.id),
+        db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(now, authorization.id),
+        db.prepare("UPDATE v7_stage_states SET status='CANARY_BLOCKED',blocker='CANARY_UNIT_FAILED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Stored work preserved · ${message} · later units, sequence and scale blocked`, now, STAGE_ID),
+      ]);
+    } else await db.batch([db.prepare("UPDATE v7_material_briefs SET status='REPAIR_REQUIRED' WHERE run_id=? AND pilot=1 AND status IN ('MATERIALIZING','QA_DISPATCHING')").bind(run.id), db.prepare("UPDATE v7_material_runs SET status='REPAIR_REQUIRED' WHERE id=?").bind(run.id), db.prepare("UPDATE v7_material_authorizations SET status='REPAIR_REQUIRED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_stage_states SET status='REPAIR_REQUIRED',blocker='PILOT_UNIT_FAILED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Stored work preserved · ${message}`, now, STAGE_ID)]);
   }
   await syncRunTotals(db, clean(run.id));
   const materialized = await db.prepare("SELECT COUNT(DISTINCT brief_id) AS total FROM v7_material_files WHERE authorization_id=? AND asset_role='PRIMARY'").bind(authorization.id).first<{ total: number }>(), audited = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_audits WHERE authorization_id=?").bind(authorization.id).first<{ total: number }>();
   const state = await db.prepare("SELECT status FROM v7_material_runs WHERE id=?").bind(run.id).first<{ status: string }>();
-  if (["PILOT_RUNNING", "PILOT_REPAIR_RUNNING"].includes(clean(state?.status))) await db.prepare("UPDATE v7_stage_states SET evidence_summary=?,updated_at=? WHERE id=?").bind(`${Number(materialized?.total || 0)}/${authorization.shot_count} materialized · ${Number(audited?.total || 0)}/${authorization.shot_count} pixel audited`, new Date().toISOString(), STAGE_ID).run();
+  if (["PILOT_RUNNING", "PILOT_REPAIR_RUNNING", "CANARY_UNIT_RUNNING"].includes(clean(state?.status))) await db.prepare("UPDATE v7_stage_states SET evidence_summary=?,updated_at=? WHERE id=?").bind(`${Number(materialized?.total || 0)}/${authorization.shot_count} materialized · ${Number(audited?.total || 0)}/${authorization.shot_count} pixel audited`, new Date().toISOString(), STAGE_ID).run();
   return snapshot();
 }
 
@@ -2037,6 +2192,9 @@ export async function POST(request: Request) {
     if (body.action === "RECONCILE_ARCHETYPE_ATTEMPT_LIMITS") return Response.json(await reconcileArchetypeAttemptLimits(), { status: 200 });
     if (body.action === "AUTHORIZE_DATA_VISUALIZATION_V3") return Response.json(await authorizeDataVisualizationV3(), { status: 201 });
     if (body.action === "RUN_ARCHETYPE_REGRESSION") return Response.json(await runArchetypeRegression(), { status: 201 });
+    if (body.action === "AUTHORIZE_CONTROLLED_CANARY") return Response.json(await authorizeControlledCanary(), { status: 201 });
+    if (body.action === "START_CONTROLLED_CANARY_UNIT") return Response.json(await startControlledCanaryUnit(), { status: 202 });
+    if (body.action === "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") return Response.json(await releaseNextControlledCanaryUnit(), { status: 201 });
     if (body.action === "BUILD_DRY_RUN") return Response.json(await buildDryRun(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT") return Response.json(await authorizePilot(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT_AFTER_MOTION") return Response.json(await authorizePilotAfterMotion(), { status: 201 });
