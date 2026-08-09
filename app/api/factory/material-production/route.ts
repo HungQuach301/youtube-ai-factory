@@ -556,6 +556,15 @@ function nextUncertifiedArchetype(qualifications: Row[]) {
 
 async function reusableFrameSet(db: DB, runId: string, archetype: string) {
   if (!["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE", "DOCUMENTARY_LIVE_ACTION"].includes(archetype)) return [] as Row[];
+  if (archetype === "DOCUMENTARY_LIVE_ACTION") {
+    const evidence = await db.prepare("SELECT e.content_json FROM v7_media_evidence e JOIN v7_source_frame_audits a ON a.evidence_id=e.id WHERE e.run_id=? AND e.evidence_type='SOURCE_FRAME_SET' AND e.status='TECHNICALLY_VERIFIED' AND a.status='PASS' ORDER BY a.updated_at DESC LIMIT 1").bind(runId).first<Row>();
+    const lineage = evidence ? arr(rec(JSON.parse(String(evidence.content_json || "{}"))).frames).map(rec) : [];
+    if (lineage.length === 3) {
+      const files: Row[] = [];
+      for (const item of lineage) { const file = await db.prepare("SELECT * FROM v7_material_files WHERE id=? AND status='STORED_VERIFIED'").bind(clean(item.fileId)).first<Row>(); if (file) files.push(file); }
+      if (files.length === 3) return files;
+    }
+  }
   if (["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE"].includes(archetype)) {
     const proof = await db.prepare("SELECT source_hashes_json FROM v7_motion_proofs WHERE run_id=? AND status='PASS' ORDER BY updated_at DESC LIMIT 1").bind(runId).first<Row>();
     const lineage = proof ? arr(JSON.parse(String(proof.source_hashes_json || "[]"))).map(rec) : [];
@@ -573,7 +582,7 @@ async function reusableFrameSet(db: DB, runId: string, archetype: string) {
     const grouped = new Map<string, Row[]>();
     for (const item of candidates) grouped.set(clean(item.brief_id), [...(grouped.get(clean(item.brief_id)) || []), item]);
     const complete = [...grouped.values()].find((items) => roles.every((role) => items.some((item) => clean(item.asset_role) === role)));
-    if (complete) return complete.sort((a, b) => roles.indexOf(clean(a.asset_role)) - roles.indexOf(clean(b.asset_role)));
+    if (complete) return roles.map((role) => complete.filter((item) => clean(item.asset_role) === role).sort((a,b)=>new Date(String(b.created_at)).getTime()-new Date(String(a.created_at)).getTime())[0]);
   }
   return [] as Row[];
 }

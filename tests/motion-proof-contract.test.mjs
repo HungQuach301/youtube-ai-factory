@@ -160,6 +160,9 @@ test("remaining archetypes certify in risk order with one scoped request at a ti
   assert.match(route, /QA_ENTRY/);
   assert.match(route, /MOTION_ENTRY/);
   assert.match(route, /source_hashes_json FROM v7_motion_proofs/);
+  assert.match(route, /e\.evidence_type='SOURCE_FRAME_SET'/);
+  assert.match(route, /a\.status='PASS'/);
+  assert.match(route, /lineage\.length === 3/);
   assert.match(route, /\["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE"\]\.includes\(archetype\)/);
   assert.doesNotMatch(route.match(/async function reusableFrameSet[\s\S]*?return \[\] as Row\[\];\n}/)?.[0] || "", /b\.route='HYBRID'/);
   assert.match(route, /ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST/);
