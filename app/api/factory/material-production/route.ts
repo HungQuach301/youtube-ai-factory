@@ -539,6 +539,7 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
       "MP-003": [["PURCHASE RECORD","$100.00","APPROVED"],["REWARD RECORD","REWARD","POSTED"],["TWO RECORDS","PURCHASE","REWARD"]],
       "MP-004": [["PURCHASE","$100.00","UNRESOLVED"],["PARTICIPANTS","MERCHANT","ACQUIRER"],["DISTINCT ROLES","MERCHANT","PROCESSOR"]],
       "MP-018": [["EVIDENCE BASE","NATIONAL","TOTAL"],["CARD SHARE","SUPPORTED","PROPORTION"],["SOURCE CHECK","YEAR","DENOMINATOR"]],
+      "MP-153": [["PAYMENT PRESENTED","PROCESSING","AWAIT CONFIRMATION"],["NEUTRAL CONFIRMATION","VERIFIED","NOT SETTLED"],["CONFIRMATION HOLDS","VERIFIED","NOT SETTLED"]],
     };
     const [heading,main,sub]=audienceCopy[clean(brief.briefId)]?.[state] || [["EXPLANATION","ENTRY",""],["EXPLANATION","CHANGE",""],["EXPLANATION","OUTCOME",""]][state];
     const scale=Math.max(width/background.width,height/background.height),sourceWidth=width/scale,sourceHeight=height/scale,sourceX=(background.width-sourceWidth)/2,sourceY=(background.height-sourceHeight)/2;
@@ -893,6 +894,31 @@ async function upgradeFailedUnitArchitecture() {
     db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='PILOT_REPAIR_RUNNING' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='PILOT_REPAIR_RUNNING',blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(original.briefId)} architecture repair applied · SOURCE split into authentic checkout context + channel-owned neutral verification layer · original hash ${originalHash.slice(0, 12)} preserved`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function repairFailedUnitRenderer() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || clean(run.status) !== "REPAIR_REQUIRED" || clean(authorization.status) !== "REPAIR_REQUIRED") throw new Error("RENDERER_REPAIR_STATE_REQUIRED");
+  const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
+  if (active) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const brief = await db.prepare("SELECT b.* FROM v7_material_briefs b JOIN v7_material_audits a ON a.brief_id=b.id AND a.authorization_id=? WHERE b.run_id=? AND b.pilot=1 AND a.status='REPAIR_REQUIRED' AND a.score<90 AND b.content_json LIKE '%SOURCE_TO_HYBRID_SPLIT_V1%' ORDER BY a.created_at DESC LIMIT 1").bind(authorization.id, run.id).first<Row>();
+  if (!brief) throw new Error("FAILED_HYBRID_RENDERER_UNIT_NOT_FOUND");
+  const prior = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND status='REPAIR_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  const existing = await db.prepare("SELECT id FROM v7_material_unit_repairs WHERE authorization_id=? AND brief_id=? AND repair_type='SEMANTIC_STATE_RENDERER_V2' LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  if (existing) throw new Error("SEMANTIC_RENDERER_REPAIR_ALREADY_APPLIED");
+  const frames = await rows(db, "SELECT id,asset_role,content_hash FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role IN ('QA_ENTRY','QA_MIDPOINT','QA_EXIT') ORDER BY asset_role", authorization.id, brief.id);
+  if (frames.length !== 3) throw new Error("PRIOR_QA_FRAME_SET_INCOMPLETE");
+  const originalEvidence = { frames: frames.map((frame) => ({ id: frame.id, role: frame.asset_role, sha256: frame.content_hash })), audit: prior };
+  const stateContract = { version: "SEMANTIC_STATE_RENDERER_V2", entry: { heading: "PAYMENT PRESENTED", state: "PROCESSING", qualifier: "AWAIT CONFIRMATION" }, midpoint: { heading: "NEUTRAL CONFIRMATION", state: "VERIFIED", qualifier: "NOT SETTLED" }, exit: { heading: "CONFIRMATION HOLDS", state: "VERIFIED", qualifier: "NOT SETTLED" }, prohibited: ["$100.00", "APPROVED", "SETTLED"] };
+  const content = rec(JSON.parse(String(brief.content_json))), repaired = { ...content, architectureRepair: { ...rec(content.architectureRepair), authoredStateContract: stateContract } }, repairedJson = JSON.stringify(repaired), repairedHash = await sha(repairedJson), originalJson = JSON.stringify(originalEvidence), originalHash = await sha(originalJson), stateJson = JSON.stringify(stateContract), stateHash = await sha(stateJson), now = new Date().toISOString();
+  await db.batch([
+    db.prepare("INSERT INTO v7_material_unit_repairs (id,program_id,run_id,authorization_id,brief_id,repair_type,status,original_content_json,original_content_hash,repaired_content_json,repaired_content_hash,failure_evidence_json,created_at) VALUES (?,?,?,?,?,'SEMANTIC_STATE_RENDERER_V2','APPLIED',?,?,?,?,?,?)").bind(`${brief.id}-SEMANTIC-STATE-V2`, PROGRAM_ID, run.id, authorization.id, brief.id, originalJson, originalHash, stateJson, stateHash, JSON.stringify({ priorAuditId: prior?.id, priorScore: Number(prior?.score || 0), findings: JSON.parse(String(prior?.findings_json || "[]")), providerResponseId: prior?.provider_response_id }), now),
+    db.prepare("UPDATE v7_material_briefs SET content_json=?,content_hash=?,status='REPAIR_REQUIRED' WHERE id=?").bind(repairedJson, repairedHash, brief.id),
+    db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='PILOT_REPAIR_RUNNING' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='PILOT_REPAIR_RUNNING',blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(content.briefId)} semantic renderer V2 applied · prior QA ${Number(prior?.score || 0)}/100 and 3 frame hashes preserved · source champion unchanged`, now, STAGE_ID),
   ]);
   return snapshot();
 }
@@ -1363,6 +1389,7 @@ export async function POST(request: Request) {
     if (body.action === "STOP_PILOT") return Response.json(await stopPilot());
     if (body.action === "RESUME_PILOT") return Response.json(await resumePilot(), { status: 202 });
     if (body.action === "UPGRADE_FAILED_UNIT_ARCHITECTURE") return Response.json(await upgradeFailedUnitArchitecture(), { status: 201 });
+    if (body.action === "REPAIR_FAILED_UNIT_RENDERER") return Response.json(await repairFailedUnitRenderer(), { status: 201 });
     if (body.action === "PLAN_ROOT_CAUSE_EXECUTION") return Response.json(await planRootCauseExecution(), { status: 201 });
     if (body.action === "RUN_SOURCE_FRAME_QA") return Response.json(await sourceFrameQa(), { status: 202 });
     if (body.action === "RUN_COMPOSITE_TOURNAMENT") return Response.json(await compositeTournament(), { status: 202 });

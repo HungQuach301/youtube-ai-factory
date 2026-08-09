@@ -66,6 +66,13 @@ test("pilot unit work is protected by an atomic phase claim", () => {
   assert.match(route, /status IN \('MATERIALIZING','QA_DISPATCHING'\)/);
 });
 
+test("hybrid renderer repair preserves failed pixels and binds exact states", () => {
+  assert.match(route, /REPAIR_FAILED_UNIT_RENDERER/);
+  assert.match(route, /SEMANTIC_STATE_RENDERER_V2/);
+  assert.match(route, /"MP-153": \[\["PAYMENT PRESENTED","PROCESSING","AWAIT CONFIRMATION"\]/);
+  assert.match(route, /prior QA \$\{Number\(prior\?\.score \|\| 0\)\}\/100 and 3 frame hashes preserved/);
+});
+
 test("motion proof state has a durable migration", () => {
   assert.match(migration, /CREATE TABLE `v7_motion_proofs`/);
   assert.match(migration, /`source_hashes_json` text NOT NULL/);
