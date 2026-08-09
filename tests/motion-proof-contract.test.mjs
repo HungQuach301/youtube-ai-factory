@@ -146,6 +146,9 @@ test("remaining archetypes certify in risk order with one scoped request at a ti
   assert.match(route, /RUN_NEXT_ARCHETYPE_QA/);
   assert.match(route, /POLL_NEXT_ARCHETYPE_QA/);
   assert.match(route, /NO_ACTIVE_ARCHETYPE_QA_TO_POLL/);
+  assert.match(route, /REPAIR_NEXT_ARCHETYPE_CERTIFICATION/);
+  assert.match(route, /REGISTERED_PROVENANCE/);
+  assert.match(route, /improvement >= 3/);
   assert.match(route, /reusableFrameSet/);
   assert.match(route, /QA_ENTRY/);
   assert.match(route, /MOTION_ENTRY/);
