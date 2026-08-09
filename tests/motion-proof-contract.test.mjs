@@ -264,4 +264,6 @@ test("controlled canary V4 derives dispatch authority from one versioned capabil
   assert.match(route, /CANARY_DISPATCH_CAPABILITY_MISMATCH/);
   assert.match(route, /CANARY_AUDIT_CAPABILITY_MISMATCH/);
   assert.match(route, /capability\?\.phase === phase/);
+  assert.match(route, /controlledCanaryAudit/);
+  assert.match(route, /currentAudit:/);
 });
