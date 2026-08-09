@@ -250,3 +250,18 @@ test("controlled canary V3 materializes exact unit contracts without reusing cer
   assert.match(route, /sequenceProof: "BLOCKED"/);
   assert.match(route, /productionScale: "BLOCKED"/);
 });
+
+test("controlled canary V4 derives dispatch authority from one versioned capability contract", () => {
+  assert.match(route, /CONTROLLED_CANARY_V4_CAPABILITY_BOUND_DISPATCH/);
+  assert.match(route, /CANARY_DISPATCH_CAPABILITIES/);
+  assert.match(route, /CANARY_HANDOFF_REGRESSION_V2/);
+  assert.match(route, /AUTHORIZE_CONTROLLED_CANARY_V4/);
+  assert.match(route, /FAILED_CANARY_V3_AUDIT_REQUIRED/);
+  assert.match(route, /V3_UNIT_ARTIFACT_REPROMOTION/);
+  assert.match(route, /DISPATCH_CAPABILITY_CONGRUENCE/);
+  assert.match(route, /LEASE_HANDOFF_DRY_RUN/);
+  assert.match(route, /CANARY_V4_ZERO_SPEND_PREFLIGHT_FAILED/);
+  assert.match(route, /CANARY_DISPATCH_CAPABILITY_MISMATCH/);
+  assert.match(route, /CANARY_AUDIT_CAPABILITY_MISMATCH/);
+  assert.match(route, /capability\?\.phase === phase/);
+});
