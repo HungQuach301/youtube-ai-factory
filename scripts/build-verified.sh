@@ -18,6 +18,9 @@ if [[ ! -x "${vinext}" ]]; then
   exit 69
 fi
 
+echo "Checking asynchronous API error boundaries..."
+node "${script_dir}/check-async-error-boundaries.mjs"
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \

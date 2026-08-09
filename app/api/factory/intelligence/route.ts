@@ -310,13 +310,13 @@ async function pollStage(stage: StageKey) {
     const providerStatus = String(payload.status || "unknown"); const now = new Date().toISOString();
     await db.prepare("UPDATE v7_intelligence_jobs SET provider_status=?,heartbeat_at=? WHERE id=?").bind(providerStatus, now, job.id).run();
     await db.prepare("UPDATE v7_stage_states SET evidence_summary=?,updated_at=? WHERE id=?").bind(`Background research · ${providerStatus.replaceAll("_", " ")} · heartbeat ${now.slice(11, 19)} UTC`, now, `${PROGRAM_ID}-STAGE-${stage}`).run();
-    if (["queued", "in_progress"].includes(providerStatus)) return snapshot();
+    if (["queued", "in_progress"].includes(providerStatus)) return await snapshot();
     if (providerStatus !== "completed") {
       const detail = payload.error && typeof payload.error === "object" ? JSON.stringify(payload.error) : `Provider ended with status ${providerStatus}`;
       await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: job.run_id, stageKey: stage, costType: "WEB_GROUNDED_INTELLIGENCE", payload, fallbackModel: MODEL });
-      await failJob(db, stage, job.run_id, job.id, detail); return snapshot();
+      await failJob(db, stage, job.run_id, job.id, detail); return await snapshot();
     }
-    await finalizeStage(env, stage, job.run_id, job.id, payload); return snapshot();
+    await finalizeStage(env, stage, job.run_id, job.id, payload); return await snapshot();
   } catch (error) {
     const message = error instanceof Error ? error.message : "Wave 2 artifact finalization failed";
     await failJob(db, stage, job.run_id, job.id, message); throw error;

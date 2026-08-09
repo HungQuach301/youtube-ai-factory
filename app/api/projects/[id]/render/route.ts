@@ -172,7 +172,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (assetId) {
       const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, assetId)).limit(1);
       if (!asset || asset.projectId !== id || asset.status !== "APPROVED" || asset.rightsStatus !== "VERIFIED") return new Response("Approved asset not found", { status: 404 });
-      if (asset.storageKey) return serveStoredVideo(request, asset.storageKey, asset.mimeType, asset.sizeBytes);
+      if (asset.storageKey) return await serveStoredVideo(request, asset.storageKey, asset.mimeType, asset.sizeBytes);
       if (!asset.sourceUrl || !isSafeExternalUrl(asset.sourceUrl)) return new Response("External asset URL is not safe to proxy", { status: 400 });
       const headers: Record<string, string> = {}; const range = request.headers.get("range"); if (range) headers.Range = range;
       const upstream = await fetch(asset.sourceUrl, { headers, redirect: "follow" });

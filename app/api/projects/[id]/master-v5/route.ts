@@ -102,7 +102,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   try {
     const { id } = await context.params; const url = new URL(request.url); const db = await getDb();
     const assetId = url.searchParams.get("asset"); const audioId = url.searchParams.get("audio"); const recordId = assetId || audioId;
-    if (recordId) { const record = (await db.select().from(evidenceRecords).where(eq(evidenceRecords.id, recordId)).limit(1))[0]; if (!record || record.projectId !== id || !record.storageKey || !record.contentHash) return new Response("Verified v5 evidence not found", { status: 404 }); return serveObject(request, record.storageKey, record.mimeType || "application/octet-stream", record.sizeBytes); }
+    if (recordId) { const record = (await db.select().from(evidenceRecords).where(eq(evidenceRecords.id, recordId)).limit(1))[0]; if (!record || record.projectId !== id || !record.storageKey || !record.contentHash) return new Response("Verified v5 evidence not found", { status: 404 }); return await serveObject(request, record.storageKey, record.mimeType || "application/octet-stream", record.sizeBytes); }
     return Response.json(await snapshot(id));
   } catch (error) { console.error("Master V5 GET failed", error); return Response.json({ error: "Master Render V5 could not be loaded" }, { status: 500 }); }
 }
