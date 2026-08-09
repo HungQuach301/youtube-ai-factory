@@ -16,6 +16,7 @@ type Snapshot = {
   authorization: null | { id: string; status: string; shotCount: number; maxRemoteRequests: number; maxActualSpendUsd: number; authorizedAt: string; revokedAt?: string; modelPolicy: Record<string, unknown> };
   provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
   architecture: { version: string; status: string; principle: string; planes: Array<{ id: string; name: string; status: string; responsibility: string }>; qualityLadder: Array<{ order: number; name: string; exit: string }>; scalePolicy: { tranches: string[]; concurrency: string; stopConditions: string[]; resume: string } };
+  reliability: null | { version: string; status: string; executionState: string; sourceCheckpoint: string; controls: string[]; qualification: { status: string; score: number; productionDispatch: string; next: string }; compiled: { total: number; pass: number; redesign: number }; archetypes: Array<{ name: string; status: string; hardestFixture: string; evidenceStatus: string; firstPassYield: number; blocker?: string; checks: string[] }>; frozenAt: string };
   mediaExecution: { configured: boolean; executor: null | { id: string; status: string; version: string; lastSeenAt: string; capabilities: string[] }; counts: { queued: number; leased: number; complete: number; failed: number; blocked: number }; jobs: Array<{ id: string; briefId: string; type: string; status: string; attempt: number; maxAttempts: number; leaseOwner?: string; error?: string; createdAt: string; completedAt?: string }>; evidence: Array<{ id: string; briefId: string; type: string; status: string; technicalStatus: string; hash: string; createdAt: string; probe: { durationSeconds?: number; width?: number; height?: number; codec?: string; averageFrameRate?: string }; sourceQa: null | { status: string; score: number; dimensions: Record<string, number>; findings: string[]; repair: { replacementQuery?: string; sourceLayerContract?: string } }; frames: Array<{ role: string; timestampSeconds: number; width: number; height: number; mimeType: string; fileId: string; previewUrl: string }> }>; sourceQaActive: boolean; composite: { active: boolean; rubric: string; status: string; winner: string | null; score: number; dimensions: Record<string, number>; findings: string[]; repair: { exactRepair?: string }; candidates: Array<{ candidate: string; scores: Record<string, number>; frames: Array<{ state: string; fileId: string; previewUrl: string }> }> }; motionProof: null | { id: string; status: string; champion: string; renderer: string; durationSeconds: number; fps: number; score: number; dimensions: Record<string, number>; findings: string[]; motionFileId: string | null; previewUrl: string | null; contentHash: string | null; sourceHashes: Array<{ state: string; fileId: string; sha256: string }>; sampleFrames: Array<{ role: string; timestampSeconds: number; fileId: string; previewUrl: string }>; rightsRepairAvailable: boolean; audits: Array<{ attempt: number; status: string; score: number; evidenceBundleHash: string; providerResponseId: string; createdAt: string }> }; motionQaActive: boolean; nextGate: string };
   pilot: { materialized: number; audited: number; total: number; percent: number; items: Array<{ id: string; briefId: string; route: string; family: string; meaning: string; materialStatus: string; pixelQaStatus: string; file: null | { id: string; provider: string; mimeType: string; bytes: number; hash: string; previewUrl: string }; overlay: null | { id: string; previewUrl: string }; tournament: null | { status: string; score: number; candidateCount: number; providerCoverage: number; championId?: string; bestCandidateId?: string; bestReason?: string; repairAttempt: number; assignedPixelJob?: string }; audit: null | { status: string; score: number; findings: string[] } }> };
   requestLedger: { total: number; planned: number; active: number; complete: number; incomplete: number; actualCostUsd: number; recent: Array<{ id: string; briefId: string; phase: string; provider: string; modelId: string; status: string; inputTokens: number; outputTokens: number; reasoningTokens: number; actualCostUsd: number; error?: string; createdAt: string }> };
@@ -70,6 +71,16 @@ export default function MaterialProductionPage() {
       if (!response.ok) throw new Error(payload.error || "Dry run failed");
       setData(payload);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Dry run failed"); }
+    finally { setWorking(null); }
+  }
+  async function qualifyReliability() {
+    setWorking("QUALIFY_RELIABILITY_BASELINE"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "QUALIFY_RELIABILITY_BASELINE" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Reliability qualification failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Reliability qualification failed"); }
     finally { setWorking(null); }
   }
   async function pilotAction(action: "AUTHORIZE_PILOT" | "AUTHORIZE_PILOT_AFTER_MOTION" | "REVOKE_PILOT") {
@@ -191,6 +202,22 @@ export default function MaterialProductionPage() {
       <button onClick={build} disabled={Boolean(working) || !ready}>{working === "BUILD" ? "Creating clean Stage 09.4 run…" : data.run?.status === "REPAIR_REQUIRED" ? "Build clean Stage 09.4 pilot" : data.run ? "Rebuild deterministic dry run" : "Build zero-spend dry run"}</button>
     </section>
     {error && <p className="stateBanner errorState">{error}</p>}
+    <section className="reliabilityBaseline">
+      <header><div><p>COMMERCIAL RELIABILITY BASELINE</p><h2>Production is quarantined until archetypes—not isolated shots—are certified.</h2><span>Stage 09 no longer mixes architecture discovery, renderer debugging and production execution in one batch.</span></div><strong>{data.reliability?.status.replaceAll("_", " ") || "QUALIFICATION REQUIRED"}</strong></header>
+      {!data.reliability
+        ? <div className="reliabilityStart"><p>Freeze the v150 blocker, compile every pilot shot into observable evidence and modality contracts, then run the MP-153 hardest-first fixture with zero provider requests.</p><button onClick={() => void qualifyReliability()} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "QUALIFY_RELIABILITY_BASELINE" ? "Freezing and qualifying…" : "Freeze execution & qualify baseline · $0"}</button></div>
+        : <>
+          <div className="reliabilityMetrics">
+            <article><small>EXECUTION</small><b>{data.reliability.executionState}</b><span>production dispatch quarantined</span></article>
+            <article><small>COMPILER</small><b>{data.reliability.compiled.total}</b><span>{data.reliability.compiled.pass} pass · {data.reliability.compiled.redesign} redesign</span></article>
+            <article><small>QUALIFICATION</small><b>{data.reliability.qualification.score}/100</b><span>{data.reliability.qualification.status}</span></article>
+            <article><small>NEXT GATE</small><b>{data.reliability.qualification.next.replaceAll("_", " ")}</b><span>real evidence required</span></article>
+          </div>
+          <div className="reliabilityControls">{data.reliability.controls.map((control) => <span key={control}>{control.replaceAll("_", " ")}</span>)}</div>
+          <div className="archetypeGrid">{data.reliability.archetypes.map((archetype) => <article key={archetype.name}><header><b>{archetype.name.replaceAll("_", " ")}</b><span>{archetype.status.replaceAll("_", " ")}</span></header><p>Hardest fixture · {archetype.hardestFixture}</p><small>{archetype.checks.join(" · ")}</small><footer>{archetype.evidenceStatus.replaceAll("_", " ")}</footer></article>)}</div>
+          <p className="stateBanner">MP-153 is now a transaction-state qualification fixture. Generic stock is rejected before search; certification must use controlled UI, authored state animation or a verified hybrid.</p>
+        </>}
+    </section>
     <section className="materialArchitecture">
       <header><div><p>STAGE 09 TARGET ARCHITECTURE · {data.architecture.version}</p><h2>Quality and scale are governed by separate production planes.</h2><span>{data.architecture.principle}</span></div><strong>{data.architecture.status.replaceAll("_", " ")}</strong></header>
       <div className="materialPlanes">{data.architecture.planes.map((plane)=><article key={plane.id} className={plane.status.toLowerCase()}><small>{plane.status}</small><h3>{plane.name}</h3><p>{plane.responsibility}</p></article>)}</div>

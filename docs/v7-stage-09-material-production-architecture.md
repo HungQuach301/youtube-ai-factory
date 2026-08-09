@@ -193,6 +193,22 @@ The Hybrid Compositor must preserve the documentary provider frame as context wh
 
 ## Locked architecture decisions
 
+## Wave 09.6 — Commercial reliability baseline
+
+Stage 09 production execution is quarantined at checkpoint v150 and cannot dispatch another normal provider request. A deterministic Shot Contract Compiler now transforms each pilot brief into a narrative claim, observable evidence, temporal evidence, allowed modality, forbidden assumptions, risk tier and repair route before source discovery.
+
+The compiler treats MP-153 as the hardest-first `TRANSACTION_STATE_PROOF` fixture. Generic stock is rejected at contract lint because it cannot prove `PROCESSING → VERIFIED → VERIFIED / NOT SETTLED`; allowed modalities are controlled UI, authored state animation or a verified hybrid. This is an intentional early redesign result, not another Pixel-QA failure.
+
+Eight archetypes enter contract qualification independently: transaction-state proof, data visualization, process route, documentary live action, source-authored hybrid, abstract authored, rights-sensitive and mobile-text intensive. Contract qualification does not certify production. Each archetype remains blocked until a real stored artifact establishes first-pass yield and the release threshold.
+
+The dispatch firewall is systemic: while the reliability baseline is `FROZEN`, normal discovery, tournament, render-QA and retry phases cannot create a provider request. Only an explicitly scoped `ARCHETYPE_CERTIFICATION` phase may later open after its own bounded authorization.
+
+- **ADR-054 — Production execution and architecture qualification are separate lifecycles.** A batch cannot mutate its compiler, renderer or ledger contract while producing release artifacts.
+- **ADR-055 — Claims compile before pixels are acquired.** A shot without observable evidence, allowed modality and forbidden assumptions fails at zero spend.
+- **ADR-056 — Archetypes certify hardest-first.** A passing easy champion never authorizes an untested semantic class.
+- **ADR-057 — Repair routes follow root-cause layers.** Contract, source, renderer, evidence and execution failures do not share a generic retry path.
+- **ADR-058 — Commercial release is yield-based.** Scale admission requires archetype coverage and measured first-pass yield, not one aggregate score.
+
 - **ADR-028 — Adaptive token envelopes protect quality.** Token limits constrain runaway execution, not the completeness standard of an artifact.
 - **ADR-029 — Provider-incomplete means gate-blocked.** Missing output can never be repaired with defaults or compensated by an average score.
 - **ADR-030 — Automatic retry is delta-only.** Whole-unit recovery requires explicit root-cause authorization and preserves completed work.

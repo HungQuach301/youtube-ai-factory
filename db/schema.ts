@@ -949,3 +949,48 @@ export const v7MaterialUnitRepairs = sqliteTable("v7_material_unit_repairs", {
   failureEvidenceJson: text("failure_evidence_json").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const v7ArchitectureBaselines = sqliteTable("v7_architecture_baselines", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  version: text("version").notNull(),
+  status: text("status").notNull(),
+  executionState: text("execution_state").notNull(),
+  sourceCheckpoint: text("source_checkpoint").notNull(),
+  controlsJson: text("controls_json").notNull(),
+  qualificationJson: text("qualification_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  frozenAt: text("frozen_at"),
+});
+
+export const v7CompiledShotContracts = sqliteTable("v7_compiled_shot_contracts", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  baselineId: text("baseline_id").notNull(),
+  briefId: text("brief_id").notNull(),
+  archetype: text("archetype").notNull(),
+  riskTier: text("risk_tier").notNull(),
+  claim: text("claim").notNull(),
+  requiredEvidenceJson: text("required_evidence_json").notNull(),
+  allowedModalitiesJson: text("allowed_modalities_json").notNull(),
+  forbiddenJson: text("forbidden_json").notNull(),
+  repairRoute: text("repair_route").notNull(),
+  lintStatus: text("lint_status").notNull(),
+  lintJson: text("lint_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const v7ArchetypeQualifications = sqliteTable("v7_archetype_qualifications", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  baselineId: text("baseline_id").notNull(),
+  archetype: text("archetype").notNull(),
+  status: text("status").notNull(),
+  hardestFixture: text("hardest_fixture").notNull(),
+  deterministicChecksJson: text("deterministic_checks_json").notNull(),
+  evidenceStatus: text("evidence_status").notNull(),
+  firstPassYield: real("first_pass_yield").notNull().default(0),
+  blocker: text("blocker"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

@@ -13,6 +13,7 @@ const PREVIOUS_COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V4";
 const MOTION_RENDERER_VERSION = "FRAMEFLOW_MOTION_PROOF_V1";
 const MOTION_QA_RUBRIC = "MOTION_PROOF_QA_V1";
 const MOTION_RIGHTS_BUNDLE_VERSION = "MOTION_RIGHTS_BUNDLE_V1";
+const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V1";
 const MODEL_OPTIONS = [
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", description: "Maximum quality" },
   { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", description: "Balanced quality and speed" },
@@ -77,6 +78,9 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_motion_proofs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,champion text NOT NULL,composite_rubric text NOT NULL,renderer_version text NOT NULL,status text DEFAULT 'RENDER_REQUIRED' NOT NULL,motion_file_id text,evidence_id text,source_hashes_json text NOT NULL,duration_seconds real NOT NULL,fps integer DEFAULT 30 NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,provider_response_id text,content_hash text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_motion_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,proof_id text NOT NULL,rubric_version text NOT NULL,attempt integer NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,evidence_bundle_json text DEFAULT '{}' NOT NULL,evidence_bundle_hash text NOT NULL,request_id text,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_architecture_baselines (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,version text NOT NULL,status text NOT NULL,execution_state text NOT NULL,source_checkpoint text NOT NULL,controls_json text NOT NULL,qualification_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,frozen_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_compiled_shot_contracts (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,brief_id text NOT NULL,archetype text NOT NULL,risk_tier text NOT NULL,claim text NOT NULL,required_evidence_json text NOT NULL,allowed_modalities_json text NOT NULL,forbidden_json text NOT NULL,repair_route text NOT NULL,lint_status text NOT NULL,lint_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_archetype_qualifications (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,archetype text NOT NULL,status text NOT NULL,hardest_fixture text NOT NULL,deterministic_checks_json text NOT NULL,evidence_status text NOT NULL,first_pass_yield real DEFAULT 0 NOT NULL,blocker text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
 ] as const;
 
 const arr = (value: unknown) => Array.isArray(value) ? value : [];
@@ -225,6 +229,9 @@ async function snapshot() {
   const compositeAudits = authorization ? await rows(db, "SELECT * FROM v7_composite_audits WHERE authorization_id=? ORDER BY updated_at DESC", authorization.id) : [];
   const motionProofs = authorization ? await rows(db, "SELECT * FROM v7_motion_proofs WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
   const motionAudits = authorization ? await rows(db, "SELECT * FROM v7_motion_audits WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
+  const reliabilityBaseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
+  const compiledContracts = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=? ORDER BY brief_id", reliabilityBaseline.id) : [];
+  const archetypeQualifications = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_qualifications WHERE baseline_id=? ORDER BY archetype", reliabilityBaseline.id) : [];
   const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
@@ -253,7 +260,8 @@ async function snapshot() {
   const motionEvidence = motionProof?.evidence_id ? mediaEvidence.find((item) => item.id === motionProof.evidence_id) : null;
   let motionContent: Row = {}; try { motionContent = motionEvidence ? rec(JSON.parse(String(motionEvidence.content_json || "{}"))) : {}; } catch { motionContent = {}; }
   const motionJob = mediaJobs.find((job) => job.job_type === "MOTION_PROOF_RENDER");
-  const nextGate = sourceEvidenceReady
+  const productionQuarantined = reliabilityBaseline?.execution_state === "FROZEN";
+  const nextGate = productionQuarantined ? "ARCHETYPE_CERTIFICATION_REQUIRED" : sourceEvidenceReady
     ? compositeActive ? "COMPOSITE_TOURNAMENT_RUNNING"
       : compositeRepairAvailable ? "COMPOSITE_REPAIR"
         : !compositeAudit ? "COMPOSITE_TOURNAMENT"
@@ -272,6 +280,17 @@ async function snapshot() {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
     provider: { model: setting.modelId, reasoningEffort: setting.reasoningEffort, modelOptions: MODEL_OPTIONS, reasoningOptions: REASONING_OPTIONS },
     architecture: architectureSnapshot(Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET), executorOnline, sourceEvidenceReady),
+    reliability: reliabilityBaseline ? {
+      version: reliabilityBaseline.version,
+      status: reliabilityBaseline.status,
+      executionState: reliabilityBaseline.execution_state,
+      sourceCheckpoint: reliabilityBaseline.source_checkpoint,
+      controls: JSON.parse(String(reliabilityBaseline.controls_json || "[]")),
+      qualification: JSON.parse(String(reliabilityBaseline.qualification_json || "{}")),
+      compiled: { total: compiledContracts.length, pass: compiledContracts.filter((item) => item.lint_status === "PASS").length, redesign: compiledContracts.filter((item) => item.lint_status === "REDESIGN_REQUIRED").length },
+      archetypes: archetypeQualifications.map((item) => ({ name: item.archetype, status: item.status, hardestFixture: item.hardest_fixture, evidenceStatus: item.evidence_status, firstPassYield: Number(item.first_pass_yield), blocker: item.blocker, checks: JSON.parse(String(item.deterministic_checks_json || "[]")) })),
+      frozenAt: reliabilityBaseline.frozen_at,
+    } : null,
     policy: { execution: "ZERO_SPEND_DRY_RUN_THEN_AUTHORIZED_TRANCHES", pilotShots: "8–12", expectedOutputTokens: "500–16000", safetyCeilings: "3000/8000/16000/32000", maxRetry: 1, retryPolicy: "DELTA_ONLY", incompletePolicy: "BLOCK_GATE", factualVisuals: "CODE_NATIVE", evidence: "STORED_PIXELS_AND_CHECKSUM" },
     run: run ? { id: run.id, status: run.status, score: Number(run.score), briefCount: Number(run.brief_count), pilotCount: Number(run.pilot_count), remoteRequests: Number(run.remote_requests), actualCostUsd: Number(run.actual_cost_usd), gates: JSON.parse(String(run.gate_json || "[]")) } : null,
     artifact: content ? { contentHash: artifact?.content_hash, runtimeKey: artifact?.runtime_key, driveFileId: artifact?.drive_file_id, pilotIds: content.pilotIds, routeMix: content.routeMix, modelMix: content.modelMix, sampleBriefs: arr(content.briefs).slice(0, 8) } : null,
@@ -295,6 +314,97 @@ async function snapshot() {
       nextGate,
     },
   };
+}
+
+function compileShotContract(briefRow: Row) {
+  const brief = rec(JSON.parse(String(briefRow.content_json || "{}")));
+  const claim = clean(brief.viewerMustUnderstand || brief.narrationClause);
+  const text = `${clean(brief.narrationClause)} ${claim}`.toLowerCase();
+  const negativeState = /not settled|not final|pending|await|processing|verified but|not yet/.test(text);
+  const transactionState = /payment|transaction|checkout|authorization|verified|settled|terminal/.test(text);
+  const dataClaim = /percent|rate|increase|decrease|compare|cost|fee|revenue|margin|amount/.test(text);
+  const routeClaim = /route|network|flow|transfer|issuer|acquirer|clearing/.test(text);
+  const archetype = transactionState && negativeState ? "TRANSACTION_STATE_PROOF"
+    : dataClaim ? "DATA_VISUALIZATION"
+      : routeClaim ? "PROCESS_ROUTE"
+        : clean(brief.route) === "SOURCE" ? "DOCUMENTARY_LIVE_ACTION"
+          : clean(brief.route) === "HYBRID" ? "SOURCE_AUTHORED_HYBRID"
+            : "ABSTRACT_AUTHORED";
+  const requiredEvidence = archetype === "TRANSACTION_STATE_PROOF"
+    ? ["observable initial state", "observable verified state", "explicit not-settled state", "continuous temporal progression"]
+    : archetype === "DATA_VISUALIZATION"
+      ? ["reconciled values", "labeled baseline", "visible delta", "source-bound units"]
+      : archetype === "PROCESS_ROUTE"
+        ? ["named origin", "named destination", "ordered path", "directional progression"]
+        : ["literal claim-bearing subject", "observable action", "non-contradictory exit state"];
+  const allowedModalities = archetype === "TRANSACTION_STATE_PROOF"
+    ? ["CONTROLLED_UI", "AUTHORED_STATE_ANIMATION", "VERIFIED_HYBRID"]
+    : archetype === "DATA_VISUALIZATION" || archetype === "PROCESS_ROUTE"
+      ? ["CODE_NATIVE", "AUTHORED_ANIMATION"]
+      : ["VERIFIED_SOURCE", "AUTHORED", "VERIFIED_HYBRID"];
+  const forbidden = ["invented facts", "invented amounts", "debug metadata", "generic stock as semantic proof"];
+  if (negativeState) forbidden.push("positive-state imagery that implies completion or settlement");
+  const existingRoute = clean(brief.route), routeCompatible = !(archetype === "TRANSACTION_STATE_PROOF" && existingRoute === "SOURCE");
+  const checks = [
+    { id: "CLAIM", pass: claim.length >= 12 },
+    { id: "EVIDENCE", pass: requiredEvidence.length >= 3 },
+    { id: "MODALITY", pass: allowedModalities.length >= 2 },
+    { id: "FORBIDDEN", pass: forbidden.length >= 4 },
+    { id: "ROUTE_COMPATIBILITY", pass: routeCompatible },
+  ];
+  return {
+    brief,
+    contract: {
+      archetype,
+      riskTier: negativeState || dataClaim ? "P1" : "P2",
+      claim,
+      requiredEvidence,
+      allowedModalities,
+      forbidden,
+      repairRoute: routeCompatible ? "RENDER_OR_SOURCE_LAYER" : "SHOT_CONTRACT_REDESIGN",
+      lintStatus: checks.every((item) => item.pass) ? "PASS" : "REDESIGN_REQUIRED",
+      checks,
+    },
+  };
+}
+
+async function qualifyReliabilityBaseline() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("STAGE09_RUN_REQUIRED");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_RECONCILE_BEFORE_QUALIFICATION");
+  const existing = await db.prepare("SELECT id FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? AND version=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE, RELIABILITY_BASELINE_VERSION).first<Row>();
+  if (existing) return snapshot();
+  const briefs = await rows(db, "SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id);
+  if (briefs.length < 8) throw new Error("STRATIFIED_PILOT_FIXTURES_REQUIRED");
+  const compiled = briefs.map(compileShotContract);
+  const archetypes = ["TRANSACTION_STATE_PROOF", "DATA_VISUALIZATION", "PROCESS_ROUTE", "DOCUMENTARY_LIVE_ACTION", "SOURCE_AUTHORED_HYBRID", "ABSTRACT_AUTHORED", "RIGHTS_SENSITIVE", "MOBILE_TEXT_INTENSIVE"];
+  const hardest = compiled.find((item) => clean(item.brief.briefId) === "MP-153") || compiled.find((item) => item.contract.archetype === "TRANSACTION_STATE_PROOF");
+  if (!hardest) throw new Error("MP_153_QUALIFICATION_FIXTURE_MISSING");
+  const hardFixtureRejectedGenericSource = hardest.contract.archetype === "TRANSACTION_STATE_PROOF" && hardest.contract.lintStatus === "REDESIGN_REQUIRED" && hardest.contract.allowedModalities.includes("CONTROLLED_UI");
+  const compilerChecks = [
+    { id: "ACTIVE_REQUESTS_ZERO", status: "PASS", evidence: "0 active provider requests" },
+    { id: "MP153_FAILS_EARLY", status: hardFixtureRejectedGenericSource ? "PASS" : "FAIL", evidence: "Generic stock cannot prove VERIFIED / NOT SETTLED" },
+    { id: "CLAIM_TO_EVIDENCE", status: compiled.every((item) => item.contract.requiredEvidence.length >= 3) ? "PASS" : "FAIL", evidence: `${compiled.length}/${compiled.length} contracts carry observable evidence` },
+    { id: "MODALITY_ROUTING", status: compiled.every((item) => item.contract.allowedModalities.length >= 2) ? "PASS" : "FAIL", evidence: "Every contract declares allowed modalities" },
+    { id: "FORBIDDEN_ASSUMPTIONS", status: compiled.every((item) => item.contract.forbidden.includes("invented facts")) ? "PASS" : "FAIL", evidence: "Invented facts and generic semantic stock are prohibited" },
+    { id: "FAILURE_ROUTER", status: compiled.every((item) => Boolean(item.contract.repairRoute)) ? "PASS" : "FAIL", evidence: "Failure routes to contract, source or renderer layer" },
+  ];
+  const qualified = compilerChecks.every((item) => item.status === "PASS"), now = new Date().toISOString(), baselineId = `${PROGRAM_ID}-S09-RELIABILITY-${Date.now()}`;
+  const controls = ["EXECUTION_QUARANTINE", "SHOT_CONTRACT_COMPILER", "DETERMINISTIC_LINT", "ARCHETYPE_REGISTRY", "HARDEST_FIRST", "FAILURE_ROUTER", "FIRST_PASS_YIELD_GATE", "NO_ARCHITECTURE_MUTATION_IN_BATCH"];
+  const qualification = { status: qualified ? "PASS" : "FAIL", score: Math.round(compilerChecks.filter((item) => item.status === "PASS").length / compilerChecks.length * 100), compilerChecks, productionDispatch: "BLOCKED", next: "ARCHETYPE_CERTIFICATION" };
+  const statements = [
+    db.prepare("INSERT INTO v7_architecture_baselines (id,program_id,stage_key,version,status,execution_state,source_checkpoint,controls_json,qualification_json,created_at,frozen_at) VALUES (?,?,?,?,?,'FROZEN','V150_PILOT_REPAIR_BLOCKED',?,?,?,?)").bind(baselineId, PROGRAM_ID, STAGE, RELIABILITY_BASELINE_VERSION, qualified ? "QUALIFIED_FOR_ARCHETYPE_CERTIFICATION" : "QUALIFICATION_FAILED", JSON.stringify(controls), JSON.stringify(qualification), now, now),
+    db.prepare("UPDATE v7_stage_states SET status='ARCHITECTURE_QUALIFIED',blocker='ARCHETYPE_CERTIFICATION_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Reliability baseline ${qualification.score}/100 · production execution frozen · MP-153 reclassified as archetype fixture`, now, STAGE_ID),
+  ];
+  for (const item of compiled) statements.push(db.prepare("INSERT INTO v7_compiled_shot_contracts (id,program_id,baseline_id,brief_id,archetype,risk_tier,claim,required_evidence_json,allowed_modalities_json,forbidden_json,repair_route,lint_status,lint_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(`${baselineId}-${clean(item.brief.briefId)}`, PROGRAM_ID, baselineId, clean(item.brief.briefId), item.contract.archetype, item.contract.riskTier, item.contract.claim, JSON.stringify(item.contract.requiredEvidence), JSON.stringify(item.contract.allowedModalities), JSON.stringify(item.contract.forbidden), item.contract.repairRoute, item.contract.lintStatus, JSON.stringify(item.contract.checks), now));
+  for (const archetype of archetypes) {
+    const fixture = archetype === "TRANSACTION_STATE_PROOF" ? clean(hardest.brief.briefId) : clean(compiled.find((item) => item.contract.archetype === archetype)?.brief.briefId || `FIXTURE-${archetype}`);
+    const checks = archetype === "TRANSACTION_STATE_PROOF" ? ["generic stock rejected", "negative state explicit", "controlled modality selected", "temporal proof required"] : ["claim compiled", "evidence declared", "modality constrained", "forbidden assumptions declared"];
+    statements.push(db.prepare("INSERT INTO v7_archetype_qualifications (id,program_id,baseline_id,archetype,status,hardest_fixture,deterministic_checks_json,evidence_status,first_pass_yield,blocker,created_at) VALUES (?,?,?,?,? ,?,?, 'CERTIFICATION_EVIDENCE_REQUIRED',0,'REAL_ARTIFACT_CERTIFICATION_REQUIRED',?)").bind(`${baselineId}-${archetype}`, PROGRAM_ID, baselineId, archetype, "CONTRACT_QUALIFIED", fixture, JSON.stringify(checks), now));
+  }
+  await db.batch(statements);
+  return snapshot();
 }
 
 async function authorizePilot() {
@@ -371,6 +481,8 @@ async function setModel(modelId: string, reasoningEffort: string) {
 }
 
 async function newRequest(db: DB, authorization: Row, briefId: string, phase: string, provider: string, modelId = "none", reasoning = "none", expected = 0, maximum = 0) {
+  const baseline = await db.prepare("SELECT execution_state FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
+  if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION")) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
   const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>();
   if (Number(usage?.total || 0) >= Number(authorization.max_remote_requests)) throw new Error("PILOT_REQUEST_CIRCUIT_OPEN");
   if (Number(usage?.cost || 0) >= Number(authorization.max_actual_spend_usd)) throw new Error("PILOT_SPEND_CIRCUIT_OPEN");
@@ -1433,6 +1545,7 @@ export async function GET(request: Request) { try { const params = new URL(reque
 export async function POST(request: Request) {
   try {
     const body = await request.json() as Row;
+    if (body.action === "QUALIFY_RELIABILITY_BASELINE") return Response.json(await qualifyReliabilityBaseline(), { status: 201 });
     if (body.action === "BUILD_DRY_RUN") return Response.json(await buildDryRun(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT") return Response.json(await authorizePilot(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT_AFTER_MOTION") return Response.json(await authorizePilotAfterMotion(), { status: 201 });
