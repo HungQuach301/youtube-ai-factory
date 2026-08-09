@@ -1016,3 +1016,27 @@ export const v7ArchetypeCertifications = sqliteTable("v7_archetype_certification
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Immutable bridge from a certified archetype artifact to the exact pilot unit
+// consumed by Canary V2. The frozen frame IDs, hashes and compiled-contract
+// hash prevent a legacy PRIMARY/route fallback from silently taking over.
+export const v7ArtifactPromotions = sqliteTable("v7_artifact_promotions", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  baselineId: text("baseline_id").notNull(),
+  regressionId: text("regression_id").notNull(),
+  runId: text("run_id").notNull(),
+  authorizationId: text("authorization_id").notNull(),
+  canaryVersion: text("canary_version").notNull(),
+  briefId: text("brief_id").notNull(),
+  logicalBriefId: text("logical_brief_id").notNull(),
+  archetype: text("archetype").notNull(),
+  certificationId: text("certification_id").notNull(),
+  rendererVersion: text("renderer_version").notNull(),
+  contractHash: text("contract_hash").notNull(),
+  frameIdsJson: text("frame_ids_json").notNull(),
+  frameHashesJson: text("frame_hashes_json").notNull(),
+  status: text("status").notNull(),
+  preflightJson: text("preflight_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

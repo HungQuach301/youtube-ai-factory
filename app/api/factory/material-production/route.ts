@@ -16,7 +16,9 @@ const MOTION_RIGHTS_BUNDLE_VERSION = "MOTION_RIGHTS_BUNDLE_V1";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
 const DATA_VISUALIZATION_V3 = "RECONCILED_WATERFALL_PRIMITIVES_V3";
 const ARCHETYPE_REGRESSION_VERSION = "ARCHETYPE_REGRESSION_V2";
-const CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
+const CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V2_PROMOTED_BINDING";
+const LEGACY_CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
+const PROMOTION_REGRESSION_VERSION = "PROMOTION_BINDING_REGRESSION_V1";
 const ARCHETYPE_CERTIFICATION_ORDER = [
   "TRANSACTION_STATE_PROOF",
   "SOURCE_AUTHORED_HYBRID",
@@ -98,6 +100,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_archetype_design_authorizations (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,archetype text NOT NULL,source_certification_id text NOT NULL,source_renderer_version text NOT NULL,source_score integer NOT NULL,new_renderer_version text NOT NULL,scope text NOT NULL,status text NOT NULL,certification_id text,authorized_at text NOT NULL,completed_at text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_archetype_regressions (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,status text NOT NULL,score integer NOT NULL,checks_json text NOT NULL,certification_ids_json text NOT NULL,pilot_replay_json text NOT NULL,remote_requests_before integer NOT NULL,remote_requests_after integer NOT NULL,actual_cost_before real NOT NULL,actual_cost_after real NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_pilot_canaries (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,regression_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,version text NOT NULL,status text NOT NULL,queue_json text NOT NULL,current_index integer DEFAULT 0 NOT NULL,current_brief_id text,released_units integer DEFAULT 0 NOT NULL,passed_units integer DEFAULT 0 NOT NULL,failed_units integer DEFAULT 0 NOT NULL,requests_before integer DEFAULT 0 NOT NULL,cost_before real DEFAULT 0 NOT NULL,request_budget integer DEFAULT 40 NOT NULL,cost_budget real DEFAULT 10 NOT NULL,active_request_peak integer DEFAULT 0 NOT NULL,gate_json text DEFAULT '[]' NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_artifact_promotions (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,regression_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,canary_version text NOT NULL,brief_id text NOT NULL,logical_brief_id text NOT NULL,archetype text NOT NULL,certification_id text NOT NULL,renderer_version text NOT NULL,contract_hash text NOT NULL,frame_ids_json text NOT NULL,frame_hashes_json text NOT NULL,status text NOT NULL,preflight_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
 ] as const;
 
 const arr = (value: unknown) => Array.isArray(value) ? value : [];
@@ -614,7 +617,8 @@ async function buildNextArchetypeCertification() {
   if (!briefRow) briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds LIMIT 1").bind(authorization.run_id).first<Row>();
   if (!briefRow) throw new Error("ARCHETYPE_FIXTURE_MISSING");
   const spec = remainingArchetypeSpecs[archetype], existingFrames = await reusableFrameSet(db, clean(authorization.run_id), archetype), frameIds: string[] = [], frameHashes: string[] = [];
-  let rightsPass = true, renderer = spec.renderer;
+  let rightsPass = true;
+  const renderer = spec.renderer;
   if (["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE", "DOCUMENTARY_LIVE_ACTION"].includes(archetype)) {
     if (existingFrames.length !== 3) throw new Error(`${archetype}_REAL_FRAME_SET_REQUIRED`);
     for (const file of existingFrames) { frameIds.push(clean(file.id)); frameHashes.push(clean(file.content_hash)); rightsPass = rightsPass && Boolean(clean(file.license_code) && clean(file.runtime_key) && clean(file.drive_file_id)); }
@@ -754,12 +758,49 @@ async function runArchetypeRegression() {
   return snapshot();
 }
 
+function promotionContractPayload(contract: Row) {
+  return {
+    briefId: clean(contract.brief_id), archetype: clean(contract.archetype), riskTier: clean(contract.risk_tier), claim: clean(contract.claim),
+    requiredEvidence: JSON.parse(String(contract.required_evidence_json || "[]")), allowedModalities: JSON.parse(String(contract.allowed_modalities_json || "[]")),
+    forbidden: JSON.parse(String(contract.forbidden_json || "[]")), repairRoute: clean(contract.repair_route), lintStatus: clean(contract.lint_status),
+  };
+}
+
+async function validatePromotionBinding(env: Env, db: DB, promotion: Row) {
+  if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
+  const certification = await db.prepare("SELECT * FROM v7_archetype_certifications WHERE id=? AND status='PASS'").bind(promotion.certification_id).first<Row>();
+  const contract = await db.prepare("SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=? AND brief_id=? AND lint_status='PASS'").bind(promotion.baseline_id, promotion.logical_brief_id).first<Row>();
+  const frameIds = arr(JSON.parse(String(promotion.frame_ids_json || "[]"))).map(clean), frameHashes = arr(JSON.parse(String(promotion.frame_hashes_json || "[]"))).map(clean);
+  const certificationIds = certification ? arr(JSON.parse(String(certification.frame_ids_json || "[]"))).map(clean) : [], certificationHashes = certification ? arr(JSON.parse(String(certification.frame_hashes_json || "[]"))).map(clean) : [];
+  const contractHash = contract ? await sha(JSON.stringify(promotionContractPayload(contract))) : "";
+  const files: Row[] = [];
+  let readBack = frameIds.length === 3;
+  for (let index = 0; index < frameIds.length; index++) {
+    const file = await db.prepare("SELECT * FROM v7_material_files WHERE id=? AND status='STORED_VERIFIED'").bind(frameIds[index]).first<Row>();
+    if (!file || clean(file.content_hash) !== frameHashes[index]) { readBack = false; continue; }
+    const object = await env.BUCKET.get(clean(file.runtime_key));
+    if (!object) { readBack = false; continue; }
+    const bytes = new Uint8Array(await new Response(object.body).arrayBuffer());
+    if (await shaBytes(bytes) !== frameHashes[index]) { readBack = false; continue; }
+    files.push(file);
+  }
+  const dimensions = certification ? rec(JSON.parse(String(certification.dimensions_json || "{}"))) : {};
+  const checks = [
+    { id: "CERTIFICATION_TO_PRODUCTION_BINDING", status: certification && clean(certification.renderer_version) === clean(promotion.renderer_version) ? "PASS" : "FAIL", evidence: clean(promotion.certification_id) },
+    { id: "BOUND_HASH_CONGRUENCE", status: frameIds.length === 3 && frameIds.join("|") === certificationIds.join("|") && frameHashes.join("|") === certificationHashes.join("|") ? "PASS" : "FAIL", evidence: `${frameIds.length}/3 frozen frames` },
+    { id: "UNIT_CONTRACT_CONGRUENCE", status: Boolean(contract) && contractHash === clean(promotion.contract_hash) && clean(contract?.archetype) === clean(promotion.archetype) ? "PASS" : "FAIL", evidence: clean(promotion.contract_hash).slice(0, 12) },
+    { id: "CANARY_ARTIFACT_READINESS", status: readBack && files.length === 3 && Number(certification?.score || 0) >= 92 && Object.values(dimensions).length === 5 && Object.values(dimensions).every((value) => Number(value) >= 90) ? "PASS" : "FAIL", evidence: `${files.length}/3 byte-exact read-back · certification ${Number(certification?.score || 0)}` },
+    { id: "NO_LEGACY_FALLBACK", status: clean(promotion.status) === "FROZEN" && clean(promotion.canary_version) === CONTROLLED_CANARY_VERSION ? "PASS" : "FAIL", evidence: "promotion registry only" },
+  ];
+  return { certification, contract, files, frameIds, frameHashes, checks, passed: checks.every((item) => item.status === "PASS") };
+}
+
 async function authorizeControlledCanary() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("CONTROLLED_CANARY_RUN_REQUIRED");
   const baseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   if (!baseline || clean(baseline.status) !== "QUALIFIED_FOR_ARCHETYPE_CERTIFICATION" || !["FROZEN", "CANARY_ONLY"].includes(clean(baseline.execution_state))) throw new Error("RELIABILITY_BASELINE_FROZEN_REQUIRED");
-  const regression = await db.prepare("SELECT * FROM v7_archetype_regressions WHERE baseline_id=? AND status='PASS' AND score=100 ORDER BY created_at DESC LIMIT 1").bind(baseline.id).first<Row>();
+  const regression = await db.prepare("SELECT * FROM v7_archetype_regressions WHERE baseline_id=? AND status='PASS' AND score=100 AND id LIKE ? ORDER BY created_at DESC LIMIT 1").bind(baseline.id, `%${ARCHETYPE_REGRESSION_VERSION}`).first<Row>();
   if (!regression) throw new Error("ARCHETYPE_REGRESSION_PASS_100_REQUIRED");
   const replay = rec(JSON.parse(String(regression.pilot_replay_json || "{}")));
   if (Number(replay.briefs) !== 10 || Number(replay.compiled) !== 10 || replay.matches !== true || Number(replay.dispatches) !== 0 || Number(replay.costDelta) !== 0) throw new Error("PILOT_REPLAY_10_OF_10_ZERO_SPEND_REQUIRED");
@@ -769,29 +810,48 @@ async function authorizeControlledCanary() {
   if (Number(active?.total || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
   const canaryId = `${clean(baseline.id)}-${CONTROLLED_CANARY_VERSION}`, existing = await db.prepare("SELECT id FROM v7_pilot_canaries WHERE id=?").bind(canaryId).first<Row>();
   if (existing) return snapshot();
+  const failedV1 = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE baseline_id=? AND version=? AND status='FAILED' ORDER BY created_at DESC LIMIT 1").bind(baseline.id, LEGACY_CONTROLLED_CANARY_VERSION).first<Row>();
+  if (!failedV1) throw new Error("FAILED_CANARY_V1_AUDIT_REQUIRED");
   const briefs = await rows(db, "SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id), contracts = await rows(db, "SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=?", baseline.id);
   if (briefs.length !== 10 || contracts.length !== 10) throw new Error(`CONTROLLED_CANARY_SCOPE_INVALID · ${briefs.length} briefs / ${contracts.length} contracts`);
-  const queue = briefs.map((brief) => {
+  const promotionRegressionId = `${clean(baseline.id)}-${PROMOTION_REGRESSION_VERSION}`, now = new Date().toISOString(), promotionStatements: Statement[] = [], promotionRows: Row[] = [], queue: Row[] = [];
+  for (const brief of briefs) {
     const content = rec(JSON.parse(String(brief.content_json || "{}"))), logicalId = clean(content.briefId), contract = contracts.find((item) => clean(item.brief_id) === logicalId);
     if (!contract || clean(contract.lint_status) !== "PASS") throw new Error(`CANARY_CONTRACT_MISSING · ${logicalId}`);
-    return { briefId: clean(brief.id), logicalId, archetype: clean(contract.archetype), riskTier: clean(contract.risk_tier), startSeconds: Number(brief.start_seconds) };
-  }).sort((left, right) => (left.riskTier === "P1" ? 0 : 1) - (right.riskTier === "P1" ? 0 : 1) || ARCHETYPE_CERTIFICATION_ORDER.indexOf(left.archetype as typeof ARCHETYPE_CERTIFICATION_ORDER[number]) - ARCHETYPE_CERTIFICATION_ORDER.indexOf(right.archetype as typeof ARCHETYPE_CERTIFICATION_ORDER[number]) || left.startSeconds - right.startSeconds);
-  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>(), requestsBefore = Number(usage?.total || 0), costBefore = Number(usage?.cost || 0), now = new Date().toISOString();
+    const certification = await db.prepare("SELECT * FROM v7_archetype_certifications WHERE baseline_id=? AND archetype=? AND status='PASS' ORDER BY created_at DESC LIMIT 1").bind(baseline.id, contract.archetype).first<Row>();
+    if (!certification) throw new Error(`CERTIFIED_ARTIFACT_MISSING · ${logicalId}`);
+    const frameIds = arr(JSON.parse(String(certification.frame_ids_json || "[]"))).map(clean), frameHashes = arr(JSON.parse(String(certification.frame_hashes_json || "[]"))).map(clean), contractHash = await sha(JSON.stringify(promotionContractPayload(contract)));
+    if (frameIds.length !== 3 || frameHashes.length !== 3) throw new Error(`CERTIFIED_FRAME_SET_INCOMPLETE · ${logicalId}`);
+    const promotionId = `${canaryId}-${logicalId}-PROMOTION`, preflight = { source: "CERTIFIED_ARTIFACT_ONLY", legacyFallback: false, certificationScore: Number(certification.score), certificationStatus: certification.status, frozenAt: now };
+    promotionStatements.push(db.prepare("INSERT INTO v7_artifact_promotions (id,program_id,baseline_id,regression_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,renderer_version,contract_hash,frame_ids_json,frame_hashes_json,status,preflight_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?,?)").bind(promotionId, PROGRAM_ID, baseline.id, promotionRegressionId, run.id, authorization.id, CONTROLLED_CANARY_VERSION, brief.id, logicalId, contract.archetype, certification.id, certification.renderer_version, contractHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(preflight), now));
+    promotionRows.push({ id: promotionId, program_id: PROGRAM_ID, baseline_id: baseline.id, regression_id: promotionRegressionId, run_id: run.id, authorization_id: authorization.id, canary_version: CONTROLLED_CANARY_VERSION, brief_id: brief.id, logical_brief_id: logicalId, archetype: contract.archetype, certification_id: certification.id, renderer_version: certification.renderer_version, contract_hash: contractHash, frame_ids_json: JSON.stringify(frameIds), frame_hashes_json: JSON.stringify(frameHashes), status: "FROZEN", preflight_json: JSON.stringify(preflight), created_at: now });
+    queue.push({ briefId: clean(brief.id), logicalId, archetype: clean(contract.archetype), riskTier: clean(contract.risk_tier), startSeconds: Number(brief.start_seconds), promotionId, certificationId: clean(certification.id), renderer: clean(certification.renderer_version), bindingStatus: "FROZEN" });
+  }
+  const bindingResults: Array<Awaited<ReturnType<typeof validatePromotionBinding>>> = [];
+  for (const promotion of promotionRows) bindingResults.push(await validatePromotionBinding(env, db, promotion));
+  const bindingChecks = ["CERTIFICATION_TO_PRODUCTION_BINDING", "BOUND_HASH_CONGRUENCE", "UNIT_CONTRACT_CONGRUENCE", "CANARY_ARTIFACT_READINESS", "NO_LEGACY_FALLBACK"].map((id) => ({ id, status: bindingResults.length === 10 && bindingResults.every((result) => result.checks.find((item) => item.id === id)?.status === "PASS") ? "PASS" : "FAIL", evidence: `${bindingResults.filter((result) => result.checks.find((item) => item.id === id)?.status === "PASS").length}/10 production-bound units` }));
+  if (bindingChecks.some((item) => item.status !== "PASS")) throw new Error(`CANARY_V2_ZERO_SPEND_PREFLIGHT_FAILED · ${bindingChecks.filter((item) => item.status !== "PASS").map((item) => item.id).join(",")}`);
+  queue.sort((left, right) => (left.riskTier === "P1" ? 0 : 1) - (right.riskTier === "P1" ? 0 : 1) || ARCHETYPE_CERTIFICATION_ORDER.indexOf(left.archetype as typeof ARCHETYPE_CERTIFICATION_ORDER[number]) - ARCHETYPE_CERTIFICATION_ORDER.indexOf(right.archetype as typeof ARCHETYPE_CERTIFICATION_ORDER[number]) || Number(left.startSeconds) - Number(right.startSeconds));
+  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>(), requestsBefore = Number(usage?.total || 0), costBefore = Number(usage?.cost || 0);
   const gates = [
     { id: "RELIABILITY_BASELINE", status: "PASS", evidence: clean(baseline.version) },
     { id: "ARCHETYPE_CERTIFICATION", status: "PASS", evidence: "8/8 certified" },
     { id: "REGRESSION", status: "PASS", evidence: "100/100" },
     { id: "PILOT_ROUTING_REPLAY", status: "PASS", evidence: "10/10 · 0 dispatch · $0 delta" },
     { id: "ACTIVE_REQUESTS", status: "PASS", evidence: "0 active" },
-    { id: "LEASE_POLICY", status: "PASS", evidence: "one unit · one active request · explicit release" },
+    ...bindingChecks,
+    { id: "CANARY_V1_AUDIT_PRESERVED", status: "PASS", evidence: `${clean(failedV1.id)} remains FAILED` },
+    { id: "LEASE_POLICY", status: "PASS", evidence: "one promoted unit · one active request · explicit release" },
   ];
-  const modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: CONTROLLED_CANARY_VERSION, dispatch: "ONE_UNIT_LEASE", concurrency: 1, release: "PASS_REVIEW_ONLY", productionScale: "BLOCKED", sequenceProof: "BLOCKED", requestBudget: 40, costBudgetUsd: 10 };
+  const modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: CONTROLLED_CANARY_VERSION, dispatch: "PROMOTED_BINDING_ONLY", concurrency: 1, release: "PASS_REVIEW_ONLY", legacyFallback: false, productionScale: "BLOCKED", sequenceProof: "BLOCKED", requestBudget: 40, costBudgetUsd: 10 };
   await db.batch([
-    db.prepare("INSERT INTO v7_pilot_canaries (id,program_id,baseline_id,regression_id,run_id,authorization_id,version,status,queue_json,current_index,current_brief_id,released_units,passed_units,failed_units,requests_before,cost_before,request_budget,cost_budget,active_request_peak,gate_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'AUTHORIZED',?,0,?,0,0,0,?,?,40,10,0,?,?,?)").bind(canaryId, PROGRAM_ID, baseline.id, regression.id, run.id, authorization.id, CONTROLLED_CANARY_VERSION, JSON.stringify(queue), queue[0]?.briefId || null, requestsBefore, costBefore, JSON.stringify(gates), now, now),
+    ...promotionStatements,
+    db.prepare("INSERT INTO v7_archetype_regressions (id,program_id,baseline_id,status,score,checks_json,certification_ids_json,pilot_replay_json,remote_requests_before,remote_requests_after,actual_cost_before,actual_cost_after,created_at) VALUES (?,?,?,'PASS',100,?,?,?,?,?,?,?,?)").bind(promotionRegressionId, PROGRAM_ID, baseline.id, JSON.stringify(bindingChecks), JSON.stringify(promotionRows.map((item) => item.certification_id)), JSON.stringify({ briefs: 10, compiled: 10, promoted: 10, matches: true, dispatches: 0, costDelta: 0, legacyFallback: false }), requestsBefore, requestsBefore, costBefore, costBefore, now),
+    db.prepare("INSERT INTO v7_pilot_canaries (id,program_id,baseline_id,regression_id,run_id,authorization_id,version,status,queue_json,current_index,current_brief_id,released_units,passed_units,failed_units,requests_before,cost_before,request_budget,cost_budget,active_request_peak,gate_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'AUTHORIZED',?,0,?,0,0,0,?,?,40,10,0,?,?,?)").bind(canaryId, PROGRAM_ID, baseline.id, promotionRegressionId, run.id, authorization.id, CONTROLLED_CANARY_VERSION, JSON.stringify(queue), queue[0]?.briefId || null, requestsBefore, costBefore, JSON.stringify(gates), now, now),
     db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=?").bind(baseline.id),
     db.prepare("UPDATE v7_material_authorizations SET scope='CONTROLLED_CANARY',status='AUTHORIZED',max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,updated_at=? WHERE id=?").bind(requestsBefore + 40, costBefore + 10, JSON.stringify(modelPolicy), now, authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED',mode='CONTROLLED_CANARY' WHERE id=?").bind(run.id),
-    db.prepare("UPDATE v7_stage_states SET status='CANARY_AUTHORIZED',blocker='CANARY_UNIT_NOT_RELEASED',evidence_summary='10-shot controlled canary authorized · hardest-first queue · one unit lease · sequence and scale blocked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+    db.prepare("UPDATE v7_stage_states SET status='CANARY_V2_AUTHORIZED',blocker='CANARY_V2_UNIT_NOT_RELEASED',evidence_summary='10/10 immutable certification-to-production bindings passed byte/hash/contract preflight · Canary V1 audit preserved · sequence and scale blocked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
   ]);
   return snapshot();
 }
@@ -801,29 +861,41 @@ async function startControlledCanaryUnit() {
   if (!run || !authorization) throw new Error("CONTROLLED_CANARY_RUN_REQUIRED");
   const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
   if (!canary || clean(canary.status) !== "AUTHORIZED" || !clean(canary.current_brief_id)) throw new Error("CONTROLLED_CANARY_UNIT_NOT_AUTHORIZED");
+  if (clean(canary.version) !== CONTROLLED_CANARY_VERSION) throw new Error("CANARY_V2_PROMOTED_BINDING_REQUIRED");
+  const promotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(CONTROLLED_CANARY_VERSION, canary.current_brief_id).first<Row>();
+  if (!promotion) throw new Error("CANARY_PRODUCTION_BINDING_MISSING");
+  const preflight = await validatePromotionBinding(env, db, promotion);
+  if (!preflight.passed) throw new Error(`CANARY_ARTIFACT_READINESS_FAILED · ${preflight.checks.filter((item) => item.status !== "PASS").map((item) => item.id).join(",")}`);
   const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
   if (Number(active?.total || 0) !== 0) throw new Error("CANARY_CONCURRENCY_LIMIT");
   const now = new Date().toISOString();
   await db.batch([
     db.prepare("UPDATE v7_pilot_canaries SET status='UNIT_RUNNING',released_units=released_units+1,updated_at=? WHERE id=? AND status='AUTHORIZED'").bind(now, canary.id),
     db.prepare("UPDATE v7_material_runs SET status='CANARY_UNIT_RUNNING' WHERE id=?").bind(run.id),
-    db.prepare("UPDATE v7_stage_states SET status='CANARY_UNIT_RUNNING',blocker='LATER_CANARY_UNITS_LOCKED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(canary.current_brief_id)} leased · later units, sequence and scale locked`, now, STAGE_ID),
+    db.prepare("UPDATE v7_stage_states SET status='CANARY_UNIT_RUNNING',blocker='LATER_CANARY_UNITS_LOCKED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(canary.current_brief_id)} leased from immutable promotion binding · legacy fallback disabled · later units, sequence and scale locked`, now, STAGE_ID),
   ]);
   return snapshot();
 }
 
 async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, canary: Row, brief: Row) {
+  const env = await runtime();
   const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
   if (Number(active?.total || 0) !== 0) return;
-  const file = await db.prepare("SELECT * FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role='PRIMARY' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
-  const audit = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  const promotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(CONTROLLED_CANARY_VERSION, brief.id).first<Row>();
+  const binding = promotion ? await validatePromotionBinding(env, db, promotion) : null;
+  const audit = await db.prepare("SELECT * FROM v7_material_audits WHERE id=?").bind(`${brief.id}-${CONTROLLED_CANARY_VERSION}-PIXEL-AUDIT`).first<Row>();
   const dimensions = audit ? rec(JSON.parse(String(audit.dimensions_json || "{}"))) : {}, dimensionFloor = Object.values(dimensions).length >= 5 && Object.values(dimensions).every((value) => Number(value) >= 86);
-  const duplicate = file ? await db.prepare("SELECT COUNT(DISTINCT brief_id) AS total FROM v7_material_files WHERE authorization_id=? AND asset_role='PRIMARY' AND content_hash=?").bind(authorization.id, file.content_hash).first<{ total: number }>() : null;
+  const priorQueue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec).slice(0, Number(canary.current_index)), priorPromotions: Row[] = [];
+  for (const prior of priorQueue) { const item = await db.prepare("SELECT frame_hashes_json FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(CONTROLLED_CANARY_VERSION, prior.briefId).first<Row>(); if (item) priorPromotions.push(item); }
+  const physicallyUnique = Boolean(promotion) && priorPromotions.every((item) => clean(item.frame_hashes_json) !== clean(promotion?.frame_hashes_json));
   const checks = [
-    { id: "STORED_READ_BACK", status: file && clean(file.status) === "STORED_VERIFIED" && Number(file.byte_size) > 0 && clean(file.runtime_key) && clean(file.drive_file_id) ? "PASS" : "FAIL" },
-    { id: "RIGHTS_AND_HASH", status: file && clean(file.license_code) && clean(file.content_hash) ? "PASS" : "FAIL" },
+    { id: "CERTIFICATION_TO_PRODUCTION_BINDING", status: binding?.checks.find((item) => item.id === "CERTIFICATION_TO_PRODUCTION_BINDING")?.status || "FAIL" },
+    { id: "BOUND_HASH_CONGRUENCE", status: binding?.checks.find((item) => item.id === "BOUND_HASH_CONGRUENCE")?.status || "FAIL" },
+    { id: "UNIT_CONTRACT_CONGRUENCE", status: binding?.checks.find((item) => item.id === "UNIT_CONTRACT_CONGRUENCE")?.status || "FAIL" },
+    { id: "CANARY_ARTIFACT_READINESS", status: binding?.checks.find((item) => item.id === "CANARY_ARTIFACT_READINESS")?.status || "FAIL" },
+    { id: "NO_LEGACY_FALLBACK", status: binding?.checks.find((item) => item.id === "NO_LEGACY_FALLBACK")?.status || "FAIL" },
     { id: "PIXEL_QA", status: audit && clean(audit.status) === "PASS" && Number(audit.score) >= 90 && dimensionFloor ? "PASS" : "FAIL" },
-    { id: "PHYSICAL_UNIQUENESS", status: Number(duplicate?.total || 0) <= 1 ? "PASS" : "FAIL" },
+    { id: "PHYSICAL_UNIQUENESS", status: physicallyUnique ? "PASS" : "FAIL" },
     { id: "ACTIVE_REQUESTS", status: "PASS" },
   ], passed = checks.every((item) => item.status === "PASS"), now = new Date().toISOString();
   if (!passed) {
@@ -840,7 +912,7 @@ async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, c
     db.prepare("UPDATE v7_pilot_canaries SET status='UNIT_PASS_REVIEW',passed_units=passed_units+1,gate_json=?,updated_at=? WHERE id=? AND status='UNIT_RUNNING'").bind(JSON.stringify(checks), now, canary.id),
     db.prepare("UPDATE v7_material_briefs SET status='CANARY_PASS' WHERE id=?").bind(brief.id),
     db.prepare("UPDATE v7_material_runs SET status='CANARY_UNIT_PASS_REVIEW' WHERE id=?").bind(run.id),
-    db.prepare("UPDATE v7_stage_states SET status='CANARY_UNIT_PASS_REVIEW',blocker='EXPLICIT_NEXT_UNIT_RELEASE_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(brief.id)} PASS · stored bytes, rights/hash, Pixel QA and uniqueness verified · later units locked`, now, STAGE_ID),
+    db.prepare("UPDATE v7_stage_states SET status='CANARY_UNIT_PASS_REVIEW',blocker='EXPLICIT_NEXT_UNIT_RELEASE_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(brief.id)} PASS · immutable binding, byte/hash/contract congruence, promoted Pixel QA and uniqueness verified · later units locked`, now, STAGE_ID),
   ]);
 }
 
@@ -1014,7 +1086,7 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
   if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION")) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
   if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION")) {
     const canary = await db.prepare("SELECT status,current_brief_id FROM v7_pilot_canaries WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
-    const allowedPhases = ["DISCOVERY", "CANDIDATE_PIXEL_TOURNAMENT", "DOWNLOAD", "PIXEL_QA"];
+    const allowedPhases = ["CANARY_PROMOTED_PIXEL_QA"];
     if (!canary || clean(canary.status) !== "UNIT_RUNNING" || clean(canary.current_brief_id) !== clean(briefId) || !allowedPhases.includes(phase)) throw new Error("CANARY_DISPATCH_FIREWALL · only the leased unit and approved phases may dispatch");
     const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
     if (Number(active?.total || 0) > 0) throw new Error("CANARY_CONCURRENCY_LIMIT · one active request maximum");
@@ -1476,6 +1548,27 @@ async function compositeTournament() {
   return snapshot();
 }
 
+async function dispatchPromotedVision(env: Env, db: DB, authorization: Row, briefRow: Row, promotion: Row) {
+  if (!env.OPENAI_API_KEY || !env.BUCKET) throw new Error("CANARY_PIXEL_QA_CONFIGURATION_REQUIRED");
+  const binding = await validatePromotionBinding(env, db, promotion);
+  if (!binding.passed) throw new Error(`CANARY_ARTIFACT_READINESS_FAILED · ${binding.checks.filter((item) => item.status !== "PASS").map((item) => item.id).join(",")}`);
+  const imageUrls: string[] = [];
+  for (const file of binding.files) {
+    const object = await env.BUCKET.get(clean(file.runtime_key));
+    if (!object) throw new Error("PROMOTED_FRAME_READ_BACK_FAILED");
+    imageUrls.push(`data:${clean(file.mime_type)};base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`);
+  }
+  if (imageUrls.length !== 3) throw new Error("PROMOTED_FRAME_SET_INCOMPLETE");
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(briefRow.id), "CANARY_PROMOTED_PIXEL_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1500, 4000);
+  const content: Row[] = [{ type: "input_text", text: `You are performing the controlled-canary review of an immutable production-bound artifact. The three supplied images are the exact promoted ENTRY, MIDPOINT and EXIT pixels. Judge only these pixels against the exact pilot-unit contract below. Do not infer evidence outside the frames. PASS requires every dimension >=86 and overall >=90. This review must not accept legacy PRIMARY files, generic route/family fallback, or an artifact that only resembles the certified archetype. Return only JSON.\n\nUNIT CONTRACT:\n${JSON.stringify(promotionContractPayload(binding.contract || {}))}\n\nIMMUTABLE PROMOTION RECORD:\n${JSON.stringify({ promotionId: promotion.id, certificationId: promotion.certification_id, renderer: promotion.renderer_version, contractHash: promotion.contract_hash, frameIds: binding.frameIds, frameHashes: binding.frameHashes, legacyFallback: false })}` }];
+  for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 4000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_canary_promoted_pixel_qa", strict: true, schema: visionSchema } } }), signal: AbortSignal.timeout(30000) });
+  if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`CANARY_PIXEL_QA_START_FAILED · ${response.status}`); }
+  const payload = await response.json() as Row;
+  if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("CANARY_PIXEL_QA_PROVIDER_ID_MISSING"); }
+  await db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, new Date().toISOString(), requestId).run();
+}
+
 async function dispatchVision(env: Env, db: DB, authorization: Row, briefRow: Row) {
   if (!env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY_REQUIRED_FOR_PIXEL_QA");
   const setting = await modelSetting(db), brief = JSON.parse(String(briefRow.content_json)) as Row, files = await rows(db, "SELECT * FROM v7_material_files WHERE brief_id=? ORDER BY asset_role", briefRow.id), primary = files.find((file) => file.asset_role === "PRIMARY");
@@ -1527,8 +1620,8 @@ async function pollVision(env: Env, db: DB, authorization: Row, requestRow: Row)
     await db.batch([db.prepare("UPDATE v7_material_briefs SET status='REPAIR_REQUIRED' WHERE id=?").bind(requestRow.brief_id), db.prepare("UPDATE v7_material_runs SET status='REPAIR_REQUIRED' WHERE id=?").bind(authorization.run_id), db.prepare("UPDATE v7_material_authorizations SET status='REPAIR_REQUIRED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_stage_states SET status='REPAIR_REQUIRED',blocker='PIXEL_QA_PROVIDER_INCOMPLETE',evidence_summary=?,updated_at=? WHERE id=?").bind(`${requestRow.brief_id} pixel QA incomplete · no automatic full retry`, now, STAGE_ID)]);
     return;
   }
-  const result = JSON.parse(output(payload)) as Row, dimensions = ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity"], hardPass = dimensions.every((key) => Number(result[key]) >= 86) && Number(result.overall) >= 90 && result.decision === "PASS", file = await db.prepare("SELECT id FROM v7_material_files WHERE brief_id=? AND asset_role='PRIMARY'").bind(requestRow.brief_id).first<Row>();
-  await db.prepare("INSERT INTO v7_material_audits (id,program_id,run_id,authorization_id,brief_id,file_id,status,score,dimensions_json,provider_response_id,findings_json) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET file_id=excluded.file_id,status=excluded.status,score=excluded.score,dimensions_json=excluded.dimensions_json,provider_response_id=excluded.provider_response_id,findings_json=excluded.findings_json").bind(`${requestRow.brief_id}-PIXEL-AUDIT`, PROGRAM_ID, authorization.run_id, authorization.id, requestRow.brief_id, file?.id || "MISSING", hardPass ? "PASS" : "REPAIR_REQUIRED", Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), payload.id, JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean))).run();
+  const result = JSON.parse(output(payload)) as Row, dimensions = ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity"], hardPass = dimensions.every((key) => Number(result[key]) >= 86) && Number(result.overall) >= 90 && result.decision === "PASS", promoted = clean(requestRow.phase) === "CANARY_PROMOTED_PIXEL_QA", promotion = promoted ? await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(CONTROLLED_CANARY_VERSION, requestRow.brief_id).first<Row>() : null, promotedFrameIds = promotion ? arr(JSON.parse(String(promotion.frame_ids_json || "[]"))).map(clean) : [], file = promoted ? (promotedFrameIds[0] ? { id: promotedFrameIds[0] } : null) : await db.prepare("SELECT id FROM v7_material_files WHERE brief_id=? AND asset_role='PRIMARY'").bind(requestRow.brief_id).first<Row>(), auditId = promoted ? `${requestRow.brief_id}-${CONTROLLED_CANARY_VERSION}-PIXEL-AUDIT` : `${requestRow.brief_id}-PIXEL-AUDIT`;
+  await db.prepare("INSERT INTO v7_material_audits (id,program_id,run_id,authorization_id,brief_id,file_id,status,score,dimensions_json,provider_response_id,findings_json) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET file_id=excluded.file_id,status=excluded.status,score=excluded.score,dimensions_json=excluded.dimensions_json,provider_response_id=excluded.provider_response_id,findings_json=excluded.findings_json").bind(auditId, PROGRAM_ID, authorization.run_id, authorization.id, requestRow.brief_id, file?.id || "MISSING", hardPass ? "PASS" : "REPAIR_REQUIRED", Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), payload.id, JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean))).run();
   await db.prepare("UPDATE v7_material_briefs SET status=? WHERE id=?").bind(hardPass ? "PIXEL_AUDITED" : "REPAIR_REQUIRED", requestRow.brief_id).run();
 }
 
@@ -1735,10 +1828,10 @@ async function stepPilot() {
         const refreshed = await db.prepare("SELECT status FROM v7_material_requests WHERE id=?").bind(active.id).first<Row>();
         if (!refreshed || !["QUEUED", "IN_PROGRESS"].includes(clean(refreshed.status))) await closeControlledCanaryUnit(db, run, authorization, canary, target);
       } else {
-        const file = await db.prepare("SELECT id FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role='PRIMARY'").bind(authorization.id, target.id).first<Row>();
-        const audit = await db.prepare("SELECT status FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, target.id).first<Row>();
-        if (!file) { if (await claimBriefPhase(db, clean(target.id), "MATERIALIZING")) await materializeOne(env, db, authorization, target); }
-        else if (!audit) { if (await claimBriefPhase(db, clean(target.id), "QA_DISPATCHING")) await dispatchVision(env, db, authorization, target); }
+        const promotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(CONTROLLED_CANARY_VERSION, target.id).first<Row>();
+        if (!promotion) throw new Error("CANARY_PRODUCTION_BINDING_MISSING");
+        const audit = await db.prepare("SELECT status FROM v7_material_audits WHERE id=?").bind(`${target.id}-${CONTROLLED_CANARY_VERSION}-PIXEL-AUDIT`).first<Row>();
+        if (!audit) { if (await claimBriefPhase(db, clean(target.id), "QA_DISPATCHING")) await dispatchPromotedVision(env, db, authorization, target, promotion); }
         else await closeControlledCanaryUnit(db, run, authorization, canary, target);
       }
     }

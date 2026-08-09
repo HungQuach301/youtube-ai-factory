@@ -207,12 +207,22 @@ test("8 of 8 certification closes with zero-spend regression before pilot", () =
   assert.match(route, /PILOT_READY_NOT_STARTED/);
 });
 
-test("controlled canary leases exactly one hardest-first unit and freezes on failure", () => {
-  assert.match(route, /CONTROLLED_CANARY_V1/);
+test("controlled canary V2 binds certified artifacts and preserves failed V1", () => {
+  assert.match(route, /CONTROLLED_CANARY_V2_PROMOTED_BINDING/);
+  assert.match(route, /LEGACY_CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1"/);
   assert.match(route, /v7_pilot_canaries/);
+  assert.match(route, /v7_artifact_promotions/);
+  assert.match(route, /PROMOTION_BINDING_REGRESSION_V1/);
   assert.match(route, /AUTHORIZE_CONTROLLED_CANARY/);
   assert.match(route, /ARCHETYPE_REGRESSION_PASS_100_REQUIRED/);
   assert.match(route, /PILOT_REPLAY_10_OF_10_ZERO_SPEND_REQUIRED/);
+  assert.match(route, /CERTIFICATION_TO_PRODUCTION_BINDING/);
+  assert.match(route, /BOUND_HASH_CONGRUENCE/);
+  assert.match(route, /UNIT_CONTRACT_CONGRUENCE/);
+  assert.match(route, /CANARY_ARTIFACT_READINESS/);
+  assert.match(route, /NO_LEGACY_FALLBACK/);
+  assert.match(route, /CANARY_V2_ZERO_SPEND_PREFLIGHT_FAILED/);
+  assert.match(route, /CANARY_PROMOTED_PIXEL_QA/);
   assert.match(route, /execution_state='CANARY_ONLY'/);
   assert.match(route, /CANARY_DISPATCH_FIREWALL/);
   assert.match(route, /CANARY_CONCURRENCY_LIMIT/);

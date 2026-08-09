@@ -176,6 +176,13 @@
       "when": 1786267000000,
       "tag": "0024_archetype_certification",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1786275600000,
+      "tag": "0025_artifact_promotion_binding",
+      "breakpoints": true
     }
   ]
 }
