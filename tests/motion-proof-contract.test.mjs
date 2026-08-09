@@ -287,5 +287,9 @@ test("controlled canary V5 binds MP-001 to certified source evidence behind an e
   assert.match(route, /RELEASE_CONTROLLED_CANARY_V5_UNIT/);
   assert.match(route, /CANARY_V5_ZERO_SPEND_PREFLIGHT_FAILED/);
   assert.match(page, /Authorize Canary V5 preflight/);
-  assert.match(page, /provider dispatch remains disabled/);
+  assert.match(page, /Release V5 MP-001 · max \$1/);
+  assert.match(page, /canaryAction\("RELEASE_CONTROLLED_CANARY_V5_UNIT"\)/);
+  assert.match(page, /data\.canary\.version === "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION"/);
+  assert.match(page, /data\.canary\.currentIndex !== 0/);
+  assert.match(page, /data\.canary\.version === "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION" \|\| working/);
 });
