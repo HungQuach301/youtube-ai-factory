@@ -618,7 +618,7 @@ async function buildNextArchetypeCertification() {
   return snapshot();
 }
 
-async function nextArchetypeCertificationQa() {
+async function nextArchetypeCertificationQa(pollOnly = false) {
   const env = await runtime(), db = env.DB!, { authorization } = await current(db);
   if (!authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("ARCHETYPE_CERTIFICATION_QA_CONFIGURATION_REQUIRED");
   const baseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? AND status='QUALIFIED_FOR_ARCHETYPE_CERTIFICATION' ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
@@ -644,6 +644,7 @@ async function nextArchetypeCertificationQa() {
     ]);
     return snapshot();
   }
+  if (pollOnly) throw new Error("NO_ACTIVE_ARCHETYPE_QA_TO_POLL");
   if (certification.status !== "QA_REQUIRED") throw new Error(`ARCHETYPE_CERTIFICATION_QA_NOT_READY · ${clean(certification.status)}`);
   const frameIds = arr(JSON.parse(String(certification.frame_ids_json || "[]"))).map(clean), imageUrls: string[] = [];
   for (const id of frameIds) { const file = await db.prepare("SELECT runtime_key FROM v7_material_files WHERE id=?").bind(id).first<Row>(), object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null; if (!object) throw new Error(`ARCHETYPE_FRAME_MISSING · ${id}`); imageUrls.push(`data:image/png;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`); }
@@ -1802,6 +1803,7 @@ export async function POST(request: Request) {
     if (body.action === "RUN_HARDEST_ARCHETYPE_QA") return Response.json(await hardestArchetypeCertificationQa(), { status: 202 });
     if (body.action === "BUILD_NEXT_ARCHETYPE_CERTIFICATION") return Response.json(await buildNextArchetypeCertification(), { status: 201 });
     if (body.action === "RUN_NEXT_ARCHETYPE_QA") return Response.json(await nextArchetypeCertificationQa(), { status: 202 });
+    if (body.action === "POLL_NEXT_ARCHETYPE_QA") return Response.json(await nextArchetypeCertificationQa(true), { status: 200 });
     if (body.action === "BUILD_DRY_RUN") return Response.json(await buildDryRun(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT") return Response.json(await authorizePilot(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT_AFTER_MOTION") return Response.json(await authorizePilotAfterMotion(), { status: 201 });

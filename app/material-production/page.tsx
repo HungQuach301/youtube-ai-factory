@@ -66,7 +66,7 @@ export default function MaterialProductionPage() {
   useEffect(() => {
     const running = data?.reliability?.certifications.find((item) => item.status === "QA_RUNNING");
     if (!running || working) return;
-    const timer = window.setTimeout(() => void hardestCertification(running.archetype === "TRANSACTION_STATE_PROOF" ? "RUN_HARDEST_ARCHETYPE_QA" : "RUN_NEXT_ARCHETYPE_QA", true), 2500);
+    const timer = window.setTimeout(() => void hardestCertification(running.archetype === "TRANSACTION_STATE_PROOF" ? "RUN_HARDEST_ARCHETYPE_QA" : "POLL_NEXT_ARCHETYPE_QA", true), 2500);
     return () => window.clearTimeout(timer);
   }, [data?.reliability?.certifications, data?.requestLedger.active, working]);
   async function build() {
@@ -89,7 +89,7 @@ export default function MaterialProductionPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Reliability qualification failed"); }
     finally { setWorking(null); }
   }
-  async function hardestCertification(action: "BUILD_HARDEST_ARCHETYPE_CERTIFICATION" | "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION" | "RUN_HARDEST_ARCHETYPE_QA" | "BUILD_NEXT_ARCHETYPE_CERTIFICATION" | "RUN_NEXT_ARCHETYPE_QA", quiet = false) {
+  async function hardestCertification(action: "BUILD_HARDEST_ARCHETYPE_CERTIFICATION" | "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION" | "RUN_HARDEST_ARCHETYPE_QA" | "BUILD_NEXT_ARCHETYPE_CERTIFICATION" | "RUN_NEXT_ARCHETYPE_QA" | "POLL_NEXT_ARCHETYPE_QA", quiet = false) {
     setWorking(action); if (!quiet) setError(null);
     try {
       const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
