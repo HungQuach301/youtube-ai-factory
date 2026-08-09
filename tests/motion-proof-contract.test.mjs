@@ -200,6 +200,9 @@ test("8 of 8 certification closes with zero-spend regression before pilot", () =
   assert.match(route, /FRAME_HASH_INTEGRITY/);
   assert.match(route, /ZERO_SPEND_PILOT_REPLAY/);
   assert.match(route, /V3_DESIGN_AUDIT/);
-  assert.match(route, /IDEMPOTENCY_UNIQUE/);
+  assert.match(route, /ARCHETYPE_REGRESSION_V2/);
+  assert.match(route, /REQUEST_SCOPED_IDEMPOTENCY/);
+  assert.match(route, /scoped_total/);
+  assert.match(route, /immutable legacy rows excluded/);
   assert.match(route, /PILOT_READY_NOT_STARTED/);
 });
