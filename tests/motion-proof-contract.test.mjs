@@ -113,11 +113,12 @@ test("motion QA receives verified rights lineage without changing pixels", () =>
 });
 
 test("commercial reliability baseline quarantines production and compiles hardest-first archetypes", () => {
-  assert.match(route, /STAGE09_RELIABILITY_BASELINE_V1/);
+  assert.match(route, /STAGE09_RELIABILITY_BASELINE_V2/);
   assert.match(route, /QUALIFY_RELIABILITY_BASELINE/);
   assert.match(route, /PRODUCTION_EXECUTION_QUARANTINED/);
   assert.match(route, /TRANSACTION_STATE_PROOF/);
   assert.match(route, /MP_153_QUALIFICATION_FIXTURE_MISSING/);
   assert.match(route, /generic stock rejected/);
+  assert.match(route, /neutral confirmation/);
   assert.match(route, /ARCHETYPE_CERTIFICATION_REQUIRED/);
 });
