@@ -157,6 +157,10 @@ test("remaining archetypes certify in risk order with one scoped request at a ti
   assert.match(route, /SPECIFIC_NAMED_ENDPOINTS/);
   assert.match(route, /CONCRETE_DECISION_STAGE/);
   assert.match(route, /PRIMITIVE_ARROWHEADS/);
+  assert.match(route, /ABSTRACT_THREAD_METAPHOR_V2/);
+  assert.match(route, /CONCRETE_THREAD_METAPHOR/);
+  assert.match(route, /SAME_OBJECT_TRANSFORMS/);
+  assert.match(route, /TANGLE_SORT_CLEAR/);
   assert.match(route, /RECONCILE_ARCHETYPE_ATTEMPT_LIMITS/);
   assert.match(route, /attempt>=2 AND status='REPAIR_REQUIRED'/);
   assert.match(route, /QUALITY_FLOOR_REDESIGN_REQUIRED/);
