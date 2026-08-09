@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const route = await readFile(new URL("../app/api/factory/material-production/route.ts", import.meta.url), "utf8");
+const page = await readFile(new URL("../app/material-production/page.tsx", import.meta.url), "utf8");
 const executor = await readFile(new URL("../scripts/media-executor.mjs", import.meta.url), "utf8");
 const migration = await readFile(new URL("../drizzle/0020_goofy_chimera.sql", import.meta.url), "utf8");
 const rightsMigration = await readFile(new URL("../drizzle/0021_material_gateway.sql", import.meta.url), "utf8");
@@ -266,4 +267,25 @@ test("controlled canary V4 derives dispatch authority from one versioned capabil
   assert.match(route, /capability\?\.phase === phase/);
   assert.match(route, /controlledCanaryAudit/);
   assert.match(route, /currentAudit:/);
+});
+
+test("controlled canary V5 binds MP-001 to certified source evidence behind an explicit release interlock", () => {
+  assert.match(route, /CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION/);
+  assert.match(route, /UNIT_MATERIALIZATION_STRATEGY_REGISTRY_V2/);
+  assert.match(route, /SOURCE_BOUND_COMPOSITE_CHAMPION_V1/);
+  assert.match(route, /CANARY_MATERIALIZATION_REGRESSION_V2/);
+  assert.match(route, /AUTHORIZE_CONTROLLED_CANARY_V5/);
+  assert.match(route, /FAILED_CANARY_V4_84_AUDIT_REQUIRED/);
+  assert.match(route, /CANARY_V5_COMPOSITE_C_PASS_REQUIRED/);
+  assert.match(route, /CANARY_V5_SOURCE_EVIDENCE_PASS_REQUIRED/);
+  assert.match(route, /CANARY_V5_MOTION_PROOF_PASS_REQUIRED/);
+  assert.match(route, /MATERIALIZATION_STRATEGY_CONGRUENCE/);
+  assert.match(route, /MP001_SOURCE_BOUND_COMPOSITE/);
+  assert.match(route, /SOURCE_LINEAGE_READBACK/);
+  assert.match(route, /EXPLICIT_RELEASE_INTERLOCK/);
+  assert.match(route, /READY_FOR_EXPLICIT_UNIT_RELEASE/);
+  assert.match(route, /RELEASE_CONTROLLED_CANARY_V5_UNIT/);
+  assert.match(route, /CANARY_V5_ZERO_SPEND_PREFLIGHT_FAILED/);
+  assert.match(page, /Authorize Canary V5 preflight/);
+  assert.match(page, /provider dispatch remains disabled/);
 });

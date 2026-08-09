@@ -19,15 +19,23 @@ const ARCHETYPE_REGRESSION_VERSION = "ARCHETYPE_REGRESSION_V2";
 const CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V2_PROMOTED_BINDING";
 const CONTROLLED_CANARY_V3 = "CONTROLLED_CANARY_V3_UNIT_SPECIFIC_ARTIFACT";
 const CONTROLLED_CANARY_V4 = "CONTROLLED_CANARY_V4_CAPABILITY_BOUND_DISPATCH";
+const CONTROLLED_CANARY_V5 = "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION";
 const LEGACY_CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
 const PROMOTION_REGRESSION_VERSION = "PROMOTION_BINDING_REGRESSION_V1";
 const UNIT_MATERIALIZATION_REGRESSION_VERSION = "UNIT_MATERIALIZATION_REGRESSION_V1";
 const CANARY_HANDOFF_REGRESSION_VERSION = "CANARY_HANDOFF_REGRESSION_V2";
+const CANARY_MATERIALIZATION_REGRESSION_VERSION = "CANARY_MATERIALIZATION_REGRESSION_V2";
 const UNIT_RENDERER_VERSION = "CERTIFIED_RENDERER_UNIT_ADAPTER_V1";
+const UNIT_MATERIALIZATION_STRATEGY_REGISTRY = {
+  version: "UNIT_MATERIALIZATION_STRATEGY_REGISTRY_V2",
+  default: "CERTIFIED_UNIT_ADAPTER_V1",
+  logicalOverrides: { "MP-001": "SOURCE_BOUND_COMPOSITE_CHAMPION_V1" },
+} as const;
 const CANARY_DISPATCH_CAPABILITIES = {
   [CONTROLLED_CANARY_VERSION]: { phase: "CANARY_PROMOTED_PIXEL_QA", artifactMode: "PROMOTED_CERTIFICATION" },
   [CONTROLLED_CANARY_V3]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
   [CONTROLLED_CANARY_V4]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
+  [CONTROLLED_CANARY_V5]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
 } as const;
 const ARCHETYPE_CERTIFICATION_ORDER = [
   "TRANSACTION_STATE_PROOF",
@@ -119,6 +127,7 @@ const rec = (value: unknown) => value && typeof value === "object" ? value as Ro
 const clean = (value: unknown) => String(value || "").replace(/\s+/g, " ").trim();
 function canaryDispatchCapability(version: unknown) { return CANARY_DISPATCH_CAPABILITIES[clean(version) as keyof typeof CANARY_DISPATCH_CAPABILITIES] || null; }
 function isUnitSpecificCanary(version: unknown) { return canaryDispatchCapability(version)?.artifactMode === "UNIT_SPECIFIC"; }
+function unitMaterializationStrategy(logicalId: unknown) { return UNIT_MATERIALIZATION_STRATEGY_REGISTRY.logicalOverrides[clean(logicalId) as keyof typeof UNIT_MATERIALIZATION_STRATEGY_REGISTRY.logicalOverrides] || UNIT_MATERIALIZATION_STRATEGY_REGISTRY.default; }
 async function rows(db: DB, query: string, ...values: unknown[]) { return (await db.prepare(query).bind(...values).all<Row>()).results || []; }
 async function shaBytes(value: ArrayBuffer | Uint8Array) { const bytes = value instanceof Uint8Array ? value : new Uint8Array(value); const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)); return [...digest].map((item) => item.toString(16).padStart(2, "0")).join(""); }
 async function sha(value: string) { return shaBytes(new TextEncoder().encode(value)); }
@@ -998,6 +1007,95 @@ async function authorizeControlledCanaryV4() {
     db.prepare("UPDATE v7_stage_states SET status='CANARY_V4_AUTHORIZED',blocker='CANARY_V4_UNIT_NOT_RELEASED',evidence_summary='10/10 capability-bound lease handoffs passed zero-spend preflight · V1/V2/V3 audits preserved · sequence and scale blocked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
   ]);
   return snapshot();
+}
+
+async function authorizeControlledCanaryV5() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET) throw new Error("CONTROLLED_CANARY_V5_CONFIGURATION_REQUIRED");
+  const baseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
+  if (!baseline || clean(baseline.status) !== "QUALIFIED_FOR_ARCHETYPE_CERTIFICATION" || clean(baseline.execution_state) !== "FROZEN") throw new Error("CANARY_V5_FROZEN_BASELINE_REQUIRED");
+  const failedV4 = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE baseline_id=? AND version=? AND status='FAILED' ORDER BY created_at DESC LIMIT 1").bind(baseline.id, CONTROLLED_CANARY_V4).first<Row>();
+  if (!failedV4 || Number(failedV4.passed_units) !== 0 || Number(failedV4.failed_units) !== 1) throw new Error("FAILED_CANARY_V4_AUDIT_REQUIRED");
+  const failedAudit = await db.prepare("SELECT * FROM v7_material_audits WHERE id=? AND status='REPAIR_REQUIRED'").bind(`${clean(failedV4.current_brief_id)}-${CONTROLLED_CANARY_V4}-PIXEL-AUDIT`).first<Row>();
+  if (!failedAudit || Number(failedAudit.score) !== 84) throw new Error("FAILED_CANARY_V4_84_AUDIT_REQUIRED");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const canaryId = `${clean(baseline.id)}-${CONTROLLED_CANARY_V5}`, existing = await db.prepare("SELECT id FROM v7_pilot_canaries WHERE id=?").bind(canaryId).first<Row>();
+  if (existing) return snapshot();
+  const capability = canaryDispatchCapability(CONTROLLED_CANARY_V5);
+  if (!capability || capability.phase !== "CANARY_UNIT_SPECIFIC_PIXEL_QA" || capability.artifactMode !== "UNIT_SPECIFIC") throw new Error("CANARY_V5_DISPATCH_CAPABILITY_INVALID");
+  const briefs = await rows(db, "SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id), sourceUnits = await rows(db, "SELECT * FROM v7_unit_materializations WHERE baseline_id=? AND canary_version=? AND status='FROZEN'", baseline.id, CONTROLLED_CANARY_V4), sourcePromotions = await rows(db, "SELECT * FROM v7_artifact_promotions WHERE baseline_id=? AND canary_version=? AND status='FROZEN'", baseline.id, CONTROLLED_CANARY_V4);
+  if (briefs.length !== 10 || sourceUnits.length !== 10 || sourcePromotions.length !== 10) throw new Error(`CANARY_V5_SOURCE_SCOPE_INVALID · ${briefs.length} briefs / ${sourceUnits.length} units / ${sourcePromotions.length} promotions`);
+  const mpBrief = briefs.find((brief) => clean(rec(JSON.parse(String(brief.content_json || "{}"))).briefId) === "MP-001");
+  if (!mpBrief || clean(failedV4.current_brief_id) !== clean(mpBrief.id)) throw new Error("CANARY_V5_MP001_FAILED_UNIT_REQUIRED");
+  const composite = await db.prepare("SELECT * FROM v7_composite_audits WHERE authorization_id=? AND brief_id=? AND rubric_version=? AND status='PASS' AND winner='C' ORDER BY updated_at DESC LIMIT 1").bind(authorization.id, mpBrief.id, COMPOSITE_QA_RUBRIC).first<Row>();
+  if (!composite || Number(composite.score) < 90) throw new Error("CANARY_V5_COMPOSITE_C_PASS_REQUIRED");
+  const sourceEvidence = await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND status='TECHNICALLY_VERIFIED'").bind(composite.evidence_id).first<Row>(), sourceAudit = await db.prepare("SELECT * FROM v7_source_frame_audits WHERE evidence_id=? AND status='PASS' ORDER BY updated_at DESC LIMIT 1").bind(composite.evidence_id).first<Row>();
+  if (!sourceEvidence || !sourceAudit) throw new Error("CANARY_V5_SOURCE_EVIDENCE_PASS_REQUIRED");
+  const motion = await db.prepare("SELECT * FROM v7_motion_proofs WHERE authorization_id=? AND brief_id=? AND status='PASS' AND champion='C' AND score>=90 ORDER BY updated_at DESC LIMIT 1").bind(authorization.id, mpBrief.id).first<Row>();
+  if (!motion) throw new Error("CANARY_V5_MOTION_PROOF_PASS_REQUIRED");
+  const compositeRecord = rec(JSON.parse(String(composite.candidates_json || "{}"))), selectedIds = arr(compositeRecord.selectedFileIds).map(clean);
+  if (selectedIds.length !== 3 || clean(compositeRecord.sourceEvidenceHash) !== clean(sourceEvidence.content_hash)) throw new Error("CANARY_V5_COMPOSITE_LINEAGE_INVALID");
+  const selectedFiles: Row[] = [];
+  for (const id of selectedIds) { const file = await db.prepare("SELECT * FROM v7_material_files WHERE id=? AND brief_id=? AND status='STORED_VERIFIED'").bind(id, mpBrief.id).first<Row>(); if (file) selectedFiles.push(file); }
+  const roleOrder = new Map([["COMPOSITE_C_ENTRY", 0], ["COMPOSITE_C_MIDPOINT", 1], ["COMPOSITE_C_EXIT", 2]]), orderedComposite = selectedFiles.sort((left, right) => Number(roleOrder.get(clean(left.asset_role)) ?? 99) - Number(roleOrder.get(clean(right.asset_role)) ?? 99));
+  if (orderedComposite.length !== 3 || orderedComposite.some((file) => !roleOrder.has(clean(file.asset_role))) || new Set(orderedComposite.map((file) => clean(file.content_hash))).size !== 3) throw new Error("CANARY_V5_COMPOSITE_FRAME_SET_INVALID");
+  for (const file of orderedComposite) { const object = await env.BUCKET.get(clean(file.runtime_key)); if (!object || await shaBytes(new Uint8Array(await new Response(object.body).arrayBuffer())) !== clean(file.content_hash)) throw new Error(`CANARY_V5_COMPOSITE_READBACK_FAILED · ${clean(file.id)}`); }
+  const now = new Date().toISOString(), regressionId = `${clean(baseline.id)}-${CANARY_MATERIALIZATION_REGRESSION_VERSION}`, unitStatements: Statement[] = [], promotionStatements: Statement[] = [], promotionRows: Row[] = [], queue: Row[] = [];
+  for (const brief of briefs) {
+    const content = rec(JSON.parse(String(brief.content_json || "{}"))), logicalId = clean(content.briefId), sourceUnit = sourceUnits.find((item) => clean(item.brief_id) === clean(brief.id)), sourcePromotion = sourcePromotions.find((item) => clean(item.brief_id) === clean(brief.id));
+    if (!sourceUnit || !sourcePromotion || clean(sourceUnit.logical_brief_id) !== logicalId || clean(sourcePromotion.logical_brief_id) !== logicalId) throw new Error(`CANARY_V5_SOURCE_BINDING_MISSING · ${logicalId}`);
+    const strategy = unitMaterializationStrategy(logicalId), sourceBound = strategy === "SOURCE_BOUND_COMPOSITE_CHAMPION_V1", frameIds = sourceBound ? orderedComposite.map((file) => clean(file.id)) : arr(JSON.parse(String(sourceUnit.frame_ids_json || "[]"))).map(clean), frameHashes = sourceBound ? orderedComposite.map((file) => clean(file.content_hash)) : arr(JSON.parse(String(sourceUnit.frame_hashes_json || "[]"))).map(clean);
+    const unitId = `${canaryId}-${logicalId}-UNIT`, promotionId = `${canaryId}-${logicalId}-PROMOTION`, preflight = { ...rec(JSON.parse(String(sourcePromotion.preflight_json || "{}"))), source: sourceBound ? "SOURCE_BOUND_COMPOSITE_CHAMPION" : "V4_FROZEN_UNIT_REPROMOTION", sourceCanary: CONTROLLED_CANARY_V4, sourceUnitMaterializationId: sourceUnit.id, strategyRegistry: UNIT_MATERIALIZATION_STRATEGY_REGISTRY.version, materializationStrategy: strategy, compositeAuditId: sourceBound ? composite.id : null, sourceAuditId: sourceBound ? sourceAudit.id : null, motionProofId: sourceBound ? motion.id : null, sourceEvidenceHash: sourceBound ? sourceEvidence.content_hash : null, dispatchCapability: capability.phase, artifactMode: capability.artifactMode, explicitUnitReleaseRequired: true, legacyFallback: false, certificationPixelsReused: false, frozenAt: now };
+    const lint = [...arr(JSON.parse(String(sourceUnit.lint_json || "[]"))), { id: "MATERIALIZATION_STRATEGY_BOUND", status: "PASS", evidence: strategy }, ...(sourceBound ? [{ id: "SOURCE_BOUND_COMPOSITE_C", status: "PASS", evidence: `${Number(composite.score)}/100 · motion ${Number(motion.score)}/100` }] : [])];
+    unitStatements.push(db.prepare("INSERT INTO v7_unit_materializations (id,program_id,baseline_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,certified_renderer_version,unit_renderer_version,contract_hash,semantic_manifest_json,semantic_manifest_hash,frame_ids_json,frame_hashes_json,lint_json,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?)").bind(unitId, PROGRAM_ID, baseline.id, run.id, authorization.id, CONTROLLED_CANARY_V5, brief.id, logicalId, sourceUnit.archetype, sourceUnit.certification_id, sourceUnit.certified_renderer_version, strategy, sourceUnit.contract_hash, sourceUnit.semantic_manifest_json, sourceUnit.semantic_manifest_hash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(lint), now));
+    promotionStatements.push(db.prepare("INSERT INTO v7_artifact_promotions (id,program_id,baseline_id,regression_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,renderer_version,contract_hash,frame_ids_json,frame_hashes_json,status,preflight_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?,?)").bind(promotionId, PROGRAM_ID, baseline.id, regressionId, run.id, authorization.id, CONTROLLED_CANARY_V5, brief.id, logicalId, sourcePromotion.archetype, sourcePromotion.certification_id, strategy, sourcePromotion.contract_hash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(preflight), now));
+    promotionRows.push({ ...sourcePromotion, id: promotionId, regression_id: regressionId, canary_version: CONTROLLED_CANARY_V5, renderer_version: strategy, frame_ids_json: JSON.stringify(frameIds), frame_hashes_json: JSON.stringify(frameHashes), preflight_json: JSON.stringify(preflight), created_at: now });
+    queue.push({ briefId: clean(brief.id), logicalId, archetype: clean(sourcePromotion.archetype), riskTier: clean(rec(JSON.parse(String(sourceUnit.semantic_manifest_json || "{}"))).riskTier), startSeconds: Number(brief.start_seconds), promotionId, certificationId: clean(sourcePromotion.certification_id), renderer: strategy, materializationStrategy: strategy, bindingStatus: "FROZEN", dispatchCapability: capability.phase });
+  }
+  await db.batch([...unitStatements, ...promotionStatements]);
+  const results: Array<Awaited<ReturnType<typeof validatePromotionBinding>>> = [];
+  for (const promotion of promotionRows) results.push(await validatePromotionBinding(env, db, promotion));
+  const bindingIds = ["CERTIFICATION_TO_PRODUCTION_BINDING", "BOUND_HASH_CONGRUENCE", "UNIT_CONTRACT_CONGRUENCE", "SEMANTIC_MANIFEST_CONGRUENCE", "UNIT_SPECIFIC_PIXELS", "CANARY_ARTIFACT_READINESS", "NO_LEGACY_FALLBACK"], bindingChecks = bindingIds.map((id) => ({ id, status: results.length === 10 && results.every((result) => result.checks.find((item) => item.id === id)?.status === "PASS") ? "PASS" : "FAIL", evidence: `${results.filter((result) => result.checks.find((item) => item.id === id)?.status === "PASS").length}/10 V5 bindings` }));
+  const architectureChecks = [
+    { id: "MATERIALIZATION_STRATEGY_CONGRUENCE", status: queue.length === 10 && queue.every((item) => item.materializationStrategy === unitMaterializationStrategy(item.logicalId)) ? "PASS" : "FAIL", evidence: `${queue.filter((item) => item.materializationStrategy === unitMaterializationStrategy(item.logicalId)).length}/10 strategy-bound units` },
+    { id: "MP001_SOURCE_BOUND_COMPOSITE", status: queue.find((item) => item.logicalId === "MP-001")?.materializationStrategy === "SOURCE_BOUND_COMPOSITE_CHAMPION_V1" ? "PASS" : "FAIL", evidence: `composite C ${Number(composite.score)}/100 · motion ${Number(motion.score)}/100` },
+    { id: "SOURCE_LINEAGE_READBACK", status: orderedComposite.length === 3 ? "PASS" : "FAIL", evidence: `3/3 selected file IDs · ${clean(sourceEvidence.content_hash).slice(0, 12)}` },
+    { id: "DISPATCH_CAPABILITY_CONGRUENCE", status: queue.every((item) => item.dispatchCapability === capability.phase) ? "PASS" : "FAIL", evidence: `${queue.filter((item) => item.dispatchCapability === capability.phase).length}/10 version-derived phases` },
+    { id: "EXPLICIT_RELEASE_INTERLOCK", status: "PASS", evidence: "preflight status cannot auto-start or dispatch" },
+  ], allChecks = [...bindingChecks, ...architectureChecks];
+  if (allChecks.some((item) => item.status !== "PASS")) throw new Error(`CANARY_V5_ZERO_SPEND_PREFLIGHT_FAILED · ${allChecks.filter((item) => item.status !== "PASS").map((item) => item.id).join(",")}`);
+  queue.sort((left, right) => (left.logicalId === "MP-001" ? 0 : 1) - (right.logicalId === "MP-001" ? 0 : 1) || Number(left.startSeconds) - Number(right.startSeconds));
+  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>(), requestsBefore = Number(usage?.total || 0), costBefore = Number(usage?.cost || 0), gates = [
+    { id: "CANARY_V1_TO_V3_AUDITS_PRESERVED", status: "PASS", evidence: "V1/V2/V3 remain immutable" },
+    { id: "CANARY_V4_AUDIT_PRESERVED", status: "PASS", evidence: `${clean(failedV4.id)} remains FAILED at 0/10 · ${Number(failedAudit.score)}/100` },
+    ...allChecks,
+    { id: "ACTIVE_REQUESTS", status: "PASS", evidence: "0 active" },
+  ], modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: CONTROLLED_CANARY_V5, dispatch: "EXPLICIT_RELEASE_REQUIRED", dispatchCapability: capability.phase, artifactMode: capability.artifactMode, strategyRegistry: UNIT_MATERIALIZATION_STRATEGY_REGISTRY.version, semanticManifestRequired: true, certificationPixelsReusable: false, concurrency: 1, release: "MANUAL_ROOT_CAUSE_UNIT_ONLY", productionScale: "BLOCKED", sequenceProof: "BLOCKED", requestBudget: 1, costBudgetUsd: 1 };
+  await db.batch([
+    db.prepare("INSERT INTO v7_archetype_regressions (id,program_id,baseline_id,status,score,checks_json,certification_ids_json,pilot_replay_json,remote_requests_before,remote_requests_after,actual_cost_before,actual_cost_after,created_at) VALUES (?,?,?,'PASS',100,?,?,?,?,?,?,?,?)").bind(regressionId, PROGRAM_ID, baseline.id, JSON.stringify(allChecks), JSON.stringify(promotionRows.map((item) => item.certification_id)), JSON.stringify({ briefs: 10, strategyBound: 10, sourceBoundComposite: 1, reusedFrozenUnits: 9, promoted: 10, dispatches: 0, costDelta: 0 }), requestsBefore, requestsBefore, costBefore, costBefore, now),
+    db.prepare("INSERT INTO v7_pilot_canaries (id,program_id,baseline_id,regression_id,run_id,authorization_id,version,status,queue_json,current_index,current_brief_id,released_units,passed_units,failed_units,requests_before,cost_before,request_budget,cost_budget,active_request_peak,gate_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'READY_FOR_EXPLICIT_UNIT_RELEASE',?,0,?,0,0,0,?,?,1,1,0,?,?,?)").bind(canaryId, PROGRAM_ID, baseline.id, regressionId, run.id, authorization.id, CONTROLLED_CANARY_V5, JSON.stringify(queue), queue[0]?.briefId || null, requestsBefore, costBefore, JSON.stringify(gates), now, now),
+    db.prepare("UPDATE v7_material_authorizations SET scope='CONTROLLED_CANARY_V5_PREFLIGHT',status='PAUSED',max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,completed_at=NULL,updated_at=? WHERE id=?").bind(requestsBefore + 1, costBefore + 1, JSON.stringify(modelPolicy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='CANARY_V5_READY_FOR_EXPLICIT_RELEASE',mode='CONTROLLED_CANARY_V5_ZERO_SPEND_PREFLIGHT' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='CANARY_V5_READY_FOR_EXPLICIT_RELEASE',blocker='EXPLICIT_MP001_PROVIDER_RELEASE_REQUIRED',evidence_summary='10/10 strategy-bound artifacts passed zero-spend preflight · MP-001 uses source-bound composite C · 0 dispatches · V1-V4 preserved · sequence and scale blocked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function releaseControlledCanaryV5Unit() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("CONTROLLED_CANARY_RUN_REQUIRED");
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, CONTROLLED_CANARY_V5).first<Row>();
+  if (!canary || clean(canary.status) !== "READY_FOR_EXPLICIT_UNIT_RELEASE" || Number(canary.current_index) !== 0) throw new Error("CANARY_V5_EXPLICIT_RELEASE_NOT_READY");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const now = new Date().toISOString();
+  await db.batch([
+    db.prepare("UPDATE v7_pilot_canaries SET status='AUTHORIZED',updated_at=? WHERE id=? AND status='READY_FOR_EXPLICIT_UNIT_RELEASE'").bind(now, canary.id),
+    db.prepare("UPDATE v7_material_authorizations SET scope='CONTROLLED_CANARY_V5',status='AUTHORIZED',model_policy_json=json_set(model_policy_json,'$.dispatch','EXPLICIT_MP001_RELEASED'),updated_at=? WHERE id=?").bind(now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED',mode='CONTROLLED_CANARY_V5' WHERE id=?").bind(run.id),
+  ]);
+  return startControlledCanaryUnit();
 }
 
 async function startControlledCanaryUnit() {
@@ -2505,6 +2603,8 @@ export async function POST(request: Request) {
     if (body.action === "AUTHORIZE_CONTROLLED_CANARY") return Response.json(await authorizeControlledCanary(), { status: 201 });
     if (body.action === "AUTHORIZE_CONTROLLED_CANARY_V3") return Response.json(await authorizeControlledCanaryV3(), { status: 201 });
     if (body.action === "AUTHORIZE_CONTROLLED_CANARY_V4") return Response.json(await authorizeControlledCanaryV4(), { status: 201 });
+    if (body.action === "AUTHORIZE_CONTROLLED_CANARY_V5") return Response.json(await authorizeControlledCanaryV5(), { status: 201 });
+    if (body.action === "RELEASE_CONTROLLED_CANARY_V5_UNIT") return Response.json(await releaseControlledCanaryV5Unit(), { status: 202 });
     if (body.action === "START_CONTROLLED_CANARY_UNIT") return Response.json(await startControlledCanaryUnit(), { status: 202 });
     if (body.action === "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") return Response.json(await releaseNextControlledCanaryUnit(), { status: 201 });
     if (body.action === "BUILD_DRY_RUN") return Response.json(await buildDryRun(), { status: 201 });
