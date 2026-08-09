@@ -552,6 +552,15 @@ function nextUncertifiedArchetype(qualifications: Row[]) {
 
 async function reusableFrameSet(db: DB, runId: string, archetype: string) {
   if (!["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE", "DOCUMENTARY_LIVE_ACTION"].includes(archetype)) return [] as Row[];
+  if (archetype === "SOURCE_AUTHORED_HYBRID") {
+    const proof = await db.prepare("SELECT source_hashes_json FROM v7_motion_proofs WHERE run_id=? AND status='PASS' ORDER BY updated_at DESC LIMIT 1").bind(runId).first<Row>();
+    const lineage = proof ? arr(JSON.parse(String(proof.source_hashes_json || "[]"))).map(rec) : [];
+    if (lineage.length === 3) {
+      const files: Row[] = [];
+      for (const item of lineage) { const file = await db.prepare("SELECT * FROM v7_material_files WHERE id=? AND content_hash=? AND status='STORED_VERIFIED'").bind(clean(item.fileId), clean(item.sha256)).first<Row>(); if (file) files.push(file); }
+      if (files.length === 3) return files;
+    }
+  }
   const roleSets = archetype === "SOURCE_AUTHORED_HYBRID"
     ? [["COMPOSITE_C_ENTRY", "COMPOSITE_C_MIDPOINT", "COMPOSITE_C_EXIT"], ["QA_ENTRY", "QA_MIDPOINT", "QA_EXIT"], ["MOTION_ENTRY", "MOTION_MIDPOINT", "MOTION_EXIT"]]
     : [["SOURCE_ENTRY", "SOURCE_MIDPOINT", "SOURCE_EXIT"]];
