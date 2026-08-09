@@ -319,7 +319,7 @@ async function authorizePilotAfterMotion() {
   if (active) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
   const pilots = await rows(db, "SELECT id FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id);
   if (pilots.length < 8 || pilots.length > 12) throw new Error(`PILOT_SCOPE_INVALID · ${pilots.length}/8–12`);
-  const completed = await db.prepare("SELECT COUNT(DISTINCT brief_id) AS total FROM v7_material_files WHERE authorization_id=? AND asset_role='PRIMARY' AND status='VERIFIED'").bind(authorization.id).first<{ total: number }>();
+  const completed = await db.prepare("SELECT COUNT(DISTINCT brief_id) AS total FROM v7_material_files WHERE authorization_id=? AND asset_role='PRIMARY' AND status='STORED_VERIFIED'").bind(authorization.id).first<{ total: number }>();
   if (Number(completed?.total || 0) >= pilots.length) throw new Error("PILOT_ALREADY_MATERIALIZED");
   const now = new Date().toISOString();
   await db.batch([
@@ -836,6 +836,11 @@ async function startPilot() {
 }
 
 async function repairedPilotBrief(db: DB, authorization: Row) {
+  // Resolve the currently failed unit before consulting historical repairs.
+  // MP-001 legitimately carries older repair evidence, but it must never
+  // shadow a later NO_PIXEL_CHAMPION unit such as MP-153.
+  const failedTournament = await db.prepare("SELECT b.* FROM v7_material_briefs b JOIN v7_material_tournaments t ON t.brief_id=b.id AND t.authorization_id=? LEFT JOIN v7_material_files f ON f.brief_id=b.id AND f.authorization_id=? AND f.asset_role='PRIMARY' WHERE b.run_id=? AND b.pilot=1 AND t.status='NO_PIXEL_CHAMPION' AND f.id IS NULL ORDER BY t.created_at DESC LIMIT 1").bind(authorization.id, authorization.id, authorization.run_id).first<Row>();
+  if (failedTournament) return failedTournament;
   const tournaments = await rows(db, "SELECT brief_id,content_json,created_at FROM v7_material_tournaments WHERE authorization_id=? ORDER BY created_at DESC", authorization.id);
   const repaired = tournaments.find((item) => {
     try { return Number(rec(JSON.parse(String(item.content_json || "{}"))).repairAttempt || 0) > 0; }

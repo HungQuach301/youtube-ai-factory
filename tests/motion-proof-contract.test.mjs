@@ -44,6 +44,12 @@ test("motion pass opens bounded pilot before sequence proof", () => {
   assert.match(route, /sequence and scale remain locked/);
 });
 
+test("bounded pilot repair targets the current unmaterialized failure", () => {
+  assert.match(route, /t\.status='NO_PIXEL_CHAMPION' AND f\.id IS NULL/);
+  assert.match(route, /if \(failedTournament\) return failedTournament/);
+  assert.match(route, /status='STORED_VERIFIED'/);
+});
+
 test("motion proof state has a durable migration", () => {
   assert.match(migration, /CREATE TABLE `v7_motion_proofs`/);
   assert.match(migration, /`source_hashes_json` text NOT NULL/);
