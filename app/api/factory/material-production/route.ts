@@ -553,7 +553,7 @@ function nextUncertifiedArchetype(qualifications: Row[]) {
 async function reusableFrameSet(db: DB, runId: string, archetype: string) {
   if (!["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE", "DOCUMENTARY_LIVE_ACTION"].includes(archetype)) return [] as Row[];
   const roleSets = archetype === "SOURCE_AUTHORED_HYBRID"
-    ? [["COMPOSITE_C_ENTRY", "COMPOSITE_C_MIDPOINT", "COMPOSITE_C_EXIT"], ["QA_ENTRY", "QA_MIDPOINT", "QA_EXIT"]]
+    ? [["COMPOSITE_C_ENTRY", "COMPOSITE_C_MIDPOINT", "COMPOSITE_C_EXIT"], ["QA_ENTRY", "QA_MIDPOINT", "QA_EXIT"], ["MOTION_ENTRY", "MOTION_MIDPOINT", "MOTION_EXIT"]]
     : [["SOURCE_ENTRY", "SOURCE_MIDPOINT", "SOURCE_EXIT"]];
   for (const roles of roleSets) {
     const candidates = await rows(db, `SELECT f.* FROM v7_material_files f JOIN v7_material_briefs b ON b.id=f.brief_id WHERE f.run_id=? AND f.asset_role IN ('${roles.join("','")}') ORDER BY f.created_at DESC`, runId);
