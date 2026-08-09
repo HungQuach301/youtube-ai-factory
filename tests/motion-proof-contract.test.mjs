@@ -145,6 +145,7 @@ test("remaining archetypes certify in risk order with one scoped request at a ti
   assert.match(route, /BUILD_NEXT_ARCHETYPE_CERTIFICATION/);
   assert.match(route, /RUN_NEXT_ARCHETYPE_QA/);
   assert.match(route, /reusableFrameSet/);
+  assert.match(route, /QA_ENTRY/);
   assert.match(route, /ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST/);
   assert.match(route, /production execution remains frozen/);
 });

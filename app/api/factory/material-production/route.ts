@@ -552,13 +552,17 @@ function nextUncertifiedArchetype(qualifications: Row[]) {
 
 async function reusableFrameSet(db: DB, runId: string, archetype: string) {
   if (!["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE", "DOCUMENTARY_LIVE_ACTION"].includes(archetype)) return [] as Row[];
-  const roles = archetype === "SOURCE_AUTHORED_HYBRID"
-    ? ["COMPOSITE_C_ENTRY", "COMPOSITE_C_MIDPOINT", "COMPOSITE_C_EXIT"]
-    : ["SOURCE_ENTRY", "SOURCE_MIDPOINT", "SOURCE_EXIT"];
-  const candidates = await rows(db, `SELECT f.* FROM v7_material_files f JOIN v7_material_briefs b ON b.id=f.brief_id WHERE f.run_id=? AND f.asset_role IN ('${roles.join("','")}') ${archetype === "SOURCE_AUTHORED_HYBRID" ? "AND b.route='HYBRID'" : ""} ORDER BY f.created_at DESC`, runId);
-  const grouped = new Map<string, Row[]>();
-  for (const item of candidates) grouped.set(clean(item.brief_id), [...(grouped.get(clean(item.brief_id)) || []), item]);
-  return [...grouped.values()].find((items) => roles.every((role) => items.some((item) => clean(item.asset_role) === role)))?.sort((a, b) => roles.indexOf(clean(a.asset_role)) - roles.indexOf(clean(b.asset_role))) || [];
+  const roleSets = archetype === "SOURCE_AUTHORED_HYBRID"
+    ? [["COMPOSITE_C_ENTRY", "COMPOSITE_C_MIDPOINT", "COMPOSITE_C_EXIT"], ["QA_ENTRY", "QA_MIDPOINT", "QA_EXIT"]]
+    : [["SOURCE_ENTRY", "SOURCE_MIDPOINT", "SOURCE_EXIT"]];
+  for (const roles of roleSets) {
+    const candidates = await rows(db, `SELECT f.* FROM v7_material_files f JOIN v7_material_briefs b ON b.id=f.brief_id WHERE f.run_id=? AND f.asset_role IN ('${roles.join("','")}') ${archetype === "SOURCE_AUTHORED_HYBRID" ? "AND b.route='HYBRID'" : ""} ORDER BY f.created_at DESC`, runId);
+    const grouped = new Map<string, Row[]>();
+    for (const item of candidates) grouped.set(clean(item.brief_id), [...(grouped.get(clean(item.brief_id)) || []), item]);
+    const complete = [...grouped.values()].find((items) => roles.every((role) => items.some((item) => clean(item.asset_role) === role)));
+    if (complete) return complete.sort((a, b) => roles.indexOf(clean(a.asset_role)) - roles.indexOf(clean(b.asset_role)));
+  }
+  return [] as Row[];
 }
 
 async function buildNextArchetypeCertification() {
