@@ -69,7 +69,7 @@ test("pilot unit work is protected by an atomic phase claim", () => {
 test("hybrid renderer repair preserves failed pixels and binds exact states", () => {
   assert.match(route, /REPAIR_FAILED_UNIT_RENDERER/);
   assert.match(route, /SEMANTIC_STATE_RENDERER_V2/);
-  assert.match(route, /"MP-153": \[\["PAYMENT PRESENTED","PROCESSING","AWAIT CONFIRMATION"\]/);
+  assert.match(route, /"MP-153": \[\["PAYMENT STATUS","PROCESSING","NOT SETTLED"\],\["VERIFICATION CHECK","CONFIRMING","NOT SETTLED"\]/);
   assert.match(route, /prior QA \$\{Number\(prior\?\.score \|\| 0\)\}\/100 and 3 frame hashes preserved/);
 });
 
@@ -128,6 +128,10 @@ test("hardest-first certification uses owned controlled-state pixels and one sco
   assert.match(route, /CONTROLLED_TRANSACTION_STATE_UI_V1/);
   assert.match(route, /THREE_DISTINCT_FRAMES/);
   assert.match(route, /ARCHETYPE_CERTIFICATION_QA/);
+  assert.match(route, /REPAIR_HARDEST_ARCHETYPE_CERTIFICATION/);
+  assert.match(route, /THREE_DISTINCT_SEMANTIC_STATES/);
+  assert.match(route, /NEGATIVE_STATE_ALL_FRAMES/);
+  assert.match(route, /QUALITY_PLATEAU_REDESIGN_REQUIRED/);
   assert.match(route, /phase\.startsWith\("ARCHETYPE_CERTIFICATION"\)/);
   assert.match(route, /every\(\(key\) => Number\(result\[key\]\) >= 90\)/);
   assert.match(route, /production execution remains frozen/);
