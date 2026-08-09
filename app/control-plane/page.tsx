@@ -158,6 +158,7 @@ export default function ControlPlanePage() {
           <a href="#costs"><i>05</i>Cost center</a>
           <a href="#storage"><i>06</i>Storage contracts</a>
           <a href="#decisions"><i>07</i>Decision register</a>
+          <Link href="/continuity"><i>08</i>Continuity control</Link>
         </nav>
         <div className="v7SideFoot">
           <span className="v7Lock">V7</span>
@@ -176,6 +177,7 @@ export default function ControlPlanePage() {
             <span className={`v7Badge ${productionBlocked ? "blocked" : "pass"}`}>{productionBlocked ? "PRODUCTION LOCKED" : "PRODUCTION AUTHORIZED"}</span>
             {!productionBlocked && <Link className="v7OutlineButton" href="/intelligence">Open Wave 2 Intelligence →</Link>}
             <Link className="v7OutlineButton" href="/settings">Factory settings</Link>
+            <Link className="v7OutlineButton" href="/continuity">Continuity checkpoint</Link>
           </div>
         </header>
 

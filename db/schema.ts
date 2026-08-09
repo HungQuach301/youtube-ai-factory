@@ -628,6 +628,18 @@ export const v7FoundationAudits = sqliteTable("v7_foundation_audits", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const v7ContinuitySnapshots = sqliteTable("v7_continuity_snapshots", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  checkpointCode: text("checkpoint_code").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("MATERIALIZED"),
+  contentJson: text("content_json").notNull(),
+  contentHash: text("content_hash").notNull(),
+  blockerCount: integer("blocker_count").notNull().default(0),
+  activeRequestCount: integer("active_request_count").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 // Wave 1.1 — Google Drive is the user-owned canonical archive. OAuth tokens
 // are encrypted before persistence; these tables contain no plaintext secret.
 export const v7GoogleDriveConnections = sqliteTable("v7_google_drive_connections", {
