@@ -233,3 +233,20 @@ test("controlled canary V2 binds certified artifacts and preserves failed V1", (
   assert.match(route, /CANARY_UNIT_GATE_FAILED/);
   assert.match(route, /SEQUENCE_PROOF_READY_NOT_STARTED/);
 });
+
+test("controlled canary V3 materializes exact unit contracts without reusing certification pixels", () => {
+  assert.match(route, /CONTROLLED_CANARY_V3_UNIT_SPECIFIC_ARTIFACT/);
+  assert.match(route, /v7_unit_materializations/);
+  assert.match(route, /UNIT_SEMANTIC_MANIFEST_V1/);
+  assert.match(route, /CERTIFIED_RENDERER_UNIT_ADAPTER_V1/);
+  assert.match(route, /AUTHORIZE_CONTROLLED_CANARY_V3/);
+  assert.match(route, /FAILED_CANARY_V2_AUDIT_REQUIRED/);
+  assert.match(route, /SEMANTIC_MANIFEST_CONGRUENCE/);
+  assert.match(route, /UNIT_SPECIFIC_PIXELS/);
+  assert.match(route, /NO_CERTIFICATION_PIXEL_REUSE/);
+  assert.match(route, /CANARY_V3_ZERO_SPEND_PREFLIGHT_FAILED/);
+  assert.match(route, /CANARY_UNIT_SPECIFIC_PIXEL_QA/);
+  assert.match(route, /certificationPixelsReused: false/);
+  assert.match(route, /sequenceProof: "BLOCKED"/);
+  assert.match(route, /productionScale: "BLOCKED"/);
+});

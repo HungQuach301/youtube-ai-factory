@@ -120,7 +120,7 @@ export default function MaterialProductionPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Pilot authorization failed"); }
     finally { setWorking(null); }
   }
-  async function canaryAction(action: "AUTHORIZE_CONTROLLED_CANARY" | "START_CONTROLLED_CANARY_UNIT" | "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") {
+  async function canaryAction(action: "AUTHORIZE_CONTROLLED_CANARY" | "AUTHORIZE_CONTROLLED_CANARY_V3" | "START_CONTROLLED_CANARY_UNIT" | "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") {
     setWorking(action); setError(null);
     try {
       const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
@@ -267,9 +267,10 @@ export default function MaterialProductionPage() {
         </>}
     </section>
     {data.reliability?.regressions[0]?.status === "PASS" && data.reliability.regressions[0].score === 100 && <section className="reliabilityBaseline">
-      <header><div><p>CONTROLLED CANARY V2 · 10 SHOTS</p><h2>Only immutable promoted artifacts may enter the canary.</h2><span>Certification → production binding, byte/hash/contract congruence, no legacy fallback, one active request maximum. Sequence proof and scale stay locked.</span></div><strong>{data.canary?.status.replaceAll("_", " ") || "READY NOT STARTED"}</strong></header>
+      <header><div><p>CONTROLLED CANARY · 10 SHOTS</p><h2>Only unit-specific, immutable production artifacts may enter the canary.</h2><span>Certified renderer → unit contract → semantic manifest → unit pixels → immutable promotion. Certification fixtures cannot substitute for production pixels; sequence proof and scale stay locked.</span></div><strong>{data.canary?.status.replaceAll("_", " ") || "READY NOT STARTED"}</strong></header>
       {!data.canary && <div className="reliabilityStart"><p>Authorize the 10-shot queue from the certified compiler replay. This is a zero-spend action and does not dispatch a provider request.</p><button onClick={() => void canaryAction("AUTHORIZE_CONTROLLED_CANARY")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "AUTHORIZE_CONTROLLED_CANARY" ? "Authorizing controlled canary…" : "Authorize controlled canary · $0"}</button></div>}
       {data.canary?.status === "FAILED" && data.canary.version === "CONTROLLED_CANARY_V1" && <div className="reliabilityStart"><p>Canary V1 remains frozen as failed evidence. Authorize V2 to build immutable production bindings and run the five new zero-spend admission checks; no provider request is created by this action.</p><button onClick={() => void canaryAction("AUTHORIZE_CONTROLLED_CANARY")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "AUTHORIZE_CONTROLLED_CANARY" ? "Binding certified artifacts…" : "Authorize Canary V2 binding · $0"}</button></div>}
+      {data.canary?.status === "FAILED" && data.canary.version === "CONTROLLED_CANARY_V2_PROMOTED_BINDING" && <div className="reliabilityStart"><p>Canary V2 remains frozen at 1/10. V3 materializes three audience-facing frames for each exact unit contract, binds a semantic manifest, and refuses certification-fixture pixel reuse before any provider dispatch.</p><button onClick={() => void canaryAction("AUTHORIZE_CONTROLLED_CANARY_V3")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "AUTHORIZE_CONTROLLED_CANARY_V3" ? "Materializing unit-specific artifacts…" : "Authorize Canary V3 unit artifacts · $0"}</button></div>}
       {data.canary && <>
         <div className="reliabilityMetrics">
           <article><small>PROGRESS</small><b>{data.canary.passedUnits}/10</b><span>unit gates passed</span></article>
