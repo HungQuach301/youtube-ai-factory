@@ -56,6 +56,7 @@ test("exhausted source search upgrades one unit with durable lineage", () => {
   assert.match(route, /v7_material_unit_repairs/);
   assert.match(route, /SUPERSEDED_BY_ARCHITECTURE_REPAIR/);
   assert.match(route, /authoredLayerMustProve/);
+  assert.match(route, /VALUES \(\?,\?,\?,\?,\?,'SOURCE_TO_HYBRID_SPLIT_V1','APPLIED',\?,\?,\?,\?,\?,\?\)/);
 });
 
 test("motion proof state has a durable migration", () => {
