@@ -1026,6 +1026,36 @@ async function planMotionProof() {
   return snapshot();
 }
 
+async function issueMotionExecutorBootstrap() {
+  const env = await runtime(), db = env.DB!, { authorization } = await current(db);
+  if (!authorization) throw new Error("MOTION_PROOF_RUN_REQUIRED");
+  const job = await db.prepare("SELECT * FROM v7_media_jobs WHERE authorization_id=? AND job_type='MOTION_PROOF_RENDER' AND status='QUEUED' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!job) throw new Error("MOTION_RENDER_JOB_NOT_QUEUED");
+  const token = `${crypto.randomUUID()}${crypto.randomUUID()}`, tokenHash = await sha(token), expiresAt = new Date(Date.now() + 10 * 60_000).toISOString(), contract = rec(JSON.parse(String(job.contract_json)));
+  await db.prepare("UPDATE v7_media_jobs SET contract_json=?,updated_at=? WHERE id=? AND status='QUEUED'").bind(JSON.stringify({ ...contract, bootstrap: { tokenHash, expiresAt, scope: "CLAIM_EXACT_MOTION_JOB_ONCE" } }), new Date().toISOString(), job.id).run();
+  return { ...(await snapshot()), executorBootstrap: { jobId: job.id, token, expiresAt, scope: "CLAIM_EXACT_MOTION_JOB_ONCE" } };
+}
+
+function claimedJobPayload(claimed: Row, leaseToken: string) {
+  const contract = rec(JSON.parse(String(claimed.contract_json)));
+  const sourceDownloadUrls = arr(contract.sources).map(rec).map((source) => ({ state: clean(source.state), fileId: clean(source.fileId), sha256: clean(source.sha256), url: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}&fileId=${encodeURIComponent(clean(source.fileId))}` }));
+  return { id: claimed.id, type: claimed.job_type, briefId: claimed.brief_id, attempt: Number(claimed.attempt), maxAttempts: Number(claimed.max_attempts), leaseExpiresAt: claimed.lease_expires_at, leaseToken, sourceDownloadUrl: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}`, sourceDownloadUrls, contract };
+}
+
+async function claimMotionJobBootstrap(body: Row) {
+  const env = await runtime(), db = env.DB!, jobId = clean(body.jobId), token = clean(body.bootstrapToken), owner = clean(body.executorId) || "motion-bootstrap-executor", now = new Date().toISOString();
+  const job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND job_type='MOTION_PROOF_RENDER' AND status='QUEUED' AND attempt<max_attempts").bind(jobId).first<Row>();
+  if (!job || !token) throw new Error("MOTION_BOOTSTRAP_UNAUTHORIZED");
+  const contract = rec(JSON.parse(String(job.contract_json))), bootstrap = rec(contract.bootstrap);
+  if (!clean(bootstrap.tokenHash) || await sha(token) !== clean(bootstrap.tokenHash) || new Date(clean(bootstrap.expiresAt)).getTime() < Date.now()) throw new Error("MOTION_BOOTSTRAP_UNAUTHORIZED");
+  const leaseToken = crypto.randomUUID(), tokenHash = await sha(leaseToken), expiry = new Date(Date.now() + 10 * 60_000).toISOString();
+  delete contract.bootstrap;
+  await db.prepare("UPDATE v7_media_jobs SET status='LEASED',attempt=attempt+1,lease_owner=?,lease_token_hash=?,lease_expires_at=?,contract_json=?,updated_at=? WHERE id=? AND status='QUEUED'").bind(`bootstrap:${owner}`, tokenHash, expiry, JSON.stringify(contract), now, job.id).run();
+  const claimed = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(job.id).first<Row>();
+  if (!claimed) throw new Error("MOTION_BOOTSTRAP_CLAIM_CONFLICT");
+  return Response.json({ status: "LEASED", job: claimedJobPayload(claimed, leaseToken) });
+}
+
 async function requireExecutor(request: Request, env: Env) {
   const supplied = clean(request.headers.get("x-frameflow-executor-key"));
   if (!env.MEDIA_EXECUTOR_SHARED_SECRET || !(await secretMatches(supplied, env.MEDIA_EXECUTOR_SHARED_SECRET))) throw new Error("MEDIA_EXECUTOR_UNAUTHORIZED");
@@ -1049,17 +1079,16 @@ async function claimMediaJob(request: Request, body: Row) {
   await db.prepare("UPDATE v7_media_jobs SET status='LEASED',attempt=attempt+1,lease_owner=?,lease_token_hash=?,lease_expires_at=?,updated_at=? WHERE id=? AND status='QUEUED'").bind(owner, tokenHash, expiry, now, job.id).run();
   const claimed = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED' AND lease_owner=?").bind(job.id, owner).first<Row>();
   if (!claimed) return Response.json({ status: "RETRY", retryAfterSeconds: 2 }, { status: 409 });
-  const contract = rec(JSON.parse(String(claimed.contract_json)));
-  const sourceDownloadUrls = arr(contract.sources).map(rec).map((source) => ({ state: clean(source.state), fileId: clean(source.fileId), sha256: clean(source.sha256), url: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}&fileId=${encodeURIComponent(clean(source.fileId))}` }));
-  return Response.json({ status: "LEASED", job: { id: claimed.id, type: claimed.job_type, briefId: claimed.brief_id, attempt: Number(claimed.attempt), maxAttempts: Number(claimed.max_attempts), leaseExpiresAt: claimed.lease_expires_at, leaseToken, sourceDownloadUrl: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}`, sourceDownloadUrls, contract } });
+  return Response.json({ status: "LEASED", job: claimedJobPayload(claimed, leaseToken) });
 }
 
 async function executionSource(request: Request) {
-  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
+  const env = await runtime(), db = env.DB!;
   if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
   const url = new URL(request.url), jobId = clean(url.searchParams.get("executionSource")), leaseToken = clean(url.searchParams.get("leaseToken")), requestedFileId = clean(url.searchParams.get("fileId"));
   const job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(jobId).first<Row>();
   if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
+  if (job.job_type !== "MOTION_PROOF_RENDER") await requireExecutor(request, env);
   const contract = rec(JSON.parse(String(job.contract_json))), allowedSources = arr(contract.sources).map(rec).map((source) => clean(source.fileId));
   const fileId = requestedFileId || clean(job.source_file_id);
   if (requestedFileId && (job.job_type !== "MOTION_PROOF_RENDER" || !allowedSources.includes(requestedFileId))) throw new Error("MEDIA_SOURCE_NOT_AUTHORIZED");
@@ -1101,7 +1130,7 @@ async function completeMediaJob(request: Request, body: Row) {
 }
 
 async function completeMotionProof(request: Request, body: Row) {
-  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
+  const env = await runtime(), db = env.DB!;
   if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
   const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED' AND job_type='MOTION_PROOF_RENDER'").bind(jobId).first<Row>();
   if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
@@ -1188,8 +1217,9 @@ async function motionProofQa() {
 }
 
 async function failMediaJob(request: Request, body: Row) {
-  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
+  const env = await runtime(), db = env.DB!;
   const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(jobId).first<Row>();
+  if (job?.job_type !== "MOTION_PROOF_RENDER") await requireExecutor(request, env);
   if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash)) throw new Error("MEDIA_JOB_LEASE_INVALID");
   const retry = Number(job.attempt) < Number(job.max_attempts), now = new Date().toISOString();
   await db.prepare("UPDATE v7_media_jobs SET status=?,error=?,lease_owner=NULL,lease_token_hash=NULL,lease_expires_at=NULL,updated_at=? WHERE id=?").bind(retry ? "QUEUED" : "FAILED", short(body.error, 300) || "MEDIA_EXECUTION_FAILED", now, jobId).run();
@@ -1221,10 +1251,12 @@ export async function POST(request: Request) {
     if (body.action === "RUN_SOURCE_FRAME_QA") return Response.json(await sourceFrameQa(), { status: 202 });
     if (body.action === "RUN_COMPOSITE_TOURNAMENT") return Response.json(await compositeTournament(), { status: 202 });
     if (body.action === "PLAN_MOTION_PROOF") return Response.json(await planMotionProof(), { status: 201 });
+    if (body.action === "ISSUE_MOTION_EXECUTOR_BOOTSTRAP") return Response.json(await issueMotionExecutorBootstrap(), { status: 201 });
     if (body.action === "RUN_MOTION_QA") return Response.json(await motionProofQa(), { status: 202 });
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
     if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);
     if (body.action === "CLAIM_MEDIA_JOB") return await claimMediaJob(request, body);
+    if (body.action === "CLAIM_MOTION_JOB") return await claimMotionJobBootstrap(body);
     if (body.action === "COMPLETE_MEDIA_JOB") return await completeMediaJob(request, body);
     if (body.action === "COMPLETE_MOTION_PROOF") return await completeMotionProof(request, body);
     if (body.action === "FAIL_MEDIA_JOB") return await failMediaJob(request, body);

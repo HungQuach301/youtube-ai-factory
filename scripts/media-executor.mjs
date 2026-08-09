@@ -7,9 +7,11 @@ import { join } from "node:path";
 const baseUrl = String(process.env.FACTORY_BASE_URL || "").replace(/\/$/, "");
 const secret = String(process.env.MEDIA_EXECUTOR_SHARED_SECRET || "");
 const siteAuthToken = String(process.env.FACTORY_SITE_AUTH_TOKEN || "");
+const motionBootstrapToken = String(process.env.MOTION_EXECUTOR_BOOTSTRAP_TOKEN || "");
+const motionJobId = String(process.env.MOTION_EXECUTOR_JOB_ID || "");
 const executorId = String(process.env.MEDIA_EXECUTOR_ID || `media-executor-${randomUUID().slice(0, 8)}`);
 const once = process.argv.includes("--once");
-if (!baseUrl || !secret) throw new Error("FACTORY_BASE_URL and MEDIA_EXECUTOR_SHARED_SECRET are required");
+if (!baseUrl || (!secret && !(motionBootstrapToken && motionJobId))) throw new Error("FACTORY_BASE_URL plus either shared-secret or one-time motion capability is required");
 
 const endpoint = `${baseUrl}/api/factory/material-production`;
 const transportHeaders = siteAuthToken ? { "OAI-Sites-Authorization": `Bearer ${siteAuthToken}` } : {};
@@ -93,6 +95,12 @@ async function execute(job) {
 }
 
 async function cycle() {
+  if (motionBootstrapToken && motionJobId) {
+    const claim = await post("CLAIM_MOTION_JOB", { executorId, jobId: motionJobId, bootstrapToken: motionBootstrapToken });
+    try { await execute(claim.job); }
+    catch (error) { await post("FAIL_MEDIA_JOB", { jobId: claim.job.id, leaseToken: claim.job.leaseToken, error: error instanceof Error ? error.message : "motion execution failed" }); throw error; }
+    return true;
+  }
   await post("EXECUTOR_HEARTBEAT", { executorId, version: "1.1.0", capabilities: ["ffprobe", "ffmpeg", "sha256", "jpeg-frame-extraction", "960x540-cover", "vp9-motion-proof", "three-state-crossfade"] });
   const claim = await post("CLAIM_MEDIA_JOB", { executorId });
   if (claim.status !== "LEASED") return false;

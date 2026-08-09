@@ -21,6 +21,14 @@ test("motion renderer uses exact immutable sources and no audio", () => {
   assert.match(executor, /COMPLETE_MOTION_PROOF/);
 });
 
+test("chat-run executor uses a one-time exact-job capability", () => {
+  assert.match(route, /CLAIM_EXACT_MOTION_JOB_ONCE/);
+  assert.match(route, /MOTION_BOOTSTRAP_UNAUTHORIZED/);
+  assert.match(route, /delete contract\.bootstrap/);
+  assert.match(executor, /MOTION_EXECUTOR_BOOTSTRAP_TOKEN/);
+  assert.match(executor, /CLAIM_MOTION_JOB/);
+});
+
 test("motion QA is one bounded ledgered request", () => {
   assert.match(route, /"MOTION_PROOF_QA"/);
   assert.match(route, /max_output_tokens: 4000/);
