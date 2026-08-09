@@ -778,10 +778,12 @@ async function dispatchVision(env: Env, db: DB, authorization: Row, briefRow: Ro
     }
   }
   if (!imageUrls.length) throw new Error("REPRESENTATIVE_PIXEL_EVIDENCE_MISSING");
-  const requestId = await newRequest(db, authorization, clean(briefRow.id), "PIXEL_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1500, 8000);
+  const retry = rec(brief.pixelQaRetry), expectedOutputTokens = Number(retry.expectedOutputTokens || 1500), maxOutputTokens = Number(retry.maxOutputTokens || 8000);
+  const requestId = await newRequest(db, authorization, clean(briefRow.id), "PIXEL_QA", "OPENAI", setting.modelId, setting.reasoningEffort, expectedOutputTokens, maxOutputTokens);
+  if (clean(retry.scope) === "OUTPUT_CEILING_ONLY" && clean(retry.retryOf)) await db.prepare("UPDATE v7_material_requests SET retry_of=?,retry_scope='OUTPUT_CEILING_ONLY' WHERE id=?").bind(clean(retry.retryOf), requestId).run();
   const content: Row[] = [{ type: "input_text", text: `Act as an exacting visual producer. Judge only the supplied audience-facing material pixels against this frozen shot contract. For HYBRID and authored material, the three images are the actual entry, midpoint and exit composites in that order and must visibly progress; there is no separate planning image. Broad topic similarity is a failure. Penalize generic stock, unsupported claims, decorative diagrams, visible production metadata, weak mobile hierarchy, cropping, logos, text artifacts and repeated-template appearance. A PASS requires every dimension at least 86 and overall at least 90. Do not infer motion that the supplied states do not prove.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
   for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
-  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 8000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_pixel_qa", strict: true, schema: visionSchema } } }), signal: AbortSignal.timeout(30000) });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: maxOutputTokens, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_pixel_qa", strict: true, schema: visionSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`PIXEL_QA_START_FAILED · ${response.status}`); }
   const payload = await response.json() as Row;
   if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("PIXEL_QA_PROVIDER_ID_MISSING"); }
@@ -919,6 +921,31 @@ async function repairFailedUnitRenderer() {
     db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='PILOT_REPAIR_RUNNING' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='PILOT_REPAIR_RUNNING',blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(content.briefId)} semantic renderer V2 applied · prior QA ${Number(prior?.score || 0)}/100 and 3 frame hashes preserved · source champion unchanged`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function prepareIncompletePixelQaRetry() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || clean(run.status) !== "REPAIR_REQUIRED" || clean(authorization.status) !== "REPAIR_REQUIRED") throw new Error("PIXEL_QA_RETRY_STATE_REQUIRED");
+  const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
+  if (active) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const incomplete = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND phase='PIXEL_QA' AND status='BLOCKED_INCOMPLETE' AND error='max_output_tokens' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!incomplete) throw new Error("MAX_OUTPUT_PIXEL_QA_INCOMPLETE_NOT_FOUND");
+  const duplicate = await db.prepare("SELECT id FROM v7_material_requests WHERE retry_of=? AND retry_scope='OUTPUT_CEILING_ONLY' LIMIT 1").bind(incomplete.id).first<Row>();
+  if (duplicate) throw new Error("OUTPUT_CEILING_RETRY_ALREADY_USED");
+  const brief = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=? AND pilot=1").bind(incomplete.brief_id, run.id).first<Row>();
+  if (!brief) throw new Error("PIXEL_QA_RETRY_BRIEF_NOT_FOUND");
+  const content = rec(JSON.parse(String(brief.content_json))), retry = { version: "OUTPUT_CEILING_V2", retryOf: incomplete.id, expectedOutputTokens: 1500, maxOutputTokens: 16000, scope: "OUTPUT_CEILING_ONLY", promptChanged: false, pixelsChanged: false }, repaired = { ...content, pixelQaRetry: retry }, repairedJson = JSON.stringify(repaired), repairedHash = await sha(repairedJson), now = new Date().toISOString();
+  const frames = await rows(db, "SELECT id,asset_role,content_hash FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role IN ('QA_ENTRY','QA_MIDPOINT','QA_EXIT') ORDER BY asset_role", authorization.id, brief.id);
+  if (frames.length !== 3) throw new Error("PIXEL_QA_RETRY_FRAME_SET_INCOMPLETE");
+  const evidenceJson = JSON.stringify({ requestId: incomplete.id, providerResponseId: incomplete.provider_response_id, status: incomplete.status, error: incomplete.error, inputTokens: incomplete.input_tokens, outputTokens: incomplete.output_tokens, reasoningTokens: incomplete.reasoning_tokens, actualCostUsd: incomplete.actual_cost_usd, frames: frames.map((frame) => ({ id: frame.id, role: frame.asset_role, sha256: frame.content_hash })) }), evidenceHash = await sha(evidenceJson), retryJson = JSON.stringify(retry), retryHash = await sha(retryJson);
+  await db.batch([
+    db.prepare("INSERT INTO v7_material_unit_repairs (id,program_id,run_id,authorization_id,brief_id,repair_type,status,original_content_json,original_content_hash,repaired_content_json,repaired_content_hash,failure_evidence_json,created_at) VALUES (?,?,?,?,?,'PIXEL_QA_OUTPUT_CEILING_V2','APPLIED',?,?,?,?,?,?)").bind(`${brief.id}-PIXEL-QA-CEILING-V2`, PROGRAM_ID, run.id, authorization.id, brief.id, evidenceJson, evidenceHash, retryJson, retryHash, evidenceJson, now),
+    db.prepare("UPDATE v7_material_briefs SET content_json=?,content_hash=?,status='REPAIR_REQUIRED' WHERE id=?").bind(repairedJson, repairedHash, brief.id),
+    db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='PILOT_REPAIR_RUNNING' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='PILOT_REPAIR_RUNNING',blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(content.briefId)} Pixel QA incomplete preserved · one output-ceiling-only retry armed at 16k · prompt and 3 pixel hashes unchanged`, now, STAGE_ID),
   ]);
   return snapshot();
 }
@@ -1390,6 +1417,7 @@ export async function POST(request: Request) {
     if (body.action === "RESUME_PILOT") return Response.json(await resumePilot(), { status: 202 });
     if (body.action === "UPGRADE_FAILED_UNIT_ARCHITECTURE") return Response.json(await upgradeFailedUnitArchitecture(), { status: 201 });
     if (body.action === "REPAIR_FAILED_UNIT_RENDERER") return Response.json(await repairFailedUnitRenderer(), { status: 201 });
+    if (body.action === "PREPARE_INCOMPLETE_PIXEL_QA_RETRY") return Response.json(await prepareIncompletePixelQaRetry(), { status: 201 });
     if (body.action === "PLAN_ROOT_CAUSE_EXECUTION") return Response.json(await planRootCauseExecution(), { status: 201 });
     if (body.action === "RUN_SOURCE_FRAME_QA") return Response.json(await sourceFrameQa(), { status: 202 });
     if (body.action === "RUN_COMPOSITE_TOURNAMENT") return Response.json(await compositeTournament(), { status: 202 });

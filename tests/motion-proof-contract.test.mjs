@@ -73,6 +73,14 @@ test("hybrid renderer repair preserves failed pixels and binds exact states", ()
   assert.match(route, /prior QA \$\{Number\(prior\?\.score \|\| 0\)\}\/100 and 3 frame hashes preserved/);
 });
 
+test("incomplete pixel QA gets one lineage-bound ceiling-only retry", () => {
+  assert.match(route, /PREPARE_INCOMPLETE_PIXEL_QA_RETRY/);
+  assert.match(route, /OUTPUT_CEILING_RETRY_ALREADY_USED/);
+  assert.match(route, /retry_scope='OUTPUT_CEILING_ONLY'/);
+  assert.match(route, /maxOutputTokens: 16000/);
+  assert.match(route, /promptChanged: false, pixelsChanged: false/);
+});
+
 test("motion proof state has a durable migration", () => {
   assert.match(migration, /CREATE TABLE `v7_motion_proofs`/);
   assert.match(migration, /`source_hashes_json` text NOT NULL/);
