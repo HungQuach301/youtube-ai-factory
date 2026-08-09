@@ -552,7 +552,7 @@ function nextUncertifiedArchetype(qualifications: Row[]) {
 
 async function reusableFrameSet(db: DB, runId: string, archetype: string) {
   if (!["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE", "DOCUMENTARY_LIVE_ACTION"].includes(archetype)) return [] as Row[];
-  if (archetype === "SOURCE_AUTHORED_HYBRID") {
+  if (["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE"].includes(archetype)) {
     const proof = await db.prepare("SELECT source_hashes_json FROM v7_motion_proofs WHERE run_id=? AND status='PASS' ORDER BY updated_at DESC LIMIT 1").bind(runId).first<Row>();
     const lineage = proof ? arr(JSON.parse(String(proof.source_hashes_json || "[]"))).map(rec) : [];
     if (lineage.length === 3) {
