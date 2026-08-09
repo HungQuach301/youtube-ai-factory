@@ -8,7 +8,8 @@ const STAGE_ID = `${PROGRAM_ID}-STAGE-${STAGE}`;
 const THRESHOLD = 92;
 const DEFAULT_MODEL = "gpt-5.6-sol";
 const SOURCE_QA_RUBRIC = "SOURCE_LAYER_QA_V2";
-const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V4";
+const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V5";
+const PREVIOUS_COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V4";
 const MODEL_OPTIONS = [
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", description: "Maximum quality" },
   { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", description: "Balanced quality and speed" },
@@ -226,10 +227,14 @@ async function snapshot() {
   const sourceAudit = sourceEvidence ? sourceAudits.find((item) => { if (item.evidence_id !== sourceEvidence.id) return false; try { return rec(JSON.parse(String(item.repair_json || "{}"))).rubricVersion === SOURCE_QA_RUBRIC; } catch { return false; } }) : null;
   const sourceEvidenceReady = sourceAudit?.status === "PASS";
   const sourceQaActive = requestRows.some((row) => row.phase === "SOURCE_FRAME_QA" && ["QUEUED", "IN_PROGRESS"].includes(String(row.status)));
-  const compositeAudit = sourceEvidence ? compositeAudits.find((item) => item.evidence_id === sourceEvidence.id && item.rubric_version === COMPOSITE_QA_RUBRIC) : null;
+  const currentCompositeAudit = sourceEvidence ? compositeAudits.find((item) => item.evidence_id === sourceEvidence.id && item.rubric_version === COMPOSITE_QA_RUBRIC) : null;
+  const previousCompositeAudit = sourceEvidence ? compositeAudits.find((item) => item.evidence_id === sourceEvidence.id && item.rubric_version === PREVIOUS_COMPOSITE_QA_RUBRIC) : null;
+  const compositeAudit = currentCompositeAudit || previousCompositeAudit;
+  const compositeRepairAvailable = !currentCompositeAudit && previousCompositeAudit?.status === "REPAIR_REQUIRED";
   const compositeActive = requestRows.some((row) => row.phase === "COMPOSITE_TOURNAMENT" && ["QUEUED", "IN_PROGRESS"].includes(String(row.status)));
   const compositeContent = compositeAudit?.candidates_json ? rec(JSON.parse(String(compositeAudit.candidates_json))) : {};
-  const compositeIdentity = sourceEvidence ? `${COMPOSITE_QA_RUBRIC}-${clean(sourceEvidence.content_hash).slice(0, 12)}` : "";
+  const displayedCompositeRubric = clean(compositeAudit?.rubric_version) || COMPOSITE_QA_RUBRIC;
+  const compositeIdentity = sourceEvidence ? `${displayedCompositeRubric}-${clean(sourceEvidence.content_hash).slice(0, 12)}` : "";
   const compositeCandidates = ["A", "B", "C"].map((candidate) => ({ candidate, scores: rec(compositeContent[candidate]), frames: ["ENTRY", "MIDPOINT", "EXIT"].map((state) => { const file = files.find((item) => item.brief_id === sourceEvidence?.brief_id && item.asset_role === `COMPOSITE_${candidate}_${state}` && clean(item.id).includes(compositeIdentity)); return file ? { state, fileId: file.id, previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(file.id))}` } : null; }).filter(Boolean) }));
   return {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
@@ -252,8 +257,8 @@ async function snapshot() {
         return { id: item.id, briefId: item.brief_id, type: item.evidence_type, status: audit?.status || item.status, technicalStatus: item.status, hash: clean(item.content_hash).slice(0, 12), createdAt: item.created_at, probe: rec(content.probe), sourceQa: audit ? { status: audit.status, score: Number(audit.score), dimensions: rec(JSON.parse(String(audit.dimensions_json || "{}"))), findings: arr(JSON.parse(String(audit.findings_json || "[]"))), repair: rec(JSON.parse(String(audit.repair_json || "{}"))) } : null, frames: arr(content.frames).map(rec).map((frame) => ({ role: clean(frame.role), timestampSeconds: Number(frame.timestampSeconds), width: Number(frame.width), height: Number(frame.height), mimeType: clean(frame.mimeType), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })) };
       }),
       sourceQaActive,
-      composite: { active: compositeActive, rubric: COMPOSITE_QA_RUBRIC, status: compositeAudit?.status || "REQUIRED", winner: compositeAudit?.winner || null, score: Number(compositeAudit?.score || 0), dimensions: compositeAudit ? rec(JSON.parse(String(compositeAudit.dimensions_json || "{}"))) : {}, findings: compositeAudit ? arr(JSON.parse(String(compositeAudit.findings_json || "[]"))) : [], repair: compositeAudit ? rec(JSON.parse(String(compositeAudit.repair_json || "{}"))) : {}, candidates: compositeCandidates },
-      nextGate: sourceEvidenceReady ? compositeActive ? "COMPOSITE_TOURNAMENT_RUNNING" : !compositeAudit ? "COMPOSITE_TOURNAMENT" : compositeAudit.status === "PASS" ? "MOTION_PROOF" : "COMPOSITE_REPAIR" : sourceEvidence ? sourceQaActive ? "SOURCE_FRAME_QA_RUNNING" : sourceAudit?.status === "REPAIR_REQUIRED" ? "SOURCE_REPLACEMENT" : "SOURCE_FRAME_QA" : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET",
+      composite: { active: compositeActive, rubric: displayedCompositeRubric, status: compositeAudit?.status || "REQUIRED", winner: compositeAudit?.winner || null, score: Number(compositeAudit?.score || 0), dimensions: compositeAudit ? rec(JSON.parse(String(compositeAudit.dimensions_json || "{}"))) : {}, findings: compositeAudit ? arr(JSON.parse(String(compositeAudit.findings_json || "[]"))) : [], repair: compositeAudit ? rec(JSON.parse(String(compositeAudit.repair_json || "{}"))) : {}, candidates: compositeCandidates },
+      nextGate: sourceEvidenceReady ? compositeActive ? "COMPOSITE_TOURNAMENT_RUNNING" : compositeRepairAvailable ? "COMPOSITE_REPAIR" : !compositeAudit ? "COMPOSITE_TOURNAMENT" : compositeAudit.status === "PASS" ? "MOTION_PROOF" : "COMPOSITE_REPAIR_BLOCKED" : sourceEvidence ? sourceQaActive ? "SOURCE_FRAME_QA_RUNNING" : sourceAudit?.status === "REPAIR_REQUIRED" ? "SOURCE_REPLACEMENT" : "SOURCE_FRAME_QA" : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET",
     },
   };
 }
@@ -498,7 +503,7 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
       // Focus lens: preserve the physical action while each authored label performs one audience-facing job.
       fill(45,42,870,86,"#173f38"); text(heading,78,70,4,"#fffdf5");
       fill(548,160,332,300,"#f5edcf"); text(main,main.length>10?578:602,208,main.length>10?3:6,"#0d3f32");
-      if(sub) text(sub,sub.length>10?578:596,286,sub.length>10?2:3,"#0d3f32");
+      if(sub) text(sub,sub.length>14?570:596,286,sub.length>14?2:3,"#0d3f32");
       fill(582,340,264,4,"#d9f1e4");
     }
     for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
@@ -606,6 +611,8 @@ async function compositeTournament() {
   if (!evidence) throw new Error("SOURCE_FRAME_EVIDENCE_MISSING");
   const sourceAudit = await db.prepare("SELECT * FROM v7_source_frame_audits WHERE evidence_id=? AND status='PASS' AND repair_json LIKE ? ORDER BY updated_at DESC LIMIT 1").bind(evidence.id, `%${SOURCE_QA_RUBRIC}%`).first<Row>();
   if (!sourceAudit) throw new Error("SOURCE_FRAME_SEMANTIC_PASS_REQUIRED");
+  const previousAudit = await db.prepare("SELECT * FROM v7_composite_audits WHERE evidence_id=? AND rubric_version=? ORDER BY updated_at DESC LIMIT 1").bind(evidence.id, PREVIOUS_COMPOSITE_QA_RUBRIC).first<Row>();
+  const repairMode = previousAudit?.status === "REPAIR_REQUIRED";
   const existing = await db.prepare("SELECT * FROM v7_composite_audits WHERE evidence_id=? AND rubric_version=? ORDER BY updated_at DESC LIMIT 1").bind(evidence.id, COMPOSITE_QA_RUBRIC).first<Row>();
   if (existing) return snapshot();
   const compositeIdentity = `${COMPOSITE_QA_RUBRIC}-${clean(evidence.content_hash).slice(0, 12)}`;
@@ -629,7 +636,9 @@ async function compositeTournament() {
     const selectedFiles = rubricFiles.filter((file) => clean(file.asset_role).startsWith(`COMPOSITE_${winner}_`)).sort((left, right) => clean(left.asset_role).localeCompare(clean(right.asset_role)));
     await db.batch([
       db.prepare("INSERT INTO v7_composite_audits (id,program_id,run_id,authorization_id,brief_id,evidence_id,rubric_version,status,winner,score,dimensions_json,candidates_json,findings_json,repair_json,provider_response_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(`${evidence.id}-${COMPOSITE_QA_RUBRIC}`, PROGRAM_ID, authorization.run_id, authorization.id, evidence.brief_id, evidence.id, COMPOSITE_QA_RUBRIC, hardPass ? "PASS" : "REPAIR_REQUIRED", winner, Number(winnerScores.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(winnerScores[key])]))), JSON.stringify({ A: rec(result.candidateA), B: rec(result.candidateB), C: rec(result.candidateC), selectedFileIds: selectedFiles.map((file) => file.id), sourceEvidenceHash: evidence.content_hash }), JSON.stringify(arr(result.findings)), JSON.stringify({ exactRepair: clean(result.exactRepair) }), payload.id, now, now),
-      db.prepare("UPDATE v7_stage_states SET blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(hardPass ? "MOTION_PROOF_REQUIRED" : "COMPOSITE_REPAIR_REQUIRED", hardPass ? `${evidence.brief_id} composite ${winner} passed at ${Number(winnerScores.overall)}/100 · motion proof remains locked` : `${evidence.brief_id} composite tournament rejected at ${Number(winnerScores.overall)}/100 · bounded compositor repair required`, now, STAGE_ID),
+      db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(hardPass ? "MOTION_PROOF_REQUIRED" : "REPAIR_REQUIRED", hardPass ? "MOTION_PROOF_REQUIRED" : "COMPOSITE_REPAIR_BLOCKED", hardPass ? `${evidence.brief_id} composite ${winner} passed at ${Number(winnerScores.overall)}/100 · motion proof remains locked` : `${evidence.brief_id} bounded composite repair failed at ${Number(winnerScores.overall)}/100 · explicit root-cause review required`, now, STAGE_ID),
+      db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(hardPass ? "MOTION_PROOF_REQUIRED" : "REPAIR_REQUIRED", authorization.run_id),
+      db.prepare("UPDATE v7_material_authorizations SET status=?,updated_at=? WHERE id=?").bind(hardPass ? "PAUSED" : "REPAIR_REQUIRED", now, authorization.id),
     ]);
     return snapshot();
   }
@@ -648,15 +657,29 @@ async function compositeTournament() {
     decodedFrames.push({ data: decoded.data as Uint8Array, width: decoded.width, height: decoded.height });
   }
   const layouts = ["A", "B", "C"] as const, states = [["ENTRY",0],["MIDPOINT",1],["EXIT",2]] as const, imageUrls: string[] = [];
+  const previousIdentity = `${PREVIOUS_COMPOSITE_QA_RUBRIC}-${clean(evidence.content_hash).slice(0, 12)}`;
   for (const layout of layouts) for (const [name, state] of states) {
-    const role = `COMPOSITE_${layout}_${name}` as MaterialRole, bytes = ownedPng(brief, state, decodedFrames[state], layout);
-    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `${COMPOSITE_QA_RUBRIC}-${clean(evidence.content_hash).slice(0, 12)}`, bytes, mimeType: "image/png", extension: "png", sourceType: `HYBRID_COMPOSITE_${layout}`, provider: "FRAMEFLOW_OWNED", providerAssetId: clean(evidence.id), sourceUrl: clean(evidence.id), landingUrl: clean(evidence.id), licenseCode: "HYBRID_SOURCE_PLUS_CHANNEL_OWNED", width: 960, height: 540 });
+    const role = `COMPOSITE_${layout}_${name}` as MaterialRole;
+    let bytes: Uint8Array, sourceType = `HYBRID_COMPOSITE_${layout}`;
+    if (repairMode && layout !== "C") {
+      const previousFile = briefFiles.find((file) => file.asset_role === role && clean(file.id).includes(previousIdentity));
+      if (!previousFile) throw new Error(`COMPOSITE_REPAIR_LINEAGE_MISSING · ${role}`);
+      const previousObject = await env.BUCKET.get(clean(previousFile.runtime_key));
+      if (!previousObject) throw new Error(`COMPOSITE_REPAIR_BYTES_MISSING · ${role}`);
+      bytes = new Uint8Array(await new Response(previousObject.body).arrayBuffer());
+      sourceType = `UNCHANGED_${PREVIOUS_COMPOSITE_QA_RUBRIC}_${layout}`;
+    } else {
+      bytes = ownedPng(brief, state, decodedFrames[state], layout);
+      if (repairMode) sourceType = `DELTA_REPAIR_${COMPOSITE_QA_RUBRIC}_${layout}`;
+    }
+    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `${COMPOSITE_QA_RUBRIC}-${clean(evidence.content_hash).slice(0, 12)}`, bytes, mimeType: "image/png", extension: "png", sourceType, provider: "FRAMEFLOW_OWNED", providerAssetId: clean(evidence.id), sourceUrl: clean(evidence.id), landingUrl: clean(evidence.id), licenseCode: "HYBRID_SOURCE_PLUS_CHANNEL_OWNED", width: 960, height: 540 });
     const stored = await db.prepare("SELECT runtime_key FROM v7_material_files WHERE id=?").bind(fileId).first<Row>(), object = stored ? await env.BUCKET.get(clean(stored.runtime_key)) : null;
     if (!object) throw new Error(`COMPOSITE_BYTES_MISSING · ${role}`);
     imageUrls.push(`data:image/png;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`);
   }
   const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(evidence.brief_id), "COMPOSITE_TOURNAMENT", "OPENAI", setting.modelId, setting.reasoningEffort, 1800, 4000);
-  const content: Row[] = [{ type: "input_text", text: `You are adjudicating ${COMPOSITE_QA_RUBRIC} for a premium US documentary. The nine images are ordered A-entry, A-midpoint, A-exit, B-entry, B-midpoint, B-exit, C-entry, C-midpoint, C-exit. Compare three materially different audience-facing hybrid compositions built from the same already-approved real checkout frames. Judge the finished pixels only. Select one winner; do not average candidates. The winner must visibly communicate the frozen clause, preserve authentic card-tender context, avoid production metadata and unsupported claims, remain readable on mobile, and show meaningful state progression. Exact $100.00, CREDIT, CREDIT CARD and PROCESSING are authored illustrative states and are permitted. Reject placeholder glyphs, clipped or colliding text, internal state-machine legends, generic debug/status UI, and any label without a direct narrative job. All three candidates must be viable alternatives: each needs overall >=82, factualSafety >=90, composition >=80 and mobileLegibility >=80. The winner additionally needs every dimension >=86 and overall >=90. If the field or winner fails any floor, select the least-bad candidate and return REPAIR. exactRepair and every finding must be clear English.\n\nFROZEN SHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
+  const previousRepair = previousAudit ? clean(rec(JSON.parse(String(previousAudit.repair_json || "{}"))).exactRepair) : "";
+  const content: Row[] = [{ type: "input_text", text: `You are adjudicating ${COMPOSITE_QA_RUBRIC} for a premium US documentary. The nine images are ordered A-entry, A-midpoint, A-exit, B-entry, B-midpoint, B-exit, C-entry, C-midpoint, C-exit. Compare three materially different audience-facing hybrid compositions built from the same already-approved real checkout frames. Judge the finished pixels only. ${repairMode ? `This is one bounded delta repair. A and B are byte-identical to the prior field; only C was re-rendered to address: ${previousRepair}. Verify the repair without inventing a new requirement.` : ""} Select one winner; do not average candidates. The winner must visibly communicate the frozen clause, preserve authentic card-tender context, avoid production metadata and unsupported claims, remain readable on mobile, and show meaningful state progression. Exact $100.00, CREDIT, CREDIT CARD and PROCESSING are authored illustrative states and are permitted. Reject placeholder glyphs, clipped or colliding text, internal state-machine legends, generic debug/status UI, and any label without a direct narrative job. All three candidates must be viable alternatives: each needs overall >=82, factualSafety >=90, composition >=80 and mobileLegibility >=80. The winner additionally needs every dimension >=86 and overall >=90. If the field or winner fails any floor, select the least-bad candidate and return REPAIR. exactRepair and every finding must be clear English.\n\nFROZEN SHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
   for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 4000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_composite_tournament", strict: true, schema: compositeTournamentSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`COMPOSITE_TOURNAMENT_START_FAILED · ${response.status}`); }
