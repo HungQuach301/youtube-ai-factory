@@ -50,6 +50,16 @@ export default function MaterialProductionPage() {
     return () => window.clearTimeout(timer);
   }, [data?.run?.status, data?.pilot.materialized, data?.pilot.audited, data?.requestLedger.active, working]);
   useEffect(() => {
+    if (data?.canary?.status !== "AUTHORIZED" || working || data.requestLedger.active > 0) return;
+    const timer = window.setTimeout(() => void canaryAction("START_CONTROLLED_CANARY_UNIT"), 900);
+    return () => window.clearTimeout(timer);
+  }, [data?.canary?.status, data?.canary?.currentIndex, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (data?.canary?.status !== "UNIT_PASS_REVIEW" || working || data.requestLedger.active > 0) return;
+    const timer = window.setTimeout(() => void canaryAction("RELEASE_NEXT_CONTROLLED_CANARY_UNIT"), 900);
+    return () => window.clearTimeout(timer);
+  }, [data?.canary?.status, data?.canary?.passedUnits, data?.requestLedger.active, working]);
+  useEffect(() => {
     if (!data?.mediaExecution.sourceQaActive || working) return;
     const timer = window.setTimeout(() => void sourceQa(true), 2500);
     return () => window.clearTimeout(timer);
@@ -267,9 +277,9 @@ export default function MaterialProductionPage() {
           <article><small>BOUNDED DELTA</small><b>{Math.max(0, data.requestLedger.total - data.canary.requestsBefore)}/{data.canary.requestBudget}</b><span>${Math.max(0, data.requestLedger.actualCostUsd - data.canary.costBefore).toFixed(6)} / ${data.canary.costBudget.toFixed(2)}</span></article>
         </div>
         <div className="reliabilityControls">{data.canary.queue.map((item, index) => <span key={item.briefId}>{index < data.canary!.passedUnits ? "PASS" : index === data.canary!.currentIndex ? data.canary!.status.replaceAll("_", " ") : "LOCKED"} · {item.logicalId} · {item.riskTier}</span>)}</div>
-        {data.canary.status === "AUTHORIZED" && <div className="reliabilityStart"><p>Only {data.canary.queue[data.canary.currentIndex]?.logicalId} will be released. Every later unit remains locked.</p><button onClick={() => void canaryAction("START_CONTROLLED_CANARY_UNIT")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "START_CONTROLLED_CANARY_UNIT" ? "Releasing leased unit…" : `Release ${data.canary.queue[data.canary.currentIndex]?.logicalId} only`}</button></div>}
+        {data.canary.status === "AUTHORIZED" && <div className="reliabilityStart"><p>Only {data.canary.queue[data.canary.currentIndex]?.logicalId} is being released. Every later unit remains locked until this unit reaches a verified PASS checkpoint.</p></div>}
         {data.canary.status === "UNIT_RUNNING" && <p className="stateBanner">{data.canary.queue[data.canary.currentIndex]?.logicalId} is the only leased unit. Materialization and Pixel QA run sequentially; the queue pauses automatically at terminal QA.</p>}
-        {data.canary.status === "UNIT_PASS_REVIEW" && <div className="reliabilityStart"><p>The current unit passed stored-byte, rights/hash, Pixel QA and physical-uniqueness gates. Releasing the next unit is a separate zero-spend control action.</p><button onClick={() => void canaryAction("RELEASE_NEXT_CONTROLLED_CANARY_UNIT")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RELEASE_NEXT_CONTROLLED_CANARY_UNIT" ? "Closing unit checkpoint…" : data.canary.passedUnits === data.canary.queue.length ? "Close controlled canary" : "Close checkpoint & prepare next unit"}</button></div>}
+        {data.canary.status === "UNIT_PASS_REVIEW" && <div className="reliabilityStart"><p>The unit passed stored-byte, rights/hash, Pixel QA and physical-uniqueness gates. Its checkpoint is closing before the next lease; no provider request can overlap this transition.</p></div>}
         {data.canary.status === "FAILED" && <p className="stateBanner errorState">Controlled canary stopped locally. Completed units remain immutable; later units, sequence proof and scale are blocked.</p>}
         {data.canary.status === "PASS" && <p className="stateBanner">Controlled canary PASS. Sequence proof is ready but not started; scale remains blocked.</p>}
       </>}
