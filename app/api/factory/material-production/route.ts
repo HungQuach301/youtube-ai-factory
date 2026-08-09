@@ -263,7 +263,8 @@ async function snapshot() {
                 : motionQaActive ? "MOTION_QA_RUNNING"
                   : motionRightsRepairAvailable ? "MOTION_RIGHTS_EVIDENCE_REPAIR"
                   : motionProof.status === "QA_REQUIRED" ? "MOTION_QA"
-                    : motionProof.status === "PASS" ? "SEQUENCE_PROOF"
+                    : motionProof.status === "PASS"
+                      ? clean(run?.status) === "PILOT_PASS" ? "SEQUENCE_PROOF" : clean(authorization?.status) === "AUTHORIZED" ? "PILOT_EXECUTION" : "PILOT_AUTHORIZATION"
                       : "MOTION_PROOF_BLOCKED"
     : sourceEvidence ? sourceQaActive ? "SOURCE_FRAME_QA_RUNNING" : sourceAudit?.status === "REPAIR_REQUIRED" ? "SOURCE_REPLACEMENT" : "SOURCE_FRAME_QA"
       : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET";
@@ -306,6 +307,26 @@ async function authorizePilot() {
   const now = new Date().toISOString(), id = `${run.id}-PILOT-AUTH-${Date.now()}`;
   const modelPolicy = { version: "ADAPTIVE_ENVELOPE_V3", qualityMode: "MAXIMUM_QUALITY", dispatch: "NOT_STARTED", lanes: { singleVision: { expected: 1500, safety: 8000 } }, incomplete: "BLOCK_GATE", semanticRetry: "ONE_DELTA_ONLY", transportRetry: "ONE_IDEMPOTENT_ONLY", fullUnitRecovery: "ROOT_CAUSE_AUTHORIZATION_REQUIRED" };
   await db.batch([db.prepare("INSERT INTO v7_material_authorizations (id,program_id,run_id,scope,status,shot_count,max_remote_requests,max_actual_spend_usd,model_policy_json,authorized_at,updated_at) VALUES (?,?,?,'PILOT','AUTHORIZED',?,80,50,?,?,?)").bind(id, PROGRAM_ID, run.id, shotCount, JSON.stringify(modelPolicy), now, now), db.prepare("UPDATE v7_material_runs SET status='PILOT_AUTHORIZED' WHERE id=?").bind(run.id), db.prepare("UPDATE v7_stage_states SET status='PILOT_AUTHORIZED',blocker='PILOT_DISPATCH_NOT_STARTED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${shotCount} pilot shots authorized · 0 remote requests · $0 actual cost`, now, STAGE_ID)]);
+  return snapshot();
+}
+
+async function authorizePilotAfterMotion() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("PILOT_CONTINUATION_STATE_MISSING");
+  const proof = await db.prepare("SELECT * FROM v7_motion_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!proof || clean(proof.status) !== "PASS" || Number(proof.score) < 90) throw new Error("MOTION_PROOF_PASS_REQUIRED");
+  const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
+  if (active) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const pilots = await rows(db, "SELECT id FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id);
+  if (pilots.length < 8 || pilots.length > 12) throw new Error(`PILOT_SCOPE_INVALID · ${pilots.length}/8–12`);
+  const completed = await db.prepare("SELECT COUNT(DISTINCT brief_id) AS total FROM v7_material_files WHERE authorization_id=? AND asset_role='PRIMARY' AND status='VERIFIED'").bind(authorization.id).first<{ total: number }>();
+  if (Number(completed?.total || 0) >= pilots.length) throw new Error("PILOT_ALREADY_MATERIALIZED");
+  const now = new Date().toISOString();
+  await db.batch([
+    db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',revoked_at=NULL,completed_at=NULL,updated_at=? WHERE id=?").bind(now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='PILOT_AUTHORIZED',mode='AUTHORIZED_PILOT' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='PILOT_AUTHORIZED',blocker='PILOT_DISPATCH_NOT_STARTED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Motion proof ${Number(proof.score)}/100 PASS · existing ${pilots.length}-shot pilot scope re-authorized · ${Number(completed?.total || 0)}/${pilots.length} materials preserved · scale blocked`, now, STAGE_ID),
+  ]);
   return snapshot();
 }
 
@@ -1229,8 +1250,8 @@ async function motionProofQa() {
     await db.batch([
       db.prepare("INSERT INTO v7_motion_audits (id,program_id,run_id,authorization_id,brief_id,proof_id,rubric_version,attempt,status,score,dimensions_json,findings_json,evidence_bundle_json,evidence_bundle_hash,request_id,provider_response_id,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(`${proof.id}-${payload.id || active.provider_response_id}`, PROGRAM_ID, proof.run_id, proof.authorization_id, proof.brief_id, proof.id, MOTION_QA_RUBRIC, attempt, status, Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean)), JSON.stringify(rights.bundle), rights.hash, active.id, payload.id || active.provider_response_id, now),
       db.prepare("UPDATE v7_motion_proofs SET status=?,score=?,dimensions_json=?,findings_json=?,provider_response_id=?,updated_at=? WHERE id=?").bind(status, Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean)), payload.id || active.provider_response_id, now, proof.id),
-      db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(hardPass ? "SEQUENCE_PROOF_REQUIRED" : "MOTION_REPAIR_REQUIRED", authorization.run_id),
-      db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(hardPass ? "SEQUENCE_PROOF_REQUIRED" : "MOTION_REPAIR_REQUIRED", hardPass ? "30_SECOND_SEQUENCE_PROOF_REQUIRED" : "MOTION_PROOF_REPAIR_REQUIRED", hardPass ? `Champion C motion proof passed at ${Number(result.overall)}/100 · 30-second sequence remains locked` : `Champion C motion proof requires bounded repair at ${Number(result.overall)}/100`, now, STAGE_ID),
+      db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(hardPass ? "PILOT_AUTHORIZATION_REQUIRED" : "MOTION_REPAIR_REQUIRED", authorization.run_id),
+      db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(hardPass ? "PILOT_AUTHORIZATION_REQUIRED" : "MOTION_REPAIR_REQUIRED", hardPass ? "PILOT_10_SHOT_AUTHORIZATION_REQUIRED" : "MOTION_PROOF_REPAIR_REQUIRED", hardPass ? `Champion C motion proof passed at ${Number(result.overall)}/100 · bounded pilot authorization is now the only open gate · sequence and scale remain locked` : `Champion C motion proof requires bounded repair at ${Number(result.overall)}/100`, now, STAGE_ID),
     ]);
     return snapshot();
   }
@@ -1282,6 +1303,7 @@ export async function POST(request: Request) {
     const body = await request.json() as Row;
     if (body.action === "BUILD_DRY_RUN") return Response.json(await buildDryRun(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT") return Response.json(await authorizePilot(), { status: 201 });
+    if (body.action === "AUTHORIZE_PILOT_AFTER_MOTION") return Response.json(await authorizePilotAfterMotion(), { status: 201 });
     if (body.action === "REVOKE_PILOT") return Response.json(await revokePilot());
     if (body.action === "SET_MODEL") return Response.json(await setModel(clean(body.modelId), clean(body.reasoningEffort)));
     if (body.action === "START_PILOT") return Response.json(await startPilot(), { status: 202 });

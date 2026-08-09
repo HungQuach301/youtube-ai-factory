@@ -34,7 +34,14 @@ test("motion QA is one bounded ledgered request", () => {
   assert.match(route, /"MOTION_PROOF_QA"/);
   assert.match(route, /max_output_tokens: 4000/);
   assert.match(route, /MOTION_QA_PROVIDER_INCOMPLETE/);
-  assert.match(route, /30_SECOND_SEQUENCE_PROOF_REQUIRED/);
+  assert.match(route, /PILOT_10_SHOT_AUTHORIZATION_REQUIRED/);
+});
+
+test("motion pass opens bounded pilot before sequence proof", () => {
+  assert.match(route, /AUTHORIZE_PILOT_AFTER_MOTION/);
+  assert.match(route, /MOTION_PROOF_PASS_REQUIRED/);
+  assert.match(route, /clean\(run\?\.status\) === "PILOT_PASS" \? "SEQUENCE_PROOF"/);
+  assert.match(route, /sequence and scale remain locked/);
 });
 
 test("motion proof state has a durable migration", () => {

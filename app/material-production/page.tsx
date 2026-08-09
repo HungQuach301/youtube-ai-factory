@@ -72,7 +72,7 @@ export default function MaterialProductionPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Dry run failed"); }
     finally { setWorking(null); }
   }
-  async function pilotAction(action: "AUTHORIZE_PILOT" | "REVOKE_PILOT") {
+  async function pilotAction(action: "AUTHORIZE_PILOT" | "AUTHORIZE_PILOT_AFTER_MOTION" | "REVOKE_PILOT") {
     setWorking(action); setError(null);
     try {
       const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
@@ -195,7 +195,9 @@ export default function MaterialProductionPage() {
         {data.mediaExecution.nextGate === "MOTION_QA" && <button onClick={() => void motionAction("RUN_MOTION_QA")} disabled={Boolean(working)}>{working === "RUN_MOTION_QA" ? "Starting bounded motion QA…" : "Run motion proof QA · 1 request"}</button>}
         {data.mediaExecution.nextGate === "MOTION_QA_RUNNING" && <p className="stateBanner">Independent motion QA is running against sampled frames from the stored WebM.</p>}
         {data.mediaExecution.nextGate === "MOTION_RIGHTS_EVIDENCE_REPAIR" && <button onClick={() => void motionAction("PREPARE_MOTION_RIGHTS_REPAIR")} disabled={Boolean(working)}>{working === "PREPARE_MOTION_RIGHTS_REPAIR" ? "Verifying rights lineage…" : "Attach verified rights bundle · $0"}</button>}
-        {data.mediaExecution.nextGate === "SEQUENCE_PROOF" && <p className="stateBanner">Champion C motion proof passed. Scale remains locked until the 30-second sequence proof is complete.</p>}
+        {data.mediaExecution.nextGate === "PILOT_AUTHORIZATION" && <p className="stateBanner">Champion C motion proof passed. The bounded 10-shot pilot may now be authorized; sequence proof and scale remain locked.</p>}
+        {data.mediaExecution.nextGate === "PILOT_EXECUTION" && <p className="stateBanner">The bounded pilot is authorized or running. Sequence proof remains locked until all pilot materials and audits pass.</p>}
+        {data.mediaExecution.nextGate === "SEQUENCE_PROOF" && <p className="stateBanner">The 10-shot pilot passed. The 30-second sequence proof is now the only open gate; scale remains locked.</p>}
         {data.mediaExecution.nextGate === "COMPOSITE_REPAIR_BLOCKED" && <p className="stateBanner errorState">The authorized delta repair was exhausted. Root-cause review is required; no pilot or scale request can dispatch.</p>}
       </div>
       {!data.mediaExecution.configured && <p className="stateBanner errorState">Add MEDIA_EXECUTOR_SHARED_SECRET in Factory Connections before starting the executor. Creating the job itself makes no provider or AI request.</p>}
@@ -255,7 +257,9 @@ export default function MaterialProductionPage() {
       </div>
       {data.authorization?.status === "AUTHORIZED"
         ? <button onClick={() => void pilotAction("REVOKE_PILOT")} disabled={Boolean(working)}>{working === "REVOKE_PILOT" ? "Revoking…" : "Revoke pilot authorization"}</button>
-        : <button onClick={() => void pilotAction("AUTHORIZE_PILOT")} disabled={Boolean(working) || data.run?.status !== "PILOT_READY"}>{working === "AUTHORIZE_PILOT" ? "Authorizing pilot…" : "Authorize 10-shot pilot · $0 now"}</button>}
+        : data.mediaExecution.nextGate === "PILOT_AUTHORIZATION"
+          ? <button onClick={() => void pilotAction("AUTHORIZE_PILOT_AFTER_MOTION")} disabled={Boolean(working)}>{working === "AUTHORIZE_PILOT_AFTER_MOTION" ? "Re-authorizing preserved pilot scope…" : "Authorize preserved 10-shot pilot · $0 now"}</button>
+          : <button onClick={() => void pilotAction("AUTHORIZE_PILOT")} disabled={Boolean(working) || data.run?.status !== "PILOT_READY"}>{working === "AUTHORIZE_PILOT" ? "Authorizing pilot…" : "Authorize 10-shot pilot · $0 now"}</button>}
     </section>
     {data.authorization && <section className="shotProgress">
       <header><div><p>STAGE 09.4 · MATERIAL QUALITY REBUILD</p><h2>Candidate-pixel champions, family renderers and three-state evidence</h2></div><strong>{data.pilot.percent}%</strong></header>
