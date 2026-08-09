@@ -190,3 +190,16 @@ test("data visualization V3 is a new audited design scope rather than attempt th
   assert.match(route, /100\+10-5/);
   assert.match(route, /attempt,created_at,updated_at\) VALUES \(\?,\?,\?,\?,\?,\?,\?,\?,\?,\?,\?,\?,1,\?,\?\)/);
 });
+
+test("8 of 8 certification closes with zero-spend regression before pilot", () => {
+  assert.match(route, /v7_archetype_regressions/);
+  assert.match(route, /RUN_ARCHETYPE_REGRESSION/);
+  assert.match(route, /EIGHT_ARCHETYPES_CERTIFIED/);
+  assert.match(route, /LATEST_CERTIFICATIONS_PASS/);
+  assert.match(route, /DIMENSION_FLOORS/);
+  assert.match(route, /FRAME_HASH_INTEGRITY/);
+  assert.match(route, /ZERO_SPEND_PILOT_REPLAY/);
+  assert.match(route, /V3_DESIGN_AUDIT/);
+  assert.match(route, /IDEMPOTENCY_UNIQUE/);
+  assert.match(route, /PILOT_READY_NOT_STARTED/);
+});
