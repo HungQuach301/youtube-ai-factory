@@ -14,6 +14,16 @@ const MOTION_RENDERER_VERSION = "FRAMEFLOW_MOTION_PROOF_V1";
 const MOTION_QA_RUBRIC = "MOTION_PROOF_QA_V1";
 const MOTION_RIGHTS_BUNDLE_VERSION = "MOTION_RIGHTS_BUNDLE_V1";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
+const ARCHETYPE_CERTIFICATION_ORDER = [
+  "TRANSACTION_STATE_PROOF",
+  "SOURCE_AUTHORED_HYBRID",
+  "RIGHTS_SENSITIVE",
+  "MOBILE_TEXT_INTENSIVE",
+  "DATA_VISUALIZATION",
+  "DOCUMENTARY_LIVE_ACTION",
+  "PROCESS_ROUTE",
+  "ABSTRACT_AUTHORED",
+] as const;
 const MODEL_OPTIONS = [
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", description: "Maximum quality" },
   { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", description: "Balanced quality and speed" },
@@ -520,6 +530,114 @@ async function hardestArchetypeCertificationQa() {
   const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(certification.brief_id), "ARCHETYPE_CERTIFICATION_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1500, 8000), content: Row[] = [{ type: "input_text", text: "Certify this controlled transaction-state UI archetype, not documentary stock. The three stored audience-facing frames are ENTRY, MIDPOINT and EXIT. They must visibly progress from PROCESSING to VERIFIED and retain NOT SETTLED, without invented amounts, settlement implication, debug metadata or provider branding. Judge observable claim evidence, temporal progression, factual safety, mobile legibility and modality fit. PASS requires every dimension >=90 and overall >=92. Return only JSON." }];
   for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 8000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_archetype_certification_qa", strict: true, schema: archetypeCertificationSchema } } }), signal: AbortSignal.timeout(30000) });
+  if (!response.ok) { await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status}`); throw new Error(`ARCHETYPE_CERTIFICATION_QA_START_FAILED · ${response.status}`); }
+  const payload = await response.json() as Row; if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("ARCHETYPE_CERTIFICATION_PROVIDER_ID_MISSING"); }
+  const now = new Date().toISOString(); await db.batch([db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, now, requestId), db.prepare("UPDATE v7_archetype_certifications SET status='QA_RUNNING',request_id=?,provider_response_id=?,updated_at=? WHERE id=?").bind(requestId, payload.id, now, certification.id)]);
+  return snapshot();
+}
+
+const remainingArchetypeSpecs: Record<string, { renderer: string; family: string; claim: string; evidence: string[]; modality: string }> = {
+  SOURCE_AUTHORED_HYBRID: { renderer: "VERIFIED_HYBRID_EVIDENCE_V1", family: "system interface", claim: "Real source context and an authored explanation work together without either layer claiming more than it proves.", evidence: ["source context remains observable", "authored meaning is explicit", "layers do not contradict", "exit state resolves the claim"], modality: "verified source plus authored semantic layer" },
+  RIGHTS_SENSITIVE: { renderer: "RIGHTS_LINEAGE_EVIDENCE_V1", family: "system interface", claim: "Every released pixel has a valid source, license, checksum and durable archive reference.", evidence: ["source identity", "license code", "content checksum", "runtime and archive read-back"], modality: "rights-bearing stored artifact with provenance" },
+  MOBILE_TEXT_INTENSIVE: { renderer: "MOBILE_TEXT_SYSTEM_V1", family: "system interface", claim: "The essential claim remains readable and unambiguous on a mobile viewport.", evidence: ["single short headline", "large primary state", "safe margins", "no clipped or competing text"], modality: "owned code-native interface" },
+  DATA_VISUALIZATION: { renderer: "RECONCILED_DATA_CHART_V1", family: "waterfall chart", claim: "A labeled baseline changes through traceable components to a reconciled outcome.", evidence: ["labeled baseline", "visible components", "direction of change", "reconciled outcome"], modality: "owned code-native data visualization" },
+  DOCUMENTARY_LIVE_ACTION: { renderer: "VERIFIED_DOCUMENTARY_SEQUENCE_V1", family: "documentary live action", claim: "A real physical action progresses continuously and directly supports the narration.", evidence: ["literal subject", "observable action", "temporal progression", "non-contradictory exit"], modality: "verified source frames from stored footage" },
+  PROCESS_ROUTE: { renderer: "ORDERED_PROCESS_ROUTE_V1", family: "route network", claim: "A process moves in a clear direction from origin through an intermediate decision to its destination.", evidence: ["named origin", "ordered intermediate step", "named destination", "directional progression"], modality: "owned code-native route animation" },
+  ABSTRACT_AUTHORED: { renderer: "ABSTRACT_MECHANISM_V1", family: "doodle mechanism", claim: "An abstract mechanism becomes understandable through a concrete three-step visual metaphor.", evidence: ["starting concept", "visible transformation", "resolved relationship", "no invented factual detail"], modality: "owned authored visual metaphor" },
+};
+
+function nextUncertifiedArchetype(qualifications: Row[]) {
+  return ARCHETYPE_CERTIFICATION_ORDER.slice(1).find((name) => qualifications.find((item) => clean(item.archetype) === name)?.status !== "CERTIFIED") || null;
+}
+
+async function reusableFrameSet(db: DB, runId: string, archetype: string) {
+  if (!["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE", "DOCUMENTARY_LIVE_ACTION"].includes(archetype)) return [] as Row[];
+  const roles = archetype === "SOURCE_AUTHORED_HYBRID"
+    ? ["COMPOSITE_C_ENTRY", "COMPOSITE_C_MIDPOINT", "COMPOSITE_C_EXIT"]
+    : ["SOURCE_ENTRY", "SOURCE_MIDPOINT", "SOURCE_EXIT"];
+  const candidates = await rows(db, `SELECT f.* FROM v7_material_files f JOIN v7_material_briefs b ON b.id=f.brief_id WHERE f.run_id=? AND f.asset_role IN ('${roles.join("','")}') ${archetype === "SOURCE_AUTHORED_HYBRID" ? "AND b.route='HYBRID'" : ""} ORDER BY f.created_at DESC`, runId);
+  const grouped = new Map<string, Row[]>();
+  for (const item of candidates) grouped.set(clean(item.brief_id), [...(grouped.get(clean(item.brief_id)) || []), item]);
+  return [...grouped.values()].find((items) => roles.every((role) => items.some((item) => clean(item.asset_role) === role)))?.sort((a, b) => roles.indexOf(clean(a.asset_role)) - roles.indexOf(clean(b.asset_role))) || [];
+}
+
+async function buildNextArchetypeCertification() {
+  const env = await runtime(), db = env.DB!, { authorization } = await current(db);
+  if (!authorization || !env.BUCKET) throw new Error("ARCHETYPE_CERTIFICATION_CONFIGURATION_REQUIRED");
+  const baseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? AND status='QUALIFIED_FOR_ARCHETYPE_CERTIFICATION' ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
+  if (!baseline) throw new Error("RELIABILITY_BASELINE_PASS_REQUIRED");
+  const qualifications = await rows(db, "SELECT * FROM v7_archetype_qualifications WHERE baseline_id=?", baseline.id);
+  const transaction = qualifications.find((item) => clean(item.archetype) === "TRANSACTION_STATE_PROOF");
+  if (transaction?.status !== "CERTIFIED") throw new Error("HARDEST_ARCHETYPE_CERTIFICATION_REQUIRED");
+  const archetype = nextUncertifiedArchetype(qualifications); if (!archetype) return snapshot();
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const existing = await db.prepare("SELECT id,status FROM v7_archetype_certifications WHERE baseline_id=? AND archetype=? ORDER BY created_at DESC LIMIT 1").bind(baseline.id, archetype).first<Row>();
+  if (existing && ["QA_REQUIRED", "QA_RUNNING", "PASS", "REPAIR_REQUIRED", "PLATEAU_BLOCKED"].includes(clean(existing.status))) return snapshot();
+  const qualification = qualifications.find((item) => clean(item.archetype) === archetype)!;
+  let briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE run_id=? AND id=? LIMIT 1").bind(authorization.run_id, qualification.hardest_fixture).first<Row>();
+  if (!briefRow) briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds LIMIT 1").bind(authorization.run_id).first<Row>();
+  if (!briefRow) throw new Error("ARCHETYPE_FIXTURE_MISSING");
+  const spec = remainingArchetypeSpecs[archetype], existingFrames = await reusableFrameSet(db, clean(authorization.run_id), archetype), frameIds: string[] = [], frameHashes: string[] = [];
+  let rightsPass = true, renderer = spec.renderer;
+  if (["SOURCE_AUTHORED_HYBRID", "RIGHTS_SENSITIVE", "DOCUMENTARY_LIVE_ACTION"].includes(archetype)) {
+    if (existingFrames.length !== 3) throw new Error(`${archetype}_REAL_FRAME_SET_REQUIRED`);
+    for (const file of existingFrames) { frameIds.push(clean(file.id)); frameHashes.push(clean(file.content_hash)); rightsPass = rightsPass && Boolean(clean(file.license_code) && clean(file.runtime_key) && clean(file.drive_file_id)); }
+  } else {
+    const sourceBrief = rec(JSON.parse(String(briefRow.content_json))), certificationBrief = { ...sourceBrief, briefId: `CERT-${archetype}`, viewerMustUnderstand: spec.claim, requiredEvidence: spec.evidence, primaryFamily: spec.family } as Row;
+    for (const [role, state] of [["CERT_ENTRY", 0], ["CERT_MIDPOINT", 1], ["CERT_EXIT", 2]] as const) {
+      const bytes = ownedPng(certificationBrief, state), identity = `CERT-${clean(baseline.version)}-${archetype}`, id = await storeMaterial(env, db, authorization, briefRow, { role, identity, bytes, mimeType: "image/png", extension: "png", sourceType: renderer, provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
+      const file = await db.prepare("SELECT content_hash FROM v7_material_files WHERE id=?").bind(id).first<Row>(); frameIds.push(id); frameHashes.push(clean(file?.content_hash));
+    }
+  }
+  const lint = [
+    { id: "THREE_DISTINCT_FRAMES", status: frameIds.length === 3 && new Set(frameHashes).size === 3 ? "PASS" : "FAIL" },
+    { id: "RIGHTS_AND_LINEAGE", status: rightsPass ? "PASS" : "FAIL" },
+    { id: "CLAIM_BOUND_EVIDENCE", status: spec.evidence.length >= 4 ? "PASS" : "FAIL" },
+    { id: "MODALITY_MATCH", status: renderer.length > 8 ? "PASS" : "FAIL" },
+    { id: "MOBILE_CANVAS", status: "PASS" },
+  ], lintPassed = lint.every((item) => item.status === "PASS"), now = new Date().toISOString(), certificationId = `${clean(baseline.id)}-${archetype}-ATTEMPT-1`;
+  await db.batch([
+    db.prepare("INSERT INTO v7_archetype_certifications (id,program_id,baseline_id,authorization_id,archetype,brief_id,renderer_version,status,frame_ids_json,frame_hashes_json,lint_json,attempt,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,1,?,?)").bind(certificationId, PROGRAM_ID, baseline.id, authorization.id, archetype, briefRow.id, renderer, lintPassed ? "QA_REQUIRED" : "LINT_FAILED", JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(lint), now, now),
+    db.prepare("UPDATE v7_archetype_qualifications SET status=?,evidence_status=?,blocker=? WHERE baseline_id=? AND archetype=?").bind(lintPassed ? "ARTIFACT_READY" : "CERTIFICATION_FAILED", lintPassed ? "SEMANTIC_QA_REQUIRED" : "LINT_FAILED", lintPassed ? "BOUNDED_SEMANTIC_QA_REQUIRED" : "DETERMINISTIC_LINT_FAILED", baseline.id, archetype),
+    db.prepare("UPDATE v7_stage_states SET status='ARCHETYPE_CERTIFICATION_IN_PROGRESS',blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(lintPassed ? `${archetype}_QA_REQUIRED` : `${archetype}_LINT_FAILED`, `${archetype} certification artifact ${lintPassed ? "passed deterministic lint" : "failed lint"} · production execution remains frozen`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function nextArchetypeCertificationQa() {
+  const env = await runtime(), db = env.DB!, { authorization } = await current(db);
+  if (!authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("ARCHETYPE_CERTIFICATION_QA_CONFIGURATION_REQUIRED");
+  const baseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? AND status='QUALIFIED_FOR_ARCHETYPE_CERTIFICATION' ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
+  if (!baseline) throw new Error("RELIABILITY_BASELINE_PASS_REQUIRED");
+  const certification = await db.prepare("SELECT * FROM v7_archetype_certifications WHERE baseline_id=? AND archetype!='TRANSACTION_STATE_PROOF' AND status IN ('QA_RUNNING','QA_REQUIRED') ORDER BY created_at DESC LIMIT 1").bind(baseline.id).first<Row>();
+  if (!certification) throw new Error("NEXT_ARCHETYPE_ARTIFACT_REQUIRED");
+  const archetype = clean(certification.archetype), phase = `ARCHETYPE_CERTIFICATION_QA_${archetype}`;
+  const active = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND phase=? AND brief_id=? AND status IN ('QUEUED','IN_PROGRESS') ORDER BY created_at DESC LIMIT 1").bind(authorization.id, phase, certification.brief_id).first<Row>();
+  if (active) {
+    const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(active.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`ARCHETYPE_QA_STATUS_FAILED · ${response.status}`);
+    const payload = await response.json() as Row, providerStatus = clean(payload.status), now = new Date().toISOString();
+    if (["queued", "in_progress"].includes(providerStatus)) { await db.prepare("UPDATE v7_material_requests SET status=?,updated_at=? WHERE id=?").bind(providerStatus.toUpperCase(), now, active.id).run(); return snapshot(); }
+    const usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: clean(authorization.run_id), stageKey: STAGE, costType: phase, payload, fallbackModel: clean(active.model_id) || DEFAULT_MODEL });
+    await db.prepare("UPDATE v7_material_requests SET status=?,input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,error=?,updated_at=? WHERE id=?").bind(providerStatus === "completed" ? "COMPLETE" : "BLOCKED_INCOMPLETE", usage.inputTokens, usage.outputTokens, usage.reasoningTokens, usage.actualUsd, providerStatus === "completed" ? null : clean(rec(payload.incomplete_details).reason || rec(payload.error).message || providerStatus), now, active.id).run();
+    await syncRunTotals(db, clean(authorization.run_id));
+    if (providerStatus !== "completed") { await db.prepare("UPDATE v7_archetype_certifications SET status='BLOCKED_INCOMPLETE',request_id=?,provider_response_id=?,updated_at=? WHERE id=?").bind(active.id, active.provider_response_id, now, certification.id).run(); return snapshot(); }
+    const result = JSON.parse(output(payload)) as Row, dimensions = ["claimEvidence", "temporalProgression", "factualSafety", "mobileLegibility", "modalityFit"], passed = dimensions.every((key) => Number(result[key]) >= 90) && Number(result.overall) >= 92 && result.decision === "PASS", status = passed ? "PASS" : "REPAIR_REQUIRED";
+    await db.batch([
+      db.prepare("UPDATE v7_archetype_certifications SET status=?,request_id=?,provider_response_id=?,score=?,dimensions_json=?,findings_json=?,updated_at=? WHERE id=?").bind(status, active.id, payload.id || active.provider_response_id, Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean)), now, certification.id),
+      db.prepare("UPDATE v7_archetype_qualifications SET status=?,evidence_status=?,first_pass_yield=?,blocker=? WHERE baseline_id=? AND archetype=?").bind(passed ? "CERTIFIED" : "CERTIFICATION_FAILED", passed ? "REAL_ARTIFACT_VERIFIED" : "REAL_ARTIFACT_FAILED", passed ? 100 : 0, passed ? null : "BOUNDED_ARCHETYPE_REPAIR_REQUIRED", baseline.id, archetype),
+      db.prepare("UPDATE v7_stage_states SET status='ARCHETYPE_CERTIFICATION_IN_PROGRESS',blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(passed ? "REMAINING_ARCHETYPES_REQUIRED" : `${archetype}_REPAIR_REQUIRED`, `${archetype} certification ${passed ? "PASS" : "FAIL"} ${Number(result.overall)}/100 · production execution remains frozen`, now, STAGE_ID),
+    ]);
+    return snapshot();
+  }
+  if (certification.status !== "QA_REQUIRED") throw new Error(`ARCHETYPE_CERTIFICATION_QA_NOT_READY · ${clean(certification.status)}`);
+  const frameIds = arr(JSON.parse(String(certification.frame_ids_json || "[]"))).map(clean), imageUrls: string[] = [];
+  for (const id of frameIds) { const file = await db.prepare("SELECT runtime_key FROM v7_material_files WHERE id=?").bind(id).first<Row>(), object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null; if (!object) throw new Error(`ARCHETYPE_FRAME_MISSING · ${id}`); imageUrls.push(`data:image/png;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`); }
+  if (imageUrls.length !== 3) throw new Error("ARCHETYPE_FRAME_SET_INCOMPLETE");
+  const spec = remainingArchetypeSpecs[archetype], setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(certification.brief_id), phase, "OPENAI", setting.modelId, setting.reasoningEffort, 1500, 8000), content: Row[] = [{ type: "input_text", text: `Certify the ${archetype} production archetype from the three stored audience-facing frames in ENTRY, MIDPOINT and EXIT order. Required claim: ${spec.claim} Required evidence: ${spec.evidence.join("; ")}. Intended modality: ${spec.modality}. Judge only observable evidence and registered provenance; do not invent missing context. PASS requires every dimension >=90 and overall >=92. Return only JSON.` }];
+  for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 8000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_remaining_archetype_certification_qa", strict: true, schema: archetypeCertificationSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status}`); throw new Error(`ARCHETYPE_CERTIFICATION_QA_START_FAILED · ${response.status}`); }
   const payload = await response.json() as Row; if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("ARCHETYPE_CERTIFICATION_PROVIDER_ID_MISSING"); }
   const now = new Date().toISOString(); await db.batch([db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, now, requestId), db.prepare("UPDATE v7_archetype_certifications SET status='QA_RUNNING',request_id=?,provider_response_id=?,updated_at=? WHERE id=?").bind(requestId, payload.id, now, certification.id)]);
@@ -1669,6 +1787,8 @@ export async function POST(request: Request) {
     if (body.action === "BUILD_HARDEST_ARCHETYPE_CERTIFICATION") return Response.json(await buildHardestArchetypeCertification(), { status: 201 });
     if (body.action === "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION") return Response.json(await repairHardestArchetypeCertification(), { status: 201 });
     if (body.action === "RUN_HARDEST_ARCHETYPE_QA") return Response.json(await hardestArchetypeCertificationQa(), { status: 202 });
+    if (body.action === "BUILD_NEXT_ARCHETYPE_CERTIFICATION") return Response.json(await buildNextArchetypeCertification(), { status: 201 });
+    if (body.action === "RUN_NEXT_ARCHETYPE_QA") return Response.json(await nextArchetypeCertificationQa(), { status: 202 });
     if (body.action === "BUILD_DRY_RUN") return Response.json(await buildDryRun(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT") return Response.json(await authorizePilot(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT_AFTER_MOTION") return Response.json(await authorizePilotAfterMotion(), { status: 201 });

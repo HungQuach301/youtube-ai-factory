@@ -64,8 +64,9 @@ export default function MaterialProductionPage() {
     return () => window.clearTimeout(timer);
   }, [data?.mediaExecution.motionQaActive, data?.requestLedger.active, working]);
   useEffect(() => {
-    if (data?.reliability?.certifications[0]?.status !== "QA_RUNNING" || working) return;
-    const timer = window.setTimeout(() => void hardestCertification("RUN_HARDEST_ARCHETYPE_QA", true), 2500);
+    const running = data?.reliability?.certifications.find((item) => item.status === "QA_RUNNING");
+    if (!running || working) return;
+    const timer = window.setTimeout(() => void hardestCertification(running.archetype === "TRANSACTION_STATE_PROOF" ? "RUN_HARDEST_ARCHETYPE_QA" : "RUN_NEXT_ARCHETYPE_QA", true), 2500);
     return () => window.clearTimeout(timer);
   }, [data?.reliability?.certifications, data?.requestLedger.active, working]);
   async function build() {
@@ -88,7 +89,7 @@ export default function MaterialProductionPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Reliability qualification failed"); }
     finally { setWorking(null); }
   }
-  async function hardestCertification(action: "BUILD_HARDEST_ARCHETYPE_CERTIFICATION" | "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION" | "RUN_HARDEST_ARCHETYPE_QA", quiet = false) {
+  async function hardestCertification(action: "BUILD_HARDEST_ARCHETYPE_CERTIFICATION" | "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION" | "RUN_HARDEST_ARCHETYPE_QA" | "BUILD_NEXT_ARCHETYPE_CERTIFICATION" | "RUN_NEXT_ARCHETYPE_QA", quiet = false) {
     setWorking(action); if (!quiet) setError(null);
     try {
       const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
@@ -233,6 +234,8 @@ export default function MaterialProductionPage() {
           {data.reliability.certifications.length === 0 && <div className="reliabilityStart"><p>Hardest-first certification starts with MP-153 as a controlled transaction-state UI. Rendering and deterministic lint cost $0; no other archetype or pilot unit can dispatch.</p><button onClick={() => void hardestCertification("BUILD_HARDEST_ARCHETYPE_CERTIFICATION")} disabled={Boolean(working)}>{working === "BUILD_HARDEST_ARCHETYPE_CERTIFICATION" ? "Rendering certification frames…" : "Build MP-153 certification artifact · $0"}</button></div>}
           {data.reliability.certifications[0]?.status === "QA_REQUIRED" && <div className="reliabilityStart"><p>MP-153 has 3/3 owned, distinct frames and passed deterministic lint. One bounded semantic QA is permitted for this archetype only.</p><button onClick={() => void hardestCertification("RUN_HARDEST_ARCHETYPE_QA")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RUN_HARDEST_ARCHETYPE_QA" ? "Starting certification QA…" : "Run hardest-first certification QA · 1 request"}</button></div>}
           {data.reliability.certifications[0]?.status === "REPAIR_REQUIRED" && data.reliability.certifications[0]?.attempt === 1 && <div className="reliabilityStart"><p>Attempt 1 is preserved. Renderer V2 must fix clipped labels, keep NOT SETTLED in all states and make PROCESSING → CONFIRMING → VERIFIED visibly distinct before another QA.</p><button onClick={() => void hardestCertification("REPAIR_HARDEST_ARCHETYPE_CERTIFICATION")} disabled={Boolean(working)}>{working === "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION" ? "Applying bounded renderer repair…" : "Build certification repair V2 · $0"}</button></div>}
+          {data.reliability.archetypes.find((item) => item.name === "TRANSACTION_STATE_PROOF")?.status === "CERTIFIED" && !data.reliability.certifications.some((item) => item.archetype !== "TRANSACTION_STATE_PROOF" && ["QA_REQUIRED", "QA_RUNNING", "REPAIR_REQUIRED", "BLOCKED_INCOMPLETE"].includes(item.status)) && data.reliability.archetypes.some((item) => item.status !== "CERTIFIED") && <div className="reliabilityStart"><p>Build the next highest-risk representative fixture. Existing source pixels are reused for source-dependent archetypes; authored archetypes are rendered deterministically. Production remains quarantined.</p><button onClick={() => void hardestCertification("BUILD_NEXT_ARCHETYPE_CERTIFICATION")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "BUILD_NEXT_ARCHETYPE_CERTIFICATION" ? "Building next certification fixture…" : "Build next archetype fixture · $0"}</button></div>}
+          {data.reliability.certifications.find((item) => item.archetype !== "TRANSACTION_STATE_PROOF" && item.status === "QA_REQUIRED") && <div className="reliabilityStart"><p>The next archetype passed deterministic lint. One bounded semantic QA request is authorized; every other archetype and pilot dispatch remains blocked.</p><button onClick={() => void hardestCertification("RUN_NEXT_ARCHETYPE_QA")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RUN_NEXT_ARCHETYPE_QA" ? "Starting bounded certification QA…" : "Run next archetype QA · 1 request"}</button></div>}
           {data.reliability.certifications[0] && <div className="certificationResult"><b>{data.reliability.certifications[0].archetype.replaceAll("_", " ")} · {data.reliability.certifications[0].status.replaceAll("_", " ")}</b><span>{data.reliability.certifications[0].renderer} · {data.reliability.certifications[0].frameIds.length}/3 frames · score {data.reliability.certifications[0].score}/100</span>{data.reliability.certifications[0].findings.map((finding) => <small key={finding}>{finding}</small>)}</div>}
           <p className="stateBanner">MP-153 is now a transaction-state qualification fixture. Generic stock is rejected before search; certification must use controlled UI, authored state animation or a verified hybrid.</p>
         </>}

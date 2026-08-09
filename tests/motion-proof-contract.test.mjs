@@ -136,3 +136,15 @@ test("hardest-first certification uses owned controlled-state pixels and one sco
   assert.match(route, /every\(\(key\) => Number\(result\[key\]\) >= 90\)/);
   assert.match(route, /production execution remains frozen/);
 });
+
+test("remaining archetypes certify in risk order with one scoped request at a time", () => {
+  assert.match(route, /ARCHETYPE_CERTIFICATION_ORDER/);
+  assert.match(route, /SOURCE_AUTHORED_HYBRID/);
+  assert.match(route, /RIGHTS_SENSITIVE/);
+  assert.match(route, /MOBILE_TEXT_INTENSIVE/);
+  assert.match(route, /BUILD_NEXT_ARCHETYPE_CERTIFICATION/);
+  assert.match(route, /RUN_NEXT_ARCHETYPE_QA/);
+  assert.match(route, /reusableFrameSet/);
+  assert.match(route, /ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST/);
+  assert.match(route, /production execution remains frozen/);
+});
