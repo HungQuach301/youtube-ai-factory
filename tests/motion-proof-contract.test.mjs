@@ -165,3 +165,17 @@ test("remaining archetypes certify in risk order with one scoped request at a ti
   assert.match(route, /ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST/);
   assert.match(route, /production execution remains frozen/);
 });
+
+test("data visualization V3 is a new audited design scope rather than attempt three", () => {
+  assert.match(route, /v7_archetype_design_authorizations/);
+  assert.match(route, /AUTHORIZE_DATA_VISUALIZATION_V3/);
+  assert.match(route, /RECONCILED_WATERFALL_PRIMITIVES_V3/);
+  assert.match(route, /DATA_VISUALIZATION_V2_BLOCKED_90_EVIDENCE_REQUIRED/);
+  assert.match(route, /NEW_DESIGN_SCOPE_NOT_RETRY/);
+  assert.match(route, /PRIMITIVE_OPERATORS/);
+  assert.match(route, /CONNECTOR_TOPOLOGY/);
+  assert.match(route, /GLYPH_SET_CLOSED/);
+  assert.match(route, /ARITHMETIC_RECONCILIATION/);
+  assert.match(route, /100\+10-5/);
+  assert.match(route, /attempt,created_at,updated_at\) VALUES \(\?,\?,\?,\?,\?,\?,\?,\?,\?,\?,\?,\?,1,\?,\?\)/);
+});

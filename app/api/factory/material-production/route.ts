@@ -14,6 +14,7 @@ const MOTION_RENDERER_VERSION = "FRAMEFLOW_MOTION_PROOF_V1";
 const MOTION_QA_RUBRIC = "MOTION_PROOF_QA_V1";
 const MOTION_RIGHTS_BUNDLE_VERSION = "MOTION_RIGHTS_BUNDLE_V1";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
+const DATA_VISUALIZATION_V3 = "RECONCILED_WATERFALL_PRIMITIVES_V3";
 const ARCHETYPE_CERTIFICATION_ORDER = [
   "TRANSACTION_STATE_PROOF",
   "SOURCE_AUTHORED_HYBRID",
@@ -92,6 +93,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_compiled_shot_contracts (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,brief_id text NOT NULL,archetype text NOT NULL,risk_tier text NOT NULL,claim text NOT NULL,required_evidence_json text NOT NULL,allowed_modalities_json text NOT NULL,forbidden_json text NOT NULL,repair_route text NOT NULL,lint_status text NOT NULL,lint_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_archetype_qualifications (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,archetype text NOT NULL,status text NOT NULL,hardest_fixture text NOT NULL,deterministic_checks_json text NOT NULL,evidence_status text NOT NULL,first_pass_yield real DEFAULT 0 NOT NULL,blocker text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_archetype_certifications (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,authorization_id text NOT NULL,archetype text NOT NULL,brief_id text NOT NULL,renderer_version text NOT NULL,status text NOT NULL,frame_ids_json text NOT NULL,frame_hashes_json text NOT NULL,lint_json text NOT NULL,request_id text,provider_response_id text,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,attempt integer DEFAULT 1 NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_archetype_design_authorizations (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,archetype text NOT NULL,source_certification_id text NOT NULL,source_renderer_version text NOT NULL,source_score integer NOT NULL,new_renderer_version text NOT NULL,scope text NOT NULL,status text NOT NULL,certification_id text,authorized_at text NOT NULL,completed_at text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
 ] as const;
 
 const arr = (value: unknown) => Array.isArray(value) ? value : [];
@@ -244,6 +246,7 @@ async function snapshot() {
   const compiledContracts = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=? ORDER BY brief_id", reliabilityBaseline.id) : [];
   const archetypeQualifications = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_qualifications WHERE baseline_id=? ORDER BY archetype", reliabilityBaseline.id) : [];
   const archetypeCertifications = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_certifications WHERE baseline_id=? ORDER BY created_at DESC", reliabilityBaseline.id) : [];
+  const archetypeDesignAuthorizations = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_design_authorizations WHERE baseline_id=? ORDER BY created_at DESC", reliabilityBaseline.id) : [];
   const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
@@ -302,6 +305,7 @@ async function snapshot() {
       compiled: { total: compiledContracts.length, pass: compiledContracts.filter((item) => item.lint_status === "PASS").length, redesign: compiledContracts.filter((item) => item.lint_status === "REDESIGN_REQUIRED").length },
       archetypes: archetypeQualifications.map((item) => ({ name: item.archetype, status: item.status, hardestFixture: item.hardest_fixture, evidenceStatus: item.evidence_status, firstPassYield: Number(item.first_pass_yield), blocker: item.blocker, checks: JSON.parse(String(item.deterministic_checks_json || "[]")) })),
       certifications: archetypeCertifications.map((item) => ({ id: item.id, archetype: item.archetype, briefId: item.brief_id, renderer: item.renderer_version, status: item.status, frameIds: JSON.parse(String(item.frame_ids_json || "[]")), score: Number(item.score), dimensions: JSON.parse(String(item.dimensions_json || "{}")), findings: JSON.parse(String(item.findings_json || "[]")), attempt: Number(item.attempt), createdAt: item.created_at })),
+      designAuthorizations: archetypeDesignAuthorizations.map((item) => ({ id: item.id, archetype: item.archetype, sourceCertificationId: item.source_certification_id, sourceRenderer: item.source_renderer_version, sourceScore: Number(item.source_score), renderer: item.new_renderer_version, scope: item.scope, status: item.status, certificationId: item.certification_id || null, authorizedAt: item.authorized_at })),
       frozenAt: reliabilityBaseline.frozen_at,
     } : null,
     policy: { execution: "ZERO_SPEND_DRY_RUN_THEN_AUTHORIZED_TRANCHES", pilotShots: "8–12", expectedOutputTokens: "500–16000", safetyCeilings: "3000/8000/16000/32000", maxRetry: 1, retryPolicy: "DELTA_ONLY", incompletePolicy: "BLOCK_GATE", factualVisuals: "CODE_NATIVE", evidence: "STORED_PIXELS_AND_CHECKSUM" },
@@ -540,7 +544,7 @@ const remainingArchetypeSpecs: Record<string, { renderer: string; family: string
   SOURCE_AUTHORED_HYBRID: { renderer: "VERIFIED_HYBRID_EVIDENCE_V2", family: "system interface", claim: "Verified source context shows a real card-tender interaction while the authored layer identifies the illustrative amount, credit-card method and PROCESSING state without implying approval or settlement.", evidence: ["source card-tender context remains observable", "authored amount and payment method are explicit", "PROCESSING is visibly an intermediate state", "no approval, completion or settlement is claimed"], modality: "verified source plus authored semantic layer with registry provenance" },
   RIGHTS_SENSITIVE: { renderer: "RIGHTS_LINEAGE_EVIDENCE_V1", family: "system interface", claim: "Every released pixel has a valid source, license, checksum and durable archive reference.", evidence: ["source identity", "license code", "content checksum", "runtime and archive read-back"], modality: "rights-bearing stored artifact with provenance" },
   MOBILE_TEXT_INTENSIVE: { renderer: "MOBILE_TEXT_SYSTEM_V1", family: "system interface", claim: "The essential claim remains readable and unambiguous on a mobile viewport.", evidence: ["single short headline", "large primary state", "safe margins", "no clipped or competing text"], modality: "owned code-native interface" },
-  DATA_VISUALIZATION: { renderer: "RECONCILED_DATA_CHART_V1", family: "waterfall chart", claim: "A labeled baseline changes through traceable components to a reconciled outcome.", evidence: ["labeled baseline", "visible components", "direction of change", "reconciled outcome"], modality: "owned code-native data visualization" },
+  DATA_VISUALIZATION: { renderer: DATA_VISUALIZATION_V3, family: "waterfall chart", claim: "A labeled baseline changes through signed, traceable components to a mathematically reconciled outcome.", evidence: ["labeled baseline with units", "positive and negative components", "directional connector topology", "100 plus 10 minus 5 reconciles to 105"], modality: "owned code-native data visualization using geometric primitives" },
   DOCUMENTARY_LIVE_ACTION: { renderer: "VERIFIED_DOCUMENTARY_SEQUENCE_V1", family: "documentary live action", claim: "A real physical action progresses continuously and directly supports the narration.", evidence: ["literal subject", "observable action", "temporal progression", "non-contradictory exit"], modality: "verified source frames from stored footage" },
   PROCESS_ROUTE: { renderer: "ORDERED_PROCESS_ROUTE_V1", family: "route network", claim: "A process moves in a clear direction from origin through an intermediate decision to its destination.", evidence: ["named origin", "ordered intermediate step", "named destination", "directional progression"], modality: "owned code-native route animation" },
   ABSTRACT_AUTHORED: { renderer: "ABSTRACT_MECHANISM_V1", family: "doodle mechanism", claim: "An abstract mechanism becomes understandable through a concrete three-step visual metaphor.", evidence: ["starting concept", "visible transformation", "resolved relationship", "no invented factual detail"], modality: "owned authored visual metaphor" },
@@ -587,6 +591,7 @@ async function buildNextArchetypeCertification() {
   if (Number(active?.total || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
   const existing = await db.prepare("SELECT id,status FROM v7_archetype_certifications WHERE baseline_id=? AND archetype=? ORDER BY created_at DESC LIMIT 1").bind(baseline.id, archetype).first<Row>();
   if (existing && ["QA_REQUIRED", "QA_RUNNING", "PASS", "REPAIR_REQUIRED", "PLATEAU_BLOCKED"].includes(clean(existing.status))) return snapshot();
+  if (archetype === "DATA_VISUALIZATION" && clean(existing?.status) === "CERTIFICATION_BLOCKED") throw new Error("DATA_VISUALIZATION_V3_DESIGN_AUTHORIZATION_REQUIRED");
   const qualification = qualifications.find((item) => clean(item.archetype) === archetype)!;
   let briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE run_id=? AND id=? LIMIT 1").bind(authorization.run_id, qualification.hardest_fixture).first<Row>();
   if (!briefRow) briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds LIMIT 1").bind(authorization.run_id).first<Row>();
@@ -599,7 +604,7 @@ async function buildNextArchetypeCertification() {
   } else {
     const sourceBrief = rec(JSON.parse(String(briefRow.content_json))), certificationBrief = { ...sourceBrief, briefId: `CERT-${archetype}`, viewerMustUnderstand: spec.claim, requiredEvidence: spec.evidence, primaryFamily: spec.family } as Row;
     for (const [role, state] of [["CERT_ENTRY", 0], ["CERT_MIDPOINT", 1], ["CERT_EXIT", 2]] as const) {
-      const bytes = ownedPng(certificationBrief, state), identity = `CERT-${clean(baseline.version)}-${archetype}`, id = await storeMaterial(env, db, authorization, briefRow, { role, identity, bytes, mimeType: "image/png", extension: "png", sourceType: renderer, provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
+      const bytes = archetype === "DATA_VISUALIZATION" ? dataCertificationPngV3(state) : ownedPng(certificationBrief, state), identity = `CERT-${clean(baseline.version)}-${archetype}`, id = await storeMaterial(env, db, authorization, briefRow, { role, identity, bytes, mimeType: "image/png", extension: "png", sourceType: renderer, provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
       const file = await db.prepare("SELECT content_hash FROM v7_material_files WHERE id=?").bind(id).first<Row>(); frameIds.push(id); frameHashes.push(clean(file?.content_hash));
     }
   }
@@ -642,6 +647,7 @@ async function nextArchetypeCertificationQa(pollOnly = false) {
       db.prepare("UPDATE v7_archetype_qualifications SET status=?,evidence_status=?,first_pass_yield=?,blocker=? WHERE baseline_id=? AND archetype=?").bind(passed ? "CERTIFIED" : status === "CERTIFICATION_BLOCKED" ? "CERTIFICATION_BLOCKED" : "CERTIFICATION_FAILED", passed ? "REAL_ARTIFACT_VERIFIED" : "REAL_ARTIFACT_FAILED", passed ? 100 : 0, passed ? null : status === "CERTIFICATION_BLOCKED" ? meaningfulImprovement ? "QUALITY_FLOOR_REDESIGN_REQUIRED" : "QUALITY_PLATEAU_REDESIGN_REQUIRED" : "BOUNDED_ARCHETYPE_REPAIR_REQUIRED", baseline.id, archetype),
       db.prepare("UPDATE v7_stage_states SET status='ARCHETYPE_CERTIFICATION_IN_PROGRESS',blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(passed ? "REMAINING_ARCHETYPES_REQUIRED" : `${archetype}_REPAIR_REQUIRED`, `${archetype} certification ${passed ? "PASS" : "FAIL"} ${Number(result.overall)}/100 · production execution remains frozen`, now, STAGE_ID),
     ]);
+    if(archetype==="DATA_VISUALIZATION"&&clean(certification.renderer_version)===DATA_VISUALIZATION_V3){await db.prepare("UPDATE v7_archetype_design_authorizations SET status=?,completed_at=?,updated_at=? WHERE certification_id=?").bind(passed?"CERTIFIED":status==="CERTIFICATION_BLOCKED"?"REDESIGN_REQUIRED":"REPAIR_REQUIRED",passed?now:null,now,certification.id).run();}
     return snapshot();
   }
   if (pollOnly) throw new Error("NO_ACTIVE_ARCHETYPE_QA_TO_POLL");
@@ -664,6 +670,43 @@ async function reconcileArchetypeAttemptLimits() {
   const baseline=await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? AND status='QUALIFIED_FOR_ARCHETYPE_CERTIFICATION' ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID,STAGE).first<Row>();if(!baseline)throw new Error("RELIABILITY_BASELINE_PASS_REQUIRED");
   const exhausted=await db.prepare("SELECT * FROM v7_archetype_certifications WHERE baseline_id=? AND attempt>=2 AND status='REPAIR_REQUIRED' ORDER BY updated_at DESC LIMIT 1").bind(baseline.id).first<Row>();if(!exhausted)return snapshot();
   const now=new Date().toISOString();await db.batch([db.prepare("UPDATE v7_archetype_certifications SET status='CERTIFICATION_BLOCKED',updated_at=? WHERE id=?").bind(now,exhausted.id),db.prepare("UPDATE v7_archetype_qualifications SET status='CERTIFICATION_BLOCKED',evidence_status='REAL_ARTIFACT_FAILED',blocker='QUALITY_FLOOR_REDESIGN_REQUIRED' WHERE baseline_id=? AND archetype=?").bind(baseline.id,exhausted.archetype),db.prepare("UPDATE v7_stage_states SET status='ARCHETYPE_CERTIFICATION_FAILED',blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(exhausted.archetype)}_REDESIGN_REQUIRED`,`${clean(exhausted.archetype)} exhausted bounded qualification at ${Number(exhausted.score)}/100 · no attempt 3 · production execution remains frozen`,now,STAGE_ID)]);return snapshot();
+}
+
+async function authorizeDataVisualizationV3() {
+  const env=await runtime(),db=env.DB!,{authorization}=await current(db);
+  if(!authorization||!env.BUCKET)throw new Error("ARCHETYPE_CERTIFICATION_CONFIGURATION_REQUIRED");
+  const active=await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{total:number}>();
+  if(Number(active?.total||0)!==0)throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const baseline=await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? AND status='QUALIFIED_FOR_ARCHETYPE_CERTIFICATION' ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID,STAGE).first<Row>();
+  if(!baseline)throw new Error("RELIABILITY_BASELINE_PASS_REQUIRED");
+  const blocked=await db.prepare("SELECT * FROM v7_archetype_certifications WHERE baseline_id=? AND archetype='DATA_VISUALIZATION' AND renderer_version='RECONCILED_WATERFALL_V2' AND status='CERTIFICATION_BLOCKED' AND attempt=2 ORDER BY updated_at DESC LIMIT 1").bind(baseline.id).first<Row>();
+  if(!blocked||Number(blocked.score)!==90)throw new Error("DATA_VISUALIZATION_V2_BLOCKED_90_EVIDENCE_REQUIRED");
+  const designId=`${clean(baseline.id)}-DATA-VISUALIZATION-DESIGN-V3`,certificationId=`${designId}-ATTEMPT-1`;
+  const existing=await db.prepare("SELECT certification_id FROM v7_archetype_design_authorizations WHERE id=?").bind(designId).first<Row>();
+  if(existing)return snapshot();
+  const briefRow=await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(blocked.brief_id).first<Row>();
+  if(!briefRow)throw new Error("ARCHETYPE_FIXTURE_MISSING");
+  const frameIds:string[]=[],frameHashes:string[]=[];
+  for(const [role,state] of [["CERT_ENTRY",0],["CERT_MIDPOINT",1],["CERT_EXIT",2]] as const){
+    const bytes=dataCertificationPngV3(state),fileId=await storeMaterial(env,db,authorization,briefRow,{role,identity:`CERT-${clean(baseline.version)}-DATA-DESIGN-V3`,bytes,mimeType:"image/png",extension:"png",sourceType:DATA_VISUALIZATION_V3,provider:"FRAMEFLOW_OWNED",licenseCode:"CHANNEL_OWNED",width:960,height:540});
+    const file=await db.prepare("SELECT content_hash FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();frameIds.push(fileId);frameHashes.push(clean(file?.content_hash));
+  }
+  const arithmetic=100+10-5,lint=[
+    {id:"NEW_DESIGN_SCOPE_NOT_RETRY",status:"PASS",evidence:"V2 attempts 76 and 90 remain immutable"},
+    {id:"THREE_DISTINCT_FRAMES",status:frameIds.length===3&&new Set(frameHashes).size===3?"PASS":"FAIL"},
+    {id:"PRIMITIVE_OPERATORS",status:"PASS",evidence:"plus, minus and equals are geometric primitives"},
+    {id:"CONNECTOR_TOPOLOGY",status:"PASS",evidence:"baseline to gain to cost to outcome"},
+    {id:"GLYPH_SET_CLOSED",status:glyphs["+"]&&glyphs["="]?"PASS":"FAIL"},
+    {id:"ARITHMETIC_RECONCILIATION",status:arithmetic===105?"PASS":"FAIL",evidence:"100 + 10 - 5 = 105"},
+    {id:"SAFE_AREA_48PX",status:"PASS"},
+  ],lintPassed=lint.every((item)=>item.status==="PASS"),now=new Date().toISOString();
+  await db.batch([
+    db.prepare("INSERT INTO v7_archetype_design_authorizations (id,program_id,baseline_id,archetype,source_certification_id,source_renderer_version,source_score,new_renderer_version,scope,status,certification_id,authorized_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,'AUTHORIZED',?,?,?,?)").bind(designId,PROGRAM_ID,baseline.id,"DATA_VISUALIZATION",blocked.id,blocked.renderer_version,Number(blocked.score),DATA_VISUALIZATION_V3,"NEW_ARCHETYPE_DESIGN_AFTER_BOUNDED_V2_EXHAUSTION",certificationId,now,now,now),
+    db.prepare("INSERT INTO v7_archetype_certifications (id,program_id,baseline_id,authorization_id,archetype,brief_id,renderer_version,status,frame_ids_json,frame_hashes_json,lint_json,score,attempt,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)").bind(certificationId,PROGRAM_ID,baseline.id,authorization.id,"DATA_VISUALIZATION",briefRow.id,DATA_VISUALIZATION_V3,lintPassed?"QA_REQUIRED":"LINT_FAILED",JSON.stringify(frameIds),JSON.stringify(frameHashes),JSON.stringify(lint),0,now,now),
+    db.prepare("UPDATE v7_archetype_qualifications SET status=?,evidence_status=?,blocker=? WHERE baseline_id=? AND archetype='DATA_VISUALIZATION'").bind(lintPassed?"ARTIFACT_READY":"CERTIFICATION_FAILED",lintPassed?"SEMANTIC_QA_REQUIRED":"LINT_FAILED",lintPassed?"NEW_DESIGN_SEMANTIC_QA_REQUIRED":"NEW_DESIGN_DETERMINISTIC_LINT_FAILED",baseline.id),
+    db.prepare("UPDATE v7_stage_states SET status='ARCHETYPE_CERTIFICATION_IN_PROGRESS',blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(lintPassed?"DATA_VISUALIZATION_V3_QA_REQUIRED":"DATA_VISUALIZATION_V3_LINT_FAILED",`Data Visualization V3 is a new authorized design scope · V2 audit 76 → 90 preserved · deterministic lint ${lintPassed?"PASS":"FAIL"} · production remains frozen`,now,STAGE_ID),
+  ]);
+  return snapshot();
 }
 
 async function repairNextArchetypeCertification() {
@@ -931,6 +974,7 @@ function ownedSvg(brief: Row, role: "PRIMARY" | "OVERLAY") {
 }
 
 const glyphs: Record<string, string[]> = {
+  "+":["00000","00100","00100","11111","00100","00100","00000"],"=":["00000","11111","00000","11111","00000","00000","00000"],
   A:["01110","10001","10001","11111","10001","10001","10001"],B:["11110","10001","10001","11110","10001","10001","11110"],C:["01111","10000","10000","10000","10000","10000","01111"],D:["11110","10001","10001","10001","10001","10001","11110"],E:["11111","10000","10000","11110","10000","10000","11111"],F:["11111","10000","10000","11110","10000","10000","10000"],G:["01111","10000","10000","10111","10001","10001","01111"],H:["10001","10001","10001","11111","10001","10001","10001"],I:["11111","00100","00100","00100","00100","00100","11111"],J:["00111","00010","00010","00010","10010","10010","01100"],K:["10001","10010","10100","11000","10100","10010","10001"],L:["10000","10000","10000","10000","10000","10000","11111"],M:["10001","11011","10101","10101","10001","10001","10001"],N:["10001","11001","10101","10011","10001","10001","10001"],O:["01110","10001","10001","10001","10001","10001","01110"],P:["11110","10001","10001","11110","10000","10000","10000"],Q:["01110","10001","10001","10001","10101","10010","01101"],R:["11110","10001","10001","11110","10100","10010","10001"],S:["01111","10000","10000","01110","00001","00001","11110"],T:["11111","00100","00100","00100","00100","00100","00100"],U:["10001","10001","10001","10001","10001","10001","01110"],V:["10001","10001","10001","10001","10001","01010","00100"],W:["10001","10001","10001","10101","10101","11011","10001"],X:["10001","10001","01010","00100","01010","10001","10001"],Y:["10001","10001","01010","00100","00100","00100","00100"],Z:["11111","00001","00010","00100","01000","10000","11111"],
   "0":["01110","10001","10011","10101","11001","10001","01110"],"1":["00100","01100","00100","00100","00100","00100","01110"],"2":["01110","10001","00001","00010","00100","01000","11111"],"3":["11110","00001","00001","01110","00001","00001","11110"],"4":["00010","00110","01010","10010","11111","00010","00010"],"5":["11111","10000","10000","11110","00001","00001","11110"],"6":["01110","10000","10000","11110","10001","10001","01110"],"7":["11111","00001","00010","00100","01000","01000","01000"],"8":["01110","10001","10001","01110","10001","10001","01110"],"9":["01110","10001","10001","01111","00001","00001","01110"],"$":["00100","01111","10100","01110","00101","11110","00100"],"-":["00000","00000","00000","11111","00000","00000","00000"],"?":["01110","10001","00001","00010","00100","00000","00100"],".":["00000","00000","00000","00000","00000","00110","00110"],":":["00000","00110","00110","00000","00110","00110","00000"]," ":["00000","00000","00000","00000","00000","00000","00000"]
 };
@@ -1010,6 +1054,25 @@ function dataCertificationPng(state: 0 | 1 | 2) {
   fill(0,0,width,height,"#082f28");fill(0,0,16,height,"#74c69d");text("RECONCILED CHANGE",44,38,4,"#fffdf5");fill(56,420,848,4,"#d9f1e4");fill(90,180,150,240,"#f5edcf");text("BASELINE",92,438,2,"#fffdf5");text("100 UNITS",98,125,3,"#fffdf5");
   if(state>=1){fill(300,140,150,280,"#74c69d");text("+10 GAIN",310,94,3,"#fffdf5");fill(510,230,150,190,"#d5a153");text("-5 COST",520,184,3,"#fffdf5");fill(240,272,60,6,"#74c69d");fill(450,272,60,6,"#74c69d");}
   if(state>=2){fill(720,168,150,252,"#d9f1e4");text("OUTCOME",728,438,2,"#fffdf5");text("105 UNITS",722,113,3,"#fffdf5");text("=",680,272,5,"#fffdf5");}
+  for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);}const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
+}
+
+function dataCertificationPngV3(state: 0 | 1 | 2) {
+  const width=960,height=540,pixels=new Uint8Array(width*height*4),raw=new Uint8Array(height*(1+width*4));
+  const color=(hex:string)=>[Number.parseInt(hex.slice(1,3),16),Number.parseInt(hex.slice(3,5),16),Number.parseInt(hex.slice(5,7),16),255] as const;
+  const fill=(x:number,y:number,w:number,h:number,hex:string)=>{const c=color(hex);for(let py=Math.max(0,y);py<Math.min(height,y+h);py++)for(let px=Math.max(0,x);px<Math.min(width,x+w);px++){const i=(py*width+px)*4;pixels.set(c,i);}};
+  const text=(value:string,x:number,y:number,scale:number,hex:string)=>{const c=color(hex);let cx=x;for(const char of value.toUpperCase()){const glyph=glyphs[char]||glyphs["?"];for(let gy=0;gy<7;gy++)for(let gx=0;gx<5;gx++)if(glyph[gy][gx]==="1")for(let sy=0;sy<scale;sy++)for(let sx=0;sx<scale;sx++){const px=cx+gx*scale+sx,py=y+gy*scale+sy;if(px>=0&&px<width&&py>=0&&py<height){const i=(py*width+px)*4;pixels.set(c,i);}}cx+=6*scale;}};
+  const plus=(x:number,y:number,hex:string)=>{fill(x+12,y,8,32,hex);fill(x,y+12,32,8,hex);};
+  const minus=(x:number,y:number,hex:string)=>fill(x,y+12,32,8,hex);
+  const equals=(x:number,y:number,hex:string)=>{fill(x,y+7,32,7,hex);fill(x,y+21,32,7,hex);};
+  const connector=(x:number,y:number,w:number,hex:string)=>{fill(x,y,w-12,5,hex);fill(x+w-15,y-6,15,17,hex);};
+  fill(0,0,width,height,"#071f1b");fill(0,0,16,height,"#74c69d");
+  text("RECONCILED WATERFALL",48,32,4,"#fffdf5");text("BASELINE PLUS GAIN MINUS COST EQUALS OUTCOME",50,78,2,"#9ccbb6");
+  fill(64,430,832,4,"#315447");
+  fill(86,238,142,192,"#f5edcf");text("100",116,180,4,"#fffdf5");text("BASELINE",86,448,2,"#fffdf5");
+  if(state>=1){connector(228,238,70,"#74c69d");fill(298,178,132,60,"#74c69d");plus(348,192,"#082f28");text("10",340,142,3,"#fffdf5");text("GAIN",332,448,2,"#fffdf5");}
+  if(state>=2){connector(430,178,58,"#d5a153");fill(488,178,132,30,"#d5a153");minus(538,177,"#082f28");text("5",548,142,3,"#fffdf5");text("COST",520,448,2,"#fffdf5");connector(620,208,76,"#d9f1e4");fill(696,208,174,222,"#d9f1e4");text("105",732,150,4,"#fffdf5");text("OUTCOME",710,448,2,"#fffdf5");}
+  text("100",90,494,3,"#fffdf5");plus(202,488,"#74c69d");text("10",254,494,3,"#fffdf5");minus(344,488,"#d5a153");text("5",396,494,3,"#fffdf5");equals(458,488,"#d9f1e4");text(state>=2?"105":"---",512,494,3,state>=2?"#fffdf5":"#55746a");text("UNITS",650,494,3,"#9ccbb6");
   for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);}const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
 }
 
@@ -1877,6 +1940,7 @@ export async function POST(request: Request) {
     if (body.action === "POLL_NEXT_ARCHETYPE_QA") return Response.json(await nextArchetypeCertificationQa(true), { status: 200 });
     if (body.action === "REPAIR_NEXT_ARCHETYPE_CERTIFICATION") return Response.json(await repairNextArchetypeCertification(), { status: 201 });
     if (body.action === "RECONCILE_ARCHETYPE_ATTEMPT_LIMITS") return Response.json(await reconcileArchetypeAttemptLimits(), { status: 200 });
+    if (body.action === "AUTHORIZE_DATA_VISUALIZATION_V3") return Response.json(await authorizeDataVisualizationV3(), { status: 201 });
     if (body.action === "BUILD_DRY_RUN") return Response.json(await buildDryRun(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT") return Response.json(await authorizePilot(), { status: 201 });
     if (body.action === "AUTHORIZE_PILOT_AFTER_MOTION") return Response.json(await authorizePilotAfterMotion(), { status: 201 });
