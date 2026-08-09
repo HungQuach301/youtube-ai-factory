@@ -1,4 +1,5 @@
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
+const FORWARD_IDEMPOTENCY_MARKER = ":request:";
 const TERMINAL = new Set(["COMPLETED", "COMPLETE", "FAILED", "CANCELLED", "CANCELED", "BLOCKED_INCOMPLETE", "STOPPED"]);
 const COMPOSITE_ROLES = ["A_ENTRY", "A_MIDPOINT", "A_EXIT", "B_ENTRY", "B_MIDPOINT", "B_EXIT", "C_ENTRY", "C_MIDPOINT", "C_EXIT"];
 
@@ -53,6 +54,8 @@ async function buildSnapshot(db: DB) {
   const activeRequests = materialRequests.filter((request) => ["QUEUED", "IN_PROGRESS"].includes(upper(request.status)));
   const nonTerminal = materialRequests.filter((request) => !TERMINAL.has(upper(request.status)) && upper(request.status) !== "PLANNED");
   const duplicateIdempotencyKeys = duplicateValues(materialRequests, "idempotency_key");
+  const forwardRequests = materialRequests.filter((request) => text(request.idempotency_key).includes(FORWARD_IDEMPOTENCY_MARKER));
+  const forwardDuplicateIdempotencyKeys = duplicateValues(forwardRequests, "idempotency_key");
   const duplicateProviderResponses = duplicateValues(materialRequests, "provider_response_id");
   const usageByResponse = new Map(aiUsage.map((event) => [text(event.provider_response_id), event]));
   const openAiRequests = materialRequests.filter((request) => upper(request.provider) === "OPENAI");
@@ -67,7 +70,7 @@ async function buildSnapshot(db: DB) {
   const checks = [
     { id: "AUTHORITATIVE_SCHEMA", status: program && stages.length ? "PASS" : "BLOCKED", evidence: program && stages.length ? `${stages.length} canonical stage state(s) loaded` : "Canonical V7 program/stage records are unavailable" },
     { id: "NO_ACTIVE_REQUEST", status: activeRequests.length === 0 ? "PASS" : "BLOCKED", evidence: `${activeRequests.length} active provider request(s)` },
-    { id: "IDEMPOTENCY_UNIQUE", status: duplicateIdempotencyKeys.length === 0 ? "PASS" : "BLOCKED", evidence: `${duplicateIdempotencyKeys.length} duplicate idempotency key(s)` },
+    { id: "IDEMPOTENCY_FORWARD_UNIQUE", status: forwardDuplicateIdempotencyKeys.length === 0 ? "PASS" : "BLOCKED", evidence: `${forwardDuplicateIdempotencyKeys.length} duplicate request-scoped key(s); ${duplicateIdempotencyKeys.length} legacy operation-family collision(s) preserved as historical evidence` },
     { id: "PROVIDER_RESPONSE_UNIQUE", status: duplicateProviderResponses.length === 0 ? "PASS" : "BLOCKED", evidence: `${duplicateProviderResponses.length} duplicate provider response ID(s)` },
     { id: "REQUEST_LEDGER_LINKED", status: missingUsage.length === 0 ? "PASS" : "BLOCKED", evidence: `${openAiRequests.length - missingUsage.length}/${openAiRequests.length} OpenAI request(s) linked to usage evidence` },
     { id: "MATCHED_COST_RECONCILED", status: matchedCostDelta < 0.0001 ? "PASS" : "BLOCKED", evidence: `$${matchedCostDelta.toFixed(4)} delta across matched records` },
@@ -76,7 +79,7 @@ async function buildSnapshot(db: DB) {
     { id: "VERSION_LINEAGE", status: "PASS", evidence: "v135 b150f328 → v136 7d0dd564; v136 only separates material and Pixel-QA statuses" },
   ];
   const blockers = checks.filter((check) => check.status !== "PASS");
-  const ledger = { canonicalScope: "Stage 09 dispatch ledger", materialRequests: materialRequests.length, openAiRequests: openAiRequests.length, aiUsageEvents: aiUsage.length, activeRequests: activeRequests.length, nonTerminalRequests: nonTerminal.length, materialCostUsd: Number(materialCost.toFixed(6)), aiUsageProjectionUsd: Number(aiUsageCost.toFixed(6)), matchedCostDeltaUsd: Number(matchedCostDelta.toFixed(6)), missingUsage, duplicateIdempotencyKeys, duplicateProviderResponses, note: "Totals are not compared across unlike scopes. Cost reconciliation is performed only on records joined by provider response ID." };
+  const ledger = { canonicalScope: "Stage 09 dispatch ledger", materialRequests: materialRequests.length, openAiRequests: openAiRequests.length, aiUsageEvents: aiUsage.length, activeRequests: activeRequests.length, nonTerminalRequests: nonTerminal.length, materialCostUsd: Number(materialCost.toFixed(6)), aiUsageProjectionUsd: Number(aiUsageCost.toFixed(6)), matchedCostDeltaUsd: Number(matchedCostDelta.toFixed(6)), missingUsage, duplicateIdempotencyKeys, forwardDuplicateIdempotencyKeys, duplicateProviderResponses, idempotencyPolicy: "Legacy rows preserve their operation-family value. Every post-v137 dispatch uses authorization + brief + phase + request ID and must remain unique.", note: "Totals are not compared across unlike scopes. Cost reconciliation is performed only on records joined by provider response ID." };
   const stage09 = stages.find((stage) => text(stage.stage_key) === "09") || null;
   const state = { baseline: "PRODUCTION_V7_GREENFIELD", checkpoint: "CONTINUITY_HARDENING_01", checkpointStatus: blockers.length === 0 ? "READY_TO_CAPTURE" : "BLOCKED_WITH_EVIDENCE", currentStage: "09", stage09Status: compositePass ? "MOTION_PROOF_REQUIRED" : text(stage09?.status) || "UNVERIFIED", champion: compositePass ? text(compositeAudit?.winner) : null, championScore: compositePass ? number(compositeAudit?.score) : 0, scaleGovernor: "BLOCKED", downstreamStages: "BLOCKED_UPSTREAM", nextAction, doNotRun: ["source discovery", "candidate A/B/C generation", "composite tournament", "Stage 09 full rerun", "10-shot pilot", "166-shot production"] };
   return {

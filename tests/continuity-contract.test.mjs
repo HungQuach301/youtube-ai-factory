@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const routePath = new URL("../app/api/factory/continuity/route.ts", import.meta.url);
+const materialRoutePath = new URL("../app/api/factory/material-production/route.ts", import.meta.url);
 const statePath = new URL("../docs/continuity/03_CURRENT_STATE.md", import.meta.url);
 const migrationPath = new URL("../drizzle/0019_burly_ogun.sql", import.meta.url);
 
@@ -28,4 +29,13 @@ test("continuity snapshots have a durable migration", async () => {
   assert.match(migration, /CREATE TABLE `v7_continuity_snapshots`/);
   assert.match(migration, /`content_hash` text NOT NULL/);
   assert.match(migration, /`active_request_count` integer DEFAULT 0 NOT NULL/);
+});
+
+test("idempotency is request-scoped forward without rewriting legacy evidence", async () => {
+  const continuity = await readFile(routePath, "utf8");
+  const material = await readFile(materialRoutePath, "utf8");
+  assert.match(material, /const idempotencyKey = `\$\{operationKey\}:request:\$\{id\}`/);
+  assert.match(continuity, /IDEMPOTENCY_FORWARD_UNIQUE/);
+  assert.match(continuity, /legacy operation-family collision/);
+  assert.doesNotMatch(continuity, /UPDATE v7_material_requests SET idempotency_key/);
 });

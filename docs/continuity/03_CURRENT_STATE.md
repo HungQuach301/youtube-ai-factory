@@ -20,6 +20,7 @@ NEXT_ACTION = CONTINUITY_HARDENING_THEN_MOTION_PROOF
 ## Open evidence issues
 
 - Request and usage projections must be joined by provider response ID before costs are compared.
+- Six legacy operation families reused the old `idempotency_key` label across bounded attempts. They remain immutable historical evidence; from v138 every new dispatch uses a request-scoped unique identity while retaining the operation family in its prefix.
 - Current A/B/C frame hashes must be captured as the forward baseline.
 - No pre-repair A/B frame-hash baseline exists; this limitation is immutable evidence and must not be rewritten as historical cryptographic proof.
 - Motion proof is not yet produced or approved.

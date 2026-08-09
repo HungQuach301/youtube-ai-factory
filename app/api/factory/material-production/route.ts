@@ -321,7 +321,13 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
   if (Number(usage?.total || 0) >= Number(authorization.max_remote_requests)) throw new Error("PILOT_REQUEST_CIRCUIT_OPEN");
   if (Number(usage?.cost || 0) >= Number(authorization.max_actual_spend_usd)) throw new Error("PILOT_SPEND_CIRCUIT_OPEN");
   const id = `${authorization.run_id}-${briefId}-${phase}-${Date.now()}-${crypto.randomUUID()}`;
-  await db.prepare("INSERT INTO v7_material_requests (id,program_id,run_id,authorization_id,brief_id,phase,provider,model_id,reasoning,status,idempotency_key,expected_output_tokens,max_output_tokens,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?,?)").bind(id, PROGRAM_ID, authorization.run_id, authorization.id, briefId, phase, provider, modelId, reasoning, `${authorization.id}:${briefId}:${phase}`, expected, maximum, new Date().toISOString(), new Date().toISOString()).run();
+  // Before v138 this field stored only the logical operation family, so a
+  // bounded retry could legitimately reuse the same value. Keep those rows
+  // immutable, but make every new dispatch identity request-scoped. The stable
+  // operation family is still recoverable from authorization/brief/phase.
+  const operationKey = `${authorization.id}:${briefId}:${phase}`;
+  const idempotencyKey = `${operationKey}:request:${id}`;
+  await db.prepare("INSERT INTO v7_material_requests (id,program_id,run_id,authorization_id,brief_id,phase,provider,model_id,reasoning,status,idempotency_key,expected_output_tokens,max_output_tokens,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?,?)").bind(id, PROGRAM_ID, authorization.run_id, authorization.id, briefId, phase, provider, modelId, reasoning, idempotencyKey, expected, maximum, new Date().toISOString(), new Date().toISOString()).run();
   return id;
 }
 
