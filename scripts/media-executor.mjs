@@ -36,9 +36,43 @@ function extractFrame(sourcePath, outputPath, timestampSeconds, width, height) {
   return readFileSync(outputPath);
 }
 
+function renderMotionProof(sourcePaths, outputPath, durationSeconds, width, height, fps) {
+  const fade = Math.min(0.28, Math.max(0.12, durationSeconds * 0.07));
+  const segment = (durationSeconds + fade * 2) / 3;
+  const firstOffset = segment - fade, secondOffset = firstOffset * 2;
+  const inputs = sourcePaths.flatMap((path) => ["-loop", "1", "-t", segment.toFixed(3), "-i", path]);
+  const filter = [0, 1, 2].map((index) => `[${index}:v]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},fps=${fps},format=yuv420p[v${index}]`).join(";") + `;[v0][v1]xfade=transition=fade:duration=${fade.toFixed(3)}:offset=${firstOffset.toFixed(3)}[x1];[x1][v2]xfade=transition=fade:duration=${fade.toFixed(3)}:offset=${secondOffset.toFixed(3)}[out]`;
+  execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", ...inputs, "-filter_complex", filter, "-map", "[out]", "-t", durationSeconds.toFixed(3), "-an", "-c:v", "libvpx-vp9", "-deadline", "good", "-cpu-used", "2", "-b:v", "0", "-crf", "24", "-r", String(fps), "-y", outputPath], { maxBuffer: 8_000_000 });
+}
+
+async function executeMotionProof(job, work) {
+  const sources = Array.isArray(job.sourceDownloadUrls) ? job.sourceDownloadUrls : [];
+  if (sources.length !== 3) throw new Error("motion proof requires exactly three source frames");
+  const sourcePaths = [], sourceHashes = [];
+  for (const [index, source] of sources.entries()) {
+    const response = await fetch(new URL(source.url, baseUrl), { headers: { "x-frameflow-executor-key": secret, ...transportHeaders } });
+    if (!response.ok) throw new Error(`motion source download ${response.status}`);
+    const bytes = Buffer.from(await response.arrayBuffer()), digest = sha256(bytes);
+    if (digest !== source.sha256) throw new Error(`motion source hash mismatch · ${source.state}`);
+    const extension = response.headers.get("content-type")?.includes("jpeg") ? "jpg" : "png", path = join(work, `${index}-${String(source.state).toLowerCase()}.${extension}`);
+    writeFileSync(path, bytes); sourcePaths.push(path); sourceHashes.push({ state: source.state, fileId: source.fileId, sha256: digest });
+  }
+  const target = job.contract.output, durationSeconds = Number(job.contract.durationSeconds), fps = Number(job.contract.fps), renderPath = join(work, "motion-proof.webm");
+  renderMotionProof(sourcePaths, renderPath, durationSeconds, Number(target.width), Number(target.height), fps);
+  const renderBytes = readFileSync(renderPath), mediaProbe = probe(renderPath);
+  const measuredFps = mediaProbe.averageFrameRate.includes("/") ? (() => { const [a, b] = mediaProbe.averageFrameRate.split("/").map(Number); return b ? a / b : a; })() : Number(mediaProbe.averageFrameRate);
+  const frames = job.contract.samplePositions.map((sample) => {
+    const timestampSeconds = Math.max(0, Math.min(mediaProbe.durationSeconds - 0.05, mediaProbe.durationSeconds * Number(sample.ratio)));
+    const path = join(work, `motion-${String(sample.role).toLowerCase()}.jpg`), bytes = extractFrame(renderPath, path, timestampSeconds, Number(target.width), Number(target.height));
+    return { role: sample.role, timestampSeconds, width: Number(target.width), height: Number(target.height), mimeType: "image/jpeg", base64: bytes.toString("base64") };
+  });
+  return post("COMPLETE_MOTION_PROOF", { jobId: job.id, leaseToken: job.leaseToken, sourceHashes, render: { mimeType: "video/webm", codec: mediaProbe.codec, width: mediaProbe.width, height: mediaProbe.height, durationSeconds: mediaProbe.durationSeconds, fps: measuredFps, base64: renderBytes.toString("base64") }, frames });
+}
+
 async function execute(job) {
   const work = mkdtempSync(join(tmpdir(), "frameflow-media-"));
   try {
+    if (job.type === "MOTION_PROOF_RENDER") return await executeMotionProof(job, work);
     const sourceUrl = new URL(job.sourceDownloadUrl, baseUrl).toString();
     const response = await fetch(sourceUrl, { headers: { "x-frameflow-executor-key": secret, ...transportHeaders } });
     if (!response.ok) throw new Error(`source download ${response.status}`);
@@ -59,7 +93,7 @@ async function execute(job) {
 }
 
 async function cycle() {
-  await post("EXECUTOR_HEARTBEAT", { executorId, version: "1.0.0", capabilities: ["ffprobe", "ffmpeg", "sha256", "jpeg-frame-extraction", "960x540-cover"] });
+  await post("EXECUTOR_HEARTBEAT", { executorId, version: "1.1.0", capabilities: ["ffprobe", "ffmpeg", "sha256", "jpeg-frame-extraction", "960x540-cover", "vp9-motion-proof", "three-state-crossfade"] });
   const claim = await post("CLAIM_MEDIA_JOB", { executorId });
   if (claim.status !== "LEASED") return false;
   try {

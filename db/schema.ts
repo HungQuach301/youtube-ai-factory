@@ -889,3 +889,27 @@ export const v7MaterialRequests = sqliteTable("v7_material_requests", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const v7MotionProofs = sqliteTable("v7_motion_proofs", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  authorizationId: text("authorization_id").notNull(),
+  briefId: text("brief_id").notNull(),
+  champion: text("champion").notNull(),
+  compositeRubric: text("composite_rubric").notNull(),
+  rendererVersion: text("renderer_version").notNull(),
+  status: text("status").notNull().default("RENDER_REQUIRED"),
+  motionFileId: text("motion_file_id"),
+  evidenceId: text("evidence_id"),
+  sourceHashesJson: text("source_hashes_json").notNull(),
+  durationSeconds: real("duration_seconds").notNull(),
+  fps: integer("fps").notNull().default(30),
+  score: integer("score").notNull().default(0),
+  dimensionsJson: text("dimensions_json").notNull().default("{}"),
+  findingsJson: text("findings_json").notNull().default("[]"),
+  providerResponseId: text("provider_response_id"),
+  contentHash: text("content_hash"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

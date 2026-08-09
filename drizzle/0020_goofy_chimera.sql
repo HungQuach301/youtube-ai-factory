@@ -1,0 +1,23 @@
+CREATE TABLE `v7_motion_proofs` (
+	`id` text PRIMARY KEY NOT NULL,
+	`program_id` text NOT NULL,
+	`run_id` text NOT NULL,
+	`authorization_id` text NOT NULL,
+	`brief_id` text NOT NULL,
+	`champion` text NOT NULL,
+	`composite_rubric` text NOT NULL,
+	`renderer_version` text NOT NULL,
+	`status` text DEFAULT 'RENDER_REQUIRED' NOT NULL,
+	`motion_file_id` text,
+	`evidence_id` text,
+	`source_hashes_json` text NOT NULL,
+	`duration_seconds` real NOT NULL,
+	`fps` integer DEFAULT 30 NOT NULL,
+	`score` integer DEFAULT 0 NOT NULL,
+	`dimensions_json` text DEFAULT '{}' NOT NULL,
+	`findings_json` text DEFAULT '[]' NOT NULL,
+	`provider_response_id` text,
+	`content_hash` text,
+	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
+);

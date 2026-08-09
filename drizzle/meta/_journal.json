@@ -141,6 +141,13 @@
       "when": 1786255414139,
       "tag": "0019_burly_ogun",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1786258164599,
+      "tag": "0020_goofy_chimera",
+      "breakpoints": true
     }
   ]
 }

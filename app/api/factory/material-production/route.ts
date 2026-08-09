@@ -10,6 +10,8 @@ const DEFAULT_MODEL = "gpt-5.6-sol";
 const SOURCE_QA_RUBRIC = "SOURCE_LAYER_QA_V2";
 const COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V5";
 const PREVIOUS_COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V4";
+const MOTION_RENDERER_VERSION = "FRAMEFLOW_MOTION_PROOF_V1";
+const MOTION_QA_RUBRIC = "MOTION_PROOF_QA_V1";
 const MODEL_OPTIONS = [
   { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", description: "Maximum quality" },
   { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", description: "Balanced quality and speed" },
@@ -71,6 +73,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_media_evidence (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,job_id text NOT NULL,evidence_type text NOT NULL,status text DEFAULT 'VERIFIED' NOT NULL,content_json text NOT NULL,content_hash text NOT NULL,runtime_key text NOT NULL,drive_file_id text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_source_frame_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,evidence_id text NOT NULL,status text DEFAULT 'QA_REQUIRED' NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,repair_json text DEFAULT '{}' NOT NULL,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_composite_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,evidence_id text NOT NULL,rubric_version text NOT NULL,status text DEFAULT 'QA_REQUIRED' NOT NULL,winner text,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,candidates_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,repair_json text DEFAULT '{}' NOT NULL,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_motion_proofs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,champion text NOT NULL,composite_rubric text NOT NULL,renderer_version text NOT NULL,status text DEFAULT 'RENDER_REQUIRED' NOT NULL,motion_file_id text,evidence_id text,source_hashes_json text NOT NULL,duration_seconds real NOT NULL,fps integer DEFAULT 30 NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,provider_response_id text,content_hash text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
 ] as const;
 
@@ -111,6 +114,10 @@ function validImage(bytes: Uint8Array, mimeType: string) {
   if (mimeType === "image/png") return bytes.length > 8 && bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71;
   if (mimeType === "image/jpeg") return bytes.length > 4 && bytes[0] === 255 && bytes[1] === 216 && bytes.at(-2) === 255 && bytes.at(-1) === 217;
   return false;
+}
+
+function validWebm(bytes: Uint8Array) {
+  return bytes.length > 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
 }
 
 async function runtime() {
@@ -214,6 +221,7 @@ async function snapshot() {
   const mediaEvidence = authorization ? await rows(db, "SELECT * FROM v7_media_evidence WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
   const sourceAudits = authorization ? await rows(db, "SELECT * FROM v7_source_frame_audits WHERE authorization_id=? ORDER BY updated_at DESC", authorization.id) : [];
   const compositeAudits = authorization ? await rows(db, "SELECT * FROM v7_composite_audits WHERE authorization_id=? ORDER BY updated_at DESC", authorization.id) : [];
+  const motionProofs = authorization ? await rows(db, "SELECT * FROM v7_motion_proofs WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
   const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
@@ -232,10 +240,28 @@ async function snapshot() {
   const compositeAudit = currentCompositeAudit || previousCompositeAudit;
   const compositeRepairAvailable = !currentCompositeAudit && previousCompositeAudit?.status === "REPAIR_REQUIRED";
   const compositeActive = requestRows.some((row) => row.phase === "COMPOSITE_TOURNAMENT" && ["QUEUED", "IN_PROGRESS"].includes(String(row.status)));
+  const motionQaActive = requestRows.some((row) => row.phase === "MOTION_PROOF_QA" && ["QUEUED", "IN_PROGRESS"].includes(String(row.status)));
   const compositeContent = compositeAudit?.candidates_json ? rec(JSON.parse(String(compositeAudit.candidates_json))) : {};
   const displayedCompositeRubric = clean(compositeAudit?.rubric_version) || COMPOSITE_QA_RUBRIC;
   const compositeIdentity = sourceEvidence ? `${displayedCompositeRubric}-${clean(sourceEvidence.content_hash).slice(0, 12)}` : "";
   const compositeCandidates = ["A", "B", "C"].map((candidate) => ({ candidate, scores: rec(compositeContent[candidate]), frames: ["ENTRY", "MIDPOINT", "EXIT"].map((state) => { const file = files.find((item) => item.brief_id === sourceEvidence?.brief_id && item.asset_role === `COMPOSITE_${candidate}_${state}` && clean(item.id).includes(compositeIdentity)); return file ? { state, fileId: file.id, previewUrl: `/api/factory/material-production?file=${encodeURIComponent(String(file.id))}` } : null; }).filter(Boolean) }));
+  const motionProof = motionProofs[0] || null;
+  const motionEvidence = motionProof?.evidence_id ? mediaEvidence.find((item) => item.id === motionProof.evidence_id) : null;
+  let motionContent: Row = {}; try { motionContent = motionEvidence ? rec(JSON.parse(String(motionEvidence.content_json || "{}"))) : {}; } catch { motionContent = {}; }
+  const motionJob = mediaJobs.find((job) => job.job_type === "MOTION_PROOF_RENDER");
+  const nextGate = sourceEvidenceReady
+    ? compositeActive ? "COMPOSITE_TOURNAMENT_RUNNING"
+      : compositeRepairAvailable ? "COMPOSITE_REPAIR"
+        : !compositeAudit ? "COMPOSITE_TOURNAMENT"
+          : compositeAudit.status !== "PASS" ? "COMPOSITE_REPAIR_BLOCKED"
+            : !motionProof ? "MOTION_PROOF_PLAN"
+              : ["QUEUED", "LEASED"].includes(clean(motionJob?.status)) ? "MOTION_RENDER_RUNNING"
+                : motionQaActive ? "MOTION_QA_RUNNING"
+                  : motionProof.status === "QA_REQUIRED" ? "MOTION_QA"
+                    : motionProof.status === "PASS" ? "SEQUENCE_PROOF"
+                      : "MOTION_PROOF_BLOCKED"
+    : sourceEvidence ? sourceQaActive ? "SOURCE_FRAME_QA_RUNNING" : sourceAudit?.status === "REPAIR_REQUIRED" ? "SOURCE_REPLACEMENT" : "SOURCE_FRAME_QA"
+      : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET";
   return {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
     provider: { model: setting.modelId, reasoningEffort: setting.reasoningEffort, modelOptions: MODEL_OPTIONS, reasoningOptions: REASONING_OPTIONS },
@@ -258,7 +284,9 @@ async function snapshot() {
       }),
       sourceQaActive,
       composite: { active: compositeActive, rubric: displayedCompositeRubric, status: compositeAudit?.status || "REQUIRED", winner: compositeAudit?.winner || null, score: Number(compositeAudit?.score || 0), dimensions: compositeAudit ? rec(JSON.parse(String(compositeAudit.dimensions_json || "{}"))) : {}, findings: compositeAudit ? arr(JSON.parse(String(compositeAudit.findings_json || "[]"))) : [], repair: compositeAudit ? rec(JSON.parse(String(compositeAudit.repair_json || "{}"))) : {}, candidates: compositeCandidates },
-      nextGate: sourceEvidenceReady ? compositeActive ? "COMPOSITE_TOURNAMENT_RUNNING" : compositeRepairAvailable ? "COMPOSITE_REPAIR" : !compositeAudit ? "COMPOSITE_TOURNAMENT" : compositeAudit.status === "PASS" ? "MOTION_PROOF" : "COMPOSITE_REPAIR_BLOCKED" : sourceEvidence ? sourceQaActive ? "SOURCE_FRAME_QA_RUNNING" : sourceAudit?.status === "REPAIR_REQUIRED" ? "SOURCE_REPLACEMENT" : "SOURCE_FRAME_QA" : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET",
+      motionProof: motionProof ? { id: motionProof.id, status: motionProof.status, champion: motionProof.champion, renderer: motionProof.renderer_version, durationSeconds: Number(motionProof.duration_seconds), fps: Number(motionProof.fps), score: Number(motionProof.score), dimensions: rec(JSON.parse(String(motionProof.dimensions_json || "{}"))), findings: arr(JSON.parse(String(motionProof.findings_json || "[]"))), motionFileId: motionProof.motion_file_id || null, previewUrl: motionProof.motion_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(motionProof.motion_file_id))}` : null, contentHash: motionProof.content_hash || null, sourceHashes: arr(JSON.parse(String(motionProof.source_hashes_json || "[]"))), sampleFrames: arr(motionContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })) } : null,
+      motionQaActive,
+      nextGate,
     },
   };
 }
@@ -524,7 +552,7 @@ function ownedPng(brief: Row, state: 0 | 1 | 2, background?: { data: Uint8Array;
   for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);} const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
 }
 
-type MaterialRole = "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT" | "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT" | "COMPOSITE_A_ENTRY" | "COMPOSITE_A_MIDPOINT" | "COMPOSITE_A_EXIT" | "COMPOSITE_B_ENTRY" | "COMPOSITE_B_MIDPOINT" | "COMPOSITE_B_EXIT" | "COMPOSITE_C_ENTRY" | "COMPOSITE_C_MIDPOINT" | "COMPOSITE_C_EXIT";
+type MaterialRole = "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT" | "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT" | "COMPOSITE_A_ENTRY" | "COMPOSITE_A_MIDPOINT" | "COMPOSITE_A_EXIT" | "COMPOSITE_B_ENTRY" | "COMPOSITE_B_MIDPOINT" | "COMPOSITE_B_EXIT" | "COMPOSITE_C_ENTRY" | "COMPOSITE_C_MIDPOINT" | "COMPOSITE_C_EXIT" | "MOTION_PROOF" | "MOTION_ENTRY" | "MOTION_MIDPOINT" | "MOTION_EXIT";
 async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row, options: { role: MaterialRole; identity?: string; bytes: Uint8Array; mimeType: string; extension: string; sourceType: string; provider: string; providerAssetId?: string; sourceUrl?: string; landingUrl?: string; licenseCode: string; width: number; height: number; duration?: number; thumbnailUrl?: string }) {
   if (!env.BUCKET) throw new Error("R2 material storage is unavailable");
   const identity = clean(options.identity).replace(/[^a-zA-Z0-9_-]/g, "").slice(-48), suffix = identity ? `${identity}-` : "";
@@ -561,6 +589,7 @@ const visionSchema = { type: "object", additionalProperties: false, properties: 
 const sourceFrameQaSchema = { type: "object", additionalProperties: false, properties: { semanticSpecificity: { type: "integer", minimum: 0, maximum: 100 }, contradictionSafety: { type: "integer", minimum: 0, maximum: 100 }, contextFit: { type: "integer", minimum: 0, maximum: 100 }, frameDifferentiation: { type: "integer", minimum: 0, maximum: 100 }, mobileClarity: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", minItems: 1, maxItems: 5, items: { type: "string", minLength: 8, maxLength: 220 } }, replacementQuery: { type: "string", minLength: 8, maxLength: 180 }, sourceLayerContract: { type: "string", minLength: 8, maxLength: 260 } }, required: ["semanticSpecificity", "contradictionSafety", "contextFit", "frameDifferentiation", "mobileClarity", "overall", "decision", "findings", "replacementQuery", "sourceLayerContract"] };
 const compositeCandidateSchema = { type: "object", additionalProperties: false, properties: { semanticFit: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, composition: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, authenticity: { type: "integer", minimum: 0, maximum: 100 }, progression: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 } }, required: ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "progression", "overall"] };
 const compositeTournamentSchema = { type: "object", additionalProperties: false, properties: { winner: { type: "string", enum: ["A", "B", "C"] }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, candidateA: compositeCandidateSchema, candidateB: compositeCandidateSchema, candidateC: compositeCandidateSchema, findings: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 8, maxLength: 220 } }, exactRepair: { type: "string", minLength: 8, maxLength: 260 } }, required: ["winner", "decision", "candidateA", "candidateB", "candidateC", "findings", "exactRepair"] };
+const motionQaSchema = { type: "object", additionalProperties: false, properties: { semanticContinuity: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, transitionQuality: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, timingFit: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 8, maxLength: 220 } }, exactRepair: { type: "string", minLength: 8, maxLength: 260 } }, required: ["semanticContinuity", "factualSafety", "transitionQuality", "mobileLegibility", "timingFit", "overall", "decision", "findings", "exactRepair"] };
 function output(payload: Row) { if (typeof payload.output_text === "string") return payload.output_text; for (const item of arr(payload.output)) for (const block of arr(rec(item).content)) if (typeof rec(block).text === "string") return String(rec(block).text); throw new Error("OpenAI returned no structured pixel audit"); }
 
 async function sourceFrameQa() {
@@ -965,6 +994,38 @@ async function planRootCauseExecution() {
   return snapshot();
 }
 
+async function planMotionProof() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("MOTION_PROOF_RUN_REQUIRED");
+  if (!env.BUCKET || !env.MEDIA_EXECUTOR_SHARED_SECRET) throw new Error("MOTION_PROOF_EXECUTOR_REQUIRED");
+  const continuity = await db.prepare("SELECT lifecycle_state,content_hash FROM v7_continuity_snapshots WHERE program_id=? AND checkpoint_code='CONTINUITY_HARDENING_01' ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
+  if (continuity?.lifecycle_state !== "FROZEN") throw new Error("CONTINUITY_CHECKPOINT_NOT_FROZEN");
+  const audit = await db.prepare("SELECT * FROM v7_composite_audits WHERE authorization_id=? AND rubric_version=? AND status='PASS' AND winner='C' ORDER BY updated_at DESC LIMIT 1").bind(authorization.id, COMPOSITE_QA_RUBRIC).first<Row>();
+  if (!audit || Number(audit.score) < 90) throw new Error("CHAMPION_C_NOT_AUTHORIZED_FOR_MOTION");
+  const existing = await db.prepare("SELECT id FROM v7_motion_proofs WHERE authorization_id=? AND brief_id=? AND composite_rubric=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, audit.brief_id, COMPOSITE_QA_RUBRIC).first<Row>();
+  if (existing) return snapshot();
+  const brief = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(audit.brief_id).first<Row>();
+  if (!brief) throw new Error("MOTION_PROOF_BRIEF_MISSING");
+  const identity = `${COMPOSITE_QA_RUBRIC}-${clean((await db.prepare("SELECT content_hash FROM v7_media_evidence WHERE id=?").bind(audit.evidence_id).first<Row>())?.content_hash).slice(0, 12)}`;
+  const frames: Row[] = [];
+  for (const state of ["ENTRY", "MIDPOINT", "EXIT"]) {
+    const file = await db.prepare("SELECT * FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role=? AND id LIKE ? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, audit.brief_id, `COMPOSITE_C_${state}`, `%${identity}%`).first<Row>();
+    if (!file || !clean(file.content_hash) || !clean(file.runtime_key)) throw new Error(`CHAMPION_C_${state}_MISSING`);
+    frames.push({ state, fileId: file.id, sha256: file.content_hash, mimeType: file.mime_type, runtimeKey: file.runtime_key });
+  }
+  const durationSeconds = Number((Number(brief.end_seconds) - Number(brief.start_seconds)).toFixed(3));
+  if (durationSeconds < 1.5 || durationSeconds > 8) throw new Error(`MOTION_DURATION_OUT_OF_RANGE · ${durationSeconds}s`);
+  const proofSeed = JSON.stringify({ checkpointHash: continuity.content_hash, auditId: audit.id, champion: "C", frames: frames.map((frame) => ({ state: frame.state, fileId: frame.fileId, sha256: frame.sha256 })), durationSeconds, fps: 30, renderer: MOTION_RENDERER_VERSION });
+  const proofHash = await sha(proofSeed), proofId = `${clean(audit.brief_id)}-MOTION-${proofHash.slice(0, 16)}`, jobId = `${proofId}-RENDER`, now = new Date().toISOString();
+  const contract = { version: "MOTION_EXECUTION_CONTRACT_V1", proofId, champion: "C", renderer: MOTION_RENDERER_VERSION, compositeAuditId: audit.id, continuityCheckpointHash: continuity.content_hash, sources: frames.map((frame) => ({ state: frame.state, fileId: frame.fileId, sha256: frame.sha256, mimeType: frame.mimeType })), durationSeconds, fps: 30, output: { mimeType: "video/webm", codec: "vp9", width: 960, height: 540, audio: "NONE" }, samplePositions: [{ role: "ENTRY", ratio: 0.1 }, { role: "MIDPOINT", ratio: 0.5 }, { role: "EXIT", ratio: 0.9 }], acceptance: { exactChampion: "C", exactSourceCount: 3, sourceHashesMustMatch: true, durationToleranceSeconds: 0.08, frameRate: 30, noNewText: true, noAudio: true } };
+  await db.batch([
+    db.prepare("INSERT INTO v7_motion_proofs (id,program_id,run_id,authorization_id,brief_id,champion,composite_rubric,renderer_version,status,source_hashes_json,duration_seconds,fps,content_hash,created_at,updated_at) VALUES (?,?,?,?,?,'C',?,?,'RENDER_QUEUED',?,?,30,?,?,?)").bind(proofId, PROGRAM_ID, run.id, authorization.id, audit.brief_id, COMPOSITE_QA_RUBRIC, MOTION_RENDERER_VERSION, JSON.stringify(frames.map((frame) => ({ state: frame.state, fileId: frame.fileId, sha256: frame.sha256 }))), durationSeconds, proofHash, now, now),
+    db.prepare("INSERT INTO v7_media_jobs (id,program_id,run_id,authorization_id,brief_id,source_file_id,job_type,status,priority,attempt,max_attempts,contract_json,created_at,updated_at) VALUES (?,?,?,?,?,?,'MOTION_PROOF_RENDER','QUEUED',110,0,2,?,?,?)").bind(jobId, PROGRAM_ID, run.id, authorization.id, audit.brief_id, frames[0].fileId, JSON.stringify(contract), now, now),
+    db.prepare("UPDATE v7_stage_states SET status='MOTION_RENDER_REQUIRED',blocker='MOTION_EXECUTOR_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Champion C motion job queued from immutable 9-frame baseline · ${durationSeconds}s · 30fps · no provider request`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
 async function requireExecutor(request: Request, env: Env) {
   const supplied = clean(request.headers.get("x-frameflow-executor-key"));
   if (!env.MEDIA_EXECUTOR_SHARED_SECRET || !(await secretMatches(supplied, env.MEDIA_EXECUTOR_SHARED_SECRET))) throw new Error("MEDIA_EXECUTOR_UNAUTHORIZED");
@@ -988,16 +1049,21 @@ async function claimMediaJob(request: Request, body: Row) {
   await db.prepare("UPDATE v7_media_jobs SET status='LEASED',attempt=attempt+1,lease_owner=?,lease_token_hash=?,lease_expires_at=?,updated_at=? WHERE id=? AND status='QUEUED'").bind(owner, tokenHash, expiry, now, job.id).run();
   const claimed = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED' AND lease_owner=?").bind(job.id, owner).first<Row>();
   if (!claimed) return Response.json({ status: "RETRY", retryAfterSeconds: 2 }, { status: 409 });
-  return Response.json({ status: "LEASED", job: { id: claimed.id, type: claimed.job_type, briefId: claimed.brief_id, attempt: Number(claimed.attempt), maxAttempts: Number(claimed.max_attempts), leaseExpiresAt: claimed.lease_expires_at, leaseToken, sourceDownloadUrl: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}`, contract: JSON.parse(String(claimed.contract_json)) } });
+  const contract = rec(JSON.parse(String(claimed.contract_json)));
+  const sourceDownloadUrls = arr(contract.sources).map(rec).map((source) => ({ state: clean(source.state), fileId: clean(source.fileId), sha256: clean(source.sha256), url: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}&fileId=${encodeURIComponent(clean(source.fileId))}` }));
+  return Response.json({ status: "LEASED", job: { id: claimed.id, type: claimed.job_type, briefId: claimed.brief_id, attempt: Number(claimed.attempt), maxAttempts: Number(claimed.max_attempts), leaseExpiresAt: claimed.lease_expires_at, leaseToken, sourceDownloadUrl: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}`, sourceDownloadUrls, contract } });
 }
 
 async function executionSource(request: Request) {
   const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
   if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
-  const url = new URL(request.url), jobId = clean(url.searchParams.get("executionSource")), leaseToken = clean(url.searchParams.get("leaseToken"));
+  const url = new URL(request.url), jobId = clean(url.searchParams.get("executionSource")), leaseToken = clean(url.searchParams.get("leaseToken")), requestedFileId = clean(url.searchParams.get("fileId"));
   const job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(jobId).first<Row>();
   if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
-  const file = await db.prepare("SELECT runtime_key,mime_type,content_hash FROM v7_material_files WHERE id=?").bind(job.source_file_id).first<Row>();
+  const contract = rec(JSON.parse(String(job.contract_json))), allowedSources = arr(contract.sources).map(rec).map((source) => clean(source.fileId));
+  const fileId = requestedFileId || clean(job.source_file_id);
+  if (requestedFileId && (job.job_type !== "MOTION_PROOF_RENDER" || !allowedSources.includes(requestedFileId))) throw new Error("MEDIA_SOURCE_NOT_AUTHORIZED");
+  const file = await db.prepare("SELECT runtime_key,mime_type,content_hash FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
   if (!file) throw new Error("MEDIA_SOURCE_FILE_NOT_FOUND");
   const object = await env.BUCKET.get(clean(file.runtime_key)); if (!object) throw new Error("MEDIA_SOURCE_BYTES_NOT_FOUND");
   return new Response(object.body, { headers: { "content-type": clean(file.mime_type), "x-content-sha256": clean(file.content_hash), "cache-control": "private, no-store" } });
@@ -1034,6 +1100,93 @@ async function completeMediaJob(request: Request, body: Row) {
   return Response.json({ status: "COMPLETE", jobId, evidenceId: `${jobId}-EVIDENCE`, frameFileIds: storedFrameIds });
 }
 
+async function completeMotionProof(request: Request, body: Row) {
+  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
+  if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
+  const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED' AND job_type='MOTION_PROOF_RENDER'").bind(jobId).first<Row>();
+  if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
+  const contract = rec(JSON.parse(String(job.contract_json))), proof = await db.prepare("SELECT * FROM v7_motion_proofs WHERE id=?").bind(contract.proofId).first<Row>(), brief = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(job.brief_id).first<Row>(), authorization = await db.prepare("SELECT * FROM v7_material_authorizations WHERE id=?").bind(job.authorization_id).first<Row>();
+  if (!proof || !brief || !authorization || proof.champion !== "C") throw new Error("MOTION_PROOF_LINEAGE_MISSING");
+  const expectedSources = arr(contract.sources).map(rec), returnedHashes = arr(body.sourceHashes).map(rec);
+  if (expectedSources.length !== 3 || returnedHashes.length !== 3 || !expectedSources.every((source) => returnedHashes.some((item) => clean(item.fileId) === clean(source.fileId) && clean(item.sha256) === clean(source.sha256)))) throw new Error("MOTION_SOURCE_HASH_MISMATCH");
+  const render = rec(body.render), videoBytes = decodeBase64(clean(render.base64)), durationSeconds = Number(render.durationSeconds), fps = Number(render.fps);
+  if (clean(render.mimeType) !== "video/webm" || !validWebm(videoBytes) || videoBytes.byteLength < 40_000 || videoBytes.byteLength > 12_000_000) throw new Error("MOTION_RENDER_INVALID");
+  if (Number(render.width) !== Number(rec(contract.output).width) || Number(render.height) !== Number(rec(contract.output).height) || Math.abs(durationSeconds - Number(contract.durationSeconds)) > Number(rec(contract.acceptance).durationToleranceSeconds || 0.08) || Math.abs(fps - Number(contract.fps)) > 0.2) throw new Error("MOTION_RENDER_CONTRACT_MISMATCH");
+  const frames = arr(body.frames).map(rec), roles = ["ENTRY", "MIDPOINT", "EXIT"];
+  if (frames.length !== 3 || !roles.every((role) => frames.filter((frame) => clean(frame.role) === role).length === 1)) throw new Error("MOTION_SAMPLE_SET_INVALID");
+  const motionFileId = await storeMaterial(env, db, authorization, brief, { role: "MOTION_PROOF", identity: clean(proof.id).split("-MOTION-").at(-1), bytes: videoBytes, mimeType: "video/webm", extension: "webm", sourceType: MOTION_RENDERER_VERSION, provider: "FRAMEFLOW_EXECUTOR", providerAssetId: proof.id, sourceUrl: proof.id, landingUrl: proof.id, licenseCode: "CHANNEL_OWNED", width: Number(render.width), height: Number(render.height), duration: durationSeconds });
+  const storedFrames: Array<{ role: string; timestampSeconds: number; fileId: string; sha256: string }> = [];
+  for (const frame of frames) {
+    const role = clean(frame.role), bytes = decodeBase64(clean(frame.base64)), mimeType = clean(frame.mimeType);
+    if (Number(frame.width) !== 960 || Number(frame.height) !== 540 || !validImage(bytes, mimeType) || bytes.byteLength < 20_000 || bytes.byteLength > 2_500_000) throw new Error(`MOTION_SAMPLE_INVALID · ${role}`);
+    const fileId = await storeMaterial(env, db, authorization, brief, { role: `MOTION_${role}` as MaterialRole, identity: clean(proof.id).split("-MOTION-").at(-1), bytes, mimeType, extension: mimeType === "image/png" ? "png" : "jpg", sourceType: `${MOTION_RENDERER_VERSION}_SAMPLE`, provider: "FRAMEFLOW_EXECUTOR", providerAssetId: motionFileId, sourceUrl: motionFileId, landingUrl: proof.id, licenseCode: "CHANNEL_OWNED", width: 960, height: 540, duration: Number(frame.timestampSeconds) });
+    storedFrames.push({ role, timestampSeconds: Number(frame.timestampSeconds), fileId, sha256: await shaBytes(bytes) });
+  }
+  const evidence = { version: "MOTION_PROOF_EVIDENCE_V1", proofId: proof.id, jobId, champion: "C", compositeRubric: proof.composite_rubric, renderer: proof.renderer_version, motionFileId, render: { mimeType: "video/webm", codec: clean(render.codec), width: Number(render.width), height: Number(render.height), durationSeconds, fps, audio: "NONE", sha256: await shaBytes(videoBytes) }, sourceHashes: returnedHashes, frames: storedFrames, completedAt: new Date().toISOString() };
+  const json = JSON.stringify(evidence, null, 2), evidenceHash = await sha(json), key = `v7/material-production/${job.run_id}/motion/${proof.id}-evidence.json`;
+  await env.BUCKET.put(key, json, { httpMetadata: { contentType: "application/json" }, customMetadata: { contentHash: evidenceHash, proofId: clean(proof.id) } });
+  if (!(await env.BUCKET.head(key))) throw new Error("MOTION_EVIDENCE_READ_BACK_FAILED");
+  const drive = await storeDriveJsonArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Material Production", "Motion Proof"], fileName: `${proof.id}-evidence.json`, content: json, artifactId: `${proof.id}-EVIDENCE`, contentHash: evidenceHash });
+  const now = new Date().toISOString();
+  await db.batch([
+    db.prepare("INSERT INTO v7_media_evidence (id,program_id,run_id,authorization_id,brief_id,job_id,evidence_type,status,content_json,content_hash,runtime_key,drive_file_id,created_at) VALUES (?,?,?,?,?,?,'MOTION_PROOF','TECHNICALLY_VERIFIED',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='TECHNICALLY_VERIFIED',content_json=excluded.content_json,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id").bind(`${proof.id}-EVIDENCE`, PROGRAM_ID, job.run_id, job.authorization_id, job.brief_id, jobId, json, evidenceHash, key, drive.id, now),
+    db.prepare("UPDATE v7_motion_proofs SET status='QA_REQUIRED',motion_file_id=?,evidence_id=?,content_hash=?,updated_at=? WHERE id=?").bind(motionFileId, `${proof.id}-EVIDENCE`, evidenceHash, now, proof.id),
+    db.prepare("UPDATE v7_media_jobs SET status='COMPLETE',output_json=?,error=NULL,completed_at=?,updated_at=?,lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?").bind(JSON.stringify({ proofId: proof.id, evidenceId: `${proof.id}-EVIDENCE`, motionFileId, frameFileIds: storedFrames.map((frame) => frame.fileId) }), now, now, jobId),
+    db.prepare("UPDATE v7_stage_states SET status='MOTION_QA_REQUIRED',blocker='MOTION_PERCEPTUAL_QA_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Champion C WebM stored and sampled · ${durationSeconds.toFixed(2)}s · ${fps.toFixed(2)}fps · motion QA required`, now, STAGE_ID),
+  ]);
+  return Response.json({ status: "COMPLETE", proofId: proof.id, evidenceId: `${proof.id}-EVIDENCE`, motionFileId, frameFileIds: storedFrames.map((frame) => frame.fileId) });
+}
+
+async function motionProofQa() {
+  const env = await runtime(), db = env.DB!, { authorization } = await current(db);
+  if (!authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("MOTION_QA_CONFIGURATION_REQUIRED");
+  const proof = await db.prepare("SELECT * FROM v7_motion_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!proof) throw new Error("MOTION_PROOF_NOT_RENDERED");
+  if (proof.status === "PASS") return snapshot();
+  const active = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND brief_id=? AND phase='MOTION_PROOF_QA' AND status IN ('QUEUED','IN_PROGRESS') ORDER BY created_at DESC LIMIT 1").bind(authorization.id, proof.brief_id).first<Row>();
+  if (active) {
+    const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(active.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`MOTION_QA_STATUS_FAILED · ${response.status}`);
+    const payload = await response.json() as Row, providerStatus = clean(payload.status), now = new Date().toISOString();
+    if (["queued", "in_progress"].includes(providerStatus)) { await db.prepare("UPDATE v7_material_requests SET status=?,updated_at=? WHERE id=?").bind(providerStatus.toUpperCase(), now, active.id).run(); return snapshot(); }
+    const usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: clean(authorization.run_id), stageKey: STAGE, costType: "MOTION_PROOF_QA", payload, fallbackModel: clean(active.model_id) || DEFAULT_MODEL });
+    await db.prepare("UPDATE v7_material_requests SET status=?,input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,error=?,updated_at=? WHERE id=?").bind(providerStatus === "completed" ? "COMPLETE" : "BLOCKED_INCOMPLETE", usage.inputTokens, usage.outputTokens, usage.reasoningTokens, usage.actualUsd, providerStatus === "completed" ? null : clean(rec(payload.incomplete_details).reason || rec(payload.error).message || providerStatus), now, active.id).run();
+    await syncRunTotals(db, clean(authorization.run_id));
+    if (providerStatus !== "completed") {
+      await db.batch([db.prepare("UPDATE v7_motion_proofs SET status='BLOCKED_INCOMPLETE',provider_response_id=?,updated_at=? WHERE id=?").bind(payload.id || active.provider_response_id, now, proof.id), db.prepare("UPDATE v7_stage_states SET status='MOTION_PROOF_BLOCKED',blocker='MOTION_QA_PROVIDER_INCOMPLETE',evidence_summary='Motion QA provider output incomplete · no automatic retry',updated_at=? WHERE id=?").bind(now, STAGE_ID)]);
+      return snapshot();
+    }
+    const result = JSON.parse(output(payload)) as Row, dimensions = ["semanticContinuity", "factualSafety", "transitionQuality", "mobileLegibility", "timingFit"], hardPass = dimensions.every((key) => Number(result[key]) >= 86) && Number(result.overall) >= 90 && result.decision === "PASS", status = hardPass ? "PASS" : "REPAIR_REQUIRED";
+    await db.batch([
+      db.prepare("UPDATE v7_motion_proofs SET status=?,score=?,dimensions_json=?,findings_json=?,provider_response_id=?,updated_at=? WHERE id=?").bind(status, Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean)), payload.id || active.provider_response_id, now, proof.id),
+      db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(hardPass ? "SEQUENCE_PROOF_REQUIRED" : "MOTION_REPAIR_REQUIRED", authorization.run_id),
+      db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(hardPass ? "SEQUENCE_PROOF_REQUIRED" : "MOTION_REPAIR_REQUIRED", hardPass ? "30_SECOND_SEQUENCE_PROOF_REQUIRED" : "MOTION_PROOF_REPAIR_REQUIRED", hardPass ? `Champion C motion proof passed at ${Number(result.overall)}/100 · 30-second sequence remains locked` : `Champion C motion proof requires bounded repair at ${Number(result.overall)}/100`, now, STAGE_ID),
+    ]);
+    return snapshot();
+  }
+  if (proof.status !== "QA_REQUIRED") throw new Error(`MOTION_QA_NOT_READY · ${clean(proof.status)}`);
+  const evidence = await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND evidence_type='MOTION_PROOF' AND status='TECHNICALLY_VERIFIED'").bind(proof.evidence_id).first<Row>();
+  const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(proof.brief_id).first<Row>();
+  if (!evidence || !briefRow) throw new Error("MOTION_QA_EVIDENCE_MISSING");
+  const evidenceContent = rec(JSON.parse(String(evidence.content_json))), brief = rec(JSON.parse(String(briefRow.content_json))), frames = arr(evidenceContent.frames).map(rec), imageUrls: string[] = [];
+  for (const frame of frames) {
+    const file = await db.prepare("SELECT runtime_key FROM v7_material_files WHERE id=?").bind(frame.fileId).first<Row>(), object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null;
+    if (!object) throw new Error(`MOTION_QA_FRAME_MISSING · ${clean(frame.role)}`);
+    imageUrls.push(`data:image/jpeg;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`);
+  }
+  if (imageUrls.length !== 3) throw new Error("MOTION_QA_FRAME_SET_INCOMPLETE");
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(proof.brief_id), "MOTION_PROOF_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1600, 4000);
+  const content: Row[] = [{ type: "input_text", text: `Judge the three supplied frames sampled at 10%, 50% and 90% from the actual stored WebM motion proof for champion C. They are not planning stills. Verify semantic continuity, factual safety, meaningful transition, mobile legibility and fit to the exact ${Number(proof.duration_seconds).toFixed(2)}-second narration window. The renderer is deterministic, 30fps, silent, and introduces no new text; audio-handoff intent remains metadata and must not be invented from pixels. PASS requires every dimension >=86 and overall >=90. Return only JSON.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, entryState: brief.entryState, motion: brief.motion, exitState: brief.exitState, audioBinding: brief.audioBinding, acceptance: brief.acceptance, startSeconds: briefRow.start_seconds, endSeconds: briefRow.end_seconds })}\n\nTECHNICAL EVIDENCE:\n${JSON.stringify({ renderer: proof.renderer_version, durationSeconds: proof.duration_seconds, fps: proof.fps, motionHash: proof.content_hash, sourceHashes: JSON.parse(String(proof.source_hashes_json)) })}` }];
+  for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 4000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_motion_proof_qa", strict: true, schema: motionQaSchema } } }), signal: AbortSignal.timeout(30000) });
+  if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`MOTION_QA_START_FAILED · ${response.status}`); }
+  const payload = await response.json() as Row;
+  if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("MOTION_QA_PROVIDER_ID_MISSING"); }
+  await db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, new Date().toISOString(), requestId).run();
+  await db.prepare("UPDATE v7_motion_proofs SET status='QA_RUNNING',provider_response_id=?,updated_at=? WHERE id=?").bind(payload.id, new Date().toISOString(), proof.id).run();
+  return snapshot();
+}
+
 async function failMediaJob(request: Request, body: Row) {
   const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
   const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(jobId).first<Row>();
@@ -1067,10 +1220,13 @@ export async function POST(request: Request) {
     if (body.action === "PLAN_ROOT_CAUSE_EXECUTION") return Response.json(await planRootCauseExecution(), { status: 201 });
     if (body.action === "RUN_SOURCE_FRAME_QA") return Response.json(await sourceFrameQa(), { status: 202 });
     if (body.action === "RUN_COMPOSITE_TOURNAMENT") return Response.json(await compositeTournament(), { status: 202 });
+    if (body.action === "PLAN_MOTION_PROOF") return Response.json(await planMotionProof(), { status: 201 });
+    if (body.action === "RUN_MOTION_QA") return Response.json(await motionProofQa(), { status: 202 });
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
     if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);
     if (body.action === "CLAIM_MEDIA_JOB") return await claimMediaJob(request, body);
     if (body.action === "COMPLETE_MEDIA_JOB") return await completeMediaJob(request, body);
+    if (body.action === "COMPLETE_MOTION_PROOF") return await completeMotionProof(request, body);
     if (body.action === "FAIL_MEDIA_JOB") return await failMediaJob(request, body);
     return Response.json({ error: "Unsupported Stage 09 action" }, { status: 400 });
   } catch (error) {
