@@ -853,6 +853,11 @@ async function repairedPilotBrief(db: DB, authorization: Row) {
   return db.prepare("SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 AND status='REPAIR_REQUIRED' ORDER BY start_seconds LIMIT 1").bind(authorization.run_id).first<Row>();
 }
 
+async function claimBriefPhase(db: DB, briefId: string, phase: "MATERIALIZING" | "QA_DISPATCHING") {
+  const result = await db.prepare("UPDATE v7_material_briefs SET status=? WHERE id=? AND status NOT IN ('MATERIALIZING','QA_DISPATCHING')").bind(phase, briefId).run() as { meta?: { changes?: number } };
+  return Number(result.meta?.changes || 0) === 1;
+}
+
 async function upgradeFailedUnitArchitecture() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization || clean(run.status) !== "REPAIR_REQUIRED" || clean(authorization.status) !== "REPAIR_REQUIRED") throw new Error("ARCHITECTURE_REPAIR_STATE_REQUIRED");
@@ -930,25 +935,25 @@ async function stepPilot() {
       } else {
         const file = await db.prepare("SELECT id FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role='PRIMARY'").bind(authorization.id, target.id).first<Row>();
         const audit = await db.prepare("SELECT status FROM v7_material_audits WHERE authorization_id=? AND brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, target.id).first<Row>();
-        if (!file) await materializeOne(env, db, authorization, target);
-        else if (!audit || audit.status === "REPAIR_REQUIRED") await dispatchVision(env, db, authorization, target);
+        if (!file) { if (await claimBriefPhase(db, clean(target.id), "MATERIALIZING")) await materializeOne(env, db, authorization, target); }
+        else if (!audit || audit.status === "REPAIR_REQUIRED") { if (await claimBriefPhase(db, clean(target.id), "QA_DISPATCHING")) await dispatchVision(env, db, authorization, target); }
         else await closeRepairedUnitGate(db, run, authorization, target);
       }
     }
     else if (active) await pollVision(env, db, authorization, active);
     else {
-      const nextMaterial = await db.prepare("SELECT b.* FROM v7_material_briefs b LEFT JOIN v7_material_files f ON f.brief_id=b.id AND f.asset_role='PRIMARY' WHERE b.run_id=? AND b.pilot=1 AND f.id IS NULL ORDER BY b.start_seconds LIMIT 1").bind(run.id).first<Row>();
+      const nextMaterial = await db.prepare("SELECT b.* FROM v7_material_briefs b LEFT JOIN v7_material_files f ON f.brief_id=b.id AND f.asset_role='PRIMARY' WHERE b.run_id=? AND b.pilot=1 AND f.id IS NULL AND b.status NOT IN ('MATERIALIZING','QA_DISPATCHING') ORDER BY b.start_seconds LIMIT 1").bind(run.id).first<Row>();
       if (nextMaterial) {
-        await materializeOne(env, db, authorization, nextMaterial);
+        if (await claimBriefPhase(db, clean(nextMaterial.id), "MATERIALIZING")) await materializeOne(env, db, authorization, nextMaterial);
       }
       else {
-        const nextAudit = await db.prepare("SELECT b.* FROM v7_material_briefs b LEFT JOIN v7_material_audits a ON a.brief_id=b.id WHERE b.run_id=? AND b.pilot=1 AND a.id IS NULL AND b.status<>'REPAIR_REQUIRED' ORDER BY b.start_seconds LIMIT 1").bind(run.id).first<Row>();
-        if (nextAudit) await dispatchVision(env, db, authorization, nextAudit); else await finalizePilot(env, db, authorization);
+        const nextAudit = await db.prepare("SELECT b.* FROM v7_material_briefs b LEFT JOIN v7_material_audits a ON a.brief_id=b.id WHERE b.run_id=? AND b.pilot=1 AND a.id IS NULL AND b.status NOT IN ('REPAIR_REQUIRED','MATERIALIZING','QA_DISPATCHING') ORDER BY b.start_seconds LIMIT 1").bind(run.id).first<Row>();
+        if (nextAudit) { if (await claimBriefPhase(db, clean(nextAudit.id), "QA_DISPATCHING")) await dispatchVision(env, db, authorization, nextAudit); } else await finalizePilot(env, db, authorization);
       }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "PILOT_UNIT_FAILED", now = new Date().toISOString();
-    await db.batch([db.prepare("UPDATE v7_material_runs SET status='REPAIR_REQUIRED' WHERE id=?").bind(run.id), db.prepare("UPDATE v7_material_authorizations SET status='REPAIR_REQUIRED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_stage_states SET status='REPAIR_REQUIRED',blocker='PILOT_UNIT_FAILED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Stored work preserved · ${message}`, now, STAGE_ID)]);
+    await db.batch([db.prepare("UPDATE v7_material_briefs SET status='REPAIR_REQUIRED' WHERE run_id=? AND pilot=1 AND status IN ('MATERIALIZING','QA_DISPATCHING')").bind(run.id), db.prepare("UPDATE v7_material_runs SET status='REPAIR_REQUIRED' WHERE id=?").bind(run.id), db.prepare("UPDATE v7_material_authorizations SET status='REPAIR_REQUIRED',updated_at=? WHERE id=?").bind(now, authorization.id), db.prepare("UPDATE v7_stage_states SET status='REPAIR_REQUIRED',blocker='PILOT_UNIT_FAILED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Stored work preserved · ${message}`, now, STAGE_ID)]);
   }
   await syncRunTotals(db, clean(run.id));
   const materialized = await db.prepare("SELECT COUNT(DISTINCT brief_id) AS total FROM v7_material_files WHERE authorization_id=? AND asset_role='PRIMARY'").bind(authorization.id).first<{ total: number }>(), audited = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_audits WHERE authorization_id=?").bind(authorization.id).first<{ total: number }>();

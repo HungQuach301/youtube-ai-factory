@@ -59,6 +59,13 @@ test("exhausted source search upgrades one unit with durable lineage", () => {
   assert.match(route, /VALUES \(\?,\?,\?,\?,\?,'SOURCE_TO_HYBRID_SPLIT_V1','APPLIED',\?,\?,\?,\?,\?,\?\)/);
 });
 
+test("pilot unit work is protected by an atomic phase claim", () => {
+  assert.match(route, /async function claimBriefPhase/);
+  assert.match(route, /status NOT IN \('MATERIALIZING','QA_DISPATCHING'\)/);
+  assert.match(route, /if \(await claimBriefPhase\(db, clean\(target\.id\), "QA_DISPATCHING"\)\)/);
+  assert.match(route, /status IN \('MATERIALIZING','QA_DISPATCHING'\)/);
+});
+
 test("motion proof state has a durable migration", () => {
   assert.match(migration, /CREATE TABLE `v7_motion_proofs`/);
   assert.match(migration, /`source_hashes_json` text NOT NULL/);
