@@ -264,7 +264,7 @@ async function snapshot() {
                   : motionRightsRepairAvailable ? "MOTION_RIGHTS_EVIDENCE_REPAIR"
                   : motionProof.status === "QA_REQUIRED" ? "MOTION_QA"
                     : motionProof.status === "PASS"
-                      ? clean(run?.status) === "PILOT_PASS" ? "SEQUENCE_PROOF" : clean(authorization?.status) === "AUTHORIZED" ? "PILOT_EXECUTION" : "PILOT_AUTHORIZATION"
+                      ? clean(run?.status) === "REPAIR_REQUIRED" || clean(authorization?.status) === "REPAIR_REQUIRED" ? "PILOT_REPAIR_BLOCKED" : clean(run?.status) === "PILOT_PASS" ? "SEQUENCE_PROOF" : clean(authorization?.status) === "AUTHORIZED" ? "PILOT_EXECUTION" : "PILOT_AUTHORIZATION"
                       : "MOTION_PROOF_BLOCKED"
     : sourceEvidence ? sourceQaActive ? "SOURCE_FRAME_QA_RUNNING" : sourceAudit?.status === "REPAIR_REQUIRED" ? "SOURCE_REPLACEMENT" : "SOURCE_FRAME_QA"
       : Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET) ? executorOnline ? "RUN_SOURCE_FRAME_JOB" : "START_EXECUTOR" : "CONFIGURE_EXECUTOR_SECRET";

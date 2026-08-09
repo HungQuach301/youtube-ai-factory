@@ -217,6 +217,7 @@ export default function MaterialProductionPage() {
         {data.mediaExecution.nextGate === "MOTION_RIGHTS_EVIDENCE_REPAIR" && <button onClick={() => void motionAction("PREPARE_MOTION_RIGHTS_REPAIR")} disabled={Boolean(working)}>{working === "PREPARE_MOTION_RIGHTS_REPAIR" ? "Verifying rights lineage…" : "Attach verified rights bundle · $0"}</button>}
         {data.mediaExecution.nextGate === "PILOT_AUTHORIZATION" && <p className="stateBanner">Champion C motion proof passed. The bounded 10-shot pilot may now be authorized; sequence proof and scale remain locked.</p>}
         {data.mediaExecution.nextGate === "PILOT_EXECUTION" && <p className="stateBanner">The bounded pilot is authorized or running. Sequence proof remains locked until all pilot materials and audits pass.</p>}
+        {data.mediaExecution.nextGate === "PILOT_REPAIR_BLOCKED" && <p className="stateBanner errorState">Pilot repair attempts are exhausted. Later unit audits, sequence proof and scale remain blocked pending a new shot/source contract.</p>}
         {data.mediaExecution.nextGate === "SEQUENCE_PROOF" && <p className="stateBanner">The 10-shot pilot passed. The 30-second sequence proof is now the only open gate; scale remains locked.</p>}
         {data.mediaExecution.nextGate === "COMPOSITE_REPAIR_BLOCKED" && <p className="stateBanner errorState">The authorized delta repair was exhausted. Root-cause review is required; no pilot or scale request can dispatch.</p>}
       </div>

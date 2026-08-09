@@ -87,6 +87,7 @@ test("final composition delta preserves history and exhausts automatic repair", 
   assert.match(route, /qaLayout: "B"/);
   assert.match(route, /noFurtherAutomaticRepair: true/);
   assert.match(route, /SEMANTIC_RENDER_DELTA/);
+  assert.match(route, /"PILOT_REPAIR_BLOCKED"/);
 });
 
 test("motion proof state has a durable migration", () => {
