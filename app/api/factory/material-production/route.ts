@@ -595,7 +595,10 @@ async function materializeOne(env: Env, db: DB, authorization: Row, briefRow: Ro
   if (route === "MAKE") {
     await storeMaterial(env, db, authorization, briefRow, { role: "PRIMARY", bytes: ownedSvg(brief, "PRIMARY"), mimeType: "image/svg+xml", extension: "svg", sourceType: "OWNED_CODE_NATIVE", provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 1920, height: 1080 });
   } else {
-    const discovery = await discoverCandidates(env, db, authorization, briefRow, brief);
+    const architectureRepair = rec(brief.architectureRepair);
+    const discovery = clean(architectureRepair.type) === "SOURCE_TO_HYBRID_SPLIT_V1"
+      ? await discoverCandidates(env, db, authorization, briefRow, brief, { repairAttempt: Number(architectureRepair.discoveryPage || 3) - 1, query: clean(architectureRepair.sourceQuery) })
+      : await discoverCandidates(env, db, authorization, briefRow, brief);
     const candidate = await selectCandidateByPixels(env, db, authorization, briefRow, brief, discovery.candidates, discovery.query, discovery.repairAttempt);
     const requestId = await newRequest(db, authorization, clean(briefRow.id), "DOWNLOAD", candidate.provider.toUpperCase());
     try {
@@ -848,6 +851,45 @@ async function repairedPilotBrief(db: DB, authorization: Row) {
   });
   if (repaired?.brief_id) return db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=? AND pilot=1").bind(repaired.brief_id, authorization.run_id).first<Row>();
   return db.prepare("SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 AND status='REPAIR_REQUIRED' ORDER BY start_seconds LIMIT 1").bind(authorization.run_id).first<Row>();
+}
+
+async function upgradeFailedUnitArchitecture() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || clean(run.status) !== "REPAIR_REQUIRED" || clean(authorization.status) !== "REPAIR_REQUIRED") throw new Error("ARCHITECTURE_REPAIR_STATE_REQUIRED");
+  const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
+  if (active) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const brief = await db.prepare("SELECT b.* FROM v7_material_briefs b JOIN v7_material_tournaments t ON t.brief_id=b.id AND t.authorization_id=? LEFT JOIN v7_material_files f ON f.brief_id=b.id AND f.authorization_id=? AND f.asset_role='PRIMARY' WHERE b.run_id=? AND b.pilot=1 AND t.status='NO_PIXEL_CHAMPION' AND f.id IS NULL ORDER BY t.created_at DESC LIMIT 1").bind(authorization.id, authorization.id, run.id).first<Row>();
+  if (!brief) throw new Error("FAILED_UNMATERIALIZED_UNIT_NOT_FOUND");
+  const tournament = await db.prepare("SELECT * FROM v7_material_tournaments WHERE authorization_id=? AND brief_id=? AND status='NO_PIXEL_CHAMPION' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  const tournamentContent = tournament ? rec(JSON.parse(String(tournament.content_json || "{}"))) : {};
+  if (Number(tournamentContent.repairAttempt || 0) !== 1) throw new Error("BOUNDED_QUERY_REPAIR_MUST_BE_EXHAUSTED_ONCE");
+  const existing = await db.prepare("SELECT id FROM v7_material_unit_repairs WHERE authorization_id=? AND brief_id=? AND repair_type='SOURCE_TO_HYBRID_SPLIT_V1' LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  if (existing) throw new Error("ARCHITECTURE_REPAIR_ALREADY_APPLIED");
+  const original = rec(JSON.parse(String(brief.content_json))), originalHash = clean(brief.content_hash);
+  const repaired = {
+    ...original,
+    route: "HYBRID",
+    primaryFamily: "Hybrid Verification",
+    architectureRepair: {
+      type: "SOURCE_TO_HYBRID_SPLIT_V1",
+      originalRoute: clean(original.route),
+      sourceMustProve: "A customer presents a payment card at a real merchant terminal in a credible checkout context.",
+      authoredLayerMustProve: "A neutral, unbranded confirmation state immediately follows the payment presentation; it must not claim settlement.",
+      sourceQuery: "customer card payment merchant terminal close up",
+      discoveryPage: 3,
+      reason: "Two bounded SOURCE tournaments failed because stock pixels were required to prove both payment presentation and neutral confirmation.",
+    },
+  };
+  const repairedJson = JSON.stringify(repaired), repairedHash = await sha(repairedJson), now = new Date().toISOString(), repairId = `${brief.id}-SOURCE-TO-HYBRID-V1`;
+  await db.batch([
+    db.prepare("INSERT INTO v7_material_unit_repairs (id,program_id,run_id,authorization_id,brief_id,repair_type,status,original_content_json,original_content_hash,repaired_content_json,repaired_content_hash,failure_evidence_json,created_at) VALUES (?,?,?,?,?,'SOURCE_TO_HYBRID_SPLIT_V1','APPLIED',?,?,?,?,?,?,?)").bind(repairId, PROGRAM_ID, run.id, authorization.id, brief.id, JSON.stringify(original), originalHash, repairedJson, repairedHash, JSON.stringify({ tournamentId: tournament?.id, score: Number(tournament?.score || 0), attempts: 2, lastFinding: clean(tournamentContent.bestReason), providerResponseId: tournament?.provider_response_id }), now),
+    db.prepare("UPDATE v7_material_briefs SET route='HYBRID',visual_family='Hybrid Verification',content_json=?,content_hash=?,status='REPAIR_REQUIRED' WHERE id=?").bind(repairedJson, repairedHash, brief.id),
+    db.prepare("UPDATE v7_material_tournaments SET status='SUPERSEDED_BY_ARCHITECTURE_REPAIR' WHERE id=?").bind(tournament?.id),
+    db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='PILOT_REPAIR_RUNNING' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='PILOT_REPAIR_RUNNING',blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(original.briefId)} architecture repair applied · SOURCE split into authentic checkout context + channel-owned neutral verification layer · original hash ${originalHash.slice(0, 12)} preserved`, now, STAGE_ID),
+  ]);
+  return snapshot();
 }
 
 async function closeRepairedUnitGate(db: DB, run: Row, authorization: Row, brief: Row) {
@@ -1315,6 +1357,7 @@ export async function POST(request: Request) {
     if (body.action === "STEP_PILOT") return Response.json(await stepPilot(), { status: 202 });
     if (body.action === "STOP_PILOT") return Response.json(await stopPilot());
     if (body.action === "RESUME_PILOT") return Response.json(await resumePilot(), { status: 202 });
+    if (body.action === "UPGRADE_FAILED_UNIT_ARCHITECTURE") return Response.json(await upgradeFailedUnitArchitecture(), { status: 201 });
     if (body.action === "PLAN_ROOT_CAUSE_EXECUTION") return Response.json(await planRootCauseExecution(), { status: 201 });
     if (body.action === "RUN_SOURCE_FRAME_QA") return Response.json(await sourceFrameQa(), { status: 202 });
     if (body.action === "RUN_COMPOSITE_TOURNAMENT") return Response.json(await compositeTournament(), { status: 202 });

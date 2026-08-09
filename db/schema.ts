@@ -933,3 +933,19 @@ export const v7MotionAudits = sqliteTable("v7_motion_audits", {
   providerResponseId: text("provider_response_id"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const v7MaterialUnitRepairs = sqliteTable("v7_material_unit_repairs", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  authorizationId: text("authorization_id").notNull(),
+  briefId: text("brief_id").notNull(),
+  repairType: text("repair_type").notNull(),
+  status: text("status").notNull(),
+  originalContentJson: text("original_content_json").notNull(),
+  originalContentHash: text("original_content_hash").notNull(),
+  repairedContentJson: text("repaired_content_json").notNull(),
+  repairedContentHash: text("repaired_content_hash").notNull(),
+  failureEvidenceJson: text("failure_evidence_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

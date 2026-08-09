@@ -92,6 +92,16 @@ export default function MaterialProductionPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Pilot execution failed"); }
     finally { setWorking(null); }
   }
+  async function upgradeFailedUnitArchitecture() {
+    setWorking("UPGRADE_FAILED_UNIT_ARCHITECTURE"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "UPGRADE_FAILED_UNIT_ARCHITECTURE" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Failed-unit architecture repair failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Failed-unit architecture repair failed"); }
+    finally { setWorking(null); }
+  }
   async function saveModel() {
     setWorking("SET_MODEL"); setError(null);
     try {
@@ -280,6 +290,7 @@ export default function MaterialProductionPage() {
       {data.run?.status === "PILOT_PAUSED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>Resume from stored evidence</button>}
       {data.run?.status === "PILOT_REPAIR_REVIEW" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>{repairedUnitNeedsPixelQa ? `Run Pixel QA for ${repairedUnit?.briefId} · no later shots` : `Continue pilot after ${repairedUnit?.briefId || "repaired unit"} passed Pixel QA`}</button>}
       {data.run?.status === "REPAIR_REQUIRED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working) || !failedTournament}>{failedTournament ? `Repair ${failedTournament.briefId} only · use fresh candidates` : "Architecture rebuild required before another full-unit request"}</button>}
+      {data.run?.status === "REPAIR_REQUIRED" && failedTournament?.tournament?.repairAttempt === 1 && <button onClick={() => void upgradeFailedUnitArchitecture()} disabled={Boolean(working)}>{working === "UPGRADE_FAILED_UNIT_ARCHITECTURE" ? "Splitting source and authored evidence…" : `Upgrade ${failedTournament.briefId} SOURCE → HYBRID · preserve history`}</button>}
       {data.run?.status === "PILOT_PASS" && <p className="stateBanner">Pilot PASS. Full 166-shot production remains locked pending review.</p>}
       {data.run?.status === "PILOT_REPAIR_REVIEW" && <p className="stateBanner">{repairedUnitNeedsPixelQa ? `${repairedUnit?.briefId} is stored and verified, but acceptance is incomplete. Mandatory Pixel QA must pass before MP-002 can start.` : `${repairedUnit?.briefId || "Repaired unit"} passed stored-file and Pixel QA gates. Later pilot units remain paused until you continue.`}</p>}
       {data.run?.status === "REPAIR_REQUIRED" && <p className="stateBanner errorState">{failedTournament ? `${failedTournament.briefId} stopped at the pixel gate. Best candidate ${failedTournament.tournament?.score || 0}/100; completed work is preserved and full-scale dispatch remains locked.` : "Pilot repair required. No full-scale dispatch is authorized."}</p>}

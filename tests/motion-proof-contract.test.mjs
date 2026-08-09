@@ -50,6 +50,14 @@ test("bounded pilot repair targets the current unmaterialized failure", () => {
   assert.match(route, /status='STORED_VERIFIED'/);
 });
 
+test("exhausted source search upgrades one unit with durable lineage", () => {
+  assert.match(route, /UPGRADE_FAILED_UNIT_ARCHITECTURE/);
+  assert.match(route, /SOURCE_TO_HYBRID_SPLIT_V1/);
+  assert.match(route, /v7_material_unit_repairs/);
+  assert.match(route, /SUPERSEDED_BY_ARCHITECTURE_REPAIR/);
+  assert.match(route, /authoredLayerMustProve/);
+});
+
 test("motion proof state has a durable migration", () => {
   assert.match(migration, /CREATE TABLE `v7_motion_proofs`/);
   assert.match(migration, /`source_hashes_json` text NOT NULL/);
