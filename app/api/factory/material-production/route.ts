@@ -556,7 +556,7 @@ async function reusableFrameSet(db: DB, runId: string, archetype: string) {
     ? [["COMPOSITE_C_ENTRY", "COMPOSITE_C_MIDPOINT", "COMPOSITE_C_EXIT"], ["QA_ENTRY", "QA_MIDPOINT", "QA_EXIT"]]
     : [["SOURCE_ENTRY", "SOURCE_MIDPOINT", "SOURCE_EXIT"]];
   for (const roles of roleSets) {
-    const candidates = await rows(db, `SELECT f.* FROM v7_material_files f JOIN v7_material_briefs b ON b.id=f.brief_id WHERE f.run_id=? AND f.asset_role IN ('${roles.join("','")}') ${archetype === "SOURCE_AUTHORED_HYBRID" ? "AND b.route='HYBRID'" : ""} ORDER BY f.created_at DESC`, runId);
+    const candidates = await rows(db, `SELECT f.* FROM v7_material_files f JOIN v7_material_briefs b ON b.id=f.brief_id WHERE f.run_id=? AND f.asset_role IN ('${roles.join("','")}') ORDER BY f.created_at DESC`, runId);
     const grouped = new Map<string, Row[]>();
     for (const item of candidates) grouped.set(clean(item.brief_id), [...(grouped.get(clean(item.brief_id)) || []), item]);
     const complete = [...grouped.values()].find((items) => roles.every((role) => items.some((item) => clean(item.asset_role) === role)));
