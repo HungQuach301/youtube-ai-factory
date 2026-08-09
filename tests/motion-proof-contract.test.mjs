@@ -153,6 +153,9 @@ test("remaining archetypes certify in risk order with one scoped request at a ti
   assert.match(route, /PORTRAIT_540X960/);
   assert.match(route, /RECONCILED_WATERFALL_V2/);
   assert.match(route, /SIGNED_COMPONENTS/);
+  assert.match(route, /RECONCILE_ARCHETYPE_ATTEMPT_LIMITS/);
+  assert.match(route, /attempt>=2 AND status='REPAIR_REQUIRED'/);
+  assert.match(route, /QUALITY_FLOOR_REDESIGN_REQUIRED/);
   assert.match(route, /reusableFrameSet/);
   assert.match(route, /QA_ENTRY/);
   assert.match(route, /MOTION_ENTRY/);
