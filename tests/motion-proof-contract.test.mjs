@@ -81,6 +81,14 @@ test("incomplete pixel QA gets one lineage-bound ceiling-only retry", () => {
   assert.match(route, /promptChanged: false, pixelsChanged: false/);
 });
 
+test("final composition delta preserves history and exhausts automatic repair", () => {
+  assert.match(route, /REPAIR_FAILED_UNIT_COMPOSITION/);
+  assert.match(route, /DOCUMENTARY_RAIL_LAYOUT_V3/);
+  assert.match(route, /qaLayout: "B"/);
+  assert.match(route, /noFurtherAutomaticRepair: true/);
+  assert.match(route, /SEMANTIC_RENDER_DELTA/);
+});
+
 test("motion proof state has a durable migration", () => {
   assert.match(migration, /CREATE TABLE `v7_motion_proofs`/);
   assert.match(migration, /`source_hashes_json` text NOT NULL/);

@@ -772,7 +772,8 @@ async function dispatchVision(env: Env, db: DB, authorization: Row, briefRow: Ro
     }
     const roles = [["QA_ENTRY",0],["QA_MIDPOINT",1],["QA_EXIT",2]] as const;
     for (const [role,state] of roles) {
-      await storeMaterial(env, db, authorization, briefRow, { role, bytes: ownedPng(brief, state, hybridBackground), mimeType: "image/png", extension: "png", sourceType: hybridBackground ? "HYBRID_AUDIENCE_COMPOSITE_V2" : "OWNED_AUDIENCE_FRAME_EVIDENCE", provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
+      const qaLayout = clean(rec(brief.architectureRepair).qaLayout) === "B" ? "B" : "A";
+      await storeMaterial(env, db, authorization, briefRow, { role, bytes: ownedPng(brief, state, hybridBackground, qaLayout), mimeType: "image/png", extension: "png", sourceType: hybridBackground ? `HYBRID_AUDIENCE_COMPOSITE_V3_${qaLayout}` : "OWNED_AUDIENCE_FRAME_EVIDENCE", provider: "FRAMEFLOW_OWNED", licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
       const proxy = await db.prepare("SELECT * FROM v7_material_files WHERE brief_id=? AND asset_role=?").bind(briefRow.id, role).first<Row>() || undefined;
       if (proxy) { const object = await env.BUCKET?.get(clean(proxy.runtime_key)); if (object) imageUrls.push(`data:image/png;base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`); }
     }
@@ -780,7 +781,7 @@ async function dispatchVision(env: Env, db: DB, authorization: Row, briefRow: Ro
   if (!imageUrls.length) throw new Error("REPRESENTATIVE_PIXEL_EVIDENCE_MISSING");
   const retry = rec(brief.pixelQaRetry), expectedOutputTokens = Number(retry.expectedOutputTokens || 1500), maxOutputTokens = Number(retry.maxOutputTokens || 8000);
   const requestId = await newRequest(db, authorization, clean(briefRow.id), "PIXEL_QA", "OPENAI", setting.modelId, setting.reasoningEffort, expectedOutputTokens, maxOutputTokens);
-  if (clean(retry.scope) === "OUTPUT_CEILING_ONLY" && clean(retry.retryOf)) await db.prepare("UPDATE v7_material_requests SET retry_of=?,retry_scope='OUTPUT_CEILING_ONLY' WHERE id=?").bind(clean(retry.retryOf), requestId).run();
+  if (clean(retry.scope) && clean(retry.retryOf)) await db.prepare("UPDATE v7_material_requests SET retry_of=?,retry_scope=? WHERE id=?").bind(clean(retry.retryOf), clean(retry.scope), requestId).run();
   const content: Row[] = [{ type: "input_text", text: `Act as an exacting visual producer. Judge only the supplied audience-facing material pixels against this frozen shot contract. For HYBRID and authored material, the three images are the actual entry, midpoint and exit composites in that order and must visibly progress; there is no separate planning image. Broad topic similarity is a failure. Penalize generic stock, unsupported claims, decorative diagrams, visible production metadata, weak mobile hierarchy, cropping, logos, text artifacts and repeated-template appearance. A PASS requires every dimension at least 86 and overall at least 90. Do not infer motion that the supplied states do not prove.\n\nSHOT CONTRACT:\n${JSON.stringify({ narrationClause: brief.narrationClause, viewerMustUnderstand: brief.viewerMustUnderstand, route: brief.route, family: brief.primaryFamily, requiredEvidence: brief.requiredEvidence, prohibitedEvidence: brief.prohibitedEvidence, acceptance: brief.acceptance })}` }];
   for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: maxOutputTokens, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_pixel_qa", strict: true, schema: visionSchema } } }), signal: AbortSignal.timeout(30000) });
@@ -946,6 +947,32 @@ async function prepareIncompletePixelQaRetry() {
     db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='PILOT_REPAIR_RUNNING' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='PILOT_REPAIR_RUNNING',blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(content.briefId)} Pixel QA incomplete preserved · one output-ceiling-only retry armed at 16k · prompt and 3 pixel hashes unchanged`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function repairFailedUnitComposition() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || clean(run.status) !== "REPAIR_REQUIRED" || clean(authorization.status) !== "REPAIR_REQUIRED") throw new Error("COMPOSITION_REPAIR_STATE_REQUIRED");
+  const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
+  if (active) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const brief = await db.prepare("SELECT b.* FROM v7_material_briefs b JOIN v7_material_audits a ON a.brief_id=b.id AND a.authorization_id=? WHERE b.run_id=? AND b.pilot=1 AND a.status='REPAIR_REQUIRED' AND a.score>=42 AND b.content_json LIKE '%SEMANTIC_STATE_RENDERER_V2%' ORDER BY a.created_at DESC LIMIT 1").bind(authorization.id, run.id).first<Row>();
+  if (!brief) throw new Error("FAILED_SEMANTIC_COMPOSITION_UNIT_NOT_FOUND");
+  const prior = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND status='REPAIR_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  const existing = await db.prepare("SELECT id FROM v7_material_unit_repairs WHERE authorization_id=? AND brief_id=? AND repair_type='DOCUMENTARY_RAIL_LAYOUT_V3' LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  if (existing) throw new Error("FINAL_COMPOSITION_REPAIR_ALREADY_USED");
+  const lastQa = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND brief_id=? AND phase='PIXEL_QA' AND status='COMPLETE' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id).first<Row>();
+  if (!lastQa) throw new Error("PRIOR_COMPLETE_PIXEL_QA_REQUIRED");
+  const frames = await rows(db, "SELECT id,asset_role,content_hash FROM v7_material_files WHERE authorization_id=? AND brief_id=? AND asset_role IN ('QA_ENTRY','QA_MIDPOINT','QA_EXIT') ORDER BY asset_role", authorization.id, brief.id);
+  if (frames.length !== 3) throw new Error("PRIOR_COMPOSITION_FRAME_SET_INCOMPLETE");
+  const originalJson = JSON.stringify({ frames: frames.map((frame) => ({ id: frame.id, role: frame.asset_role, sha256: frame.content_hash })), audit: prior, request: { id: lastQa.id, providerResponseId: lastQa.provider_response_id, actualCostUsd: lastQa.actual_cost_usd } }), originalHash = await sha(originalJson);
+  const content = rec(JSON.parse(String(brief.content_json))), delta = { version: "DOCUMENTARY_RAIL_LAYOUT_V3", qaLayout: "B", preservesSourceChampion: true, removesHardcodedLeftPanelState: true, maximumQualityAttempts: 3, noFurtherAutomaticRepair: true }, repaired = { ...content, architectureRepair: { ...rec(content.architectureRepair), qaLayout: "B", compositionDelta: delta }, pixelQaRetry: { version: "SEMANTIC_RENDER_DELTA_V3", retryOf: lastQa.id, expectedOutputTokens: 1500, maxOutputTokens: 16000, scope: "SEMANTIC_RENDER_DELTA", promptChanged: false, pixelsChanged: true } }, repairedJson = JSON.stringify(repaired), repairedHash = await sha(repairedJson), deltaJson = JSON.stringify(delta), deltaHash = await sha(deltaJson), now = new Date().toISOString();
+  await db.batch([
+    db.prepare("INSERT INTO v7_material_unit_repairs (id,program_id,run_id,authorization_id,brief_id,repair_type,status,original_content_json,original_content_hash,repaired_content_json,repaired_content_hash,failure_evidence_json,created_at) VALUES (?,?,?,?,?,'DOCUMENTARY_RAIL_LAYOUT_V3','APPLIED',?,?,?,?,?,?)").bind(`${brief.id}-DOCUMENTARY-RAIL-V3`, PROGRAM_ID, run.id, authorization.id, brief.id, originalJson, originalHash, deltaJson, deltaHash, JSON.stringify({ priorAuditId: prior?.id, priorScore: Number(prior?.score || 0), findings: JSON.parse(String(prior?.findings_json || "[]")), providerResponseId: prior?.provider_response_id }), now),
+    db.prepare("UPDATE v7_material_briefs SET content_json=?,content_hash=?,status='REPAIR_REQUIRED' WHERE id=?").bind(repairedJson, repairedHash, brief.id),
+    db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='PILOT_REPAIR_RUNNING' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='PILOT_REPAIR_RUNNING',blocker=NULL,evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(content.briefId)} final composition delta armed · documentary rail layout B · prior QA ${Number(prior?.score || 0)}/100 and frame hashes preserved · no further automatic repair`, now, STAGE_ID),
   ]);
   return snapshot();
 }
@@ -1418,6 +1445,7 @@ export async function POST(request: Request) {
     if (body.action === "UPGRADE_FAILED_UNIT_ARCHITECTURE") return Response.json(await upgradeFailedUnitArchitecture(), { status: 201 });
     if (body.action === "REPAIR_FAILED_UNIT_RENDERER") return Response.json(await repairFailedUnitRenderer(), { status: 201 });
     if (body.action === "PREPARE_INCOMPLETE_PIXEL_QA_RETRY") return Response.json(await prepareIncompletePixelQaRetry(), { status: 201 });
+    if (body.action === "REPAIR_FAILED_UNIT_COMPOSITION") return Response.json(await repairFailedUnitComposition(), { status: 201 });
     if (body.action === "PLAN_ROOT_CAUSE_EXECUTION") return Response.json(await planRootCauseExecution(), { status: 201 });
     if (body.action === "RUN_SOURCE_FRAME_QA") return Response.json(await sourceFrameQa(), { status: 202 });
     if (body.action === "RUN_COMPOSITE_TOURNAMENT") return Response.json(await compositeTournament(), { status: 202 });
