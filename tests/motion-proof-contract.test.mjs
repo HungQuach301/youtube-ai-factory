@@ -361,7 +361,7 @@ test("Release Train seals MP-001, batches zero-spend G0/G1 and opens only MP-002
   assert.match(page, /Build Release Train G0\/G1 · \$0/);
   assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
   assert.match(page, /Run request 84 · MP-002 Sequence Proof · max \$1/);
-  assert.match(page, /Run MP-003–MP-010 bounded batch/);
+  assert.match(page, /Run remaining canonical pilot batch/);
   assert.match(page, /data\.authorization\?\.modelPolicy\.batchAuthorized !== true/);
 });
 
@@ -391,7 +391,9 @@ test("Stabilization Release enforces typed scope, canonical rehearsal and legacy
   assert.match(route, /PRODUCTION_SCENE_RENDERER_V3_STABILIZED/);
   assert.match(route, /SHOT_CONTRACT_PIXEL_QA_V3/);
   assert.match(route, /SEALED_RELEASE_SET = \["MP-001"\]/);
-  assert.match(route, /ACTIVE_RELEASE_SET = \["MP-002", "MP-003", "MP-004", "MP-005", "MP-006", "MP-007", "MP-008", "MP-009", "MP-010"\]/);
+  assert.match(route, /deriveCanonicalPilotManifest/);
+  assert.match(route, /canonicalPilotManifestHash/);
+  assert.doesNotMatch(route, /const ACTIVE_RELEASE_SET =/);
   assert.match(route, /STABILIZATION_RELEASE_SET_INTERSECTION/);
   assert.match(route, /STABILIZATION_TYPED_ACTIVE_SET_INVALID/);
   assert.match(route, /STABILIZATION_SEALED_UNIT_ENTERED_ACTIVE_RENDERER/);
@@ -404,5 +406,7 @@ test("Stabilization Release enforces typed scope, canonical rehearsal and legacy
   assert.match(route, /LEGACY_ACTION_UNREACHABLE_AFTER_STABILIZATION/);
   assert.match(route, /autoAdvance: false/);
   assert.match(route, /BUILD_STABILIZATION_RELEASE/);
+  assert.match(route, /persistStabilizationTerminalFailure/);
+  assert.match(route, /STABILIZATION_TERMINAL_FAIL/);
   assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
 });
