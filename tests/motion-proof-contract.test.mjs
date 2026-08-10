@@ -520,4 +520,9 @@ test("integrated sequence production creates PRODUCT_COMPLETE before independent
   assert.doesNotMatch(route, /contract_json LIKE/);
   assert.match(page, /Produce Sequence V2 · \$0/);
   assert.match(page, /QA is one independent audit only after PRODUCT_COMPLETE/);
+  assert.match(route, /SEQUENCE_PRODUCT_INDEPENDENT_AUDIT_V1/);
+  assert.match(route, /SEQUENCE_PRODUCT_AUDIT_FIREWALL/);
+  assert.match(route, /COMPOSER_VERSION_REJECTED_BY_INDEPENDENT_AUDIT/);
+  assert.match(route, /production loop closed/);
+  assert.match(page, /Run independent audit · request 105/);
 });

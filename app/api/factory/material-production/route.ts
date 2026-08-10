@@ -17,6 +17,7 @@ const MOTION_QA_RUBRIC = "MOTION_PROOF_QA_V1";
 const MOTION_RIGHTS_BUNDLE_VERSION = "MOTION_RIGHTS_BUNDLE_V1";
 const SEQUENCE_RENDERER_VERSION = "CANONICAL_10MP_SEQUENCE_V1";
 const SEQUENCE_QA_RUBRIC = "30_SECOND_SEQUENCE_QA_V1";
+const SEQUENCE_PRODUCT_AUDIT_RUBRIC = "SEQUENCE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const INTEGRATED_SEQUENCE_COMPOSER_VERSION = "INTEGRATED_SEQUENCE_COMPOSER_V2_1_TIMEBASE_SAFE";
 const SEQUENCE_SPECIFICATION_VERSION = "SEQUENCE_PRODUCT_SPECIFICATION_V2_1";
 const SEQUENCE_PRODUCTION_DOD_VERSION = "SEQUENCE_PRODUCT_DOD_V1";
@@ -151,6 +152,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_motion_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,proof_id text NOT NULL,rubric_version text NOT NULL,attempt integer NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,evidence_bundle_json text DEFAULT '{}' NOT NULL,evidence_bundle_hash text NOT NULL,request_id text,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_sequence_proofs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,canary_id text NOT NULL,version text NOT NULL,status text NOT NULL,sequence_file_id text,evidence_id text,source_manifest_json text NOT NULL,duration_seconds real DEFAULT 30 NOT NULL,fps integer DEFAULT 30 NOT NULL,unit_count integer DEFAULT 10 NOT NULL,frame_count integer DEFAULT 30 NOT NULL,score integer DEFAULT 0 NOT NULL,tier text DEFAULT 'BLOCKED' NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,provider_response_id text,request_id text,content_hash text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_sequence_products (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,canary_id text NOT NULL,source_proof_id text NOT NULL,composer_version text NOT NULL,status text NOT NULL,specification_json text NOT NULL,specification_hash text NOT NULL,source_manifest_hash text NOT NULL,iteration integer DEFAULT 0 NOT NULL,max_iterations integer DEFAULT 3 NOT NULL,product_file_id text,evidence_id text,measurements_json text DEFAULT '{}' NOT NULL,corrections_json text DEFAULT '[]' NOT NULL,content_hash text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_sequence_product_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,product_id text NOT NULL,rubric_version text NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,tier text DEFAULT 'BLOCKED' NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,request_id text,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_architecture_baselines (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,version text NOT NULL,status text NOT NULL,execution_state text NOT NULL,source_checkpoint text NOT NULL,controls_json text NOT NULL,qualification_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,frozen_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_compiled_shot_contracts (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,brief_id text NOT NULL,archetype text NOT NULL,risk_tier text NOT NULL,claim text NOT NULL,required_evidence_json text NOT NULL,allowed_modalities_json text NOT NULL,forbidden_json text NOT NULL,repair_route text NOT NULL,lint_status text NOT NULL,lint_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
@@ -327,6 +329,7 @@ async function snapshot() {
   const sequenceEvidence = sequenceProof?.evidence_id ? await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND evidence_type='SEQUENCE_PROOF'").bind(sequenceProof.evidence_id).first<Row>() : null;
   const sequenceProduct = authorization ? await db.prepare("SELECT * FROM v7_sequence_products WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>() : null;
   const sequenceProductEvidence = sequenceProduct?.evidence_id ? await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND evidence_type='SEQUENCE_PRODUCT'").bind(sequenceProduct.evidence_id).first<Row>() : null;
+  const sequenceProductAudit = sequenceProduct ? await db.prepare("SELECT * FROM v7_sequence_product_audits WHERE product_id=? ORDER BY created_at DESC LIMIT 1").bind(sequenceProduct.id).first<Row>() : null;
   const reliabilityBaseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   const compiledContracts = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=? ORDER BY brief_id", reliabilityBaseline.id) : [];
   const archetypeQualifications = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_qualifications WHERE baseline_id=? ORDER BY archetype", reliabilityBaseline.id) : [];
@@ -413,7 +416,7 @@ async function snapshot() {
     pilot: { materialized: uniqueMaterialized, audited: audits.filter((item) => ["PASS", "REPAIR_REQUIRED"].includes(String(item.status))).length, total: pilotBriefs.length, percent: pilotBriefs.length ? Math.round((uniqueMaterialized + audits.length) / (pilotBriefs.length * 2) * 100) : 0, items },
     requestLedger: { total: requestRows.length, planned: requestRows.filter((row) => row.status === "PLANNED").length, active: requestRows.filter((row) => ["QUEUED", "IN_PROGRESS"].includes(String(row.status))).length, complete: requestRows.filter((row) => row.status === "COMPLETE").length, incomplete: requestRows.filter((row) => row.status === "BLOCKED_INCOMPLETE").length, actualCostUsd: requestRows.reduce((sum, row) => sum + Number(row.actual_cost_usd || 0), 0), recent: requestRows.slice(0, 20).map((row) => ({ id: row.id, briefId: row.brief_id, phase: row.phase, provider: row.provider, modelId: row.model_id, status: row.status, inputTokens: Number(row.input_tokens), outputTokens: Number(row.output_tokens), reasoningTokens: Number(row.reasoning_tokens), actualCostUsd: Number(row.actual_cost_usd), error: row.error, createdAt: row.created_at })) },
     sequenceProof: sequenceProof ? { id: sequenceProof.id, status: sequenceProof.status, version: sequenceProof.version, durationSeconds: Number(sequenceProof.duration_seconds), fps: Number(sequenceProof.fps), unitCount: Number(sequenceProof.unit_count), frameCount: Number(sequenceProof.frame_count), score: Number(sequenceProof.score), tier: clean(sequenceProof.tier) || "BLOCKED", dimensions: rec(JSON.parse(String(sequenceProof.dimensions_json || "{}"))), findings: arr(JSON.parse(String(sequenceProof.findings_json || "[]"))), previewUrl: sequenceProof.sequence_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(sequenceProof.sequence_file_id))}` : null, sampleFrames: arr(sequenceContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), logicalId: clean(frame.logicalId), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })), providerResponseId: sequenceProof.provider_response_id || null, createdAt: sequenceProof.created_at, updatedAt: sequenceProof.updated_at } : null,
-    sequenceProduct: sequenceProduct ? { id: sequenceProduct.id, status: sequenceProduct.status, composerVersion: sequenceProduct.composer_version, iteration: Number(sequenceProduct.iteration), maxIterations: Number(sequenceProduct.max_iterations), specification: rec(JSON.parse(String(sequenceProduct.specification_json || "{}"))), specificationHash: clean(sequenceProduct.specification_hash), sourceManifestHash: clean(sequenceProduct.source_manifest_hash), measurements: rec(JSON.parse(String(sequenceProduct.measurements_json || "{}"))), corrections: arr(JSON.parse(String(sequenceProduct.corrections_json || "[]"))), contentHash: sequenceProduct.content_hash || null, previewUrl: sequenceProduct.product_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(sequenceProduct.product_file_id))}` : null, sampleFrames: arr(sequenceProductContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), logicalId: clean(frame.logicalId), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })), completedAt: sequenceProduct.completed_at || null, createdAt: sequenceProduct.created_at, updatedAt: sequenceProduct.updated_at } : null,
+    sequenceProduct: sequenceProduct ? { id: sequenceProduct.id, status: sequenceProduct.status, composerVersion: sequenceProduct.composer_version, iteration: Number(sequenceProduct.iteration), maxIterations: Number(sequenceProduct.max_iterations), specification: rec(JSON.parse(String(sequenceProduct.specification_json || "{}"))), specificationHash: clean(sequenceProduct.specification_hash), sourceManifestHash: clean(sequenceProduct.source_manifest_hash), measurements: rec(JSON.parse(String(sequenceProduct.measurements_json || "{}"))), corrections: arr(JSON.parse(String(sequenceProduct.corrections_json || "[]"))), contentHash: sequenceProduct.content_hash || null, previewUrl: sequenceProduct.product_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(sequenceProduct.product_file_id))}` : null, sampleFrames: arr(sequenceProductContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), logicalId: clean(frame.logicalId), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })), audit: sequenceProductAudit ? { id: sequenceProductAudit.id, rubric: sequenceProductAudit.rubric_version, status: sequenceProductAudit.status, score: Number(sequenceProductAudit.score), tier: clean(sequenceProductAudit.tier), dimensions: rec(JSON.parse(String(sequenceProductAudit.dimensions_json || "{}"))), findings: arr(JSON.parse(String(sequenceProductAudit.findings_json || "[]"))), requestId: sequenceProductAudit.request_id || null, providerResponseId: sequenceProductAudit.provider_response_id || null, createdAt: sequenceProductAudit.created_at, completedAt: sequenceProductAudit.completed_at || null } : null, completedAt: sequenceProduct.completed_at || null, createdAt: sequenceProduct.created_at, updatedAt: sequenceProduct.updated_at } : null,
     mediaExecution: {
       configured: Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET),
       executor: executor ? { id: executor.id, status: executorOnline ? "ONLINE" : "OFFLINE", version: executor.version, lastSeenAt: executor.last_seen_at, capabilities: JSON.parse(String(executor.capabilities_json || "[]")) } : null,
@@ -2574,6 +2577,7 @@ async function setModel(modelId: string, reasoningEffort: string) {
 async function newRequest(db: DB, authorization: Row, briefId: string, phase: string, provider: string, modelId = "none", reasoning = "none", expected = 0, maximum = 0) {
   const baseline = await db.prepare("SELECT execution_state FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   let sequenceQaAuthorized = false;
+  let productAuditAuthorized = false;
   let sequenceQaDiagnostic = "not-evaluated";
   if (phase === "SEQUENCE_PROOF_QA" && briefId === "SEQUENCE-10MP") {
     const proof = await db.prepare("SELECT canary_id,status,unit_count,frame_count FROM v7_sequence_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
@@ -2588,8 +2592,21 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
     sequenceQaDiagnostic = `canary=${clean(canary?.status) || "missing"};passed=${Number(canary?.passed_units || 0)};proof=${clean(proof?.status) || "missing"};units=${Number(proof?.unit_count || 0)};frames=${Number(proof?.frame_count || 0)};lineage=${Boolean(canary && proof && clean(proof.canary_id) === clean(canary.id))}`;
     if (!sequenceQaAuthorized) throw new Error(`SEQUENCE_QA_DISPATCH_FIREWALL · ${sequenceQaDiagnostic}`);
   }
-  if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
-  if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized) {
+  if (phase === "SEQUENCE_PRODUCT_AUDIT" && briefId === "SEQUENCE-PRODUCT-V2") {
+    const product = await db.prepare("SELECT id,status,evidence_id,product_file_id,iteration,max_iterations FROM v7_sequence_products WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+    const evidence = product?.evidence_id ? await db.prepare("SELECT status FROM v7_media_evidence WHERE id=? AND evidence_type='SEQUENCE_PRODUCT'").bind(product.evidence_id).first<Row>() : null;
+    const prior = product ? await db.prepare("SELECT COUNT(*) AS total FROM v7_sequence_product_audits WHERE product_id=?").bind(product.id).first<{ total: number }>() : null;
+    productAuditAuthorized = Boolean(product && evidence)
+      && clean(product?.status) === "PRODUCT_COMPLETE"
+      && clean(evidence?.status) === "PRODUCT_COMPLETE"
+      && Boolean(product?.product_file_id)
+      && Number(product?.iteration) > 0
+      && Number(product?.iteration) <= Number(product?.max_iterations)
+      && Number(prior?.total || 0) === 0;
+    if (!productAuditAuthorized) throw new Error("SEQUENCE_PRODUCT_AUDIT_FIREWALL · PRODUCT_COMPLETE with exact stored evidence and zero prior audits is required");
+  }
+  if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
+  if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized) {
     const canary = await db.prepare("SELECT status,current_brief_id,version,queue_json,current_index FROM v7_pilot_canaries WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>(), capability = canaryDispatchCapability(canary?.version), policy = rec(JSON.parse(String(authorization.model_policy_json || "{}"))), queue = canary ? arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec) : [], current = queue[Number(canary?.current_index || 0)];
     const versionBound = Boolean(canary) && clean(policy.version) === clean(canary?.version), phaseBound = Boolean(capability) && capability?.phase === phase, queueBound = !clean(current?.dispatchCapability) || clean(current?.dispatchCapability) === phase;
     if (!canary || clean(canary.status) !== "UNIT_RUNNING" || clean(canary.current_brief_id) !== clean(briefId) || !versionBound || !phaseBound || !queueBound) throw new Error("CANARY_DISPATCH_FIREWALL · leased unit, canary version and dispatch capability must be congruent");
@@ -3778,6 +3795,70 @@ async function sequenceProofQa() {
   return snapshot();
 }
 
+async function sequenceProductAudit() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("SEQUENCE_PRODUCT_AUDIT_CONFIGURATION_REQUIRED");
+  const product = await db.prepare("SELECT * FROM v7_sequence_products WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!product || !["PRODUCT_COMPLETE", "RELEASED"].includes(clean(product.status))) throw new Error("SEQUENCE_PRODUCT_NOT_COMPLETE");
+  if (clean(product.status) === "RELEASED") return snapshot();
+  const audit = await db.prepare("SELECT * FROM v7_sequence_product_audits WHERE product_id=? ORDER BY created_at DESC LIMIT 1").bind(product.id).first<Row>();
+  const active = audit?.request_id ? await db.prepare("SELECT * FROM v7_material_requests WHERE id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(audit.request_id).first<Row>() : null;
+  if (active) {
+    const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(active.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`SEQUENCE_PRODUCT_AUDIT_STATUS_FAILED · ${response.status}`);
+    const payload = await response.json() as Row, providerStatus = clean(payload.status), now = new Date().toISOString();
+    if (["queued", "in_progress"].includes(providerStatus)) { await db.prepare("UPDATE v7_material_requests SET status=?,updated_at=? WHERE id=?").bind(providerStatus.toUpperCase(), now, active.id).run(); return snapshot(); }
+    const usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: run.id, stageKey: STAGE, costType: "SEQUENCE_PRODUCT_AUDIT", payload, fallbackModel: clean(active.model_id) || DEFAULT_MODEL });
+    if (providerStatus !== "completed") {
+      await db.batch([
+        db.prepare("UPDATE v7_material_requests SET status='FAILED',error=?,updated_at=? WHERE id=?").bind(clean(payload.error) || `PROVIDER_${providerStatus}`, now, active.id),
+        db.prepare("UPDATE v7_sequence_product_audits SET status='INCOMPLETE',provider_response_id=?,updated_at=?,completed_at=? WHERE id=?").bind(payload.id || active.provider_response_id, now, now, audit.id),
+        db.prepare("UPDATE v7_stage_states SET status='PRODUCT_AUDIT_INCOMPLETE',blocker='INDEPENDENT_AUDIT_INCOMPLETE_NO_RETRY',evidence_summary='PRODUCT_COMPLETE preserved · independent audit incomplete · no automatic retry · scale locked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+      ]);
+      return snapshot();
+    }
+    const result = JSON.parse(output(payload)) as Row, findings = arr(result.findings).map(rec), dimensions = { semanticFit: Number(result.semanticContinuity), visualVariety: Number(result.visualVariety), rhythm: Number(result.rhythm), mobileLegibility: Number(result.mobileLegibility), factualSafety: Number(result.factualSafety) };
+    const release = evaluateControlledRelease({ overall: Number(result.overall), dimensions: { semanticFit: dimensions.semanticFit, factualSafety: dimensions.factualSafety, composition: dimensions.visualVariety, mobileLegibility: dimensions.mobileLegibility, authenticity: dimensions.rhythm }, defects: findings });
+    const passed = ["STANDARD", "CONTROLLED"].includes(release.tier) && result.decision === "PASS", status = passed ? "PASS" : "REJECTED";
+    await db.batch([
+      db.prepare("UPDATE v7_material_requests SET status='COMPLETE',input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,updated_at=? WHERE id=?").bind(Number(usage.inputTokens || 0), Number(usage.outputTokens || 0), Number(usage.reasoningTokens || 0), Number(usage.actualUsd || 0), now, active.id),
+      db.prepare("UPDATE v7_sequence_product_audits SET status=?,score=?,tier=?,dimensions_json=?,findings_json=?,provider_response_id=?,updated_at=?,completed_at=? WHERE id=?").bind(status, Number(result.overall), release.tier, JSON.stringify(dimensions), JSON.stringify(findings), payload.id, now, now, audit.id),
+      db.prepare("UPDATE v7_sequence_products SET status=?,updated_at=? WHERE id=?").bind(passed ? "RELEASED" : "PRODUCT_COMPLETE", now, product.id),
+      db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(passed ? "RELEASED" : "PRODUCT_AUDIT_REJECTED", passed ? "CONTROLLED_SCALE_AUTHORIZATION_REQUIRED" : "COMPOSER_VERSION_REJECTED_BY_INDEPENDENT_AUDIT", passed ? `Product V2 independently audited PASS ${Number(result.overall)}/100 · ${release.tier} · released · scale awaits explicit authorization` : `Product V2 independent audit REJECTED ${Number(result.overall)}/100 · ${release.tier} · composer version rejected · no repair loop · scale locked`, now, STAGE_ID),
+    ]);
+    return snapshot();
+  }
+  if (audit) throw new Error(`SEQUENCE_PRODUCT_AUDIT_ALREADY_TERMINAL · ${clean(audit.status)}`);
+  const evidence = await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND evidence_type='SEQUENCE_PRODUCT' AND status='PRODUCT_COMPLETE'").bind(product.evidence_id).first<Row>();
+  if (!evidence) throw new Error("SEQUENCE_PRODUCT_EVIDENCE_MISSING");
+  const content = rec(JSON.parse(String(evidence.content_json || "{}"))), frames = arr(content.frames).map(rec), imageUrls: string[] = [];
+  if (frames.length !== 10) throw new Error(`SEQUENCE_PRODUCT_SAMPLE_SET_INCOMPLETE · ${frames.length}/10`);
+  for (const frame of frames) {
+    const file = await db.prepare("SELECT runtime_key,mime_type FROM v7_material_files WHERE id=?").bind(frame.fileId).first<Row>(), object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null;
+    if (!object) throw new Error(`SEQUENCE_PRODUCT_SAMPLE_MISSING · ${clean(frame.logicalId)}`);
+    imageUrls.push(`data:${clean(file?.mime_type)};base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`);
+  }
+  const used = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number }>(), usedRequests = Number(used?.total || 0), authorizedRequests = Number(authorization.max_remote_requests || 0);
+  if (usedRequests === authorizedRequests) {
+    const extension = await db.prepare("UPDATE v7_material_authorizations SET max_remote_requests=?,updated_at=? WHERE id=? AND max_remote_requests=?").bind(usedRequests + 1, new Date().toISOString(), authorization.id, authorizedRequests).run();
+    if (Number(extension.meta?.changes || 0) !== 1) throw new Error("SEQUENCE_PRODUCT_AUDIT_EXACT_ONE_REQUEST_EXTENSION_CONFLICT");
+    authorization.max_remote_requests = usedRequests + 1;
+  }
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, "SEQUENCE-PRODUCT-V2", "SEQUENCE_PRODUCT_AUDIT", "OPENAI", setting.modelId, setting.reasoningEffort, 1800, 4000), auditId = `${clean(product.id)}-AUDIT-1`, now = new Date().toISOString(), specification = rec(JSON.parse(String(product.specification_json || "{}"))), measurements = rec(JSON.parse(String(product.measurements_json || "{}")));
+  const prompt: Row[] = [{ type: "input_text", text: `Perform ${SEQUENCE_PRODUCT_AUDIT_RUBRIC} as one independent release audit of a product already declared PRODUCT_COMPLETE by production. The ten images are ordered midpoint samples decoded from the stored 30-second WebM. Audit the audience experience: semantic continuity, visual variety, rhythm, mobile legibility and factual safety. Do not instruct routine repairs and do not act as a production loop. If a deterministic defect escaped production, classify it as a composer capability regression in exactRepair. Apply CONTROLLED_RELEASE_GATE_V1: STANDARD overall >=92 and all dimensions >=90 with no P0/P1; CONTROLLED overall >=88, semanticContinuity >=82, every other dimension >=88, no P0, no semantic P1, and at most one presentation P1. Return only JSON.\n\nPRODUCT SPECIFICATION:\n${JSON.stringify({ version: specification.version, order: rec(specification.narrative).order, continuityEdges: arr(rec(specification.narrative).continuityEdges), mobile: specification.mobile, noRegeneration: rec(specification.composition).noRegeneration, noNewClaims: rec(specification.composition).noNewClaims })}\n\nPRODUCTION DEFINITION OF DONE EVIDENCE:\n${JSON.stringify(measurements)}` }];
+  for (const imageUrl of imageUrls) prompt.push({ type: "input_image", image_url: imageUrl, detail: "high" });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 4000, input: [{ role: "user", content: prompt }], text: { format: { type: "json_schema", name: "stage09_sequence_product_audit", strict: true, schema: sequenceQaSchema } } }), signal: AbortSignal.timeout(30000) });
+  if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`SEQUENCE_PRODUCT_AUDIT_START_FAILED · ${response.status}`); }
+  const payload = await response.json() as Row;
+  if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("SEQUENCE_PRODUCT_AUDIT_PROVIDER_ID_MISSING"); }
+  await db.batch([
+    db.prepare("INSERT INTO v7_sequence_product_audits (id,program_id,run_id,authorization_id,product_id,rubric_version,status,request_id,provider_response_id,created_at,updated_at) VALUES (?,?,?,?,?,?,'RUNNING',?,?,?,?,?)").bind(auditId, PROGRAM_ID, run.id, authorization.id, product.id, SEQUENCE_PRODUCT_AUDIT_RUBRIC, requestId, payload.id, now, now),
+    db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, now, requestId),
+    db.prepare("UPDATE v7_stage_states SET status='PRODUCT_AUDIT_RUNNING',blocker='INDEPENDENT_AUDIT_RUNNING',evidence_summary='PRODUCT_COMPLETE preserved · one independent audit request running · production loop closed · scale locked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
 async function planMotionProof() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("MOTION_PROOF_RUN_REQUIRED");
@@ -4258,6 +4339,7 @@ export async function POST(request: Request) {
     if (body.action === "RUN_MOTION_QA") return Response.json(await motionProofQa(), { status: 202 });
     if (body.action === "PLAN_SEQUENCE_PROOF") return Response.json(await planSequenceProof(), { status: 201 });
     if (body.action === "PRODUCE_INTEGRATED_SEQUENCE") return Response.json(await produceIntegratedSequence(), { status: 201 });
+    if (body.action === "RUN_SEQUENCE_PRODUCT_AUDIT") return Response.json(await sequenceProductAudit(), { status: 202 });
     if (body.action === "RUN_SEQUENCE_QA") return Response.json(await sequenceProofQa(), { status: 202 });
     if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
