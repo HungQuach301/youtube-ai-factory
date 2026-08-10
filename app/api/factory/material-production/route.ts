@@ -37,8 +37,8 @@ const MP002_TARGETED_REPAIR_VERSION = "MP002_TARGETED_REPAIR_V1";
 const MP002_TARGETED_REPAIR_RENDERER = "PRODUCTION_SCENE_RENDERER_V4_MP002_TARGETED_REPAIR";
 const MP002_PIXEL_ORACLE_REPAIR_VERSION = "MP002_PIXEL_ORACLE_REPAIR_V2";
 const MP002_PIXEL_ORACLE_REPAIR_RENDERER = "PRODUCTION_SCENE_RENDERER_V5_PIXEL_ORACLE";
-const CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V7";
-const CANONICAL_UNIT_SCENES_RENDERER = "PRODUCTION_SCENE_RENDERER_V11_AUTHORIZATION_SHUTTERS";
+const CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V8";
+const CANONICAL_UNIT_SCENES_RENDERER = "PRODUCTION_SCENE_RENDERER_V12_INCIDENCE_QUESTION_PATH";
 const SEALED_RELEASE_SET = ["MP-001"] as const;
 const LEGACY_CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
 const PROMOTION_REGRESSION_VERSION = "PROMOTION_BINDING_REGRESSION_V1";
@@ -1510,10 +1510,10 @@ function canonicalUnitScene(logicalId: string, evidence: string[], contract: Row
       {role:"EXIT",sceneLabel:"ISOLATED AUTHORIZATION",primary:"MERCHANT TERMINAL",secondary:"ACTIVE",sceneDelta:"TERMINAL_ACTIVE"},
     ], requiredTokens:[["SHUTTERS","MERCHANT","ACQUIRER","NETWORK","ISSUER"],["AUTHORIZATION","CHECKOUT","LOCKED"],["AUTHORIZATION","MERCHANT TERMINAL","ACTIVE"]] },
     "MP-115": { sceneType:"INCIDENCE_GAP", states:[
-      {role:"ENTRY",sceneLabel:"BILLING RECORD",primary:"BILLED MERCHANT",secondary:"VISIBLE",sceneDelta:"MERCHANT_NAMED"},
-      {role:"MIDPOINT",sceneLabel:"DOWNSTREAM",primary:"WHO PAYS?",secondary:"UNRESOLVED",sceneDelta:"GAP_OPENS"},
-      {role:"EXIT",sceneLabel:"NO PAYER VERDICT",primary:"BILLED MERCHANT",secondary:"INCIDENCE UNRESOLVED",sceneDelta:"UNCERTAINTY_HOLDS"},
-    ], requiredTokens:[["BILLED MERCHANT"],["WHO PAYS","UNRESOLVED"],["BILLED MERCHANT","UNRESOLVED"]] },
+      {role:"ENTRY",sceneLabel:"INITIAL BILL",primary:"BILLED MERCHANT",secondary:"VISIBLE",sceneDelta:"MERCHANT_NAMED"},
+      {role:"MIDPOINT",sceneLabel:"QUESTION PATH",primary:"FINAL ECONOMIC COST",secondary:"WHO PAYS?",sceneDelta:"PENCIL_PATH_EXTENDS"},
+      {role:"EXIT",sceneLabel:"NO PAYER VERDICT",primary:"FINAL ECONOMIC COST",secondary:"UNRESOLVED",sceneDelta:"PATH_STOPS_AT_GAP"},
+    ], requiredTokens:[["INITIAL BILL","BILLED MERCHANT"],["QUESTION PATH","FINAL ECONOMIC COST","WHO PAYS"],["FINAL ECONOMIC COST","UNRESOLVED"]] },
     "MP-153": { sceneType:"NEUTRAL_CONFIRMATION", states:[
       {role:"ENTRY",sceneLabel:"CUSTOMER",primary:"PAYMENT PRESENTED",secondary:"MERCHANT WAITING",sceneDelta:"PRESENTED"},
       {role:"MIDPOINT",sceneLabel:"NEUTRAL SIGNAL",primary:"CONFIRMATION",secondary:"NO SETTLEMENT CLAIM",sceneDelta:"SIGNAL_SENT"},
@@ -1626,9 +1626,10 @@ function renderProductionScene(manifest: Row, state: 0 | 1 | 2) {
     centerAt("FUNDING  FEES  SETTLEMENT LOCKED",584,382,2,"#8fa69d",32);
     if(state===2){circle(346,366,12,"#72c8a3");line(362,366,438,366,5,"#72c8a3");}
   } else if(sceneType==="INCIDENCE_GAP"){
-    fill(86,174,318,214,"#f4edd7");centerAt("BILLED MERCHANT",245,228,3,"#173d35",18);centerAt("VISIBLE",245,302,2,"#52766b",12);
-    if(state>=1){fill(556,174,318,214,"#173d35");centerAt("WHO PAYS?",715,228,3,"#f4edd7",16);centerAt("UNRESOLVED",715,302,3,"#e8b65d",16);}
-    if(state===2){line(430,280,530,280,3,"#72c8a3");text("NO VERDICT",412,414,2,"#a8cdbd");}
+    fill(64,154,286,250,"#f4edd7");centerAt("BILLED MERCHANT",207,206,3,"#173d35",18);centerAt("INITIAL BILL",207,266,2,"#52766b",16);fill(112,318,190,42,"#ffffff");centerAt("SOLID RECORD",207,330,2,"#173d35",16);
+    fill(674,154,222,250,"#173d35");centerAt("FINAL ECONOMIC",785,200,2,"#d7eee5",18);centerAt("COST",785,232,3,"#d7eee5",10);centerAt("UNRESOLVED",785,320,2,"#e8b65d",16);
+    if(state>=1){const pts=[[350,280],[382,268],[414,286],[446,272],[478,292],[510,274],[542,290],[574,276],[606,288]];for(let i=0;i<pts.length-1;i++){line(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],2,"#a8a89e");line(pts[i][0],pts[i][1]+3,pts[i+1][0],pts[i+1][1]+2,1,"#6f8179");}centerAt("?",636,246,5,"#e8b65d",2);centerAt("WHO PAYS?",480,342,2,"#a8cdbd",14);}
+    if(state===2){circle(640,280,7,"#e8b65d");text("PATH STOPS",426,390,2,"#a8cdbd");}
   } else if(sceneType==="NEUTRAL_CONFIRMATION"){
     fill(86,178,276,202,"#f4edd7");fill(598,178,276,202,"#eef5f1");centerAt("CUSTOMER",224,214,3,"#173d35",14);centerAt("MERCHANT",736,214,3,"#173d35",14);
     if(state===0)centerAt("PAYMENT PRESENTED",224,286,2,"#2b8b68",20);if(state>=1){line(382,274,578,274,6,"#72c8a3");circle(480,274,26,"#72c8a3");text("+",470,259,4,"#ffffff");centerAt("CONFIRMATION",480,330,2,"#a8cdbd",18);}if(state===2)centerAt("RECEIVED",736,286,3,"#2b8b68",14);
@@ -2220,7 +2221,7 @@ async function buildCanonicalUnitScenes() {
     if((clean(canary.version)!==STABILIZATION_RELEASE_VERSION&&!clean(canary.version).startsWith("CANONICAL_UNIT_SCENES_V"))||Number(canary.current_index)<2||clean(authorization.status)!=="PAUSED")throw new Error("CANONICAL_FAILED_BATCH_CHECKPOINT_REQUIRED");
     const priorAudit=await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND status='REPAIR_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(authorization.id,canary.current_brief_id).first<Row>();
     if(!priorAudit)throw new Error("CANONICAL_FAILED_AUDIT_REQUIRED");
-    const priorVersion=clean(canary.version),priorScore=Number(priorAudit.score),failedQueue=arr(JSON.parse(String(canary.queue_json||"[]"))).map(rec)[Number(canary.current_index)],failedLogical=clean(failedQueue?.logicalId)||"MP-003",repair=failedLogical==="MP-004"?"ORDERED_ROLES_NO_ROUTE_CONNECTORS":failedLogical==="MP-008"?"DOMINANT_CARDHOLDER_DISTINCT_STATUS_ROWS":failedLogical==="MP-018"?"SOURCE_PAGE_US_NONCASH_PAYMENT_COUNT":failedLogical==="MP-039"?"FOUR_ACTOR_SHUTTERS_AUTHORIZATION_BOUNDARY":"VERTICAL_DISTINCT_RECORD_ROWS";
+    const priorVersion=clean(canary.version),priorScore=Number(priorAudit.score),failedQueue=arr(JSON.parse(String(canary.queue_json||"[]"))).map(rec)[Number(canary.current_index)],failedLogical=clean(failedQueue?.logicalId)||"MP-003",repair=failedLogical==="MP-004"?"ORDERED_ROLES_NO_ROUTE_CONNECTORS":failedLogical==="MP-008"?"DOMINANT_CARDHOLDER_DISTINCT_STATUS_ROWS":failedLogical==="MP-018"?"SOURCE_PAGE_US_NONCASH_PAYMENT_COUNT":failedLogical==="MP-039"?"FOUR_ACTOR_SHUTTERS_AUTHORIZATION_BOUNDARY":failedLogical==="MP-115"?"PENCIL_QUESTION_PATH_TO_FINAL_ECONOMIC_COST":"VERTICAL_DISTINCT_RECORD_ROWS";
     const policy={...rec(JSON.parse(String(authorization.model_policy_json||"{}"))),version:CANONICAL_UNIT_SCENES_VERSION,renderer:CANONICAL_UNIT_SCENES_RENDERER,runToCompletion10Mp:true,batchAuthorized:true,autoRetry:false,autoAdvance:false,nextUnitDispatch:"TERMINAL_PASS_ONLY",canonicalSceneRebuild:{sourceVersion:priorVersion,sourceAuditId:priorAudit.id,sourceScore:priorScore,sourceFailedUnit:failedLogical,scope:"MP-003_THROUGH_MP-153",paidRequests:0,repair}};
     await db.batch([
       db.prepare("UPDATE v7_pilot_canaries SET version=?,status='SCENE_REBUILD_RUNNING',request_budget=request_budget+1,cost_budget=cost_budget+1,gate_json='[]',updated_at=?,completed_at=NULL WHERE id=?").bind(CANONICAL_UNIT_SCENES_VERSION,now,canary.id),
@@ -2237,7 +2238,7 @@ async function buildCanonicalUnitScenes() {
     if(!brief||!sourcePromotion||!sourceUnit)throw new Error(`CANONICAL_SCENE_SOURCE_MISSING · ${logicalId}`);
     const sourceBinding=await validatePromotionBinding(env,db,sourcePromotion);if(!sourceBinding.passed)throw new Error(`CANONICAL_SCENE_SOURCE_INVALID · ${logicalId}`);
     const rebuildPolicy=rec(rec(JSON.parse(String(authorization.model_policy_json||"{}"))).canonicalSceneRebuild);
-    const manifest={...productionSceneManifest(sourceBinding.contractPayload,CANONICAL_UNIT_SCENES_RENDERER,"EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V11_AUTHORIZATION_SHUTTERS"),sourceContractHash:rec(sourceBinding.manifest).sourceContractHash,canonicalPilotManifestVersion:rec(sourceBinding.manifest).canonicalPilotManifestVersion,canonicalPilotManifestHash:rec(sourceBinding.manifest).canonicalPilotManifestHash,rebuild:{version:CANONICAL_UNIT_SCENES_VERSION,sourcePromotionId:sourcePromotion.id,sourceFailedUnit:clean(rebuildPolicy.sourceFailedUnit),sourceFailedScore:Number(rebuildPolicy.sourceScore||0),repair:clean(rebuildPolicy.repair)}};
+    const manifest={...productionSceneManifest(sourceBinding.contractPayload,CANONICAL_UNIT_SCENES_RENDERER,"EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V12_INCIDENCE_QUESTION_PATH"),sourceContractHash:rec(sourceBinding.manifest).sourceContractHash,canonicalPilotManifestVersion:rec(sourceBinding.manifest).canonicalPilotManifestVersion,canonicalPilotManifestHash:rec(sourceBinding.manifest).canonicalPilotManifestHash,rebuild:{version:CANONICAL_UNIT_SCENES_VERSION,sourcePromotionId:sourcePromotion.id,sourceFailedUnit:clean(rebuildPolicy.sourceFailedUnit),sourceFailedScore:Number(rebuildPolicy.sourceScore||0),repair:clean(rebuildPolicy.repair)}};
     const oracle=canonicalUnitPixelOracle(logicalId,manifest);if(!oracle.passed)throw new Error(`CANONICAL_SCENE_ORACLE_FAILED · ${logicalId} · ${oracle.checks.filter((gate)=>gate.status!=="PASS").map((gate)=>gate.id).join(",")}`);
     const frameIds:string[]=[],frameHashes:string[]=[];
     for(const [role,rendered] of [["CERT_ENTRY",oracle.frames[0]],["CERT_MIDPOINT",oracle.frames[1]],["CERT_EXIT",oracle.frames[2]]] as const){const fileId=await storeMaterial(env,db,authorization,brief,{role,identity:`CANONICAL-V6-${logicalId}-${role}`,bytes:rendered.bytes,mimeType:"image/png",extension:"png",sourceType:CANONICAL_UNIT_SCENES_RENDERER,provider:"FRAMEFLOW_OWNED",providerAssetId:clean(sourcePromotion.certification_id),sourceUrl:clean(sourcePromotion.certification_id),landingUrl:clean(sourcePromotion.certification_id),licenseCode:"CHANNEL_OWNED",width:rendered.width,height:rendered.height});const stored=await db.prepare("SELECT content_hash FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();frameIds.push(fileId);frameHashes.push(clean(stored?.content_hash));}

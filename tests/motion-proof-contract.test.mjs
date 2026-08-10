@@ -459,7 +459,7 @@ test("MP-002 pixel oracle verifies rendered regions before autonomous 10-unit co
 });
 
 test("remaining canonical units compile contract-specific scenes before paid resume", () => {
-  assert.match(route, /CANONICAL_UNIT_SCENES_V7/);
+  assert.match(route, /CANONICAL_UNIT_SCENES_V8/);
   assert.match(route, /CANONICAL_UNIT_GOLDEN_REGION_ORACLE_V1/);
   for (const logicalId of ["MP-003", "MP-004", "MP-007", "MP-008", "MP-018", "MP-039", "MP-115", "MP-153"]) assert.match(route, new RegExp(`"${logicalId}"`));
   assert.match(route, /8\/8 canonical unit scenes · 24\/24 frames/);
