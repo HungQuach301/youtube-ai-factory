@@ -1484,7 +1484,7 @@ function canonicalUnitScene(logicalId: string, evidence: string[], contract: Row
     "MP-003": { sceneType:"RECORD_PANEL", states:[
       {role:"ENTRY",sceneLabel:"APPROVED PURCHASE",primary:"PURCHASE",secondary:"ACTIVITY OPENS",sceneDelta:"PANEL_OPENS"},
       {role:"MIDPOINT",sceneLabel:"SEPARATE RECORDS",primary:"PURCHASE",secondary:"REWARD",sceneDelta:"REWARD_POSTS"},
-      {role:"EXIT",sceneLabel:"NO FUNDING CLAIM",primary:"PURCHASE",secondary:"REWARD",sceneDelta:"RECORDS_HOLD"},
+      {role:"EXIT",sceneLabel:"SEPARATE RECORDS",primary:"PURCHASE",secondary:"REWARD",sceneDelta:"RECORDS_HOLD"},
     ], requiredTokens:[["PURCHASE"],["PURCHASE","REWARD"],["PURCHASE","REWARD","SEPARATE"]] },
     "MP-004": { sceneType:"ROLE_TILES", states:[
       {role:"ENTRY",sceneLabel:"DISTINCT ROLES",primary:"PURCHASE + REWARD",secondary:"ROLES OPEN",sceneDelta:"POSITIONS_OPEN"},
