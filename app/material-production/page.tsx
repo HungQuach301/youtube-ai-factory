@@ -42,8 +42,9 @@ export default function MaterialProductionPage() {
   useEffect(() => {
     if (!["PILOT_RUNNING", "PILOT_REPAIR_RUNNING", "CANARY_UNIT_RUNNING"].includes(data?.run?.status || "") || working) return;
     const timer = window.setTimeout(() => {
-      setWorking("STEP_PILOT");
-      void fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "STEP_PILOT" }) })
+      const action = data?.run?.status === "CANARY_UNIT_RUNNING" ? "STEP_RELEASE_TRAIN_UNIT" : "STEP_PILOT";
+      setWorking(action);
+      void fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) })
         .then(async (response) => { const payload = await response.json() as Snapshot & { error?: string }; if (!response.ok) throw new Error(payload.error || "Pilot execution failed"); setData(payload); setError(null); })
         .catch((reason: Error) => setError(reason.message))
         .finally(() => setWorking(null));

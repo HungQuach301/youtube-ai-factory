@@ -3013,6 +3013,15 @@ async function stepPilot() {
   return snapshot();
 }
 
+async function stepReleaseTrainUnit() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || clean(run.status) !== "CANARY_UNIT_RUNNING" || clean(authorization.status) !== "AUTHORIZED") throw new Error("STABILIZED_UNIT_EXECUTOR_NOT_READY");
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='UNIT_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(run.id, STABILIZATION_RELEASE_VERSION).first<Row>();
+  const policy = rec(JSON.parse(String(authorization.model_policy_json || "{}")));
+  if (!canary || clean(policy.version) !== STABILIZATION_RELEASE_VERSION || policy.sequenceProofReleased !== true || policy.autoRetry !== false || policy.autoAdvance !== false) throw new Error("STABILIZED_UNIT_EXECUTOR_POLICY_MISMATCH");
+  return stepPilot();
+}
+
 async function stopPilot() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) return snapshot();
@@ -3476,6 +3485,7 @@ export async function POST(request: Request) {
     }
     if (body.action === "BUILD_PRODUCTION_SCENE_PREFLIGHT") throw new Error("LEGACY_ACTION_UNREACHABLE · BUILD_PRODUCTION_SCENE_PREFLIGHT");
     if (body.action === "RELEASE_RELEASE_TRAIN_SEQUENCE_PROOF") return Response.json(await releaseReleaseTrainSequenceProof(), { status: 202 });
+    if (body.action === "STEP_RELEASE_TRAIN_UNIT") return Response.json(await stepReleaseTrainUnit(), { status: 202 });
     if (body.action === "START_RELEASE_TRAIN_BATCH") return Response.json(await startReleaseTrainBatch(), { status: 202 });
     if (body.action === "RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT") return Response.json(await releaseNextReleaseTrainBatchUnit(), { status: 202 });
     if (body.action === "RELEASE_CONTROLLED_CANARY_V5_UNIT") return Response.json(await releaseControlledCanaryV5Unit(), { status: 202 });

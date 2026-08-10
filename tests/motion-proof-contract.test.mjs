@@ -356,11 +356,14 @@ test("Release Train seals MP-001, batches zero-spend G0/G1 and opens only MP-002
   assert.match(route, /RELEASE_TRAIN_ZERO_SPEND_INVARIANT_FAILED/);
   assert.match(route, /READY_FOR_SEQUENCE_PROOF/);
   assert.match(route, /SEQUENCE_PROOF_PASS_REVIEW/);
+  assert.match(route, /STEP_RELEASE_TRAIN_UNIT/);
+  assert.match(route, /STABILIZED_UNIT_EXECUTOR_POLICY_MISMATCH/);
   assert.match(route, /SEQUENCE_OR_BATCH_FAILED_PRESERVED/);
   assert.match(route, /BATCH_UNIT_PASS_REVIEW/);
   assert.match(page, /Build Release Train G0\/G1 · \$0/);
   assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
   assert.match(page, /Run request 84 · MP-002 Sequence Proof · max \$1/);
+  assert.match(page, /CANARY_UNIT_RUNNING" \? "STEP_RELEASE_TRAIN_UNIT" : "STEP_PILOT"/);
   assert.match(page, /Run remaining canonical pilot batch/);
   assert.match(page, /data\.authorization\?\.modelPolicy\.batchAuthorized !== true/);
 });
