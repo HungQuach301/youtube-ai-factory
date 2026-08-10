@@ -318,4 +318,13 @@ test("Recovery Lane replays the failed V5 handoff through an atomic zero-spend s
   assert.match(route, /PRODUCTION_DISPATCHED/);
   assert.match(route, /autoRetry: false/);
   assert.match(route, /nextUnitDispatch: false/);
+  assert.match(route, /PRODUCTION_RECOVERY_CONTRACT_ALIGNMENT_V1/);
+  assert.match(route, /buildRecoveryContractAlignment/);
+  assert.match(route, /SOURCE_BOUND_COMPOSITE_MANIFEST_V2/);
+  assert.match(route, /ALIGNED_UNIT_CONTRACT/);
+  assert.match(route, /sourceContractHash/);
+  assert.match(route, /alignedContractHash/);
+  assert.match(route, /releaseContractAlignedRecoveryProbe/);
+  assert.match(page, /Build MP-001 contract alignment · \$0/);
+  assert.match(page, /Run contract-aligned MP-001 probe · max \$1/);
 });
