@@ -1,0 +1,23 @@
+CREATE TABLE `v7_sequence_products` (
+	`id` text PRIMARY KEY NOT NULL,
+	`program_id` text NOT NULL,
+	`run_id` text NOT NULL,
+	`authorization_id` text NOT NULL,
+	`canary_id` text NOT NULL,
+	`source_proof_id` text NOT NULL,
+	`composer_version` text NOT NULL,
+	`status` text NOT NULL,
+	`specification_json` text NOT NULL,
+	`specification_hash` text NOT NULL,
+	`source_manifest_hash` text NOT NULL,
+	`iteration` integer DEFAULT 0 NOT NULL,
+	`max_iterations` integer DEFAULT 3 NOT NULL,
+	`product_file_id` text,
+	`evidence_id` text,
+	`measurements_json` text DEFAULT '{}' NOT NULL,
+	`corrections_json` text DEFAULT '[]' NOT NULL,
+	`content_hash` text,
+	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`completed_at` text
+);

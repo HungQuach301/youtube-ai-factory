@@ -498,3 +498,22 @@ test("10 sealed MP units compile into one immutable 30-second sequence gate", ()
   assert.match(sequenceMigration, /CREATE TABLE `v7_sequence_proofs`/);
   assert.doesNotMatch(sequenceMigration, /CREATE TABLE `v7_artifact_promotions`/);
 });
+
+test("integrated sequence production creates PRODUCT_COMPLETE before independent QA", () => {
+  assert.match(route, /INTEGRATED_SEQUENCE_COMPOSER_V2/);
+  assert.match(route, /SEQUENCE_PRODUCT_SPECIFICATION_V2/);
+  assert.match(route, /Production creates PRODUCT_COMPLETE through an integrated plan-compose-render-measure-correct loop/);
+  assert.match(route, /PRODUCE_INTEGRATED_SEQUENCE/);
+  assert.match(route, /INTEGRATED_SEQUENCE_RENDER/);
+  assert.match(route, /status='PRODUCT_COMPLETE'/);
+  assert.match(route, /status='PRODUCTION_BLOCKED'/);
+  assert.match(route, /fullFrameScan: true/);
+  assert.match(route, /noRegeneration: true/);
+  assert.match(route, /noNewClaims: true/);
+  assert.match(route, /QA requests 0/);
+  assert.match(executor, /executeIntegratedSequence/);
+  assert.match(executor, /COVER_TO_CONTAIN/);
+  assert.match(executor, /framesScanned/);
+  assert.match(page, /Produce Sequence V2 · \$0/);
+  assert.match(page, /QA is one independent audit only after PRODUCT_COMPLETE/);
+});
