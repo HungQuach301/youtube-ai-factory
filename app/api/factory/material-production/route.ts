@@ -15,6 +15,8 @@ const PREVIOUS_COMPOSITE_QA_RUBRIC = "HYBRID_COMPOSITE_TOURNAMENT_V4";
 const MOTION_RENDERER_VERSION = "FRAMEFLOW_MOTION_PROOF_V1";
 const MOTION_QA_RUBRIC = "MOTION_PROOF_QA_V1";
 const MOTION_RIGHTS_BUNDLE_VERSION = "MOTION_RIGHTS_BUNDLE_V1";
+const SEQUENCE_RENDERER_VERSION = "CANONICAL_10MP_SEQUENCE_V1";
+const SEQUENCE_QA_RUBRIC = "30_SECOND_SEQUENCE_QA_V1";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
 const DATA_VISUALIZATION_V3 = "RECONCILED_WATERFALL_PRIMITIVES_V3";
 const ARCHETYPE_REGRESSION_VERSION = "ARCHETYPE_REGRESSION_V2";
@@ -138,6 +140,7 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_composite_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,evidence_id text NOT NULL,rubric_version text NOT NULL,status text DEFAULT 'QA_REQUIRED' NOT NULL,winner text,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,candidates_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,repair_json text DEFAULT '{}' NOT NULL,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_motion_proofs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,champion text NOT NULL,composite_rubric text NOT NULL,renderer_version text NOT NULL,status text DEFAULT 'RENDER_REQUIRED' NOT NULL,motion_file_id text,evidence_id text,source_hashes_json text NOT NULL,duration_seconds real NOT NULL,fps integer DEFAULT 30 NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,provider_response_id text,content_hash text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_motion_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,brief_id text NOT NULL,proof_id text NOT NULL,rubric_version text NOT NULL,attempt integer NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,evidence_bundle_json text DEFAULT '{}' NOT NULL,evidence_bundle_hash text NOT NULL,request_id text,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_sequence_proofs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,canary_id text NOT NULL,version text NOT NULL,status text NOT NULL,sequence_file_id text,evidence_id text,source_manifest_json text NOT NULL,duration_seconds real DEFAULT 30 NOT NULL,fps integer DEFAULT 30 NOT NULL,unit_count integer DEFAULT 10 NOT NULL,frame_count integer DEFAULT 30 NOT NULL,score integer DEFAULT 0 NOT NULL,tier text DEFAULT 'BLOCKED' NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,provider_response_id text,request_id text,content_hash text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_architecture_baselines (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,version text NOT NULL,status text NOT NULL,execution_state text NOT NULL,source_checkpoint text NOT NULL,controls_json text NOT NULL,qualification_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,frozen_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_compiled_shot_contracts (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,brief_id text NOT NULL,archetype text NOT NULL,risk_tier text NOT NULL,claim text NOT NULL,required_evidence_json text NOT NULL,allowed_modalities_json text NOT NULL,forbidden_json text NOT NULL,repair_route text NOT NULL,lint_status text NOT NULL,lint_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
@@ -310,6 +313,8 @@ async function snapshot() {
   const compositeAudits = authorization ? await rows(db, "SELECT * FROM v7_composite_audits WHERE authorization_id=? ORDER BY updated_at DESC", authorization.id) : [];
   const motionProofs = authorization ? await rows(db, "SELECT * FROM v7_motion_proofs WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
   const motionAudits = authorization ? await rows(db, "SELECT * FROM v7_motion_audits WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
+  const sequenceProof = authorization ? await db.prepare("SELECT * FROM v7_sequence_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>() : null;
+  const sequenceEvidence = sequenceProof?.evidence_id ? await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND evidence_type='SEQUENCE_PROOF'").bind(sequenceProof.evidence_id).first<Row>() : null;
   const reliabilityBaseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   const compiledContracts = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=? ORDER BY brief_id", reliabilityBaseline.id) : [];
   const archetypeQualifications = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_qualifications WHERE baseline_id=? ORDER BY archetype", reliabilityBaseline.id) : [];
@@ -349,6 +354,7 @@ async function snapshot() {
   const motionRightsRepairAvailable = motionProof?.status === "REPAIR_REQUIRED" && arr(JSON.parse(String(motionProof.findings_json || "[]"))).some((finding) => /rights record|authorization for the checkout imagery/i.test(clean(finding)));
   const motionEvidence = motionProof?.evidence_id ? mediaEvidence.find((item) => item.id === motionProof.evidence_id) : null;
   let motionContent: Row = {}; try { motionContent = motionEvidence ? rec(JSON.parse(String(motionEvidence.content_json || "{}"))) : {}; } catch { motionContent = {}; }
+  let sequenceContent: Row = {}; try { sequenceContent = sequenceEvidence ? rec(JSON.parse(String(sequenceEvidence.content_json || "{}"))) : {}; } catch { sequenceContent = {}; }
   const motionJob = mediaJobs.find((job) => job.job_type === "MOTION_PROOF_RENDER");
   const productionQuarantined = reliabilityBaseline?.execution_state === "FROZEN";
   const nextGate = productionQuarantined ? "ARCHETYPE_CERTIFICATION_REQUIRED" : sourceEvidenceReady
@@ -393,6 +399,7 @@ async function snapshot() {
     recovery: recovery ? { id: recovery.id, version: recovery.version, status: recovery.status, snapshotHash: recovery.snapshot_hash, rootCause: JSON.parse(String(recovery.root_cause_json || "{}")), e2e: JSON.parse(String(recovery.e2e_json || "{}")), faultMatrix: JSON.parse(String(recovery.fault_matrix_json || "[]")), requestsBefore: Number(recovery.requests_before), requestsAfter: Number(recovery.requests_after), costBefore: Number(recovery.cost_before), costAfter: Number(recovery.cost_after), simulatedRequestSequence: Number(recovery.simulated_request_sequence), requestIntent: recoveryIntent ? { id: recoveryIntent.id, status: recoveryIntent.status, sequence: Number(recoveryIntent.simulated_sequence), idempotencyKey: recoveryIntent.idempotency_key, payloadHash: recoveryIntent.payload_hash } : null, outbox: recoveryOutbox ? { id: recoveryOutbox.id, status: recoveryOutbox.status, eventType: recoveryOutbox.event_type } : null, events: recoveryEvents.map((event) => ({ status: event.status, failureCode: event.failure_code || null, failedTransition: event.failed_transition || null, failedGate: event.failed_gate || null, expectedState: event.expected_state || null, actualState: event.actual_state || null, ledgerStatus: event.ledger_status || null, providerDispatchStatus: event.provider_dispatch_status || null, createdAt: event.created_at })), createdAt: recovery.created_at, updatedAt: recovery.updated_at } : null,
     pilot: { materialized: uniqueMaterialized, audited: audits.filter((item) => ["PASS", "REPAIR_REQUIRED"].includes(String(item.status))).length, total: pilotBriefs.length, percent: pilotBriefs.length ? Math.round((uniqueMaterialized + audits.length) / (pilotBriefs.length * 2) * 100) : 0, items },
     requestLedger: { total: requestRows.length, planned: requestRows.filter((row) => row.status === "PLANNED").length, active: requestRows.filter((row) => ["QUEUED", "IN_PROGRESS"].includes(String(row.status))).length, complete: requestRows.filter((row) => row.status === "COMPLETE").length, incomplete: requestRows.filter((row) => row.status === "BLOCKED_INCOMPLETE").length, actualCostUsd: requestRows.reduce((sum, row) => sum + Number(row.actual_cost_usd || 0), 0), recent: requestRows.slice(0, 20).map((row) => ({ id: row.id, briefId: row.brief_id, phase: row.phase, provider: row.provider, modelId: row.model_id, status: row.status, inputTokens: Number(row.input_tokens), outputTokens: Number(row.output_tokens), reasoningTokens: Number(row.reasoning_tokens), actualCostUsd: Number(row.actual_cost_usd), error: row.error, createdAt: row.created_at })) },
+    sequenceProof: sequenceProof ? { id: sequenceProof.id, status: sequenceProof.status, version: sequenceProof.version, durationSeconds: Number(sequenceProof.duration_seconds), fps: Number(sequenceProof.fps), unitCount: Number(sequenceProof.unit_count), frameCount: Number(sequenceProof.frame_count), score: Number(sequenceProof.score), tier: clean(sequenceProof.tier) || "BLOCKED", dimensions: rec(JSON.parse(String(sequenceProof.dimensions_json || "{}"))), findings: arr(JSON.parse(String(sequenceProof.findings_json || "[]"))), previewUrl: sequenceProof.sequence_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(sequenceProof.sequence_file_id))}` : null, sampleFrames: arr(sequenceContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), logicalId: clean(frame.logicalId), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })), providerResponseId: sequenceProof.provider_response_id || null, createdAt: sequenceProof.created_at, updatedAt: sequenceProof.updated_at } : null,
     mediaExecution: {
       configured: Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET),
       executor: executor ? { id: executor.id, status: executorOnline ? "ONLINE" : "OFFLINE", version: executor.version, lastSeenAt: executor.last_seen_at, capabilities: JSON.parse(String(executor.capabilities_json || "[]")) } : null,
@@ -2907,7 +2914,7 @@ function abstractMechanismPngV2(state: 0 | 1 | 2) {
   for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);}const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
 }
 
-type MaterialRole = "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT" | "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT" | "COMPOSITE_A_ENTRY" | "COMPOSITE_A_MIDPOINT" | "COMPOSITE_A_EXIT" | "COMPOSITE_B_ENTRY" | "COMPOSITE_B_MIDPOINT" | "COMPOSITE_B_EXIT" | "COMPOSITE_C_ENTRY" | "COMPOSITE_C_MIDPOINT" | "COMPOSITE_C_EXIT" | "MOTION_PROOF" | "MOTION_ENTRY" | "MOTION_MIDPOINT" | "MOTION_EXIT" | "CERT_ENTRY" | "CERT_MIDPOINT" | "CERT_EXIT";
+type MaterialRole = "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT" | "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT" | "COMPOSITE_A_ENTRY" | "COMPOSITE_A_MIDPOINT" | "COMPOSITE_A_EXIT" | "COMPOSITE_B_ENTRY" | "COMPOSITE_B_MIDPOINT" | "COMPOSITE_B_EXIT" | "COMPOSITE_C_ENTRY" | "COMPOSITE_C_MIDPOINT" | "COMPOSITE_C_EXIT" | "MOTION_PROOF" | "MOTION_ENTRY" | "MOTION_MIDPOINT" | "MOTION_EXIT" | "SEQUENCE_PROOF" | `SEQUENCE_SAMPLE_${number}` | "CERT_ENTRY" | "CERT_MIDPOINT" | "CERT_EXIT";
 async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row, options: { role: MaterialRole; identity?: string; bytes: Uint8Array; mimeType: string; extension: string; sourceType: string; provider: string; providerAssetId?: string; sourceUrl?: string; landingUrl?: string; licenseCode: string; width: number; height: number; duration?: number; thumbnailUrl?: string }) {
   if (!env.BUCKET) throw new Error("R2 material storage is unavailable");
   const identity = clean(options.identity).replace(/[^a-zA-Z0-9_-]/g, "").slice(-48), suffix = identity ? `${identity}-` : "";
@@ -2950,6 +2957,7 @@ const sourceFrameQaSchema = { type: "object", additionalProperties: false, prope
 const compositeCandidateSchema = { type: "object", additionalProperties: false, properties: { semanticFit: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, composition: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, authenticity: { type: "integer", minimum: 0, maximum: 100 }, progression: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 } }, required: ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity", "progression", "overall"] };
 const compositeTournamentSchema = { type: "object", additionalProperties: false, properties: { winner: { type: "string", enum: ["A", "B", "C"] }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, candidateA: compositeCandidateSchema, candidateB: compositeCandidateSchema, candidateC: compositeCandidateSchema, findings: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 8, maxLength: 220 } }, exactRepair: { type: "string", minLength: 8, maxLength: 260 } }, required: ["winner", "decision", "candidateA", "candidateB", "candidateC", "findings", "exactRepair"] };
 const motionQaSchema = { type: "object", additionalProperties: false, properties: { semanticContinuity: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, transitionQuality: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, timingFit: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 8, maxLength: 220 } }, exactRepair: { type: "string", minLength: 8, maxLength: 260 } }, required: ["semanticContinuity", "factualSafety", "transitionQuality", "mobileLegibility", "timingFit", "overall", "decision", "findings", "exactRepair"] };
+const sequenceQaSchema = { type: "object", additionalProperties: false, properties: { semanticContinuity: { type: "integer", minimum: 0, maximum: 100 }, visualVariety: { type: "integer", minimum: 0, maximum: 100 }, rhythm: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", maxItems: 6, items: visionDefectSchema }, exactRepair: { type: "string", minLength: 6, maxLength: 260 } }, required: ["semanticContinuity", "visualVariety", "rhythm", "mobileLegibility", "factualSafety", "overall", "decision", "findings", "exactRepair"] };
 function output(payload: Row) { if (typeof payload.output_text === "string") return payload.output_text; for (const item of arr(payload.output)) for (const block of arr(rec(item).content)) if (typeof rec(block).text === "string") return String(rec(block).text); throw new Error("OpenAI returned no structured pixel audit"); }
 
 async function sourceFrameQa() {
@@ -3564,6 +3572,95 @@ async function planRootCauseExecution() {
   return snapshot();
 }
 
+async function planSequenceProof() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET || !env.MEDIA_EXECUTOR_SHARED_SECRET) throw new Error("SEQUENCE_EXECUTOR_CONFIGURATION_REQUIRED");
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND status='PASS' AND passed_units=10 ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  if (!canary) throw new Error("SEQUENCE_REQUIRES_10_OF_10_CANARY_PASS");
+  const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
+  if (active) throw new Error("SEQUENCE_BLOCKED_ACTIVE_PROVIDER_REQUEST");
+  const existing = await db.prepare("SELECT id FROM v7_sequence_proofs WHERE authorization_id=? AND canary_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, canary.id).first<Row>();
+  if (existing) return snapshot();
+  const queue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec);
+  if (queue.length !== 10) throw new Error(`SEQUENCE_CANONICAL_QUEUE_INVALID · ${queue.length}/10`);
+  const sources: Row[] = [], logicalIds = new Set<string>(), frameIds = new Set<string>();
+  for (const item of queue) {
+    const logicalId = clean(item.logicalId), promotionId = clean(item.promotionId);
+    if (!logicalId || logicalIds.has(logicalId)) throw new Error(`SEQUENCE_LOGICAL_UNIT_INVALID · ${logicalId || "MISSING"}`);
+    logicalIds.add(logicalId);
+    const promotion = promotionId
+      ? await db.prepare("SELECT * FROM v7_artifact_promotions WHERE id=? AND authorization_id=?").bind(promotionId, authorization.id).first<Row>()
+      : await db.prepare("SELECT * FROM v7_artifact_promotions WHERE authorization_id=? AND logical_brief_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, logicalId).first<Row>();
+    if (!promotion) throw new Error(`SEQUENCE_PROMOTION_MISSING · ${logicalId}`);
+    const ids = arr(JSON.parse(String(promotion.frame_ids_json || "[]"))).map(clean), hashes = arr(JSON.parse(String(promotion.frame_hashes_json || "[]"))).map(clean);
+    if (ids.length !== 3 || hashes.length !== 3) throw new Error(`SEQUENCE_FRAME_SET_INVALID · ${logicalId}`);
+    for (let index = 0; index < 3; index++) {
+      const file = await db.prepare("SELECT id,mime_type,content_hash,runtime_key,status FROM v7_material_files WHERE id=? AND authorization_id=?").bind(ids[index], authorization.id).first<Row>();
+      const object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null;
+      if (!file || !object || clean(file.content_hash) !== hashes[index] || clean(file.status) !== "STORED_VERIFIED" || frameIds.has(ids[index])) throw new Error(`SEQUENCE_FRAME_READ_BACK_FAILED · ${logicalId} · ${index + 1}`);
+      frameIds.add(ids[index]);
+      sources.push({ logicalId, state: ["ENTRY", "MIDPOINT", "EXIT"][index], fileId: ids[index], sha256: hashes[index], mimeType: file.mime_type });
+    }
+  }
+  if (logicalIds.size !== 10 || sources.length !== 30 || frameIds.size !== 30) throw new Error("SEQUENCE_SOURCE_MANIFEST_INCOMPLETE");
+  const manifest = { version: "CANONICAL_10MP_SEQUENCE_MANIFEST_V1", canaryId: canary.id, canaryVersion: canary.version, order: [...logicalIds], sources, durationSeconds: 30, secondsPerFrame: 1, noRegeneration: true, noFallback: true };
+  const contentHash = await sha(JSON.stringify(manifest)), proofId = `${clean(run.id)}-SEQUENCE-${contentHash.slice(0, 16)}`, jobId = `${proofId}-RENDER`, now = new Date().toISOString();
+  const samplePositions = queue.map((item, index) => ({ role: `UNIT_${String(index + 1).padStart(2, "0")}`, logicalId: clean(item.logicalId), ratio: (index * 3 + 1.5) / 30 }));
+  const contract = { version: "SEQUENCE_EXECUTION_CONTRACT_V1", proofId, renderer: SEQUENCE_RENDERER_VERSION, sources, durationSeconds: 30, fps: 30, secondsPerFrame: 1, output: { mimeType: "video/webm", codec: "vp9", width: 960, height: 540, audio: "NONE" }, samplePositions, acceptance: { exactUnitCount: 10, exactSourceCount: 30, exactDurationSeconds: 30, durationToleranceSeconds: 0.08, sourceHashesMustMatch: true, canonicalOrderMustMatch: true, noRegeneration: true, noFallback: true, noAudio: true } };
+  await db.batch([
+    db.prepare("INSERT INTO v7_sequence_proofs (id,program_id,run_id,authorization_id,canary_id,version,status,source_manifest_json,duration_seconds,fps,unit_count,frame_count,content_hash,created_at,updated_at) VALUES (?,?,?,?,?,?,'RENDER_QUEUED',?,30,30,10,30,?,?,?)").bind(proofId, PROGRAM_ID, run.id, authorization.id, canary.id, SEQUENCE_RENDERER_VERSION, JSON.stringify(manifest), contentHash, now, now),
+    db.prepare("INSERT INTO v7_media_jobs (id,program_id,run_id,authorization_id,brief_id,source_file_id,job_type,status,priority,attempt,max_attempts,contract_json,created_at,updated_at) VALUES (?,?,?,?,?,?,'SEQUENCE_PROOF_RENDER','QUEUED',120,0,1,?,?,?)").bind(jobId, PROGRAM_ID, run.id, authorization.id, "SEQUENCE-10MP", clean(sources[0].fileId), JSON.stringify(contract), now, now),
+    db.prepare("UPDATE v7_stage_states SET status='SEQUENCE_RENDER_REQUIRED',blocker='SEQUENCE_EXECUTOR_REQUIRED',evidence_summary='10/10 MP bound · 30/30 promoted frames read back · 30-second render queued · $0 · scale locked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function sequenceProofQa() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("SEQUENCE_QA_CONFIGURATION_REQUIRED");
+  const proof = await db.prepare("SELECT * FROM v7_sequence_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!proof) throw new Error("SEQUENCE_PROOF_NOT_RENDERED");
+  if (proof.status === "PASS") return snapshot();
+  const active = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND phase='SEQUENCE_PROOF_QA' AND status IN ('QUEUED','IN_PROGRESS') ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (active) {
+    const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(active.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`SEQUENCE_QA_STATUS_FAILED · ${response.status}`);
+    const payload = await response.json() as Row, providerStatus = clean(payload.status), now = new Date().toISOString();
+    if (["queued", "in_progress"].includes(providerStatus)) { await db.prepare("UPDATE v7_material_requests SET status=?,updated_at=? WHERE id=?").bind(providerStatus.toUpperCase(), now, active.id).run(); return snapshot(); }
+    const usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: run.id, stageKey: STAGE, costType: "SEQUENCE_PROOF_QA", payload, fallbackModel: clean(active.model_id) || DEFAULT_MODEL });
+    if (providerStatus !== "completed") { await finishRequest(db, clean(active.id), "FAILED", clean(payload.error) || `PROVIDER_${providerStatus}`); throw new Error(`SEQUENCE_QA_PROVIDER_${providerStatus.toUpperCase()}`); }
+    const result = JSON.parse(output(payload)) as Row, findings = arr(result.findings).map(rec), dimensions = { semanticFit: Number(result.semanticContinuity), visualVariety: Number(result.visualVariety), rhythm: Number(result.rhythm), mobileLegibility: Number(result.mobileLegibility), factualSafety: Number(result.factualSafety) };
+    const release = evaluateControlledRelease({ overall: Number(result.overall), dimensions: { semanticFit: dimensions.semanticFit, factualSafety: dimensions.factualSafety, composition: dimensions.visualVariety, mobileLegibility: dimensions.mobileLegibility, authenticity: dimensions.rhythm }, defects: findings });
+    const passed = ["STANDARD", "CONTROLLED"].includes(release.tier) && result.decision === "PASS", status = passed ? "PASS" : "REPAIR_REQUIRED";
+    await db.batch([
+      db.prepare("UPDATE v7_material_requests SET status='COMPLETE',input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,updated_at=? WHERE id=?").bind(Number(usage.inputTokens || 0), Number(usage.outputTokens || 0), Number(usage.reasoningTokens || 0), Number(usage.actualUsd || 0), now, active.id),
+      db.prepare("UPDATE v7_sequence_proofs SET status=?,score=?,tier=?,dimensions_json=?,findings_json=?,provider_response_id=?,request_id=?,updated_at=?,completed_at=? WHERE id=?").bind(status, Number(result.overall), release.tier, JSON.stringify(dimensions), JSON.stringify(findings), payload.id, active.id, now, now, proof.id),
+      db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(passed ? "SEQUENCE_PASS" : "SEQUENCE_REPAIR_REQUIRED", passed ? "WAVE_25_READY_NOT_STARTED" : "SEQUENCE_QUALITY_REPAIR_REQUIRED", `30-second sequence ${status} ${Number(result.overall)}/100 · ${release.tier} · 10/10 MP · scale ${passed ? "ready for explicit 25-shot wave authorization" : "blocked"}`, now, STAGE_ID),
+    ]);
+    return snapshot();
+  }
+  if (proof.status !== "QA_REQUIRED" || !proof.evidence_id) throw new Error(`SEQUENCE_QA_NOT_READY · ${clean(proof.status)}`);
+  const evidence = await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND evidence_type='SEQUENCE_PROOF' AND status='TECHNICALLY_VERIFIED'").bind(proof.evidence_id).first<Row>();
+  if (!evidence) throw new Error("SEQUENCE_EVIDENCE_MISSING");
+  const content = rec(JSON.parse(String(evidence.content_json || "{}"))), frames = arr(content.frames).map(rec), imageUrls: string[] = [];
+  if (frames.length !== 10) throw new Error(`SEQUENCE_SAMPLE_SET_INCOMPLETE · ${frames.length}/10`);
+  for (const frame of frames) {
+    const file = await db.prepare("SELECT runtime_key,mime_type FROM v7_material_files WHERE id=?").bind(frame.fileId).first<Row>(), object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null;
+    if (!object) throw new Error(`SEQUENCE_SAMPLE_MISSING · ${clean(frame.logicalId)}`);
+    imageUrls.push(`data:${clean(file?.mime_type)};base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`);
+  }
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, "SEQUENCE-10MP", "SEQUENCE_PROOF_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1800, 4000), manifest = rec(JSON.parse(String(proof.source_manifest_json || "{}")));
+  const prompt: Row[] = [{ type: "input_text", text: `Perform ${SEQUENCE_QA_RUBRIC} on ten ordered samples from the actual stored 30-second WebM. Each image is the midpoint of one canonical MP unit in playback order. Judge the sequence as a whole: semantic continuity, meaningful visual variety without template fatigue, one-second state rhythm, mobile legibility and factual safety. Do not re-grade already sealed unit details unless the sequence creates a new contradiction. Apply CONTROLLED_RELEASE_GATE_V1: STANDARD overall >=92 and all dimensions >=90 with no P0/P1; CONTROLLED overall >=88, semanticContinuity >=82, every other dimension >=88, no P0, no semantic P1, and at most one presentation P1. Return only JSON.\n\nSEQUENCE MANIFEST:\n${JSON.stringify({ version: manifest.version, order: manifest.order, durationSeconds: manifest.durationSeconds, secondsPerFrame: manifest.secondsPerFrame, noRegeneration: manifest.noRegeneration, noFallback: manifest.noFallback })}` }];
+  for (const imageUrl of imageUrls) prompt.push({ type: "input_image", image_url: imageUrl, detail: "high" });
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 4000, input: [{ role: "user", content: prompt }], text: { format: { type: "json_schema", name: "stage09_sequence_proof_qa", strict: true, schema: sequenceQaSchema } } }), signal: AbortSignal.timeout(30000) });
+  if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`SEQUENCE_QA_START_FAILED · ${response.status}`); }
+  const payload = await response.json() as Row;
+  if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("SEQUENCE_QA_PROVIDER_ID_MISSING"); }
+  const now = new Date().toISOString();
+  await db.batch([db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, now, requestId), db.prepare("UPDATE v7_sequence_proofs SET status='QA_RUNNING',provider_response_id=?,request_id=?,updated_at=? WHERE id=?").bind(payload.id, requestId, now, proof.id)]);
+  return snapshot();
+}
+
 async function planMotionProof() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("MOTION_PROOF_RUN_REQUIRED");
@@ -3608,7 +3705,7 @@ async function issueMotionExecutorBootstrap() {
 
 function claimedJobPayload(claimed: Row, leaseToken: string) {
   const contract = rec(JSON.parse(String(claimed.contract_json)));
-  const sourceDownloadUrls = arr(contract.sources).map(rec).map((source) => ({ state: clean(source.state), fileId: clean(source.fileId), sha256: clean(source.sha256), url: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}&fileId=${encodeURIComponent(clean(source.fileId))}` }));
+  const sourceDownloadUrls = arr(contract.sources).map(rec).map((source) => ({ state: clean(source.state), logicalId: clean(source.logicalId), fileId: clean(source.fileId), sha256: clean(source.sha256), url: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}&fileId=${encodeURIComponent(clean(source.fileId))}` }));
   return { id: claimed.id, type: claimed.job_type, briefId: claimed.brief_id, attempt: Number(claimed.attempt), maxAttempts: Number(claimed.max_attempts), leaseExpiresAt: claimed.lease_expires_at, leaseToken, sourceDownloadUrl: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}`, sourceDownloadUrls, contract };
 }
 
@@ -3661,7 +3758,7 @@ async function executionSource(request: Request) {
   if (job.job_type !== "MOTION_PROOF_RENDER") await requireExecutor(request, env);
   const contract = rec(JSON.parse(String(job.contract_json))), allowedSources = arr(contract.sources).map(rec).map((source) => clean(source.fileId));
   const fileId = requestedFileId || clean(job.source_file_id);
-  if (requestedFileId && (job.job_type !== "MOTION_PROOF_RENDER" || !allowedSources.includes(requestedFileId))) throw new Error("MEDIA_SOURCE_NOT_AUTHORIZED");
+  if (requestedFileId && (!["MOTION_PROOF_RENDER", "SEQUENCE_PROOF_RENDER"].includes(clean(job.job_type)) || !allowedSources.includes(requestedFileId))) throw new Error("MEDIA_SOURCE_NOT_AUTHORIZED");
   const file = await db.prepare("SELECT runtime_key,mime_type,content_hash FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
   if (!file) throw new Error("MEDIA_SOURCE_FILE_NOT_FOUND");
   const object = await env.BUCKET.get(clean(file.runtime_key)); if (!object) throw new Error("MEDIA_SOURCE_BYTES_NOT_FOUND");
@@ -3697,6 +3794,44 @@ async function completeMediaJob(request: Request, body: Row) {
     db.prepare("UPDATE v7_stage_states SET blocker='SOURCE_FRAME_QA_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${job.brief_id} source bytes and decoded frames technically verified · semantic acceptance pending`, now, STAGE_ID),
   ]);
   return Response.json({ status: "COMPLETE", jobId, evidenceId: `${jobId}-EVIDENCE`, frameFileIds: storedFrameIds });
+}
+
+async function completeSequenceProof(request: Request, body: Row) {
+  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
+  if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
+  const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED' AND job_type='SEQUENCE_PROOF_RENDER'").bind(jobId).first<Row>();
+  if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
+  const contract = rec(JSON.parse(String(job.contract_json))), proof = await db.prepare("SELECT * FROM v7_sequence_proofs WHERE id=?").bind(contract.proofId).first<Row>(), authorization = await db.prepare("SELECT * FROM v7_material_authorizations WHERE id=?").bind(job.authorization_id).first<Row>();
+  if (!proof || !authorization) throw new Error("SEQUENCE_PROOF_LINEAGE_MISSING");
+  const expectedSources = arr(contract.sources).map(rec), returnedHashes = arr(body.sourceHashes).map(rec);
+  if (expectedSources.length !== 30 || returnedHashes.length !== 30 || !expectedSources.every((source) => returnedHashes.some((item) => clean(item.fileId) === clean(source.fileId) && clean(item.sha256) === clean(source.sha256)))) throw new Error("SEQUENCE_SOURCE_HASH_MISMATCH");
+  const render = rec(body.render), videoBytes = decodeBase64(clean(render.base64)), durationSeconds = Number(render.durationSeconds), fps = Number(render.fps), expectedOutput = rec(contract.output);
+  if (clean(render.mimeType) !== "video/webm" || !validWebm(videoBytes) || videoBytes.byteLength < 100_000 || videoBytes.byteLength > 60_000_000) throw new Error("SEQUENCE_RENDER_INVALID");
+  if (Number(render.width) !== Number(expectedOutput.width) || Number(render.height) !== Number(expectedOutput.height) || Math.abs(durationSeconds - 30) > 0.08 || Math.abs(fps - 30) > 0.2) throw new Error("SEQUENCE_RENDER_CONTRACT_MISMATCH");
+  const frames = arr(body.frames).map(rec), expectedSamples = arr(contract.samplePositions).map(rec);
+  if (frames.length !== 10 || !expectedSamples.every((sample) => frames.some((frame) => clean(frame.role) === clean(sample.role) && clean(frame.logicalId) === clean(sample.logicalId)))) throw new Error("SEQUENCE_SAMPLE_SET_INVALID");
+  const brief = { id: "SEQUENCE-10MP" } as Row, identity = clean(proof.content_hash).slice(0, 16);
+  const sequenceFileId = await storeMaterial(env, db, authorization, brief, { role: "SEQUENCE_PROOF", identity, bytes: videoBytes, mimeType: "video/webm", extension: "webm", sourceType: SEQUENCE_RENDERER_VERSION, provider: "FRAMEFLOW_EXECUTOR", providerAssetId: proof.id, sourceUrl: proof.id, landingUrl: proof.id, licenseCode: "CHANNEL_OWNED", width: Number(render.width), height: Number(render.height), duration: durationSeconds });
+  const storedFrames: Row[] = [];
+  for (let index = 0; index < frames.length; index++) {
+    const frame = frames[index], bytes = decodeBase64(clean(frame.base64)), mimeType = clean(frame.mimeType), role = clean(frame.role), logicalId = clean(frame.logicalId);
+    if (Number(frame.width) !== 960 || Number(frame.height) !== 540 || !validImage(bytes, mimeType) || bytes.byteLength < 20_000 || bytes.byteLength > 2_500_000) throw new Error(`SEQUENCE_SAMPLE_INVALID · ${logicalId}`);
+    const fileId = await storeMaterial(env, db, authorization, brief, { role: `SEQUENCE_SAMPLE_${index + 1}` as MaterialRole, identity, bytes, mimeType, extension: mimeType === "image/png" ? "png" : "jpg", sourceType: `${SEQUENCE_RENDERER_VERSION}_SAMPLE`, provider: "FRAMEFLOW_EXECUTOR", providerAssetId: sequenceFileId, sourceUrl: sequenceFileId, landingUrl: proof.id, licenseCode: "CHANNEL_OWNED", width: 960, height: 540, duration: Number(frame.timestampSeconds) });
+    storedFrames.push({ role, logicalId, timestampSeconds: Number(frame.timestampSeconds), fileId, sha256: await shaBytes(bytes) });
+  }
+  const evidence = { version: "SEQUENCE_PROOF_EVIDENCE_V1", proofId: proof.id, jobId, renderer: proof.version, sequenceFileId, render: { mimeType: "video/webm", codec: clean(render.codec), width: Number(render.width), height: Number(render.height), durationSeconds, fps, audio: "NONE", sha256: await shaBytes(videoBytes) }, sourceHashes: returnedHashes, frames: storedFrames, completedAt: new Date().toISOString() };
+  const json = JSON.stringify(evidence, null, 2), evidenceHash = await sha(json), key = `v7/material-production/${job.run_id}/sequence/${proof.id}-evidence.json`;
+  await env.BUCKET.put(key, json, { httpMetadata: { contentType: "application/json" }, customMetadata: { contentHash: evidenceHash, proofId: clean(proof.id) } });
+  if (!(await env.BUCKET.head(key))) throw new Error("SEQUENCE_EVIDENCE_READ_BACK_FAILED");
+  const drive = await storeDriveJsonArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Material Production", "Sequence Proof"], fileName: `${proof.id}-evidence.json`, content: json, artifactId: `${proof.id}-EVIDENCE`, contentHash: evidenceHash });
+  const now = new Date().toISOString();
+  await db.batch([
+    db.prepare("INSERT INTO v7_media_evidence (id,program_id,run_id,authorization_id,brief_id,job_id,evidence_type,status,content_json,content_hash,runtime_key,drive_file_id,created_at) VALUES (?,?,?,?,?,?,'SEQUENCE_PROOF','TECHNICALLY_VERIFIED',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='TECHNICALLY_VERIFIED',content_json=excluded.content_json,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id").bind(`${proof.id}-EVIDENCE`, PROGRAM_ID, job.run_id, job.authorization_id, "SEQUENCE-10MP", jobId, json, evidenceHash, key, drive.id, now),
+    db.prepare("UPDATE v7_sequence_proofs SET status='QA_REQUIRED',sequence_file_id=?,evidence_id=?,content_hash=?,updated_at=? WHERE id=?").bind(sequenceFileId, `${proof.id}-EVIDENCE`, evidenceHash, now, proof.id),
+    db.prepare("UPDATE v7_media_jobs SET status='COMPLETE',output_json=?,error=NULL,completed_at=?,updated_at=?,lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?").bind(JSON.stringify({ proofId: proof.id, evidenceId: `${proof.id}-EVIDENCE`, sequenceFileId, frameFileIds: storedFrames.map((frame) => frame.fileId) }), now, now, jobId),
+    db.prepare("UPDATE v7_stage_states SET status='SEQUENCE_QA_REQUIRED',blocker='SEQUENCE_PERCEPTUAL_QA_REQUIRED',evidence_summary='30-second WebM stored · 10/10 unit samples verified · sequence QA required · scale locked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return Response.json({ status: "COMPLETE", proofId: proof.id, evidenceId: `${proof.id}-EVIDENCE`, sequenceFileId, frameFileIds: storedFrames.map((frame) => frame.fileId) });
 }
 
 async function completeMotionProof(request: Request, body: Row) {
@@ -3948,6 +4083,8 @@ export async function POST(request: Request) {
     if (body.action === "PLAN_MOTION_PROOF") return Response.json(await planMotionProof(), { status: 201 });
     if (body.action === "ISSUE_MOTION_EXECUTOR_BOOTSTRAP") return Response.json(await issueMotionExecutorBootstrap(), { status: 201 });
     if (body.action === "RUN_MOTION_QA") return Response.json(await motionProofQa(), { status: 202 });
+    if (body.action === "PLAN_SEQUENCE_PROOF") return Response.json(await planSequenceProof(), { status: 201 });
+    if (body.action === "RUN_SEQUENCE_QA") return Response.json(await sequenceProofQa(), { status: 202 });
     if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
     if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);
@@ -3955,6 +4092,7 @@ export async function POST(request: Request) {
     if (body.action === "CLAIM_MOTION_JOB") return await claimMotionJobBootstrap(body);
     if (body.action === "COMPLETE_MEDIA_JOB") return await completeMediaJob(request, body);
     if (body.action === "COMPLETE_MOTION_PROOF") return await completeMotionProof(request, body);
+    if (body.action === "COMPLETE_SEQUENCE_PROOF") return await completeSequenceProof(request, body);
     if (body.action === "FAIL_MEDIA_JOB") return await failMediaJob(request, body);
     return Response.json({ error: "Unsupported Stage 09 action" }, { status: 400 });
   } catch (error) {

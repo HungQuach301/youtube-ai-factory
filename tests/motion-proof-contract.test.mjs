@@ -7,6 +7,7 @@ const page = await readFile(new URL("../app/material-production/page.tsx", impor
 const executor = await readFile(new URL("../scripts/media-executor.mjs", import.meta.url), "utf8");
 const migration = await readFile(new URL("../drizzle/0020_goofy_chimera.sql", import.meta.url), "utf8");
 const rightsMigration = await readFile(new URL("../drizzle/0021_material_gateway.sql", import.meta.url), "utf8");
+const sequenceMigration = await readFile(new URL("../drizzle/0026_striped_the_stranger.sql", import.meta.url), "utf8");
 
 test("motion proof is gated by frozen continuity and champion C", () => {
   assert.match(route, /checkpoint_code='CONTINUITY_HARDENING_01'/);
@@ -466,4 +467,21 @@ test("remaining canonical units compile contract-specific scenes before paid res
   assert.match(route, /Interrupted pre-dispatch lease recovered · baseline CANARY_ONLY/);
   assert.match(route, /UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY'/);
   assert.match(page, /Build 8 canonical unit scenes · G0\/G1 · \$0/);
+});
+
+test("10 sealed MP units compile into one immutable 30-second sequence gate", () => {
+  assert.match(route, /SEQUENCE_REQUIRES_10_OF_10_CANARY_PASS/);
+  assert.match(route, /passed_units=10/);
+  assert.match(route, /SEQUENCE_SOURCE_MANIFEST_INCOMPLETE/);
+  assert.match(route, /exactSourceCount: 30/);
+  assert.match(route, /noRegeneration: true/);
+  assert.match(route, /noFallback: true/);
+  assert.match(route, /SEQUENCE_PROOF_QA/);
+  assert.match(route, /CONTROLLED_RELEASE_GATE_V1/);
+  assert.match(executor, /sequence proof requires exactly 30 promoted frames/);
+  assert.match(executor, /COMPLETE_SEQUENCE_PROOF/);
+  assert.match(page, /Build 30-second sequence · \$0/);
+  assert.match(page, /Run sequence QA · 1 request/);
+  assert.match(sequenceMigration, /CREATE TABLE `v7_sequence_proofs`/);
+  assert.doesNotMatch(sequenceMigration, /CREATE TABLE `v7_artifact_promotions`/);
 });

@@ -934,6 +934,33 @@ export const v7MotionAudits = sqliteTable("v7_motion_audits", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const v7SequenceProofs = sqliteTable("v7_sequence_proofs", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  authorizationId: text("authorization_id").notNull(),
+  canaryId: text("canary_id").notNull(),
+  version: text("version").notNull(),
+  status: text("status").notNull(),
+  sequenceFileId: text("sequence_file_id"),
+  evidenceId: text("evidence_id"),
+  sourceManifestJson: text("source_manifest_json").notNull(),
+  durationSeconds: real("duration_seconds").notNull().default(30),
+  fps: integer("fps").notNull().default(30),
+  unitCount: integer("unit_count").notNull().default(10),
+  frameCount: integer("frame_count").notNull().default(30),
+  score: integer("score").notNull().default(0),
+  tier: text("tier").notNull().default("BLOCKED"),
+  dimensionsJson: text("dimensions_json").notNull().default("{}"),
+  findingsJson: text("findings_json").notNull().default("[]"),
+  providerResponseId: text("provider_response_id"),
+  requestId: text("request_id"),
+  contentHash: text("content_hash"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  completedAt: text("completed_at"),
+});
+
 export const v7MaterialUnitRepairs = sqliteTable("v7_material_unit_repairs", {
   id: text("id").primaryKey(),
   programId: text("program_id").notNull(),
