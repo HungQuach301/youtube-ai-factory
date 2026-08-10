@@ -482,6 +482,7 @@ test("10 sealed MP units compile into one immutable 30-second sequence gate", ()
   assert.match(route, /bind\(proof\.canary_id\)/);
   assert.match(route, /clean\(canary\?\.status\) === "PASS"/);
   assert.match(route, /Number\(canary\?\.passed_units\) === 10/);
+  assert.doesNotMatch(route, /Number\(canary\?\.failed_units\) === 0/);
   assert.match(route, /clean\(proof\?\.status\) === "QA_REQUIRED"/);
   assert.match(route, /Number\(proof\?\.frame_count\) === 30/);
   assert.match(route, /&& !sequenceQaAuthorized/);

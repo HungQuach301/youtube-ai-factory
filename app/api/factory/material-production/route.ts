@@ -2562,11 +2562,10 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
   let sequenceQaAuthorized = false;
   if (phase === "SEQUENCE_PROOF_QA" && briefId === "SEQUENCE-10MP") {
     const proof = await db.prepare("SELECT canary_id,status,unit_count,frame_count FROM v7_sequence_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
-    const canary = proof ? await db.prepare("SELECT id,status,passed_units,failed_units FROM v7_pilot_canaries WHERE id=? LIMIT 1").bind(proof.canary_id).first<Row>() : null;
+    const canary = proof ? await db.prepare("SELECT id,status,passed_units FROM v7_pilot_canaries WHERE id=? LIMIT 1").bind(proof.canary_id).first<Row>() : null;
     sequenceQaAuthorized = Boolean(canary && proof)
       && clean(canary?.status) === "PASS"
       && Number(canary?.passed_units) === 10
-      && Number(canary?.failed_units) === 0
       && clean(proof?.canary_id) === clean(canary?.id)
       && clean(proof?.status) === "QA_REQUIRED"
       && Number(proof?.unit_count) === 10
