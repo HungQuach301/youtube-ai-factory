@@ -32,6 +32,8 @@ const STABILIZATION_RELEASE_VERSION = "STABILIZATION_RELEASE_V1_TYPED_STATE_MACH
 const STABILIZED_RENDERER_VERSION = "PRODUCTION_SCENE_RENDERER_V3_STABILIZED";
 const STABILIZED_RUBRIC = "SHOT_CONTRACT_PIXEL_QA_V3";
 const STABILIZED_CONTRACT_VERSION = "EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V3";
+const MP002_TARGETED_REPAIR_VERSION = "MP002_TARGETED_REPAIR_V1";
+const MP002_TARGETED_REPAIR_RENDERER = "PRODUCTION_SCENE_RENDERER_V4_MP002_TARGETED_REPAIR";
 const SEALED_RELEASE_SET = ["MP-001"] as const;
 const LEGACY_CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
 const PROMOTION_REGRESSION_VERSION = "PROMOTION_BINDING_REGRESSION_V1";
@@ -310,7 +312,7 @@ async function snapshot() {
   const recoveryEvents = recovery ? await rows(db, "SELECT * FROM v7_canary_transition_events WHERE recovery_id=? ORDER BY created_at", recovery.id) : [];
   const recoveryIntent = recovery ? await db.prepare("SELECT * FROM v7_canary_request_intents WHERE recovery_id=? ORDER BY created_at DESC LIMIT 1").bind(recovery.id).first<Row>() : null;
   const recoveryOutbox = recovery ? await db.prepare("SELECT * FROM v7_canary_outbox WHERE recovery_id=? ORDER BY created_at DESC LIMIT 1").bind(recovery.id).first<Row>() : null;
-  const controlledCanaryAudit = controlledCanary?.current_brief_id ? audits.find((item) => clean(item.id) === `${clean(controlledCanary.current_brief_id)}-${clean(controlledCanary.version)}-PIXEL-AUDIT`) : null;
+  const controlledCanaryAudit = controlledCanary?.current_brief_id ? [...audits].reverse().find((item) => item.brief_id === controlledCanary.current_brief_id && clean(item.id).startsWith(`${clean(controlledCanary.current_brief_id)}-${clean(controlledCanary.version)}-PIXEL-AUDIT`)) : null;
   const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
   const content = artifact ? JSON.parse(String(artifact.content_json)) as Row : null;
@@ -1481,11 +1483,11 @@ function productionSceneManifest(contract: Row, rendererVersion = PRODUCTION_SCE
     };
   });
   const states = logicalId === "MP-002" ? [
-    { role: "ENTRY", sceneLabel: "CREDIT PURCHASE", primary: "$100.00", secondary: "INSERT OR TAP CARD", sourceEvidence: evidence[0] || clean(contract.claim), sceneDelta: "PURCHASE_READY" },
+    { role: "ENTRY", sceneLabel: "CREDIT PURCHASE", primary: "$100.00", secondary: "PROCESSING", sourceEvidence: evidence[0] || clean(contract.claim), sceneDelta: "AUTHORIZATION_STARTED", physicalAction: "CARD_AT_READER" },
     { role: "MIDPOINT", sceneLabel: "AUTHORIZATION", primary: "PROCESSING", secondary: "$100.00 CREDIT CARD", sourceEvidence: evidence[1] || evidence[0] || clean(contract.claim), sceneDelta: "AUTHORIZATION_IN_FLIGHT" },
-    { role: "EXIT", sceneLabel: "CREDIT PURCHASE", primary: "APPROVED", secondary: "$100.00", sourceEvidence: evidence[2] || evidence.at(-1) || clean(contract.claim), sceneDelta: "APPROVAL_CONFIRMED" },
+    { role: "EXIT", sceneLabel: "CREDIT PURCHASE", primary: "APPROVED", secondary: "$100.00", sourceEvidence: evidence[2] || evidence.at(-1) || clean(contract.claim), sceneDelta: "APPROVAL_CONFIRMED", physicalAction: "HAND_WITHDRAWS_CARD" },
   ] : fallbackStates;
-  const requiredCoVisible = logicalId === "MP-002" ? [{ state: "EXIT", tokens: ["APPROVED", "$100.00"] }] : [];
+  const requiredCoVisible = logicalId === "MP-002" ? [{ state: "ENTRY", tokens: ["$100.00", "PROCESSING"] }, { state: "EXIT", tokens: ["APPROVED", "$100.00"] }] : [];
   return {
     version: manifestVersion,
     logicalId,
@@ -1500,7 +1502,7 @@ function productionSceneManifest(contract: Row, rendererVersion = PRODUCTION_SCE
     prohibited: [...new Set([...arr(contract.forbidden).map(clean), "PROOF CARD", "FIXTURE", "PLACEHOLDER", "QA METADATA", "DEBUG LABEL"].filter(Boolean))],
     temporalOrder: ["ENTRY", "MIDPOINT", "EXIT"],
     visibleTextPolicy: "SOURCE_OR_CONTRACT_DERIVED_ONLY",
-    layoutPolicy: { safeArea: 36, minimumGlyphScale: 2, noOverlap: true, noCrop: true, mobileReadability: true },
+    layoutPolicy: { safeArea: 36, minimumGlyphScale: 2, noOverlap: true, noCrop: true, mobileReadability: true, receiptTextWidth: 240 },
   };
 }
 
@@ -1516,15 +1518,18 @@ function productionScenePng(manifest: Row, state: 0 | 1 | 2) {
   const line=(x1:number,y1:number,x2:number,y2:number,t:number,hex:string)=>{const steps=Math.max(Math.abs(x2-x1),Math.abs(y2-y1));for(let i=0;i<=steps;i++){const p=steps?i/steps:0;fill(Math.round(x1+(x2-x1)*p)-Math.floor(t/2),Math.round(y1+(y2-y1)*p)-Math.floor(t/2),t,t,hex);}};
   const current=rec(arr(manifest.states)[state]),sceneType=clean(manifest.sceneType),accent=state===0?"#e8b65d":state===1?"#72c8a3":"#7fe2b5";
   fill(0,0,width,height,"#061b18");fill(0,0,width,12,accent);fill(36,30,888,474,"#0b3029");
-  text(fit(current.sceneLabel,30),64,55,3,"#d7eee5");text(fit(manifest.logicalId,12),820,58,2,"#83bca6");
+  text(fit(current.sceneLabel,30),64,55,3,"#d7eee5");
   if(sceneType==="CHECKOUT_TERMINAL"){
     fill(105,134,305,292,"#e9efe9");fill(130,160,255,126,state===1?"#183f38":"#ffffff");
     centerAt(current.primary,258,190,state===1?3:4,state===1?"#f2f5ed":"#123d35",18);
     if(state===1){for(let i=0;i<4;i++){circle(178+i*52,256,8,i<=state?"#78d0aa":"#8fa69d");if(i<3)fill(186+i*52,252,36,8,"#78d0aa");}}
-    fill(158,325,198,62,state===2?"#1b7b5b":"#d8e2dc");centerAt(state===2?"APPROVED":state===1?"AUTHORIZING":"READY",257,344,3,state===2?"#ffffff":"#24483f",18);
-    fill(510,150,310,238,"#f6efd9");fill(535,176,260,12,"#d7cba8");fill(535,211,180,9,"#d7cba8");fill(535,242,222,9,"#d7cba8");fill(535,286,260,2,"#9d957d");
-    centerAt(current.secondary,665,318,current.secondary&&clean(current.secondary).length>18?2:3,"#173d34",28);
+    fill(158,325,198,62,state===2?"#1b7b5b":"#d8e2dc");centerAt(state===2?"APPROVED":state===1?"AUTHORIZING":"PROCESSING",257,344,state===0?2:3,state===2?"#ffffff":"#24483f",18);
+    fill(510,150,310,238,"#f6efd9");fill(535,176,240,12,"#d7cba8");fill(535,211,176,9,"#d7cba8");fill(535,242,216,9,"#d7cba8");fill(535,286,240,2,"#9d957d");
+    const receiptText=fit(current.secondary,20),receiptScale=receiptText.length>13?2:3;centerAt(receiptText,655,318,receiptScale,"#173d34",20);
+    if(state===0){fill(412,266,116,70,"#d7eee5");fill(430,280,84,42,"#315447");fill(376,314,72,34,"#e1b99b");text("CARD AT READER",390,374,2,"#a8cdbd");}
+    if(state===1){fill(400,252,116,70,"#d7eee5");fill(418,266,84,42,"#315447");fill(362,306,72,34,"#e1b99b");text("AUTHORIZING",394,374,2,"#a8cdbd");}
     if(state===2){circle(770,354,25,"#2b8b68");text("+",760,339,4,"#ffffff");}
+    if(state===2){fill(444,224,116,70,"#d7eee5");fill(462,238,84,42,"#315447");fill(536,292,72,34,"#e1b99b");line(392,272,430,246,4,"#72c8a3");line(396,294,438,284,4,"#72c8a3");text("CARD REMOVED",430,356,2,"#a8cdbd");}
   } else if(sceneType==="PAYMENT_ROUTE"){
     const xs=[135,380,625];xs.forEach((x,index)=>{fill(x,176,200,176,index<=state?"#f4edd7":"#173d35");fill(x,176,200,12,index<=state?accent:"#31594e");circle(x+100,230,30,index<=state?"#2d8063":"#52766b");text(String(index+1),x+91,216,4,index<=state?"#ffffff":"#aec6bc");});
     if(state>=1)line(335,264,380,264,8,accent);if(state>=2)line(580,264,625,264,8,accent);center(current.primary,386,4,"#ffffff",28);
@@ -1537,7 +1542,7 @@ function productionScenePng(manifest: Row, state: 0 | 1 | 2) {
   } else {
     const points=[[170,290],[330,190],[480,320],[630,190],[790,290]] as const;points.forEach((p,index)=>{if(index<points.length-1&&index<=state+1)line(p[0],p[1],points[index+1][0],points[index+1][1],8,index<=state?accent:"#31594e");circle(p[0],p[1],index===state+1?32:22,index<=state+1?"#f2e9cf":"#31594e");});center(current.primary,395,4,"#ffffff",28);
   }
-  center(current.secondary,468,2,"#a8cdbd",38);
+  if(sceneType!=="CHECKOUT_TERMINAL") center(current.secondary,468,2,"#a8cdbd",38);
   [0,1,2].forEach((index)=>fill(382+index*72,518,54,8,index<=state?accent:"#315447"));
   for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);}const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
 }
@@ -1822,6 +1827,102 @@ async function releaseReleaseTrainSequenceProof() {
   return startControlledCanaryUnit();
 }
 
+async function prepareStabilizedMp002TargetedRepair() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET) throw new Error("MP002_TARGETED_REPAIR_CONFIGURATION_REQUIRED");
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='SEQUENCE_OR_BATCH_FAILED_PRESERVED' ORDER BY created_at DESC LIMIT 1").bind(run.id, STABILIZATION_RELEASE_VERSION).first<Row>();
+  if (!canary || Number(canary.current_index) !== 1 || clean(canary.current_brief_id) === "") throw new Error("MP002_FAILED_SEQUENCE_PROOF_REQUIRED");
+  const queue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec), currentItem = queue[1];
+  if (clean(currentItem?.logicalId) !== "MP-002" || clean(authorization.status) !== "PAUSED") throw new Error("MP002_TARGETED_REPAIR_SCOPE_MISMATCH");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("MP002_TARGETED_REPAIR_ACTIVE_REQUESTS");
+  const priorAudit = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND id LIKE ? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, canary.current_brief_id, `%${STABILIZATION_RELEASE_VERSION}-PIXEL-AUDIT%`).first<Row>();
+  if (!priorAudit || Number(priorAudit.score) !== 74 || clean(priorAudit.status) !== "REPAIR_REQUIRED") throw new Error("MP002_74_FAILED_AUDIT_REQUIRED");
+  const eventId = `${clean(canary.id)}-${MP002_TARGETED_REPAIR_VERSION}-PREPARED`, existing = await db.prepare("SELECT id FROM v7_canary_transition_events WHERE id=?").bind(eventId).first<Row>();
+  if (existing) return snapshot();
+  const brief = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(canary.current_brief_id).first<Row>();
+  const sourcePromotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN' ORDER BY created_at DESC LIMIT 1").bind(STABILIZATION_RELEASE_VERSION, canary.current_brief_id).first<Row>();
+  const sourceUnit = await db.prepare("SELECT * FROM v7_unit_materializations WHERE canary_version=? AND brief_id=? AND status='FROZEN' ORDER BY created_at DESC LIMIT 1").bind(STABILIZATION_RELEASE_VERSION, canary.current_brief_id).first<Row>();
+  if (!brief || !sourcePromotion || !sourceUnit) throw new Error("MP002_FROZEN_FAILED_ARTIFACT_REQUIRED");
+  const sourceBinding = await validatePromotionBinding(env, db, sourcePromotion);
+  if (!sourceBinding.passed) throw new Error("MP002_FAILED_ARTIFACT_LINEAGE_INVALID");
+  const repairedBase = productionSceneManifest(sourceBinding.contractPayload, MP002_TARGETED_REPAIR_RENDERER, "EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V4_TARGETED_REPAIR");
+  const sourceManifest = rec(sourceBinding.manifest), manifest = {
+    ...sourceManifest,
+    ...repairedBase,
+    unitContract: sourceManifest.unitContract,
+    sourceContractHash: sourceManifest.sourceContractHash,
+    canonicalPilotManifestVersion: sourceManifest.canonicalPilotManifestVersion,
+    canonicalPilotManifestHash: sourceManifest.canonicalPilotManifestHash,
+    repair: { version: MP002_TARGETED_REPAIR_VERSION, attempt: 1, sourceAuditId: priorAudit.id, sourceScore: Number(priorAudit.score), immutableSourcePromotionId: sourcePromotion.id, defects: ["INTERNAL_ID_VISIBLE", "ENTRY_PROCESSING_AMOUNT_NOT_COVISIBLE", "EXIT_CARD_WITHDRAWAL_MISSING", "RECEIPT_TEXT_CROP"] },
+  };
+  const states = arr(manifest.states).map(rec), entry = states.find((item) => clean(item.role) === "ENTRY"), exit = states.find((item) => clean(item.role) === "EXIT");
+  const entryText = `${clean(entry?.sceneLabel)} ${clean(entry?.primary)} ${clean(entry?.secondary)}`, exitText = `${clean(exit?.sceneLabel)} ${clean(exit?.primary)} ${clean(exit?.secondary)}`;
+  const gates = [
+    { id: "INTERNAL_ID_ABSENT", status: states.every((item) => !`${clean(item.sceneLabel)} ${clean(item.primary)} ${clean(item.secondary)}`.includes("MP-002")) ? "PASS" : "FAIL", evidence: "audience text excludes internal unit IDs" },
+    { id: "ENTRY_PROCESSING_AMOUNT_COVISIBLE", status: entryText.includes("$100.00") && entryText.includes("PROCESSING") ? "PASS" : "FAIL", evidence: "$100.00 + PROCESSING" },
+    { id: "EXIT_APPROVAL_AMOUNT_COVISIBLE", status: exitText.includes("APPROVED") && exitText.includes("$100.00") ? "PASS" : "FAIL", evidence: "APPROVED + $100.00" },
+    { id: "EXIT_PHYSICAL_WITHDRAWAL", status: clean(exit?.physicalAction) === "HAND_WITHDRAWS_CARD" ? "PASS" : "FAIL", evidence: "hand and card leave reader" },
+    { id: "RECEIPT_SAFE_WIDTH", status: Number(rec(manifest.layoutPolicy).receiptTextWidth) <= 240 && states.every((item) => clean(item.secondary).length <= 20) ? "PASS" : "FAIL", evidence: "240px receipt text box · max 20 glyphs" },
+  ];
+  if (gates.some((gate) => gate.status !== "PASS")) throw new Error(`MP002_TARGETED_REPAIR_G0_FAILED · ${gates.filter((gate) => gate.status !== "PASS").map((gate) => gate.id).join(",")}`);
+  const frameIds: string[] = [], frameHashes: string[] = [];
+  for (const [role, state] of [["CERT_ENTRY", 0], ["CERT_MIDPOINT", 1], ["CERT_EXIT", 2]] as const) {
+    const bytes = productionScenePng(manifest, state), fileId = await storeMaterial(env, db, authorization, brief, { role, identity: `PRODUCTION-SCENE-V4-MP002-REPAIR-1-${state}`, bytes, mimeType: "image/png", extension: "png", sourceType: MP002_TARGETED_REPAIR_RENDERER, provider: "FRAMEFLOW_OWNED", providerAssetId: clean(sourcePromotion.certification_id), sourceUrl: clean(sourcePromotion.certification_id), landingUrl: clean(sourcePromotion.certification_id), licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
+    const stored = await db.prepare("SELECT content_hash FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
+    frameIds.push(fileId); frameHashes.push(clean(stored?.content_hash));
+  }
+  if (frameIds.length !== 3 || new Set(frameHashes).size !== 3) throw new Error("MP002_TARGETED_REPAIR_FRAME_INTEGRITY_FAILED");
+  const now = new Date().toISOString(), manifestJson = JSON.stringify(manifest), manifestHash = await sha(manifestJson), unitId = `${clean(canary.id)}-MP-002-TARGETED-REPAIR-1-UNIT`, promotionId = `${clean(canary.id)}-MP-002-TARGETED-REPAIR-1-PROMOTION`;
+  const sourcePreflight = rec(JSON.parse(String(sourcePromotion.preflight_json || "{}"))), preflight = { ...sourcePreflight, source: "TARGETED_PIXEL_REPAIR", repairVersion: MP002_TARGETED_REPAIR_VERSION, repairAttempt: 1, sourcePromotionId: sourcePromotion.id, sourceAuditId: priorAudit.id, immutablePriorScore: Number(priorAudit.score), defectsClosed: gates.map((gate) => gate.id), unitMaterializationId: unitId, semanticManifestHash: manifestHash, unitRenderer: MP002_TARGETED_REPAIR_RENDERER, proofCardRendererDisabled: true, audienceInternalIds: false, receiptCropGuard: true, frozenAt: now };
+  const policy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), renderer: MP002_TARGETED_REPAIR_RENDERER, targetedRepair: { version: MP002_TARGETED_REPAIR_VERSION, unit: "MP-002", attempt: 1, sourceAuditId: priorAudit.id, sourceScore: Number(priorAudit.score), prepared: true, released: false }, sequenceProofReleased: false, batchAuthorized: false, autoRetry: false, autoAdvance: false, nextUnitDispatch: false, productionScale: "BLOCKED" };
+  await db.batch([
+    db.prepare("UPDATE v7_artifact_promotions SET status='SUPERSEDED_BY_TARGETED_REPAIR' WHERE id=? AND status='FROZEN'").bind(sourcePromotion.id),
+    db.prepare("UPDATE v7_unit_materializations SET status='SUPERSEDED_BY_TARGETED_REPAIR' WHERE id=? AND status='FROZEN'").bind(sourceUnit.id),
+    db.prepare("INSERT INTO v7_unit_materializations (id,program_id,baseline_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,certified_renderer_version,unit_renderer_version,contract_hash,semantic_manifest_json,semantic_manifest_hash,frame_ids_json,frame_hashes_json,lint_json,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?)").bind(unitId, PROGRAM_ID, sourceUnit.baseline_id, run.id, authorization.id, STABILIZATION_RELEASE_VERSION, brief.id, "MP-002", sourceUnit.archetype, sourceUnit.certification_id, sourceUnit.certified_renderer_version, MP002_TARGETED_REPAIR_RENDERER, sourcePromotion.contract_hash, manifestJson, manifestHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(gates), now),
+    db.prepare("INSERT INTO v7_artifact_promotions (id,program_id,baseline_id,regression_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,renderer_version,contract_hash,frame_ids_json,frame_hashes_json,status,preflight_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?,?)").bind(promotionId, PROGRAM_ID, sourcePromotion.baseline_id, sourcePromotion.regression_id, run.id, authorization.id, STABILIZATION_RELEASE_VERSION, brief.id, "MP-002", sourcePromotion.archetype, sourcePromotion.certification_id, MP002_TARGETED_REPAIR_RENDERER, sourcePromotion.contract_hash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(preflight), now),
+  ]);
+  const repairedPromotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE id=? AND status='FROZEN'").bind(promotionId).first<Row>(), repairedBinding = repairedPromotion ? await validatePromotionBinding(env, db, repairedPromotion) : null;
+  if (!repairedBinding?.passed) {
+    const failure = `MP002_TARGETED_REPAIR_G1_FAILED · ${repairedBinding?.checks.filter((gate) => gate.status !== "PASS").map((gate) => gate.id).join(",") || "PROMOTION_MISSING"}`;
+    await db.batch([
+      db.prepare("UPDATE v7_artifact_promotions SET status='TARGETED_REPAIR_PREFLIGHT_FAILED' WHERE id=?").bind(promotionId),
+      db.prepare("UPDATE v7_unit_materializations SET status='TARGETED_REPAIR_PREFLIGHT_FAILED' WHERE id=?").bind(unitId),
+      db.prepare("UPDATE v7_artifact_promotions SET status='FROZEN' WHERE id=? AND status='SUPERSEDED_BY_TARGETED_REPAIR'").bind(sourcePromotion.id),
+      db.prepare("UPDATE v7_unit_materializations SET status='FROZEN' WHERE id=? AND status='SUPERSEDED_BY_TARGETED_REPAIR'").bind(sourceUnit.id),
+      db.prepare("UPDATE v7_stage_states SET status='ENGINEERING_ESCALATION',blocker='MP002_TARGETED_REPAIR_G1_FAILED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${failure} · original 74/100 evidence restored · no paid request`, now, STAGE_ID),
+    ]);
+    throw new Error(failure);
+  }
+  await db.batch([
+    db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,expected_state,actual_state,authorization_status,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'TARGETED_REPAIR_PREPARED','QA_REPAIR_REQUIRED','TARGETED_REPAIR_READY','PAUSED','UNCHANGED','NOT_DISPATCHED',?,?)").bind(eventId, canary.id, `${clean(canary.id)}-PREPARE-MP002-TARGETED-REPAIR`, STABILIZATION_RELEASE_VERSION, "MP-002", JSON.stringify({ repairVersion: MP002_TARGETED_REPAIR_VERSION, sourceAuditId: priorAudit.id, sourceScore: Number(priorAudit.score), sourceFrameHashes: sourceBinding.frameHashes, repairedFrameHashes: frameHashes, gates, paidRequests: 0 }), now),
+    db.prepare("UPDATE v7_pilot_canaries SET status='TARGETED_REPAIR_READY',request_budget=10,cost_budget=10,gate_json=?,updated_at=?,completed_at=NULL WHERE id=?").bind(JSON.stringify(gates), now, canary.id),
+    db.prepare("UPDATE v7_material_authorizations SET scope='MP002_TARGETED_REPAIR_READY',status='PAUSED',max_remote_requests=max_remote_requests+1,max_actual_spend_usd=max_actual_spend_usd+1,model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(policy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='STABILIZATION_TARGETED_REPAIR_READY',mode='MP002_TARGETED_REPAIR_V1' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='STABILIZATION_TARGETED_REPAIR_READY',blocker='EXPLICIT_MP002_TARGETED_REPAIR_RELEASE',evidence_summary=?,updated_at=? WHERE id=?").bind(`MP-002 74/100 preserved · 3/3 repaired frames byte-bound · 5/5 defect gates PASS · request ledger unchanged · one targeted repair allowed`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function releaseStabilizedMp002TargetedRepair() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("MP002_TARGETED_REPAIR_CONFIGURATION_REQUIRED");
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='TARGETED_REPAIR_READY' ORDER BY created_at DESC LIMIT 1").bind(run.id, STABILIZATION_RELEASE_VERSION).first<Row>();
+  const policy = rec(JSON.parse(String(authorization.model_policy_json || "{}"))), repairPolicy = rec(policy.targetedRepair);
+  if (!canary || clean(repairPolicy.version) !== MP002_TARGETED_REPAIR_VERSION || Number(repairPolicy.attempt) !== 1 || repairPolicy.prepared !== true || repairPolicy.released === true) throw new Error("MP002_TARGETED_REPAIR_NOT_READY");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("MP002_TARGETED_REPAIR_ACTIVE_REQUESTS");
+  const now = new Date().toISOString(), releasedPolicy = { ...policy, targetedRepair: { ...repairPolicy, released: true, releasedAt: now }, sequenceProofReleased: true, batchAuthorized: false, autoRetry: false, autoAdvance: false, nextUnitDispatch: false };
+  await db.batch([
+    db.prepare("UPDATE v7_pilot_canaries SET status='AUTHORIZED',updated_at=? WHERE id=? AND status='TARGETED_REPAIR_READY'").bind(now, canary.id),
+    db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=?").bind(canary.baseline_id),
+    db.prepare("UPDATE v7_material_authorizations SET scope='MP002_TARGETED_REPAIR_1',status='AUTHORIZED',model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(releasedPolicy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED',mode='MP002_TARGETED_REPAIR_V1' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='MP002_TARGETED_REPAIR_RELEASED',blocker='MP002_ONLY',evidence_summary='One targeted MP-002 repair released · max 1 request / $1 · no second repair · no later-unit dispatch',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return startControlledCanaryUnit();
+}
+
 async function startReleaseTrainBatch() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("RELEASE_TRAIN_CONFIGURATION_REQUIRED");
@@ -1829,11 +1930,11 @@ async function startReleaseTrainBatch() {
   if (!canary || Number(canary.current_index) !== 1 || Number(canary.passed_units) !== 2) throw new Error("RELEASE_TRAIN_SEQUENCE_PROOF_PASS_REQUIRED");
   const queue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec), next = queue[2];
   if (!next) throw new Error("RELEASE_TRAIN_BATCH_SCOPE_MISSING");
-  const now = new Date().toISOString(), policy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), batchAuthorized: true, nextUnitDispatch: "TERMINAL_PASS_ONLY", concurrency: 1, concurrencyCeiling: 2, remainingRequestBudget: 8, remainingCostBudgetUsd: 8 };
+  const currentPolicy = rec(JSON.parse(String(authorization.model_policy_json || "{}"))), repairUsed = Number(rec(currentPolicy.targetedRepair).attempt) === 1, now = new Date().toISOString(), policy = { ...currentPolicy, batchAuthorized: true, nextUnitDispatch: "TERMINAL_PASS_ONLY", concurrency: 1, concurrencyCeiling: 2, remainingRequestBudget: 8, remainingCostBudgetUsd: 8 };
   await db.batch([
     db.prepare("UPDATE v7_pilot_canaries SET status='AUTHORIZED',current_index=2,current_brief_id=?,updated_at=? WHERE id=?").bind(next.briefId, now, canary.id),
     db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=?").bind(canary.baseline_id),
-    db.prepare("UPDATE v7_material_authorizations SET scope='RELEASE_TRAIN_BATCH_MP003_MP010',status='AUTHORIZED',max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,updated_at=? WHERE id=?").bind(Number(canary.requests_before) + 9, Number(canary.cost_before) + 9, JSON.stringify(policy), now, authorization.id),
+    db.prepare("UPDATE v7_material_authorizations SET scope='RELEASE_TRAIN_BATCH_MP003_MP010',status='AUTHORIZED',max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,updated_at=? WHERE id=?").bind(Number(canary.requests_before) + (repairUsed ? 10 : 9), Number(canary.cost_before) + (repairUsed ? 10 : 9), JSON.stringify(policy), now, authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED',mode='RELEASE_TRAIN_BOUNDED_BATCH' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='RELEASE_TRAIN_BATCH_RUNNING',blocker='TERMINAL_PASS_PER_UNIT',evidence_summary='MP-002 sequence proof PASS · bounded MP-003–MP-010 batch opened · hard-stop per unit · no retry · concurrency ceiling 2',updated_at=? WHERE id=?").bind(now, STAGE_ID),
   ]);
@@ -1906,7 +2007,7 @@ async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, c
   const recoveryIntent = recovery ? await db.prepare("SELECT * FROM v7_canary_request_intents WHERE recovery_id=? AND status='PROVIDER_DISPATCHED' ORDER BY created_at DESC LIMIT 1").bind(recovery.id).first<Row>() : null;
   const canaryVersion = clean(canary.version), promotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(canaryVersion, brief.id).first<Row>();
   const binding = promotion ? await validatePromotionBinding(env, db, promotion) : null;
-  const audit = await db.prepare("SELECT * FROM v7_material_audits WHERE id=?").bind(`${brief.id}-${canaryVersion}-PIXEL-AUDIT`).first<Row>();
+  const audit = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND id LIKE ? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id, `%${canaryVersion}-PIXEL-AUDIT%`).first<Row>();
   const dimensions = audit ? rec(JSON.parse(String(audit.dimensions_json || "{}"))) : {}, dimensionFloor = Object.values(dimensions).length >= 5 && Object.values(dimensions).every((value) => Number(value) >= 90);
   const priorQueue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec).slice(0, Number(canary.current_index)), priorPromotions: Row[] = [];
   for (const prior of priorQueue) { const item = await db.prepare("SELECT frame_hashes_json FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(canaryVersion, prior.briefId).first<Row>(); if (item) priorPromotions.push(item); }
@@ -2748,7 +2849,7 @@ async function pollVision(env: Env, db: DB, authorization: Row, requestRow: Row)
   const result = JSON.parse(output(payload)) as Row, dimensions = ["semanticFit", "factualSafety", "composition", "mobileLegibility", "authenticity"], promoted = ["CANARY_PROMOTED_PIXEL_QA", "CANARY_UNIT_SPECIFIC_PIXEL_QA"].includes(clean(requestRow.phase));
   const activeCanary = promoted ? await db.prepare("SELECT version FROM v7_pilot_canaries WHERE authorization_id=? AND current_brief_id=? AND status='UNIT_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, requestRow.brief_id).first<Row>() : null, canaryVersion = clean(activeCanary?.version), capability = canaryDispatchCapability(canaryVersion);
   if (promoted && (!activeCanary || capability?.phase !== clean(requestRow.phase))) throw new Error("CANARY_AUDIT_CAPABILITY_MISMATCH");
-  const promotion = promoted ? await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(canaryVersion, requestRow.brief_id).first<Row>() : null, promotedFrameIds = promotion ? arr(JSON.parse(String(promotion.frame_ids_json || "[]"))).map(clean) : [], file = promoted ? (promotedFrameIds[0] ? { id: promotedFrameIds[0] } : null) : await db.prepare("SELECT id FROM v7_material_files WHERE brief_id=? AND asset_role='PRIMARY'").bind(requestRow.brief_id).first<Row>(), auditId = promoted ? `${requestRow.brief_id}-${canaryVersion}-PIXEL-AUDIT` : `${requestRow.brief_id}-PIXEL-AUDIT`;
+  const promotion = promoted ? await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN' ORDER BY created_at DESC LIMIT 1").bind(canaryVersion, requestRow.brief_id).first<Row>() : null, promotedFrameIds = promotion ? arr(JSON.parse(String(promotion.frame_ids_json || "[]"))).map(clean) : [], file = promoted ? (promotedFrameIds[0] ? { id: promotedFrameIds[0] } : null) : await db.prepare("SELECT id FROM v7_material_files WHERE brief_id=? AND asset_role='PRIMARY'").bind(requestRow.brief_id).first<Row>(), promotionPreflight = promotion ? rec(JSON.parse(String(promotion.preflight_json || "{}"))) : {}, repairAttempt = Number(promotionPreflight.repairAttempt || 0), auditId = promoted ? `${requestRow.brief_id}-${canaryVersion}-PIXEL-AUDIT${repairAttempt ? `-REPAIR-${repairAttempt}` : ""}` : `${requestRow.brief_id}-PIXEL-AUDIT`;
   const binding = promoted && promotion ? await validatePromotionBinding(env, db, promotion) : null, riskTier = clean(rec(binding?.contractPayload).riskTier), overallFloor = promoted ? riskTier === "P0" ? 94 : 92 : 90, dimensionFloor = promoted ? 90 : 86;
   const hardPass = dimensions.every((key) => Number(result[key]) >= dimensionFloor) && Number(result.overall) >= overallFloor && result.decision === "PASS";
   await db.prepare("INSERT INTO v7_material_audits (id,program_id,run_id,authorization_id,brief_id,file_id,status,score,dimensions_json,provider_response_id,findings_json) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET file_id=excluded.file_id,status=excluded.status,score=excluded.score,dimensions_json=excluded.dimensions_json,provider_response_id=excluded.provider_response_id,findings_json=excluded.findings_json").bind(auditId, PROGRAM_ID, authorization.run_id, authorization.id, requestRow.brief_id, file?.id || "MISSING", hardPass ? "PASS" : "REPAIR_REQUIRED", Number(result.overall), JSON.stringify(Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]))), payload.id, JSON.stringify([...(arr(result.findings)), clean(result.exactRepair)].filter(Boolean))).run();
@@ -3485,6 +3586,8 @@ export async function POST(request: Request) {
     }
     if (body.action === "BUILD_PRODUCTION_SCENE_PREFLIGHT") throw new Error("LEGACY_ACTION_UNREACHABLE · BUILD_PRODUCTION_SCENE_PREFLIGHT");
     if (body.action === "RELEASE_RELEASE_TRAIN_SEQUENCE_PROOF") return Response.json(await releaseReleaseTrainSequenceProof(), { status: 202 });
+    if (body.action === "PREPARE_STABILIZED_MP002_TARGETED_REPAIR") return Response.json(await prepareStabilizedMp002TargetedRepair(), { status: 201 });
+    if (body.action === "RELEASE_STABILIZED_MP002_TARGETED_REPAIR") return Response.json(await releaseStabilizedMp002TargetedRepair(), { status: 202 });
     if (body.action === "STEP_RELEASE_TRAIN_UNIT") return Response.json(await stepReleaseTrainUnit(), { status: 202 });
     if (body.action === "START_RELEASE_TRAIN_BATCH") return Response.json(await startReleaseTrainBatch(), { status: 202 });
     if (body.action === "RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT") return Response.json(await releaseNextReleaseTrainBatchUnit(), { status: 202 });

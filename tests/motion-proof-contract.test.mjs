@@ -421,3 +421,19 @@ test("Stabilization Release enforces typed scope, canonical rehearsal and legacy
   assert.match(route, /STABILIZATION_TERMINAL_FAIL/);
   assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
 });
+
+test("MP-002 has one append-only targeted repair that closes the observed P1 defects", () => {
+  assert.match(route, /MP002_TARGETED_REPAIR_V1/);
+  assert.match(route, /PREPARE_STABILIZED_MP002_TARGETED_REPAIR/);
+  assert.match(route, /RELEASE_STABILIZED_MP002_TARGETED_REPAIR/);
+  assert.match(route, /MP002_74_FAILED_AUDIT_REQUIRED/);
+  assert.match(route, /ENTRY_PROCESSING_AMOUNT_COVISIBLE/);
+  assert.match(route, /EXIT_PHYSICAL_WITHDRAWAL/);
+  assert.match(route, /HAND_WITHDRAWS_CARD/);
+  assert.match(route, /RECEIPT_SAFE_WIDTH/);
+  assert.match(route, /SUPERSEDED_BY_TARGETED_REPAIR/);
+  assert.match(route, /PIXEL-AUDIT\$\{repairAttempt \? `-REPAIR-\$\{repairAttempt\}` : ""\}/);
+  assert.doesNotMatch(route, /text\(fit\(manifest\.logicalId/);
+  assert.match(page, /Build MP-002 targeted repair · G0\/G1 · \$0/);
+  assert.match(page, /Run request 85 · MP-002 targeted repair · max \$1/);
+});
