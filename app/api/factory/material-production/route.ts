@@ -2559,8 +2559,23 @@ async function setModel(modelId: string, reasoningEffort: string) {
 
 async function newRequest(db: DB, authorization: Row, briefId: string, phase: string, provider: string, modelId = "none", reasoning = "none", expected = 0, maximum = 0) {
   const baseline = await db.prepare("SELECT execution_state FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
-  if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION")) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
-  if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION")) {
+  let sequenceQaAuthorized = false;
+  if (phase === "SEQUENCE_PROOF_QA" && briefId === "SEQUENCE-10MP") {
+    const [canary, proof] = await Promise.all([
+      db.prepare("SELECT id,status,passed_units,failed_units FROM v7_pilot_canaries WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>(),
+      db.prepare("SELECT canary_id,status,unit_count,frame_count FROM v7_sequence_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>(),
+    ]);
+    sequenceQaAuthorized = Boolean(canary && proof)
+      && clean(canary?.status) === "PASS"
+      && Number(canary?.passed_units) === 10
+      && Number(canary?.failed_units) === 0
+      && clean(proof?.canary_id) === clean(canary?.id)
+      && clean(proof?.status) === "QA_REQUIRED"
+      && Number(proof?.unit_count) === 10
+      && Number(proof?.frame_count) === 30;
+  }
+  if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
+  if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized) {
     const canary = await db.prepare("SELECT status,current_brief_id,version,queue_json,current_index FROM v7_pilot_canaries WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>(), capability = canaryDispatchCapability(canary?.version), policy = rec(JSON.parse(String(authorization.model_policy_json || "{}"))), queue = canary ? arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec) : [], current = queue[Number(canary?.current_index || 0)];
     const versionBound = Boolean(canary) && clean(policy.version) === clean(canary?.version), phaseBound = Boolean(capability) && capability?.phase === phase, queueBound = !clean(current?.dispatchCapability) || clean(current?.dispatchCapability) === phase;
     if (!canary || clean(canary.status) !== "UNIT_RUNNING" || clean(canary.current_brief_id) !== clean(briefId) || !versionBound || !phaseBound || !queueBound) throw new Error("CANARY_DISPATCH_FIREWALL · leased unit, canary version and dispatch capability must be congruent");

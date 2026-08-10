@@ -477,6 +477,12 @@ test("10 sealed MP units compile into one immutable 30-second sequence gate", ()
   assert.match(route, /noRegeneration: true/);
   assert.match(route, /noFallback: true/);
   assert.match(route, /SEQUENCE_PROOF_QA/);
+  assert.match(route, /phase === "SEQUENCE_PROOF_QA" && briefId === "SEQUENCE-10MP"/);
+  assert.match(route, /clean\(canary\?\.status\) === "PASS"/);
+  assert.match(route, /Number\(canary\?\.passed_units\) === 10/);
+  assert.match(route, /clean\(proof\?\.status\) === "QA_REQUIRED"/);
+  assert.match(route, /Number\(proof\?\.frame_count\) === 30/);
+  assert.match(route, /&& !sequenceQaAuthorized/);
   assert.match(route, /CONTROLLED_RELEASE_GATE_V1/);
   assert.match(executor, /sequence proof requires exactly 30 promoted frames/);
   assert.match(executor, /COMPLETE_SEQUENCE_PROOF/);
