@@ -291,7 +291,7 @@ test("controlled canary V5 binds MP-001 to certified source evidence behind an e
   assert.match(page, /canaryAction\("RELEASE_CONTROLLED_CANARY_V5_UNIT"\)/);
   assert.match(page, /data\.canary\.version === "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION"/);
   assert.match(page, /data\.canary\.currentIndex !== 0/);
-  assert.match(page, /data\.canary\.version === "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION" \|\| working/);
+  assert.doesNotMatch(page, /data\?\.canary\?\.status !== "AUTHORIZED"/);
 });
 
 test("Recovery Lane replays the failed V5 handoff through an atomic zero-spend sink", () => {
@@ -335,4 +335,31 @@ test("Recovery Lane replays the failed V5 handoff through an atomic zero-spend s
   assert.match(page, /Seal MP-001 recovery checkpoint · \$0/);
   assert.match(route, /RECOVERY_PASS_REVIEW/);
   assert.match(route, /FULL_QUEUE_BINDING_REQUIRED_BEFORE_NEXT_UNIT/);
+});
+
+test("Release Train seals MP-001, batches zero-spend G0/G1 and opens only MP-002 sequence proof", () => {
+  assert.match(route, /RELEASE_TRAIN_V1_SHOT_CONTRACT_QA/);
+  assert.match(route, /SHOT_CONTRACT_PIXEL_QA_V1/);
+  assert.match(route, /BUILD_RELEASE_TRAIN_PREFLIGHT/);
+  assert.match(route, /RELEASE_RELEASE_TRAIN_SEQUENCE_PROOF/);
+  assert.match(route, /START_RELEASE_TRAIN_BATCH/);
+  assert.match(route, /RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT/);
+  assert.match(route, /RELEASE_TRAIN_CANONICAL_LEDGER_DRIFT/);
+  assert.match(route, /MP001_94_ACCEPTED_EVIDENCE_REQUIRED/);
+  assert.match(route, /SHOT_SPECIFIC_UNIT_CONTRACT_V1/);
+  assert.match(route, /SHOT_SPECIFIC_SEMANTIC_MANIFEST_V1/);
+  assert.match(route, /evaluateOnlyShotContract: true/);
+  assert.match(route, /inferredArchetypeRequirements: false/);
+  assert.match(route, /overallFloor: clean\(sourceContract\.risk_tier\) === "P0" \? 94 : 92/);
+  assert.match(route, /dimensionFloor: 90/);
+  assert.match(route, /PHYSICAL_UNIQUENESS/);
+  assert.match(route, /RELEASE_TRAIN_ZERO_SPEND_INVARIANT_FAILED/);
+  assert.match(route, /READY_FOR_SEQUENCE_PROOF/);
+  assert.match(route, /SEQUENCE_PROOF_PASS_REVIEW/);
+  assert.match(route, /SEQUENCE_OR_BATCH_FAILED_PRESERVED/);
+  assert.match(route, /BATCH_UNIT_PASS_REVIEW/);
+  assert.match(page, /Build Release Train G0\/G1 · \$0/);
+  assert.match(page, /Run MP-002 Sequence Proof · max \$1/);
+  assert.match(page, /Run MP-003–MP-010 bounded batch/);
+  assert.match(page, /data\.authorization\?\.modelPolicy\.batchAuthorized !== true/);
 });
