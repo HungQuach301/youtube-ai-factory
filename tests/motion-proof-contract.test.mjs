@@ -364,7 +364,7 @@ test("Release Train seals MP-001, batches zero-spend G0/G1 and opens only MP-002
   assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
   assert.match(page, /Run request 84 · MP-002 Sequence Proof · max \$1/);
   assert.match(page, /CANARY_UNIT_RUNNING" \? "STEP_RELEASE_TRAIN_UNIT" : "STEP_PILOT"/);
-  assert.match(page, /Run remaining canonical pilot batch/);
+  assert.match(page, /Continue authorized run to 10 MP/);
   assert.match(page, /data\.authorization\?\.modelPolicy\.batchAuthorized !== true/);
 });
 
@@ -427,7 +427,7 @@ test("MP-002 has one append-only targeted repair that closes the observed P1 def
   assert.match(route, /\[MP002_TARGETED_REPAIR_VERSION\]: \{ phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA"/);
   assert.match(route, /parentVersion: STABILIZATION_RELEASE_VERSION/);
   assert.match(route, /UPDATE v7_pilot_canaries SET version=\?,status='TARGETED_REPAIR_READY'/);
-  assert.match(route, /const executorVersions = \[STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION\]/);
+  assert.match(route, /const executorVersions = \[STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION\]/);
   assert.match(route, /clean\(policy\.version\) !== clean\(canary\.version\)/);
   assert.doesNotMatch(route, /SUPERSEDED_BY_TARGETED_REPAIR/);
   assert.match(route, /PREPARE_STABILIZED_MP002_TARGETED_REPAIR/);
@@ -444,4 +444,16 @@ test("MP-002 has one append-only targeted repair that closes the observed P1 def
   assert.doesNotMatch(route, /text\(fit\(manifest\.logicalId/);
   assert.match(page, /Build MP-002 targeted repair · G0\/G1 · \$0/);
   assert.match(page, /Run request 85 · MP-002 targeted repair · max \$1/);
+});
+
+test("MP-002 pixel oracle verifies rendered regions before autonomous 10-unit completion", () => {
+  assert.match(route, /MP002_PIXEL_ORACLE_REPAIR_V2/);
+  assert.match(route, /MP002_GOLDEN_REGION_ORACLE_V1/);
+  assert.match(route, /MIDPOINT_APPROVED_AMOUNT/);
+  assert.match(route, /EXIT_CARD_READER_SEPARATION/);
+  assert.match(route, /runToCompletion10Mp:true/);
+  assert.match(page, /Authorize and complete all 10 MP · G0\/G1 first/);
+  assert.match(page, /RELEASE_MP002_PIXEL_ORACLE_REPAIR/);
+  assert.match(page, /START_RELEASE_TRAIN_BATCH/);
+  assert.match(page, /RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT/);
 });

@@ -35,6 +35,8 @@ const STABILIZED_RUBRIC = "SHOT_CONTRACT_PIXEL_QA_V3";
 const STABILIZED_CONTRACT_VERSION = "EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V3";
 const MP002_TARGETED_REPAIR_VERSION = "MP002_TARGETED_REPAIR_V1";
 const MP002_TARGETED_REPAIR_RENDERER = "PRODUCTION_SCENE_RENDERER_V4_MP002_TARGETED_REPAIR";
+const MP002_PIXEL_ORACLE_REPAIR_VERSION = "MP002_PIXEL_ORACLE_REPAIR_V2";
+const MP002_PIXEL_ORACLE_REPAIR_RENDERER = "PRODUCTION_SCENE_RENDERER_V5_PIXEL_ORACLE";
 const SEALED_RELEASE_SET = ["MP-001"] as const;
 const LEGACY_CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
 const PROMOTION_REGRESSION_VERSION = "PROMOTION_BINDING_REGRESSION_V1";
@@ -57,6 +59,7 @@ const CANARY_DISPATCH_CAPABILITIES = {
   [PRODUCTION_SCENE_RELEASE_TRAIN_VERSION]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
   [STABILIZATION_RELEASE_VERSION]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
   [MP002_TARGETED_REPAIR_VERSION]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
+  [MP002_PIXEL_ORACLE_REPAIR_VERSION]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
 } as const;
 const ARCHETYPE_CERTIFICATION_ORDER = [
   "TRANSACTION_STATE_PROOF",
@@ -153,8 +156,8 @@ const rec = (value: unknown) => value && typeof value === "object" ? value as Ro
 const clean = (value: unknown) => String(value || "").replace(/\s+/g, " ").trim();
 function canaryDispatchCapability(version: unknown) { return CANARY_DISPATCH_CAPABILITIES[clean(version) as keyof typeof CANARY_DISPATCH_CAPABILITIES] || null; }
 function isUnitSpecificCanary(version: unknown) { return canaryDispatchCapability(version)?.artifactMode === "UNIT_SPECIFIC"; }
-function isReleaseTrainCanary(version: unknown) { return [RELEASE_TRAIN_VERSION, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION].includes(clean(version)); }
-function releaseTrainRubric(version: unknown) { return [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION].includes(clean(version)) ? STABILIZED_RUBRIC : clean(version) === PRODUCTION_SCENE_RELEASE_TRAIN_VERSION ? PRODUCTION_SCENE_RUBRIC : RELEASE_TRAIN_RUBRIC; }
+function isReleaseTrainCanary(version: unknown) { return [RELEASE_TRAIN_VERSION, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION].includes(clean(version)); }
+function releaseTrainRubric(version: unknown) { return [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION].includes(clean(version)) ? STABILIZED_RUBRIC : clean(version) === PRODUCTION_SCENE_RELEASE_TRAIN_VERSION ? PRODUCTION_SCENE_RUBRIC : RELEASE_TRAIN_RUBRIC; }
 function isAlignedUnitContractMode(contractMode: unknown, manifestContract: Row) {
   const declaredContractMode = clean(contractMode), alignedContractVersion = clean(manifestContract.version);
   if (["ALIGNED_UNIT_CONTRACT", "SHOT_SPECIFIC_UNIT_CONTRACT"].includes(declaredContractMode)) return true;
@@ -1488,10 +1491,10 @@ function productionSceneManifest(contract: Row, rendererVersion = PRODUCTION_SCE
   });
   const states = logicalId === "MP-002" ? [
     { role: "ENTRY", sceneLabel: "CREDIT PURCHASE", primary: "$100.00", secondary: "PROCESSING", sourceEvidence: evidence[0] || clean(contract.claim), sceneDelta: "AUTHORIZATION_STARTED", physicalAction: "CARD_AT_READER" },
-    { role: "MIDPOINT", sceneLabel: "AUTHORIZATION", primary: "PROCESSING", secondary: "$100.00 CREDIT CARD", sourceEvidence: evidence[1] || evidence[0] || clean(contract.claim), sceneDelta: "AUTHORIZATION_IN_FLIGHT" },
+    { role: "MIDPOINT", sceneLabel: "AUTHORIZATION", primary: "APPROVED", secondary: "$100.00", sourceEvidence: evidence[1] || evidence[0] || clean(contract.claim), sceneDelta: "AUTHORIZATION_APPROVED" },
     { role: "EXIT", sceneLabel: "CREDIT PURCHASE", primary: "APPROVED", secondary: "$100.00", sourceEvidence: evidence[2] || evidence.at(-1) || clean(contract.claim), sceneDelta: "APPROVAL_CONFIRMED", physicalAction: "HAND_WITHDRAWS_CARD" },
   ] : fallbackStates;
-  const requiredCoVisible = logicalId === "MP-002" ? [{ state: "ENTRY", tokens: ["$100.00", "PROCESSING"] }, { state: "EXIT", tokens: ["APPROVED", "$100.00"] }] : [];
+  const requiredCoVisible = logicalId === "MP-002" ? [{ state: "ENTRY", tokens: ["$100.00", "PROCESSING"] }, { state: "MIDPOINT", tokens: ["APPROVED", "$100.00"] }, { state: "EXIT", tokens: ["APPROVED", "$100.00"] }] : [];
   return {
     version: manifestVersion,
     logicalId,
@@ -1510,7 +1513,7 @@ function productionSceneManifest(contract: Row, rendererVersion = PRODUCTION_SCE
   };
 }
 
-function productionScenePng(manifest: Row, state: 0 | 1 | 2) {
+function renderProductionScene(manifest: Row, state: 0 | 1 | 2) {
   const width=960,height=540,pixels=new Uint8Array(width*height*4),raw=new Uint8Array(height*(1+width*4));
   const color=(hex:string)=>[Number.parseInt(hex.slice(1,3),16),Number.parseInt(hex.slice(3,5),16),Number.parseInt(hex.slice(5,7),16),255] as const;
   const fill=(x:number,y:number,w:number,h:number,hex:string)=>{const c=color(hex);for(let py=Math.max(0,y);py<Math.min(height,y+h);py++)for(let px=Math.max(0,x);px<Math.min(width,x+w);px++){const i=(py*width+px)*4;pixels.set(c,i);}};
@@ -1533,7 +1536,7 @@ function productionScenePng(manifest: Row, state: 0 | 1 | 2) {
     if(state===0){fill(412,266,116,70,"#d7eee5");fill(430,280,84,42,"#315447");fill(376,314,72,34,"#e1b99b");text("CARD AT READER",390,374,2,"#a8cdbd");}
     if(state===1){fill(400,252,116,70,"#d7eee5");fill(418,266,84,42,"#315447");fill(362,306,72,34,"#e1b99b");text("AUTHORIZING",394,374,2,"#a8cdbd");}
     if(state===2){circle(770,354,25,"#2b8b68");text("+",760,339,4,"#ffffff");}
-    if(state===2){fill(444,224,116,70,"#d7eee5");fill(462,238,84,42,"#315447");fill(536,292,72,34,"#e1b99b");line(392,272,430,246,4,"#72c8a3");line(396,294,438,284,4,"#72c8a3");text("CARD REMOVED",430,356,2,"#a8cdbd");}
+    if(state===2){fill(350,224,116,70,"#d7eee5");fill(368,238,84,42,"#315447");fill(590,238,84,42,"#315447");fill(666,226,92,58,"#e1b99b");line(492,250,548,250,4,"#72c8a3");line(492,270,548,270,4,"#72c8a3");text("CARD WITHDRAWN",548,356,2,"#a8cdbd");}
   } else if(sceneType==="PAYMENT_ROUTE"){
     const xs=[135,380,625];xs.forEach((x,index)=>{fill(x,176,200,176,index<=state?"#f4edd7":"#173d35");fill(x,176,200,12,index<=state?accent:"#31594e");circle(x+100,230,30,index<=state?"#2d8063":"#52766b");text(String(index+1),x+91,216,4,index<=state?"#ffffff":"#aec6bc");});
     if(state>=1)line(335,264,380,264,8,accent);if(state>=2)line(580,264,625,264,8,accent);center(current.primary,386,4,"#ffffff",28);
@@ -1548,7 +1551,25 @@ function productionScenePng(manifest: Row, state: 0 | 1 | 2) {
   }
   if(sceneType!=="CHECKOUT_TERMINAL") center(current.secondary,468,2,"#a8cdbd",38);
   [0,1,2].forEach((index)=>fill(382+index*72,518,54,8,index<=state?accent:"#315447"));
-  for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);}const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
+  for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);}const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);const bytes=joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);return { bytes, pixels, width, height };
+}
+
+function productionScenePng(manifest: Row, state: 0 | 1 | 2) { return renderProductionScene(manifest, state).bytes; }
+
+function mp002PixelOracle(manifest: Row) {
+  const rendered = ([0, 1, 2] as const).map((state) => renderProductionScene(manifest, state));
+  const color = (hex:string)=>[Number.parseInt(hex.slice(1,3),16),Number.parseInt(hex.slice(3,5),16),Number.parseInt(hex.slice(5,7),16)] as const;
+  const count = (frame: typeof rendered[number], box: { x:number;y:number;w:number;h:number }, hex:string) => { const target=color(hex); let total=0; for(let y=box.y;y<box.y+box.h;y++)for(let x=box.x;x<box.x+box.w;x++){const i=(y*frame.width+x)*4;if(frame.pixels[i]===target[0]&&frame.pixels[i+1]===target[1]&&frame.pixels[i+2]===target[2])total++;} return total; };
+  const states=arr(manifest.states).map(rec), entry=states[0], midpoint=states[1], exit=states[2];
+  const checks = [
+    { id:"ENTRY_AMOUNT_PIXELS", status: count(rendered[0],{x:145,y:180,w:225,h:55},"#123d35")>=250?"PASS":"FAIL", evidence:"dark amount glyphs in terminal display" },
+    { id:"ENTRY_PROCESSING_PIXELS", status: count(rendered[0],{x:158,y:325,w:198,h:62},"#24483f")>=180?"PASS":"FAIL", evidence:"processing glyphs in audience-visible status region" },
+    { id:"MIDPOINT_APPROVED_AMOUNT", status: clean(midpoint.primary)==="APPROVED"&&clean(midpoint.secondary)==="$100.00"&&count(rendered[1],{x:130,y:160,w:255,h:126},"#f2f5ed")>=250&&count(rendered[1],{x:535,y:292,w:240,h:64},"#173d34")>=120?"PASS":"FAIL", evidence:"APPROVED and $100.00 occupy separate visible regions" },
+    { id:"EXIT_APPROVED_AMOUNT", status: clean(exit.primary)==="APPROVED"&&clean(exit.secondary)==="$100.00"&&count(rendered[2],{x:130,y:160,w:255,h:126},"#123d35")>=250&&count(rendered[2],{x:535,y:292,w:240,h:64},"#173d34")>=120?"PASS":"FAIL", evidence:"APPROVED and $100.00 remain visible at exit" },
+    { id:"EXIT_CARD_READER_SEPARATION", status: clean(exit.physicalAction)==="HAND_WITHDRAWS_CARD"&&count(rendered[2],{x:368,y:238,w:84,h:42},"#315447")>=3000&&count(rendered[2],{x:590,y:238,w:84,h:42},"#315447")>=3000&&count(rendered[2],{x:500,y:230,w:70,h:70},"#315447")===0?"PASS":"FAIL", evidence:"reader and withdrawn card are visually separated by a clear gap" },
+    { id:"NO_INTERNAL_ID_PIXELS", status: states.every((item)=>!`${clean(item.sceneLabel)} ${clean(item.primary)} ${clean(item.secondary)}`.includes("MP-002"))?"PASS":"FAIL", evidence:"internal ID absent from rendered text inputs" },
+  ];
+  return { version:"MP002_GOLDEN_REGION_ORACLE_V1", frames:rendered, checks, passed:checks.every((item)=>item.status==="PASS"), goldenLayout:{ entry:["amount","processing"], midpoint:["approved","amount"], exit:["approved","amount","withdrawn-card","reader-gap"] } };
 }
 
 async function buildReleaseTrainPreflight() {
@@ -1924,20 +1945,92 @@ async function releaseStabilizedMp002TargetedRepair() {
   return startControlledCanaryUnit();
 }
 
+async function prepareMp002PixelOracleRepair() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET) throw new Error("MP002_PIXEL_ORACLE_CONFIGURATION_REQUIRED");
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='SEQUENCE_OR_BATCH_FAILED_PRESERVED' ORDER BY created_at DESC LIMIT 1").bind(run.id, MP002_TARGETED_REPAIR_VERSION).first<Row>();
+  if (!canary || Number(canary.current_index) !== 1 || clean(authorization.status) !== "PAUSED") throw new Error("MP002_84_BLOCKED_CHECKPOINT_REQUIRED");
+  const queue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec), currentItem = queue[1];
+  if (clean(currentItem?.logicalId) !== "MP-002" || clean(canary.current_brief_id) === "") throw new Error("MP002_PIXEL_ORACLE_SCOPE_MISMATCH");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total:number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("MP002_PIXEL_ORACLE_ACTIVE_REQUESTS");
+  const priorAuditId = `${clean(canary.current_brief_id)}-${MP002_TARGETED_REPAIR_VERSION}-PIXEL-AUDIT-REPAIR-1`;
+  const priorAudit = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND id=? AND status='REPAIR_REQUIRED'").bind(authorization.id, canary.current_brief_id, priorAuditId).first<Row>();
+  if (!priorAudit || Number(priorAudit.score) !== 84) throw new Error("MP002_84_FAILED_AUDIT_REQUIRED");
+  const eventId = `${clean(canary.id)}-${MP002_PIXEL_ORACLE_REPAIR_VERSION}-PREPARED`, existing = await db.prepare("SELECT id FROM v7_canary_transition_events WHERE id=?").bind(eventId).first<Row>();
+  if (existing) return snapshot();
+  const brief = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(canary.current_brief_id).first<Row>();
+  const sourcePromotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN' ORDER BY created_at DESC LIMIT 1").bind(MP002_TARGETED_REPAIR_VERSION, canary.current_brief_id).first<Row>();
+  const sourceUnit = await db.prepare("SELECT * FROM v7_unit_materializations WHERE canary_version=? AND brief_id=? AND status='FROZEN' ORDER BY created_at DESC LIMIT 1").bind(MP002_TARGETED_REPAIR_VERSION, canary.current_brief_id).first<Row>();
+  if (!brief || !sourcePromotion || !sourceUnit) throw new Error("MP002_V1_FROZEN_ARTIFACT_REQUIRED");
+  const sourceBinding = await validatePromotionBinding(env, db, sourcePromotion);
+  if (!sourceBinding.passed) throw new Error("MP002_V1_LINEAGE_INVALID");
+  const manifest = {
+    ...productionSceneManifest(sourceBinding.contractPayload, MP002_PIXEL_ORACLE_REPAIR_RENDERER, "EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V5_PIXEL_ORACLE"),
+    unitContract: rec(sourceBinding.manifest).unitContract,
+    sourceContractHash: rec(sourceBinding.manifest).sourceContractHash,
+    canonicalPilotManifestVersion: rec(sourceBinding.manifest).canonicalPilotManifestVersion,
+    canonicalPilotManifestHash: rec(sourceBinding.manifest).canonicalPilotManifestHash,
+    repair: { version:MP002_PIXEL_ORACLE_REPAIR_VERSION, attempt:2, sourceAuditId:priorAudit.id, sourceScore:Number(priorAudit.score), immutableSourcePromotionId:sourcePromotion.id, defects:["MIDPOINT_APPROVAL_AMOUNT_NOT_COVISIBLE","EXIT_CARD_WITHDRAWAL_NOT_VISUALLY_PROVEN"] },
+  };
+  const oracle = mp002PixelOracle(manifest);
+  if (!oracle.passed) throw new Error(`MP002_PIXEL_ORACLE_G0_FAILED · ${oracle.checks.filter((gate)=>gate.status!=="PASS").map((gate)=>gate.id).join(",")}`);
+  const frameIds:string[]=[], frameHashes:string[]=[];
+  for (const [role, rendered] of [["CERT_ENTRY",oracle.frames[0]],["CERT_MIDPOINT",oracle.frames[1]],["CERT_EXIT",oracle.frames[2]]] as const) {
+    const fileId = await storeMaterial(env, db, authorization, brief, { role, identity:`PRODUCTION-SCENE-V5-MP002-PIXEL-ORACLE-${role}`, bytes:rendered.bytes, mimeType:"image/png", extension:"png", sourceType:MP002_PIXEL_ORACLE_REPAIR_RENDERER, provider:"FRAMEFLOW_OWNED", providerAssetId:clean(sourcePromotion.certification_id), sourceUrl:clean(sourcePromotion.certification_id), landingUrl:clean(sourcePromotion.certification_id), licenseCode:"CHANNEL_OWNED", width:rendered.width, height:rendered.height });
+    const stored = await db.prepare("SELECT content_hash FROM v7_material_files WHERE id=?").bind(fileId).first<Row>(); frameIds.push(fileId); frameHashes.push(clean(stored?.content_hash));
+  }
+  if (frameIds.length!==3 || new Set(frameHashes).size!==3) throw new Error("MP002_PIXEL_ORACLE_FRAME_INTEGRITY_FAILED");
+  const now=new Date().toISOString(), manifestJson=JSON.stringify(manifest), manifestHash=await sha(manifestJson), unitId=`${clean(canary.id)}-MP-002-PIXEL-ORACLE-2-UNIT`, promotionId=`${clean(canary.id)}-MP-002-PIXEL-ORACLE-2-PROMOTION`;
+  const preflight={ ...rec(JSON.parse(String(sourcePromotion.preflight_json||"{}"))), source:"GOLDEN_REGION_PIXEL_ORACLE", repairVersion:MP002_PIXEL_ORACLE_REPAIR_VERSION, repairAttempt:2, sourcePromotionId:sourcePromotion.id, sourceAuditId:priorAudit.id, immutablePriorScore:Number(priorAudit.score), pixelOracleVersion:oracle.version, pixelOracleChecks:oracle.checks, goldenLayout:oracle.goldenLayout, unitMaterializationId:unitId, semanticManifestHash:manifestHash, unitRenderer:MP002_PIXEL_ORACLE_REPAIR_RENDERER, proofCardRendererDisabled:true, audienceInternalIds:false, frozenAt:now };
+  const policy={ ...rec(JSON.parse(String(authorization.model_policy_json||"{}"))), version:MP002_PIXEL_ORACLE_REPAIR_VERSION, parentVersion:MP002_TARGETED_REPAIR_VERSION, renderer:MP002_PIXEL_ORACLE_REPAIR_RENDERER, runToCompletion10Mp:true, targetedRepair:{ version:MP002_PIXEL_ORACLE_REPAIR_VERSION, unit:"MP-002", attempt:2, sourceAuditId:priorAudit.id, sourceScore:Number(priorAudit.score), prepared:true, released:false, pixelOracleVersion:oracle.version }, sequenceProofReleased:false, batchAuthorized:false, autoRetry:false, autoAdvance:false, nextUnitDispatch:false, productionScale:"BLOCKED" };
+  await db.batch([
+    db.prepare("INSERT INTO v7_unit_materializations (id,program_id,baseline_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,certified_renderer_version,unit_renderer_version,contract_hash,semantic_manifest_json,semantic_manifest_hash,frame_ids_json,frame_hashes_json,lint_json,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?)").bind(unitId,PROGRAM_ID,sourceUnit.baseline_id,run.id,authorization.id,MP002_PIXEL_ORACLE_REPAIR_VERSION,brief.id,"MP-002",sourceUnit.archetype,sourceUnit.certification_id,sourceUnit.certified_renderer_version,MP002_PIXEL_ORACLE_REPAIR_RENDERER,sourcePromotion.contract_hash,manifestJson,manifestHash,JSON.stringify(frameIds),JSON.stringify(frameHashes),JSON.stringify(oracle.checks),now),
+    db.prepare("INSERT INTO v7_artifact_promotions (id,program_id,baseline_id,regression_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,renderer_version,contract_hash,frame_ids_json,frame_hashes_json,status,preflight_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?,?)").bind(promotionId,PROGRAM_ID,sourcePromotion.baseline_id,sourcePromotion.regression_id,run.id,authorization.id,MP002_PIXEL_ORACLE_REPAIR_VERSION,brief.id,"MP-002",sourcePromotion.archetype,sourcePromotion.certification_id,MP002_PIXEL_ORACLE_REPAIR_RENDERER,sourcePromotion.contract_hash,JSON.stringify(frameIds),JSON.stringify(frameHashes),JSON.stringify(preflight),now),
+  ]);
+  const repairedPromotion=await db.prepare("SELECT * FROM v7_artifact_promotions WHERE id=? AND status='FROZEN'").bind(promotionId).first<Row>(), binding=repairedPromotion?await validatePromotionBinding(env,db,repairedPromotion):null;
+  if (!binding?.passed) throw new Error(`MP002_PIXEL_ORACLE_G1_FAILED · ${binding?.checks.filter((gate)=>gate.status!=="PASS").map((gate)=>gate.id).join(",")||"PROMOTION_MISSING"}`);
+  await db.batch([
+    db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,expected_state,actual_state,authorization_status,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PIXEL_ORACLE_REPAIR_PREPARED','QA_REPAIR_REQUIRED','TARGETED_REPAIR_READY','PAUSED','UNCHANGED','NOT_DISPATCHED',?,?)").bind(eventId,canary.id,`${clean(canary.id)}-PREPARE-MP002-PIXEL-ORACLE`,MP002_PIXEL_ORACLE_REPAIR_VERSION,"MP-002",JSON.stringify({ sourceAuditId:priorAudit.id, sourceScore:Number(priorAudit.score), frameHashes, oracle:oracle.checks, paidRequests:0 }),now),
+    db.prepare("UPDATE v7_pilot_canaries SET version=?,status='TARGETED_REPAIR_READY',request_budget=request_budget+1,cost_budget=cost_budget+1,gate_json=?,updated_at=?,completed_at=NULL WHERE id=?").bind(MP002_PIXEL_ORACLE_REPAIR_VERSION,JSON.stringify(oracle.checks),now,canary.id),
+    db.prepare("UPDATE v7_material_authorizations SET scope='MP002_PIXEL_ORACLE_REPAIR_READY',status='PAUSED',max_remote_requests=max_remote_requests+1,max_actual_spend_usd=max_actual_spend_usd+1,model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(policy),now,authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='MP002_PIXEL_ORACLE_REPAIR_READY',mode='MP002_PIXEL_ORACLE_REPAIR_V2' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='MP002_PIXEL_ORACLE_REPAIR_READY',blocker='AUTHORIZED_RUN_TO_10MP',evidence_summary='MP-002 84/100 preserved · golden-region pixel oracle PASS · 3/3 immutable frames bound · autonomous run-to-10MP authorized under controlled gate',updated_at=? WHERE id=?").bind(now,STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function releaseMp002PixelOracleRepair() {
+  const env=await runtime(),db=env.DB!,{run,authorization}=await current(db);
+  if(!run||!authorization)throw new Error("MP002_PIXEL_ORACLE_CONFIGURATION_REQUIRED");
+  const canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='TARGETED_REPAIR_READY' ORDER BY created_at DESC LIMIT 1").bind(run.id,MP002_PIXEL_ORACLE_REPAIR_VERSION).first<Row>();
+  const policy=rec(JSON.parse(String(authorization.model_policy_json||"{}"))),repair=rec(policy.targetedRepair);
+  if(!canary||policy.runToCompletion10Mp!==true||clean(repair.version)!==MP002_PIXEL_ORACLE_REPAIR_VERSION||Number(repair.attempt)!==2||repair.prepared!==true||repair.released===true)throw new Error("MP002_PIXEL_ORACLE_REPAIR_NOT_READY");
+  const now=new Date().toISOString(),released={...policy,targetedRepair:{...repair,released:true,releasedAt:now},sequenceProofReleased:true,batchAuthorized:false,autoRetry:false,autoAdvance:false,nextUnitDispatch:false};
+  await db.batch([
+    db.prepare("UPDATE v7_pilot_canaries SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now,canary.id),
+    db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=?").bind(canary.baseline_id),
+    db.prepare("UPDATE v7_material_authorizations SET scope='RUN_TO_10MP_MP002_PIXEL_ORACLE',status='AUTHORIZED',model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(released),now,authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED',mode='RUN_TO_10MP' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='MP002_PIXEL_ORACLE_RELEASED',blocker='TERMINAL_GATE_PER_UNIT',evidence_summary='Run-to-10MP active · MP-002 pixel-oracle repair released · remaining units release only after terminal PASS',updated_at=? WHERE id=?").bind(now,STAGE_ID),
+  ]);
+  return startControlledCanaryUnit();
+}
+
 async function startReleaseTrainBatch() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("RELEASE_TRAIN_CONFIGURATION_REQUIRED");
-  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='SEQUENCE_PROOF_PASS_REVIEW' ORDER BY created_at DESC LIMIT 1").bind(run.id, MP002_TARGETED_REPAIR_VERSION).first<Row>();
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='SEQUENCE_PROOF_PASS_REVIEW' ORDER BY created_at DESC LIMIT 1").bind(run.id, MP002_PIXEL_ORACLE_REPAIR_VERSION).first<Row>();
   if (!canary || Number(canary.current_index) !== 1 || Number(canary.passed_units) !== 2) throw new Error("RELEASE_TRAIN_SEQUENCE_PROOF_PASS_REQUIRED");
   const queue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec), next = queue[2];
   if (!next) throw new Error("RELEASE_TRAIN_BATCH_SCOPE_MISSING");
   const currentPolicy = rec(JSON.parse(String(authorization.model_policy_json || "{}")));
   if (clean(currentPolicy.qualityPolicyVersion) !== CONTROLLED_RELEASE_POLICY.version || !["STANDARD", "CONTROLLED"].includes(clean(currentPolicy.releaseTier))) throw new Error("CONTROLLED_RELEASE_POLICY_PASS_REQUIRED");
-  const repairUsed = Number(rec(currentPolicy.targetedRepair).attempt) === 1, now = new Date().toISOString(), policy = { ...currentPolicy, version: STABILIZATION_RELEASE_VERSION, parentVersion: undefined, renderer: STABILIZED_RENDERER_VERSION, batchAuthorized: true, nextUnitDispatch: "TERMINAL_PASS_ONLY", concurrency: 1, concurrencyCeiling: 2, remainingRequestBudget: 8, remainingCostBudgetUsd: 8 };
+  const repairAttempts = Number(rec(currentPolicy.targetedRepair).attempt || 0), now = new Date().toISOString(), policy = { ...currentPolicy, version: STABILIZATION_RELEASE_VERSION, parentVersion: undefined, renderer: STABILIZED_RENDERER_VERSION, batchAuthorized: true, nextUnitDispatch: "TERMINAL_PASS_ONLY", concurrency: 1, concurrencyCeiling: 2, remainingRequestBudget: 8, remainingCostBudgetUsd: 8 };
   await db.batch([
     db.prepare("UPDATE v7_pilot_canaries SET version=?,status='AUTHORIZED',current_index=2,current_brief_id=?,updated_at=? WHERE id=?").bind(STABILIZATION_RELEASE_VERSION, next.briefId, now, canary.id),
     db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=?").bind(canary.baseline_id),
-    db.prepare("UPDATE v7_material_authorizations SET scope='RELEASE_TRAIN_BATCH_MP003_MP010',status='AUTHORIZED',max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,updated_at=? WHERE id=?").bind(Number(canary.requests_before) + (repairUsed ? 10 : 9), Number(canary.cost_before) + (repairUsed ? 10 : 9), JSON.stringify(policy), now, authorization.id),
+    db.prepare("UPDATE v7_material_authorizations SET scope='RELEASE_TRAIN_BATCH_REMAINING_CANONICAL_UNITS',status='AUTHORIZED',max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,updated_at=? WHERE id=?").bind(Number(canary.requests_before) + 9 + repairAttempts, Number(canary.cost_before) + 9 + repairAttempts, JSON.stringify(policy), now, authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED',mode='RELEASE_TRAIN_BOUNDED_BATCH' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='RELEASE_TRAIN_BATCH_RUNNING',blocker='TERMINAL_PASS_PER_UNIT',evidence_summary='MP-002 sequence proof PASS · bounded MP-003–MP-010 batch opened · hard-stop per unit · no retry · concurrency ceiling 2',updated_at=? WHERE id=?").bind(now, STAGE_ID),
   ]);
@@ -2030,7 +2123,7 @@ async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, c
   const promotionPreflight = promotion ? rec(JSON.parse(String(promotion.preflight_json || "{}"))) : {}, repairAttempt = Number(promotionPreflight.repairAttempt || 0);
   const auditId = `${clean(brief.id)}-${canaryVersion}-PIXEL-AUDIT${repairAttempt ? `-REPAIR-${repairAttempt}` : ""}`;
   const audit = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND id=?").bind(authorization.id, brief.id, auditId).first<Row>();
-  const dimensions = audit ? rec(JSON.parse(String(audit.dimensions_json || "{}"))) : {}, auditFindings = audit ? arr(JSON.parse(String(audit.findings_json || "[]"))) : [], stabilizedPolicy = [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION].includes(canaryVersion), policyDecision = audit && stabilizedPolicy ? evaluateControlledRelease({ overall: audit.score, dimensions, defects: auditFindings }) : null, dimensionFloor = Object.values(dimensions).length >= 5 && Object.values(dimensions).every((value) => Number(value) >= 90);
+  const dimensions = audit ? rec(JSON.parse(String(audit.dimensions_json || "{}"))) : {}, auditFindings = audit ? arr(JSON.parse(String(audit.findings_json || "[]"))) : [], stabilizedPolicy = [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION].includes(canaryVersion), policyDecision = audit && stabilizedPolicy ? evaluateControlledRelease({ overall: audit.score, dimensions, defects: auditFindings }) : null, dimensionFloor = Object.values(dimensions).length >= 5 && Object.values(dimensions).every((value) => Number(value) >= 90);
   const priorQueue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec).slice(0, Number(canary.current_index)), priorPromotions: Row[] = [];
   for (const prior of priorQueue) { const item = await db.prepare("SELECT frame_hashes_json FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(canaryVersion, prior.briefId).first<Row>(); if (item) priorPromotions.push(item); }
   const physicallyUnique = Boolean(promotion) && priorPromotions.every((item) => clean(item.frame_hashes_json) !== clean(promotion?.frame_hashes_json));
@@ -2807,8 +2900,8 @@ async function dispatchPromotedVision(env: Env, db: DB, authorization: Row, brie
   const unitSpecific = isUnitSpecificCanary(promotion.canary_version), capability = canaryDispatchCapability(promotion.canary_version), phase = capability?.phase;
   if (!phase) throw new Error("CANARY_DISPATCH_CAPABILITY_MISSING");
   const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(briefRow.id), phase, "OPENAI", setting.modelId, setting.reasoningEffort, 1500, 4000), rubric = releaseTrainRubric(promotion.canary_version);
-  const qaContract: Row = rec(binding.contractPayload || promotionContractPayload(binding.contract || {})), stabilizedPolicy = [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION].includes(clean(promotion.canary_version)), overallFloor = stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.controlledOverall : clean(qaContract.riskTier) === "P0" ? 94 : 92;
-  const content: Row[] = [{ type: "input_text", text: `You are performing ${rubric} on an immutable production-bound artifact. The three supplied images are the exact promoted ENTRY, MIDPOINT and EXIT pixels. Judge only these pixels against the exact unit contract below. Do not infer evidence outside the frames and do not import generic archetype requirements (for example baseline/delta, route nodes, headings or qualifiers) unless the unit contract explicitly requires them. ${stabilizedPolicy ? "Apply CONTROLLED_RELEASE_GATE_V1: STANDARD requires overall >=92, every dimension >=90 and zero P0/P1; CONTROLLED requires overall >=88, Semantic Fit >=82, every other dimension >=88, zero P0, zero semantic P1 and at most one presentation P1. Scores 84-87 are INTERNAL_ONLY; overall <84 or Semantic Fit <82 is BLOCKED." : `PASS requires every dimension >=90 and overall >=${overallFloor}.`} Classify every finding with severity P0/P1/P2 and category SEMANTIC/PRESENTATION/OTHER. A missing or unclear required action is SEMANTIC, not presentation. This review must reject legacy PRIMARY files, generic route/family fallback, certification-fixture pixels reused as production pixels, or an artifact that merely resembles the certified archetype. ${unitSpecific ? "The semantic manifest is the frozen translation of this exact unit contract into audience-facing states; verify only that the pixels visibly realize its source-authored evidence." : ""} ${[PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION].includes(clean(promotion.canary_version)) ? "The artifact is a production scene, not a QA proof card. For MP-002 specifically, the EXIT frame must visibly show APPROVED and $100.00 together; do not require internal test labels or metadata." : ""} Return only JSON.\n\nUNIT CONTRACT:\n${JSON.stringify(qaContract)}\n\nUNIT SEMANTIC MANIFEST:\n${JSON.stringify(binding.manifest || {})}\n\nIMMUTABLE PROMOTION RECORD:\n${JSON.stringify({ promotionId: promotion.id, certificationId: promotion.certification_id, renderer: promotion.renderer_version, canaryVersion: promotion.canary_version, dispatchCapability: phase, rubric, qualityPolicyVersion: stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.version : "LEGACY_STRICT_GATE", overallFloor, semanticFitFloor: stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.controlledSemanticFit : 90, otherDimensionFloor: stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.controlledOtherDimension : 90, contractHash: promotion.contract_hash, frameIds: binding.frameIds, frameHashes: binding.frameHashes, legacyFallback: false, certificationPixelsReused: false })}` }];
+  const qaContract: Row = rec(binding.contractPayload || promotionContractPayload(binding.contract || {})), stabilizedPolicy = [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION].includes(clean(promotion.canary_version)), overallFloor = stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.controlledOverall : clean(qaContract.riskTier) === "P0" ? 94 : 92;
+  const content: Row[] = [{ type: "input_text", text: `You are performing ${rubric} on an immutable production-bound artifact. The three supplied images are the exact promoted ENTRY, MIDPOINT and EXIT pixels. Judge only these pixels against the exact unit contract below. Do not infer evidence outside the frames and do not import generic archetype requirements (for example baseline/delta, route nodes, headings or qualifiers) unless the unit contract explicitly requires them. ${stabilizedPolicy ? "Apply CONTROLLED_RELEASE_GATE_V1: STANDARD requires overall >=92, every dimension >=90 and zero P0/P1; CONTROLLED requires overall >=88, Semantic Fit >=82, every other dimension >=88, zero P0, zero semantic P1 and at most one presentation P1. Scores 84-87 are INTERNAL_ONLY; overall <84 or Semantic Fit <82 is BLOCKED." : `PASS requires every dimension >=90 and overall >=${overallFloor}.`} Classify every finding with severity P0/P1/P2 and category SEMANTIC/PRESENTATION/OTHER. A missing or unclear required action is SEMANTIC, not presentation. This review must reject legacy PRIMARY files, generic route/family fallback, certification-fixture pixels reused as production pixels, or an artifact that merely resembles the certified archetype. ${unitSpecific ? "The semantic manifest is the frozen translation of this exact unit contract into audience-facing states; verify only that the pixels visibly realize its source-authored evidence." : ""} ${[PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION].includes(clean(promotion.canary_version)) ? "The artifact is a production scene, not a QA proof card. For MP-002 specifically, ENTRY must show PROCESSING with $100.00, MIDPOINT and EXIT must show APPROVED with $100.00, and EXIT must visibly separate the withdrawn card and hand from the reader. Do not require internal test labels or metadata." : ""} Return only JSON.\n\nUNIT CONTRACT:\n${JSON.stringify(qaContract)}\n\nUNIT SEMANTIC MANIFEST:\n${JSON.stringify(binding.manifest || {})}\n\nIMMUTABLE PROMOTION RECORD:\n${JSON.stringify({ promotionId: promotion.id, certificationId: promotion.certification_id, renderer: promotion.renderer_version, canaryVersion: promotion.canary_version, dispatchCapability: phase, rubric, qualityPolicyVersion: stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.version : "LEGACY_STRICT_GATE", overallFloor, semanticFitFloor: stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.controlledSemanticFit : 90, otherDimensionFloor: stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.controlledOtherDimension : 90, contractHash: promotion.contract_hash, frameIds: binding.frameIds, frameHashes: binding.frameHashes, legacyFallback: false, certificationPixelsReused: false })}` }];
   for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 4000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_canary_promoted_pixel_qa", strict: true, schema: visionSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`CANARY_PIXEL_QA_START_FAILED · ${response.status}`); }
@@ -2873,7 +2966,7 @@ async function pollVision(env: Env, db: DB, authorization: Row, requestRow: Row)
   const activeCanary = promoted ? await db.prepare("SELECT version FROM v7_pilot_canaries WHERE authorization_id=? AND current_brief_id=? AND status='UNIT_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(authorization.id, requestRow.brief_id).first<Row>() : null, canaryVersion = clean(activeCanary?.version), capability = canaryDispatchCapability(canaryVersion);
   if (promoted && (!activeCanary || capability?.phase !== clean(requestRow.phase))) throw new Error("CANARY_AUDIT_CAPABILITY_MISMATCH");
   const promotion = promoted ? await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN' ORDER BY created_at DESC LIMIT 1").bind(canaryVersion, requestRow.brief_id).first<Row>() : null, promotedFrameIds = promotion ? arr(JSON.parse(String(promotion.frame_ids_json || "[]"))).map(clean) : [], file = promoted ? (promotedFrameIds[0] ? { id: promotedFrameIds[0] } : null) : await db.prepare("SELECT id FROM v7_material_files WHERE brief_id=? AND asset_role='PRIMARY'").bind(requestRow.brief_id).first<Row>(), promotionPreflight = promotion ? rec(JSON.parse(String(promotion.preflight_json || "{}"))) : {}, repairAttempt = Number(promotionPreflight.repairAttempt || 0), auditId = promoted ? `${requestRow.brief_id}-${canaryVersion}-PIXEL-AUDIT${repairAttempt ? `-REPAIR-${repairAttempt}` : ""}` : `${requestRow.brief_id}-PIXEL-AUDIT`;
-  const binding = promoted && promotion ? await validatePromotionBinding(env, db, promotion) : null, riskTier = clean(rec(binding?.contractPayload).riskTier), stabilizedPolicy = promoted && [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION].includes(canaryVersion), overallFloor = promoted ? stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.controlledOverall : riskTier === "P0" ? 94 : 92 : 90, dimensionFloor = promoted ? stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.controlledOtherDimension : 90 : 86;
+  const binding = promoted && promotion ? await validatePromotionBinding(env, db, promotion) : null, riskTier = clean(rec(binding?.contractPayload).riskTier), stabilizedPolicy = promoted && [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION].includes(canaryVersion), overallFloor = promoted ? stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.controlledOverall : riskTier === "P0" ? 94 : 92 : 90, dimensionFloor = promoted ? stabilizedPolicy ? CONTROLLED_RELEASE_POLICY.controlledOtherDimension : 90 : 86;
   const evaluatedDimensions = Object.fromEntries(dimensions.map((key) => [key, Number(result[key])]));
   const policyDecision = stabilizedPolicy ? evaluateControlledRelease({ overall: result.overall, dimensions: evaluatedDimensions, defects: result.findings }) : null;
   const hardPass = stabilizedPolicy ? Boolean(policyDecision?.pass) : dimensions.every((key) => Number(result[key]) >= dimensionFloor) && Number(result.overall) >= overallFloor && result.decision === "PASS";
@@ -3145,7 +3238,7 @@ async function stepReleaseTrainUnit() {
   if (!run || !authorization || clean(run.status) !== "CANARY_UNIT_RUNNING" || clean(authorization.status) !== "AUTHORIZED") throw new Error("STABILIZED_UNIT_EXECUTOR_NOT_READY");
   const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND status='UNIT_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
   const policy = rec(JSON.parse(String(authorization.model_policy_json || "{}")));
-  const executorVersions = [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION];
+  const executorVersions = [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION];
   if (!canary || !executorVersions.includes(clean(canary.version)) || clean(policy.version) !== clean(canary.version) || policy.sequenceProofReleased !== true || policy.autoRetry !== false || policy.autoAdvance !== false) throw new Error("STABILIZED_UNIT_EXECUTOR_POLICY_MISMATCH");
   return stepPilot();
 }
@@ -3615,6 +3708,8 @@ export async function POST(request: Request) {
     if (body.action === "RELEASE_RELEASE_TRAIN_SEQUENCE_PROOF") return Response.json(await releaseReleaseTrainSequenceProof(), { status: 202 });
     if (body.action === "PREPARE_STABILIZED_MP002_TARGETED_REPAIR") return Response.json(await prepareStabilizedMp002TargetedRepair(), { status: 201 });
     if (body.action === "RELEASE_STABILIZED_MP002_TARGETED_REPAIR") return Response.json(await releaseStabilizedMp002TargetedRepair(), { status: 202 });
+    if (body.action === "PREPARE_MP002_PIXEL_ORACLE_REPAIR") return Response.json(await prepareMp002PixelOracleRepair(), { status: 201 });
+    if (body.action === "RELEASE_MP002_PIXEL_ORACLE_REPAIR") return Response.json(await releaseMp002PixelOracleRepair(), { status: 202 });
     if (body.action === "ADOPT_CONTROLLED_RELEASE_GATE") return Response.json(await adoptControlledReleaseGate(), { status: 200 });
     if (body.action === "STEP_RELEASE_TRAIN_UNIT") return Response.json(await stepReleaseTrainUnit(), { status: 202 });
     if (body.action === "START_RELEASE_TRAIN_BATCH") return Response.json(await startReleaseTrainBatch(), { status: 202 });
