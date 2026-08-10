@@ -427,7 +427,7 @@ test("MP-002 has one append-only targeted repair that closes the observed P1 def
   assert.match(route, /\[MP002_TARGETED_REPAIR_VERSION\]: \{ phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA"/);
   assert.match(route, /parentVersion: STABILIZATION_RELEASE_VERSION/);
   assert.match(route, /UPDATE v7_pilot_canaries SET version=\?,status='TARGETED_REPAIR_READY'/);
-  assert.match(route, /const executorVersions = \[STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION\]/);
+  assert.match(route, /const executorVersions = \[STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION, CANONICAL_UNIT_SCENES_VERSION\]/);
   assert.match(route, /clean\(policy\.version\) !== clean\(canary\.version\)/);
   assert.doesNotMatch(route, /SUPERSEDED_BY_TARGETED_REPAIR/);
   assert.match(route, /PREPARE_STABILIZED_MP002_TARGETED_REPAIR/);
@@ -456,4 +456,12 @@ test("MP-002 pixel oracle verifies rendered regions before autonomous 10-unit co
   assert.match(page, /RELEASE_MP002_PIXEL_ORACLE_REPAIR/);
   assert.match(page, /START_RELEASE_TRAIN_BATCH/);
   assert.match(page, /RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT/);
+});
+
+test("remaining canonical units compile contract-specific scenes before paid resume", () => {
+  assert.match(route, /CANONICAL_UNIT_SCENES_V2/);
+  assert.match(route, /CANONICAL_UNIT_GOLDEN_REGION_ORACLE_V1/);
+  for (const logicalId of ["MP-003", "MP-004", "MP-007", "MP-008", "MP-018", "MP-039", "MP-115", "MP-153"]) assert.match(route, new RegExp(`"${logicalId}"`));
+  assert.match(route, /8\/8 canonical unit scenes · 24\/24 frames/);
+  assert.match(page, /Build 8 canonical unit scenes · G0\/G1 · \$0/);
 });
