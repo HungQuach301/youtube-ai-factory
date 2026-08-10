@@ -37,10 +37,8 @@ const MP002_TARGETED_REPAIR_VERSION = "MP002_TARGETED_REPAIR_V1";
 const MP002_TARGETED_REPAIR_RENDERER = "PRODUCTION_SCENE_RENDERER_V4_MP002_TARGETED_REPAIR";
 const MP002_PIXEL_ORACLE_REPAIR_VERSION = "MP002_PIXEL_ORACLE_REPAIR_V2";
 const MP002_PIXEL_ORACLE_REPAIR_RENDERER = "PRODUCTION_SCENE_RENDERER_V5_PIXEL_ORACLE";
-const LEGACY_CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V2";
-const PREVIOUS_CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V3";
-const CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V4";
-const CANONICAL_UNIT_SCENES_RENDERER = "PRODUCTION_SCENE_RENDERER_V8_ORDERED_ROLES";
+const CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V5";
+const CANONICAL_UNIT_SCENES_RENDERER = "PRODUCTION_SCENE_RENDERER_V9_CARDHOLDER_RECORD";
 const SEALED_RELEASE_SET = ["MP-001"] as const;
 const LEGACY_CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
 const PROMOTION_REGRESSION_VERSION = "PROMOTION_BINDING_REGRESSION_V1";
@@ -1497,7 +1495,7 @@ function canonicalUnitScene(logicalId: string, evidence: string[], contract: Row
       {role:"MIDPOINT",sceneLabel:"RECORDS SPLIT",primary:"CARDHOLDER",secondary:"MERCHANT",sceneDelta:"SHUTTER_SPLIT"},
       {role:"EXIT",sceneLabel:"TWO RECORDS",primary:"CARDHOLDER",secondary:"MERCHANT",sceneDelta:"PANELS_HOLD"},
     ], requiredTokens:[["PURCHASE"],["CARDHOLDER","MERCHANT"],["CARDHOLDER","MERCHANT"]] },
-    "MP-008": { sceneType:"RECORD_PANEL", states:[
+    "MP-008": { sceneType:"CARDHOLDER_RECORD", states:[
       {role:"ENTRY",sceneLabel:"CARDHOLDER RECORD",primary:"PURCHASE",secondary:"MERCHANT RECORD",sceneDelta:"CARDHOLDER_DOMINATES"},
       {role:"MIDPOINT",sceneLabel:"CARDHOLDER RECORD",primary:"PURCHASE",secondary:"REWARD",sceneDelta:"REWARD_ROW_POSTS"},
       {role:"EXIT",sceneLabel:"SEPARATE ROWS",primary:"PURCHASE",secondary:"REWARD",sceneDelta:"ROWS_HOLD"},
@@ -1594,6 +1592,13 @@ function renderProductionScene(manifest: Row, state: 0 | 1 | 2) {
   } else if(sceneType==="PAYMENT_ROUTE"){
     const xs=[135,380,625];xs.forEach((x,index)=>{fill(x,176,200,176,index<=state?"#f4edd7":"#173d35");fill(x,176,200,12,index<=state?accent:"#31594e");circle(x+100,230,30,index<=state?"#2d8063":"#52766b");text(String(index+1),x+91,216,4,index<=state?"#ffffff":"#aec6bc");});
     if(state>=1)line(335,264,380,264,8,accent);if(state>=2)line(580,264,625,264,8,accent);center(current.primary,386,4,"#ffffff",28);
+  } else if(sceneType==="CARDHOLDER_RECORD"){
+    fill(88,132,784,306,"#102d29");
+    fill(112,156,558,250,"#eef5f1");text("CARDHOLDER RECORD",142,184,3,"#173d35");
+    fill(142,234,496,58,"#ffffff");circle(174,263,10,"#72c8a3");text("PURCHASE",202,253,3,"#173d35");
+    fill(706,184,138,150,"#173d35");centerAt("MERCHANT",775,214,2,"#a8cdbd",12);centerAt("RECORD",775,244,2,"#a8cdbd",10);
+    if(state>=1){fill(142,314,496,58,"#ffffff");circle(174,343,10,"#72c8a3");text("REWARD",202,333,3,"#1b6b56");}
+    if(state===2){circle(614,263,8,"#2b8b68");circle(614,343,8,"#2b8b68");text("SEPARATE ROWS",680,390,2,"#a8cdbd");}
   } else if(sceneType==="RECORD_PANEL"){
     fill(92,132,776,306,"#102d29");
     fill(126,164,250,232,"#f4edd7");centerAt(clean(manifest.logicalId)==="MP-008"?"CARDHOLDER":"APPROVED",251,206,3,"#173d35",16);centerAt("TERMINAL",251,270,2,"#52766b",14);
@@ -2187,13 +2192,13 @@ async function buildCanonicalUnitScenes() {
     ]);
     return startControlledCanaryUnit();
   }
-  let canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version IN (?,?,?) AND status='SEQUENCE_OR_BATCH_FAILED_PRESERVED' ORDER BY created_at DESC LIMIT 1").bind(run.id,STABILIZATION_RELEASE_VERSION,LEGACY_CANONICAL_UNIT_SCENES_VERSION,PREVIOUS_CANONICAL_UNIT_SCENES_VERSION).first<Row>();
+  let canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND status='SEQUENCE_OR_BATCH_FAILED_PRESERVED' ORDER BY updated_at DESC LIMIT 1").bind(run.id).first<Row>();
   const now=new Date().toISOString();
   if(canary){
-    if(Number(canary.current_index)<2||clean(authorization.status)!=="PAUSED")throw new Error("CANONICAL_FAILED_BATCH_CHECKPOINT_REQUIRED");
+    if((clean(canary.version)!==STABILIZATION_RELEASE_VERSION&&!clean(canary.version).startsWith("CANONICAL_UNIT_SCENES_V"))||Number(canary.current_index)<2||clean(authorization.status)!=="PAUSED")throw new Error("CANONICAL_FAILED_BATCH_CHECKPOINT_REQUIRED");
     const priorAudit=await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND status='REPAIR_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(authorization.id,canary.current_brief_id).first<Row>();
     if(!priorAudit)throw new Error("CANONICAL_FAILED_AUDIT_REQUIRED");
-    const priorVersion=clean(canary.version),priorScore=Number(priorAudit.score),failedQueue=arr(JSON.parse(String(canary.queue_json||"[]"))).map(rec)[Number(canary.current_index)],failedLogical=clean(failedQueue?.logicalId)||"MP-003",repair=failedLogical==="MP-004"?"ORDERED_ROLES_NO_ROUTE_CONNECTORS":"VERTICAL_DISTINCT_RECORD_ROWS";
+    const priorVersion=clean(canary.version),priorScore=Number(priorAudit.score),failedQueue=arr(JSON.parse(String(canary.queue_json||"[]"))).map(rec)[Number(canary.current_index)],failedLogical=clean(failedQueue?.logicalId)||"MP-003",repair=failedLogical==="MP-004"?"ORDERED_ROLES_NO_ROUTE_CONNECTORS":failedLogical==="MP-008"?"DOMINANT_CARDHOLDER_DISTINCT_STATUS_ROWS":"VERTICAL_DISTINCT_RECORD_ROWS";
     const policy={...rec(JSON.parse(String(authorization.model_policy_json||"{}"))),version:CANONICAL_UNIT_SCENES_VERSION,renderer:CANONICAL_UNIT_SCENES_RENDERER,runToCompletion10Mp:true,batchAuthorized:true,autoRetry:false,autoAdvance:false,nextUnitDispatch:"TERMINAL_PASS_ONLY",canonicalSceneRebuild:{sourceVersion:priorVersion,sourceAuditId:priorAudit.id,sourceScore:priorScore,sourceFailedUnit:failedLogical,scope:"MP-003_THROUGH_MP-153",paidRequests:0,repair}};
     await db.batch([
       db.prepare("UPDATE v7_pilot_canaries SET version=?,status='SCENE_REBUILD_RUNNING',request_budget=request_budget+1,cost_budget=cost_budget+1,gate_json='[]',updated_at=?,completed_at=NULL WHERE id=?").bind(CANONICAL_UNIT_SCENES_VERSION,now,canary.id),
@@ -2210,7 +2215,7 @@ async function buildCanonicalUnitScenes() {
     if(!brief||!sourcePromotion||!sourceUnit)throw new Error(`CANONICAL_SCENE_SOURCE_MISSING · ${logicalId}`);
     const sourceBinding=await validatePromotionBinding(env,db,sourcePromotion);if(!sourceBinding.passed)throw new Error(`CANONICAL_SCENE_SOURCE_INVALID · ${logicalId}`);
     const rebuildPolicy=rec(rec(JSON.parse(String(authorization.model_policy_json||"{}"))).canonicalSceneRebuild);
-    const manifest={...productionSceneManifest(sourceBinding.contractPayload,CANONICAL_UNIT_SCENES_RENDERER,"EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V8_ORDERED_ROLES"),sourceContractHash:rec(sourceBinding.manifest).sourceContractHash,canonicalPilotManifestVersion:rec(sourceBinding.manifest).canonicalPilotManifestVersion,canonicalPilotManifestHash:rec(sourceBinding.manifest).canonicalPilotManifestHash,rebuild:{version:CANONICAL_UNIT_SCENES_VERSION,sourcePromotionId:sourcePromotion.id,sourceFailedUnit:clean(rebuildPolicy.sourceFailedUnit),sourceFailedScore:Number(rebuildPolicy.sourceScore||0),repair:clean(rebuildPolicy.repair)}};
+    const manifest={...productionSceneManifest(sourceBinding.contractPayload,CANONICAL_UNIT_SCENES_RENDERER,"EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V9_CARDHOLDER_RECORD"),sourceContractHash:rec(sourceBinding.manifest).sourceContractHash,canonicalPilotManifestVersion:rec(sourceBinding.manifest).canonicalPilotManifestVersion,canonicalPilotManifestHash:rec(sourceBinding.manifest).canonicalPilotManifestHash,rebuild:{version:CANONICAL_UNIT_SCENES_VERSION,sourcePromotionId:sourcePromotion.id,sourceFailedUnit:clean(rebuildPolicy.sourceFailedUnit),sourceFailedScore:Number(rebuildPolicy.sourceScore||0),repair:clean(rebuildPolicy.repair)}};
     const oracle=canonicalUnitPixelOracle(logicalId,manifest);if(!oracle.passed)throw new Error(`CANONICAL_SCENE_ORACLE_FAILED · ${logicalId} · ${oracle.checks.filter((gate)=>gate.status!=="PASS").map((gate)=>gate.id).join(",")}`);
     const frameIds:string[]=[],frameHashes:string[]=[];
     for(const [role,rendered] of [["CERT_ENTRY",oracle.frames[0]],["CERT_MIDPOINT",oracle.frames[1]],["CERT_EXIT",oracle.frames[2]]] as const){const fileId=await storeMaterial(env,db,authorization,brief,{role,identity:`CANONICAL-V6-${logicalId}-${role}`,bytes:rendered.bytes,mimeType:"image/png",extension:"png",sourceType:CANONICAL_UNIT_SCENES_RENDERER,provider:"FRAMEFLOW_OWNED",providerAssetId:clean(sourcePromotion.certification_id),sourceUrl:clean(sourcePromotion.certification_id),landingUrl:clean(sourcePromotion.certification_id),licenseCode:"CHANNEL_OWNED",width:rendered.width,height:rendered.height});const stored=await db.prepare("SELECT content_hash FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();frameIds.push(fileId);frameHashes.push(clean(stored?.content_hash));}
