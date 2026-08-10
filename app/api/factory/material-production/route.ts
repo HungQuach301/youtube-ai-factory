@@ -2192,9 +2192,12 @@ async function buildCanonicalUnitScenes() {
     ]);
     return startControlledCanaryUnit();
   }
-  let canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND status='SEQUENCE_OR_BATCH_FAILED_PRESERVED' ORDER BY updated_at DESC LIMIT 1").bind(run.id).first<Row>();
+  let canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='SCENE_REBUILD_RUNNING' ORDER BY updated_at DESC LIMIT 1").bind(run.id,CANONICAL_UNIT_SCENES_VERSION).first<Row>();
   const now=new Date().toISOString();
-  if(canary){
+  if(!canary){
+    canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND status='SEQUENCE_OR_BATCH_FAILED_PRESERVED' ORDER BY updated_at DESC LIMIT 1").bind(run.id).first<Row>();
+  }
+  if(canary&&clean(canary.status)==="SEQUENCE_OR_BATCH_FAILED_PRESERVED"){
     if((clean(canary.version)!==STABILIZATION_RELEASE_VERSION&&!clean(canary.version).startsWith("CANONICAL_UNIT_SCENES_V"))||Number(canary.current_index)<2||clean(authorization.status)!=="PAUSED")throw new Error("CANONICAL_FAILED_BATCH_CHECKPOINT_REQUIRED");
     const priorAudit=await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND status='REPAIR_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(authorization.id,canary.current_brief_id).first<Row>();
     if(!priorAudit)throw new Error("CANONICAL_FAILED_AUDIT_REQUIRED");
@@ -2207,7 +2210,7 @@ async function buildCanonicalUnitScenes() {
       db.prepare("UPDATE v7_stage_states SET status='CANONICAL_UNIT_SCENE_REBUILD',blocker='ZERO_SPEND_REHEARSAL',evidence_summary=?,updated_at=? WHERE id=?").bind(`${failedLogical} ${priorScore}/100 preserved · compiling ${repair} across canonical scenes · no paid dispatch`,now,STAGE_ID),
     ]);
     canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE id=?").bind(canary.id).first<Row>();
-  } else canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='SCENE_REBUILD_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(run.id,CANONICAL_UNIT_SCENES_VERSION).first<Row>();
+  }
   if(!canary)throw new Error("CANONICAL_UNIT_SCENE_REBUILD_NOT_READY");
   const queue=arr(JSON.parse(String(canary.queue_json||"[]"))).map(rec),scope=queue.slice(2),existing=await rows(db,"SELECT logical_brief_id FROM v7_artifact_promotions WHERE canary_version=? AND authorization_id=? AND status='FROZEN'",CANONICAL_UNIT_SCENES_VERSION,authorization.id),done=new Set(existing.map((item)=>clean(item.logical_brief_id))),next=scope.find((item)=>!done.has(clean(item.logicalId)));
   if(next){
