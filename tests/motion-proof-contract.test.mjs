@@ -309,5 +309,13 @@ test("Recovery Lane replays the failed V5 handoff through an atomic zero-spend s
   assert.match(route, /OUTBOX_DISPATCH_FAILURE/);
   assert.match(route, /CANARY_RECOVERY_ZERO_SPEND_INVARIANT_FAILED/);
   assert.match(page, /Build Recovery Lane E2E · \$0/);
-  assert.match(page, /Production Recovery Probe remains locked/);
+  assert.match(page, /Run Production Recovery Probe · MP-001 · max \$1/);
+  assert.match(page, /RELEASE_PRODUCTION_RECOVERY_PROBE/);
+  assert.match(route, /releaseProductionRecoveryProbe/);
+  assert.match(route, /PRODUCTION_RECOVERY_PROBE_CANONICAL_SNAPSHOT_DRIFT/);
+  assert.match(route, /PRODUCTION_RECOVERY_PROBE_MP001_ONLY/);
+  assert.match(route, /PRODUCTION_COMMITTED/);
+  assert.match(route, /PRODUCTION_DISPATCHED/);
+  assert.match(route, /autoRetry: false/);
+  assert.match(route, /nextUnitDispatch: false/);
 });

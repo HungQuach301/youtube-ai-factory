@@ -121,7 +121,7 @@ export default function MaterialProductionPage() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Pilot authorization failed"); }
     finally { setWorking(null); }
   }
-  async function canaryAction(action: "AUTHORIZE_CONTROLLED_CANARY" | "AUTHORIZE_CONTROLLED_CANARY_V3" | "AUTHORIZE_CONTROLLED_CANARY_V4" | "AUTHORIZE_CONTROLLED_CANARY_V5" | "RELEASE_CONTROLLED_CANARY_V5_UNIT" | "START_CONTROLLED_CANARY_UNIT" | "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") {
+  async function canaryAction(action: "AUTHORIZE_CONTROLLED_CANARY" | "AUTHORIZE_CONTROLLED_CANARY_V3" | "AUTHORIZE_CONTROLLED_CANARY_V4" | "AUTHORIZE_CONTROLLED_CANARY_V5" | "RELEASE_CONTROLLED_CANARY_V5_UNIT" | "RELEASE_PRODUCTION_RECOVERY_PROBE" | "START_CONTROLLED_CANARY_UNIT" | "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") {
     setWorking(action); setError(null);
     try {
       const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
@@ -308,8 +308,11 @@ export default function MaterialProductionPage() {
           <small>INTENT / OUTBOX · {data.recovery.requestIntent?.status || "MISSING"} · {data.recovery.outbox?.status || "MISSING"}</small>
           <small>ZERO-SPEND INVARIANT · requests {data.recovery.requestsBefore} → {data.recovery.requestsAfter} · cost ${data.recovery.costBefore.toFixed(6)} → ${data.recovery.costAfter.toFixed(6)}</small>
           {data.recovery.faultMatrix.map((item) => <small key={item.id}>{item.outcome} · {item.id.replaceAll("_", " ")} · {item.evidence}</small>)}
-          <small>Production Recovery Probe remains locked until a new explicit one-request authorization.</small>
+          {data.recovery.status === "READY_FOR_PRODUCTION_RECOVERY_PROBE"
+            ? <small>Production Recovery Probe is release-ready for exactly one MP-001 request; retry, later units, sequence proof and scale remain locked.</small>
+            : <small>Production Recovery Probe is immutable at {data.recovery.status.replaceAll("_", " ")}.</small>}
         </div>}
+        {data.recovery?.status === "READY_FOR_PRODUCTION_RECOVERY_PROBE" && <div className="reliabilityStart"><p>The canonical replay, request-81 intent/outbox handoff and all eight fault scenarios passed at $0. This control creates a new recovery-probe canary record, preserves failed V5, and releases exactly one MP-001 Pixel QA request.</p><button onClick={() => void canaryAction("RELEASE_PRODUCTION_RECOVERY_PROBE")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RELEASE_PRODUCTION_RECOVERY_PROBE" ? "Releasing production recovery probe…" : "Run Production Recovery Probe · MP-001 · max $1"}</button></div>}
         {data.canary.status === "PASS" && <p className="stateBanner">Controlled canary PASS. Sequence proof is ready but not started; scale remains blocked.</p>}
       </>}
     </section>}

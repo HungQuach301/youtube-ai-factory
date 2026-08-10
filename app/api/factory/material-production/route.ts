@@ -1172,6 +1172,70 @@ async function buildCanaryRecoveryLane() {
   return snapshot();
 }
 
+async function releaseProductionRecoveryProbe() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("PRODUCTION_RECOVERY_PROBE_CONFIGURATION_REQUIRED");
+  const recovery = await db.prepare("SELECT * FROM v7_canary_recovery_sessions WHERE run_id=? AND version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, CANARY_RECOVERY_LANE_VERSION).first<Row>();
+  if (!recovery || clean(recovery.status) !== "READY_FOR_PRODUCTION_RECOVERY_PROBE") throw new Error("PRODUCTION_RECOVERY_PROBE_NOT_READY");
+  const e2e = rec(JSON.parse(String(recovery.e2e_json || "{}"))), faults = arr(JSON.parse(String(recovery.fault_matrix_json || "[]"))).map(rec);
+  if (clean(e2e.status) !== "PASS" || Number(e2e.remoteDispatches || 0) !== 0 || Number(e2e.costDelta || 0) !== 0 || faults.length !== 8 || faults.some((item) => clean(item.outcome) !== "PASS")) throw new Error("PRODUCTION_RECOVERY_PROBE_E2E_GATE_FAILED");
+  const sourceCanary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE id=? AND version=? AND status='FAILED'").bind(recovery.source_canary_id, CONTROLLED_CANARY_V5).first<Row>();
+  if (!sourceCanary || Number(sourceCanary.passed_units) !== 0 || Number(sourceCanary.failed_units) !== 1 || Number(sourceCanary.current_index) !== 0) throw new Error("PRODUCTION_RECOVERY_PROBE_FAILED_V5_AUDIT_REQUIRED");
+  const baseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE id=?").bind(sourceCanary.baseline_id).first<Row>();
+  if (!baseline || clean(baseline.execution_state) !== "FROZEN") throw new Error("PRODUCTION_RECOVERY_PROBE_FROZEN_BASELINE_REQUIRED");
+  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost,SUM(CASE WHEN status IN ('QUEUED','IN_PROGRESS') THEN 1 ELSE 0 END) AS active FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number; active: number }>();
+  const requestsBefore = Number(usage?.total || 0), costBefore = Number(usage?.cost || 0);
+  if (Number(usage?.active || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  if (requestsBefore !== Number(recovery.requests_before) || requestsBefore + 1 !== Number(recovery.simulated_request_sequence) || Math.abs(costBefore - Number(recovery.cost_before)) > 0.000001) throw new Error("PRODUCTION_RECOVERY_PROBE_CANONICAL_SNAPSHOT_DRIFT");
+  const queue = arr(JSON.parse(String(sourceCanary.queue_json || "[]"))).map(rec), targetItem = queue[0], targetBriefId = clean(targetItem?.briefId);
+  if (!targetBriefId || clean(targetItem?.logicalId) !== "MP-001") throw new Error("PRODUCTION_RECOVERY_PROBE_MP001_LEASE_REQUIRED");
+  const capability = canaryDispatchCapability(CONTROLLED_CANARY_V5);
+  if (!capability || clean(targetItem?.dispatchCapability) !== capability.phase) throw new Error("PRODUCTION_RECOVERY_PROBE_CAPABILITY_MISMATCH");
+  const promotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(CONTROLLED_CANARY_V5, targetBriefId).first<Row>(), brief = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=? AND pilot=1").bind(targetBriefId, run.id).first<Row>();
+  if (!promotion || !brief) throw new Error("PRODUCTION_RECOVERY_PROBE_PROMOTION_REQUIRED");
+  const binding = await validatePromotionBinding(env, db, promotion);
+  if (!binding.passed) throw new Error(`PRODUCTION_RECOVERY_PROBE_ARTIFACT_FAILED · ${binding.checks.filter((item) => item.status !== "PASS").map((item) => item.id).join(",")}`);
+  const commandId = `${clean(recovery.id)}-PRODUCTION-PROBE-MP001`, intentId = `${commandId}-REQUEST-INTENT-${requestsBefore + 1}`, outboxId = `${intentId}-OUTBOX`, leaseId = `${commandId}-LEASE`, probeCanaryId = `${clean(recovery.id)}-PROBE`, now = new Date().toISOString();
+  const existingIntent = await db.prepare("SELECT id FROM v7_canary_request_intents WHERE command_id=?").bind(commandId).first<Row>();
+  if (existingIntent) return snapshot();
+  const policy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: CONTROLLED_CANARY_V5, dispatch: "PRODUCTION_RECOVERY_PROBE_MP001_ONLY", dispatchCapability: capability.phase, artifactMode: capability.artifactMode, concurrency: 1, requestBudget: 1, costBudgetUsd: 1, autoRetry: false, nextUnitDispatch: false, sequenceProof: "BLOCKED", productionScale: "BLOCKED", recoveryId: recovery.id };
+  const intentPayload = { recoveryId: recovery.id, commandId, unitId: "MP-001", probeCanaryId, sourceCanaryId: sourceCanary.id, sourcePromotionId: promotion.id, phase: capability.phase, requestSequence: requestsBefore + 1, provider: "OPENAI", maxRequests: 1, maxCostUsd: 1, autoRetry: false }, intentJson = JSON.stringify(intentPayload), intentHash = await sha(intentJson);
+  await db.batch([
+    db.prepare("INSERT INTO v7_pilot_canaries (id,program_id,baseline_id,regression_id,run_id,authorization_id,version,status,queue_json,current_index,current_brief_id,released_units,passed_units,failed_units,requests_before,cost_before,request_budget,cost_budget,active_request_peak,gate_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'UNIT_RUNNING',?,0,?,1,0,0,?,?,1,1,0,?,?,?)").bind(probeCanaryId, PROGRAM_ID, sourceCanary.baseline_id, sourceCanary.regression_id, run.id, authorization.id, CONTROLLED_CANARY_V5, JSON.stringify(queue), targetBriefId, requestsBefore, costBefore, JSON.stringify(binding.checks), now, now),
+    db.prepare("INSERT INTO v7_canary_request_intents (id,recovery_id,command_id,unit_id,phase,status,simulated_sequence,idempotency_key,payload_hash,created_at) VALUES (?,?,?,?,?,'PRODUCTION_COMMITTED',?,?,?,?)").bind(intentId, recovery.id, commandId, "MP-001", capability.phase, requestsBefore + 1, `${commandId}:request-intent`, intentHash, now),
+    db.prepare("INSERT INTO v7_canary_outbox (id,recovery_id,request_intent_id,event_type,status,payload_json,created_at,updated_at) VALUES (?,?,?,'CANARY_PIXEL_QA_REQUESTED','PRODUCTION_PENDING',?,?,?)").bind(outboxId, recovery.id, intentId, intentJson, now, now),
+    db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,expected_state,actual_state,authorization_status,lease_id,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PRODUCTION_COMMITTED','CANARY_ONLY','CANARY_ONLY','AUTHORIZED',?,?,'REQUEST_INTENT_COMMITTED','OUTBOX_PENDING',?,?)").bind(`${commandId}-COMMITTED`, recovery.id, commandId, CONTROLLED_CANARY_V5, "MP-001", leaseId, intentId, intentJson, now),
+    db.prepare("UPDATE v7_canary_recovery_sessions SET status='PROBE_RUNNING',updated_at=? WHERE id=? AND status='READY_FOR_PRODUCTION_RECOVERY_PROBE'").bind(now, recovery.id),
+    db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=? AND execution_state='FROZEN'").bind(sourceCanary.baseline_id),
+    db.prepare("UPDATE v7_material_authorizations SET scope='PRODUCTION_RECOVERY_PROBE',status='AUTHORIZED',max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,completed_at=NULL,updated_at=? WHERE id=?").bind(requestsBefore + 1, costBefore + 1, JSON.stringify(policy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='CANARY_UNIT_RUNNING',mode='PRODUCTION_RECOVERY_PROBE' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='CANARY_UNIT_RUNNING',blocker='PRODUCTION_RECOVERY_PROBE_MP001_ONLY',evidence_summary=?,updated_at=? WHERE id=?").bind(`Production Recovery Probe · MP-001 only · request ${requestsBefore + 1}/1 · $1 ceiling · no retry · later units, sequence and scale locked`, now, STAGE_ID),
+  ]);
+  const activeAuthorization = { ...authorization, status: "AUTHORIZED", scope: "PRODUCTION_RECOVERY_PROBE", max_remote_requests: requestsBefore + 1, max_actual_spend_usd: costBefore + 1, model_policy_json: JSON.stringify(policy) };
+  try {
+    const requestId = await dispatchPromotedVision(env, db, activeAuthorization, brief, promotion), dispatchedAt = new Date().toISOString();
+    await db.batch([
+      db.prepare("UPDATE v7_canary_request_intents SET status='PROVIDER_DISPATCHED' WHERE id=?").bind(intentId),
+      db.prepare("UPDATE v7_canary_outbox SET status='PRODUCTION_DISPATCHED',updated_at=? WHERE id=?").bind(dispatchedAt, outboxId),
+      db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,expected_state,actual_state,authorization_status,lease_id,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PROVIDER_DISPATCHED','REQUEST_81_IN_PROGRESS','REQUEST_81_IN_PROGRESS','AUTHORIZED',?,?,'INSERTED','DISPATCHED',?,?)").bind(`${commandId}-DISPATCHED`, recovery.id, commandId, CONTROLLED_CANARY_V5, "MP-001", leaseId, intentId, JSON.stringify({ requestId, requestSequence: requestsBefore + 1 }), dispatchedAt),
+    ]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "PRODUCTION_RECOVERY_PROBE_DISPATCH_FAILED", failedAt = new Date().toISOString();
+    await db.batch([
+      db.prepare("UPDATE v7_canary_recovery_sessions SET status='PROBE_FAILED_PRESERVED',updated_at=? WHERE id=?").bind(failedAt, recovery.id),
+      db.prepare("UPDATE v7_canary_request_intents SET status='DISPATCH_FAILED' WHERE id=?").bind(intentId),
+      db.prepare("UPDATE v7_canary_outbox SET status='DISPATCH_FAILED',updated_at=? WHERE id=?").bind(failedAt, outboxId),
+      db.prepare("UPDATE v7_pilot_canaries SET status='FAILED',failed_units=1,completed_at=?,updated_at=? WHERE id=?").bind(failedAt, failedAt, probeCanaryId),
+      db.prepare("UPDATE v7_architecture_baselines SET execution_state='FROZEN' WHERE id=?").bind(sourceCanary.baseline_id),
+      db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(failedAt, authorization.id),
+      db.prepare("UPDATE v7_material_runs SET status='CANARY_BLOCKED' WHERE id=?").bind(run.id),
+      db.prepare("UPDATE v7_stage_states SET status='CANARY_BLOCKED',blocker='PRODUCTION_RECOVERY_PROBE_DISPATCH_FAILED',evidence_summary=?,updated_at=? WHERE id=?").bind(message, failedAt, STAGE_ID),
+      db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,failure_code,failed_transition,failed_gate,expected_state,actual_state,authorization_status,lease_id,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PROBE_FAILED','PRODUCTION_RECOVERY_PROBE_DISPATCH_FAILED','OUTBOX_TO_PROVIDER','PROVIDER_DISPATCH','REQUEST_81_IN_PROGRESS','DISPATCH_FAILED','PAUSED',?,?,'INTENT_COMMITTED','DISPATCH_FAILED',?,?)").bind(`${commandId}-FAILED`, recovery.id, commandId, CONTROLLED_CANARY_V5, "MP-001", leaseId, intentId, JSON.stringify({ message }), failedAt),
+    ]);
+  }
+  return snapshot();
+}
+
 async function releaseControlledCanaryV5Unit() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("CONTROLLED_CANARY_RUN_REQUIRED");
@@ -1215,6 +1279,9 @@ async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, c
   const env = await runtime();
   const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
   if (Number(active?.total || 0) !== 0) return;
+  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>();
+  const recovery = await db.prepare("SELECT * FROM v7_canary_recovery_sessions WHERE run_id=? AND status='PROBE_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  const recoveryIntent = recovery ? await db.prepare("SELECT * FROM v7_canary_request_intents WHERE recovery_id=? AND status='PROVIDER_DISPATCHED' ORDER BY created_at DESC LIMIT 1").bind(recovery.id).first<Row>() : null;
   const canaryVersion = clean(canary.version), promotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(canaryVersion, brief.id).first<Row>();
   const binding = promotion ? await validatePromotionBinding(env, db, promotion) : null;
   const audit = await db.prepare("SELECT * FROM v7_material_audits WHERE id=?").bind(`${brief.id}-${canaryVersion}-PIXEL-AUDIT`).first<Row>();
@@ -1233,21 +1300,33 @@ async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, c
     { id: "ACTIVE_REQUESTS", status: "PASS" },
   ], passed = checks.every((item) => item.status === "PASS"), now = new Date().toISOString();
   if (!passed) {
-    await db.batch([
+    const statements = [
       db.prepare("UPDATE v7_pilot_canaries SET status='FAILED',failed_units=failed_units+1,gate_json=?,updated_at=?,completed_at=? WHERE id=?").bind(JSON.stringify(checks), now, now, canary.id),
       db.prepare("UPDATE v7_architecture_baselines SET execution_state='FROZEN' WHERE id=?").bind(canary.baseline_id),
       db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(now, authorization.id),
       db.prepare("UPDATE v7_material_runs SET status='CANARY_BLOCKED' WHERE id=?").bind(run.id),
       db.prepare("UPDATE v7_stage_states SET status='CANARY_BLOCKED',blocker='CANARY_UNIT_GATE_FAILED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(brief.id)} failed controlled canary gate · later units, sequence and scale blocked`, now, STAGE_ID),
-    ]);
+    ];
+    if (recovery) statements.push(
+      db.prepare("UPDATE v7_canary_recovery_sessions SET status='PROBE_FAILED_PRESERVED',requests_after=?,cost_after=?,updated_at=? WHERE id=? AND status='PROBE_RUNNING'").bind(Number(usage?.total || 0), Number(usage?.cost || 0), now, recovery.id),
+      db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,failure_code,failed_transition,failed_gate,expected_state,actual_state,authorization_status,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PROBE_TERMINAL_FAIL','PIXEL_QA_GATE_FAILED','PERSIST_AUDIT_TO_TERMINAL','PIXEL_QA','TERMINAL_PASS','PROBE_FAILED_PRESERVED','PAUSED',?,'COMPLETE','TERMINAL',?,?)").bind(`${clean(recovery.id)}-PROBE-TERMINAL`, recovery.id, `${clean(recovery.id)}-PRODUCTION-PROBE-MP001`, canaryVersion, "MP-001", recoveryIntent?.id || null, JSON.stringify({ checks, requestsAfter: Number(usage?.total || 0), costAfter: Number(usage?.cost || 0) }), now),
+    );
+    await db.batch(statements);
     return;
   }
-  await db.batch([
+  const statements = [
     db.prepare("UPDATE v7_pilot_canaries SET status='UNIT_PASS_REVIEW',passed_units=passed_units+1,gate_json=?,updated_at=? WHERE id=? AND status='UNIT_RUNNING'").bind(JSON.stringify(checks), now, canary.id),
     db.prepare("UPDATE v7_material_briefs SET status='CANARY_PASS' WHERE id=?").bind(brief.id),
     db.prepare("UPDATE v7_material_runs SET status='CANARY_UNIT_PASS_REVIEW' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='CANARY_UNIT_PASS_REVIEW',blocker='EXPLICIT_NEXT_UNIT_RELEASE_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(brief.id)} PASS · immutable binding, byte/hash/contract congruence, promoted Pixel QA and uniqueness verified · later units locked`, now, STAGE_ID),
-  ]);
+  ];
+  if (recovery) statements.push(
+    db.prepare("UPDATE v7_canary_recovery_sessions SET status='PROBE_PASS_REVIEW',requests_after=?,cost_after=?,updated_at=? WHERE id=? AND status='PROBE_RUNNING'").bind(Number(usage?.total || 0), Number(usage?.cost || 0), now, recovery.id),
+    db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(now, authorization.id),
+    db.prepare("UPDATE v7_architecture_baselines SET execution_state='FROZEN' WHERE id=?").bind(canary.baseline_id),
+    db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,expected_state,actual_state,authorization_status,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PROBE_TERMINAL_PASS','TERMINAL_PASS','PROBE_PASS_REVIEW','PAUSED',?,'COMPLETE','TERMINAL',?,?)").bind(`${clean(recovery.id)}-PROBE-TERMINAL`, recovery.id, `${clean(recovery.id)}-PRODUCTION-PROBE-MP001`, canaryVersion, "MP-001", recoveryIntent?.id || null, JSON.stringify({ checks, requestsAfter: Number(usage?.total || 0), costAfter: Number(usage?.cost || 0) }), now),
+  );
+  await db.batch(statements);
 }
 
 async function releaseNextControlledCanaryUnit() {
@@ -1969,6 +2048,7 @@ async function dispatchPromotedVision(env: Env, db: DB, authorization: Row, brie
   const payload = await response.json() as Row;
   if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("CANARY_PIXEL_QA_PROVIDER_ID_MISSING"); }
   await db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, new Date().toISOString(), requestId).run();
+  return requestId;
 }
 
 async function dispatchVision(env: Env, db: DB, authorization: Row, briefRow: Row) {
@@ -2695,6 +2775,7 @@ export async function POST(request: Request) {
     if (body.action === "AUTHORIZE_CONTROLLED_CANARY_V4") return Response.json(await authorizeControlledCanaryV4(), { status: 201 });
     if (body.action === "AUTHORIZE_CONTROLLED_CANARY_V5") return Response.json(await authorizeControlledCanaryV5(), { status: 201 });
     if (body.action === "BUILD_CANARY_RECOVERY_LANE") return Response.json(await buildCanaryRecoveryLane(), { status: 201 });
+    if (body.action === "RELEASE_PRODUCTION_RECOVERY_PROBE") return Response.json(await releaseProductionRecoveryProbe(), { status: 202 });
     if (body.action === "RELEASE_CONTROLLED_CANARY_V5_UNIT") return Response.json(await releaseControlledCanaryV5Unit(), { status: 202 });
     if (body.action === "START_CONTROLLED_CANARY_UNIT") return Response.json(await startControlledCanaryUnit(), { status: 202 });
     if (body.action === "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") return Response.json(await releaseNextControlledCanaryUnit(), { status: 201 });
