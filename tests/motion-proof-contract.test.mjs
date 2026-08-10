@@ -332,4 +332,7 @@ test("Recovery Lane replays the failed V5 handoff through an atomic zero-spend s
   assert.match(page, /Build MP-001 contract alignment · \$0/);
   assert.match(page, /Run contract-aligned MP-001 probe · max \$1/);
   assert.match(page, /Reconcile request 82 terminal · \$0/);
+  assert.match(page, /Seal MP-001 recovery checkpoint · \$0/);
+  assert.match(route, /RECOVERY_PASS_REVIEW/);
+  assert.match(route, /FULL_QUEUE_BINDING_REQUIRED_BEFORE_NEXT_UNIT/);
 });
