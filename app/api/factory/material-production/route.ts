@@ -3583,7 +3583,8 @@ async function planSequenceProof() {
   if (existing) return snapshot();
   const queue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec);
   if (queue.length !== 10) throw new Error(`SEQUENCE_CANONICAL_QUEUE_INVALID · ${queue.length}/10`);
-  const sources: Row[] = [], logicalIds = new Set<string>(), frameIds = new Set<string>();
+  const materialFiles = await rows(db, "SELECT id,mime_type,content_hash,runtime_key,status FROM v7_material_files WHERE authorization_id=?", authorization.id);
+  const sources: Row[] = [], sourceFiles: Row[] = [], logicalIds = new Set<string>(), frameIds = new Set<string>();
   for (const item of queue) {
     const logicalId = clean(item.logicalId), promotionId = clean(item.promotionId);
     if (!logicalId || logicalIds.has(logicalId)) throw new Error(`SEQUENCE_LOGICAL_UNIT_INVALID · ${logicalId || "MISSING"}`);
@@ -3595,14 +3596,16 @@ async function planSequenceProof() {
     const ids = arr(JSON.parse(String(promotion.frame_ids_json || "[]"))).map(clean), hashes = arr(JSON.parse(String(promotion.frame_hashes_json || "[]"))).map(clean);
     if (ids.length !== 3 || hashes.length !== 3) throw new Error(`SEQUENCE_FRAME_SET_INVALID · ${logicalId}`);
     for (let index = 0; index < 3; index++) {
-      const file = await db.prepare("SELECT id,mime_type,content_hash,runtime_key,status FROM v7_material_files WHERE id=? AND authorization_id=?").bind(ids[index], authorization.id).first<Row>();
-      const object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null;
-      if (!file || !object || clean(file.content_hash) !== hashes[index] || clean(file.status) !== "STORED_VERIFIED" || frameIds.has(ids[index])) throw new Error(`SEQUENCE_FRAME_READ_BACK_FAILED · ${logicalId} · ${index + 1}`);
+      const file = materialFiles.find((candidate) => clean(candidate.id) === ids[index]);
+      if (!file || clean(file.content_hash) !== hashes[index] || clean(file.status) !== "STORED_VERIFIED" || !clean(file.runtime_key) || frameIds.has(ids[index])) throw new Error(`SEQUENCE_FRAME_BINDING_FAILED · ${logicalId} · ${index + 1}`);
       frameIds.add(ids[index]);
+      sourceFiles.push(file);
       sources.push({ logicalId, state: ["ENTRY", "MIDPOINT", "EXIT"][index], fileId: ids[index], sha256: hashes[index], mimeType: file.mime_type });
     }
   }
   if (logicalIds.size !== 10 || sources.length !== 30 || frameIds.size !== 30) throw new Error("SEQUENCE_SOURCE_MANIFEST_INCOMPLETE");
+  const readBack = await Promise.all(sourceFiles.map((file) => env.BUCKET!.head(clean(file.runtime_key))));
+  if (readBack.some((object) => !object)) throw new Error("SEQUENCE_FRAME_READ_BACK_FAILED");
   const manifest = { version: "CANONICAL_10MP_SEQUENCE_MANIFEST_V1", canaryId: canary.id, canaryVersion: canary.version, order: [...logicalIds], sources, durationSeconds: 30, secondsPerFrame: 1, noRegeneration: true, noFallback: true };
   const contentHash = await sha(JSON.stringify(manifest)), proofId = `${clean(run.id)}-SEQUENCE-${contentHash.slice(0, 16)}`, jobId = `${proofId}-RENDER`, now = new Date().toISOString();
   const samplePositions = queue.map((item, index) => ({ role: `UNIT_${String(index + 1).padStart(2, "0")}`, logicalId: clean(item.logicalId), ratio: (index * 3 + 1.5) / 30 }));
