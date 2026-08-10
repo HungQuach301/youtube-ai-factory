@@ -3658,7 +3658,7 @@ async function produceIntegratedSequence() {
   if (active) throw new Error("SEQUENCE_PRODUCT_BLOCKED_ACTIVE_PROVIDER_REQUEST");
   const staleProduct = await db.prepare("SELECT * FROM v7_sequence_products WHERE authorization_id=? AND status='PRODUCING' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
   if (staleProduct && clean(staleProduct.composer_version) !== INTEGRATED_SEQUENCE_COMPOSER_VERSION) {
-    const staleJob = await db.prepare("SELECT status,error FROM v7_media_jobs WHERE authorization_id=? AND job_type='INTEGRATED_SEQUENCE_RENDER' AND contract_json LIKE ? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, `%\"productId\":\"${clean(staleProduct.id)}\"%`).first<Row>();
+    const staleJob = await db.prepare("SELECT status,error FROM v7_media_jobs WHERE authorization_id=? AND job_type='INTEGRATED_SEQUENCE_RENDER' AND created_at>=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, staleProduct.created_at).first<Row>();
     if (clean(staleJob?.status) === "FAILED") await db.prepare("UPDATE v7_sequence_products SET status='PRODUCTION_BLOCKED',measurements_json=?,corrections_json=?,updated_at=? WHERE id=? AND status='PRODUCING'").bind(JSON.stringify({ escapedDefect: "TIMEBASE_UNSAFE_FINAL_SCAN", productComplete: false }), JSON.stringify([{ code: "COMPOSER_VERSION_REJECTED", reason: clean(staleJob?.error) }]), new Date().toISOString(), staleProduct.id).run();
   }
   const existing = await db.prepare("SELECT * FROM v7_sequence_products WHERE authorization_id=? AND source_proof_id=? AND composer_version=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, sourceProof.id, INTEGRATED_SEQUENCE_COMPOSER_VERSION).first<Row>();
