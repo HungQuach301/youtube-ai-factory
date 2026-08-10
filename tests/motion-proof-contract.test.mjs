@@ -427,6 +427,8 @@ test("MP-002 has one append-only targeted repair that closes the observed P1 def
   assert.match(route, /\[MP002_TARGETED_REPAIR_VERSION\]: \{ phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA"/);
   assert.match(route, /parentVersion: STABILIZATION_RELEASE_VERSION/);
   assert.match(route, /UPDATE v7_pilot_canaries SET version=\?,status='TARGETED_REPAIR_READY'/);
+  assert.match(route, /const executorVersions = \[STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION\]/);
+  assert.match(route, /clean\(policy\.version\) !== clean\(canary\.version\)/);
   assert.doesNotMatch(route, /SUPERSEDED_BY_TARGETED_REPAIR/);
   assert.match(route, /PREPARE_STABILIZED_MP002_TARGETED_REPAIR/);
   assert.match(route, /RELEASE_STABILIZED_MP002_TARGETED_REPAIR/);

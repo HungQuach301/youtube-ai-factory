@@ -3117,9 +3117,10 @@ async function stepPilot() {
 async function stepReleaseTrainUnit() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization || clean(run.status) !== "CANARY_UNIT_RUNNING" || clean(authorization.status) !== "AUTHORIZED") throw new Error("STABILIZED_UNIT_EXECUTOR_NOT_READY");
-  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='UNIT_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(run.id, STABILIZATION_RELEASE_VERSION).first<Row>();
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND status='UNIT_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
   const policy = rec(JSON.parse(String(authorization.model_policy_json || "{}")));
-  if (!canary || clean(policy.version) !== STABILIZATION_RELEASE_VERSION || policy.sequenceProofReleased !== true || policy.autoRetry !== false || policy.autoAdvance !== false) throw new Error("STABILIZED_UNIT_EXECUTOR_POLICY_MISMATCH");
+  const executorVersions = [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION];
+  if (!canary || !executorVersions.includes(clean(canary.version)) || clean(policy.version) !== clean(canary.version) || policy.sequenceProofReleased !== true || policy.autoRetry !== false || policy.autoAdvance !== false) throw new Error("STABILIZED_UNIT_EXECUTOR_POLICY_MISMATCH");
   return stepPilot();
 }
 
