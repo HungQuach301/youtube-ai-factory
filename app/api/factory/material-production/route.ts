@@ -2560,6 +2560,7 @@ async function setModel(modelId: string, reasoningEffort: string) {
 async function newRequest(db: DB, authorization: Row, briefId: string, phase: string, provider: string, modelId = "none", reasoning = "none", expected = 0, maximum = 0) {
   const baseline = await db.prepare("SELECT execution_state FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   let sequenceQaAuthorized = false;
+  let sequenceQaDiagnostic = "not-evaluated";
   if (phase === "SEQUENCE_PROOF_QA" && briefId === "SEQUENCE-10MP") {
     const proof = await db.prepare("SELECT canary_id,status,unit_count,frame_count FROM v7_sequence_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
     const canary = proof ? await db.prepare("SELECT id,status,passed_units FROM v7_pilot_canaries WHERE id=? LIMIT 1").bind(proof.canary_id).first<Row>() : null;
@@ -2570,6 +2571,8 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
       && clean(proof?.status) === "QA_REQUIRED"
       && Number(proof?.unit_count) === 10
       && Number(proof?.frame_count) === 30;
+    sequenceQaDiagnostic = `canary=${clean(canary?.status) || "missing"};passed=${Number(canary?.passed_units || 0)};proof=${clean(proof?.status) || "missing"};units=${Number(proof?.unit_count || 0)};frames=${Number(proof?.frame_count || 0)};lineage=${Boolean(canary && proof && clean(proof.canary_id) === clean(canary.id))}`;
+    if (!sequenceQaAuthorized) throw new Error(`SEQUENCE_QA_DISPATCH_FIREWALL · ${sequenceQaDiagnostic}`);
   }
   if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
   if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized) {
