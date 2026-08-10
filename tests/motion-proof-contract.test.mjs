@@ -359,7 +359,29 @@ test("Release Train seals MP-001, batches zero-spend G0/G1 and opens only MP-002
   assert.match(route, /SEQUENCE_OR_BATCH_FAILED_PRESERVED/);
   assert.match(route, /BATCH_UNIT_PASS_REVIEW/);
   assert.match(page, /Build Release Train G0\/G1 · \$0/);
-  assert.match(page, /Run MP-002 Sequence Proof · max \$1/);
+  assert.match(page, /Build Production Scene Renderer v2 · \$0/);
+  assert.match(page, /Run repaired MP-002 Sequence Proof · max \$1/);
   assert.match(page, /Run MP-003–MP-010 bounded batch/);
   assert.match(page, /data\.authorization\?\.modelPolicy\.batchAuthorized !== true/);
+});
+
+test("Production Scene Renderer preserves request 83 and preflights all remaining units before request 84", () => {
+  assert.match(route, /RELEASE_TRAIN_V2_PRODUCTION_SCENE_RENDERER/);
+  assert.match(route, /PRODUCTION_SCENE_RENDERER_V2/);
+  assert.match(route, /SHOT_CONTRACT_PIXEL_QA_V2/);
+  assert.match(route, /BUILD_PRODUCTION_SCENE_PREFLIGHT/);
+  assert.match(route, /MP002_42_FAILED_SEQUENCE_PROOF_REQUIRED/);
+  assert.match(route, /PRODUCTION_SCENE_CANONICAL_LEDGER_DRIFT/);
+  assert.match(route, /EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V2/);
+  assert.match(route, /EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V2/);
+  assert.match(route, /PRODUCTION_SCENE_G0_FAILED/);
+  assert.match(route, /PRODUCTION_SCENE_G1_FAILED/);
+  assert.match(route, /PRODUCTION_SCENE_ZERO_SPEND_INVARIANT_FAILED/);
+  assert.match(route, /EXIT contains APPROVED \+ \$100\.00/);
+  assert.match(route, /proofCardRendererDisabled: true/);
+  assert.match(route, /predictedOverall: 96/);
+  assert.match(route, /predictedCriticalFloor: 93/);
+  assert.match(route, /request 84 is the only possible next dispatch/);
+  assert.match(page, /Build Production Scene Renderer v2 · \$0/);
+  assert.match(page, /Run repaired MP-002 Sequence Proof · max \$1/);
 });
