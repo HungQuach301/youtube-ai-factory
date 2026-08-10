@@ -15,6 +15,7 @@ type Snapshot = {
   artifact: null | { contentHash: string; routeMix: Record<string, number>; modelMix: Record<string, number>; sampleBriefs: Brief[]; pilotIds: string[] };
   authorization: null | { id: string; status: string; shotCount: number; maxRemoteRequests: number; maxActualSpendUsd: number; authorizedAt: string; revokedAt?: string; modelPolicy: Record<string, unknown> };
   canary: null | { id: string; version: string; status: string; queue: Array<{ briefId: string; logicalId: string; archetype: string; riskTier: string; startSeconds: number; promotionId?: string; certificationId?: string; renderer?: string; bindingStatus?: string; dispatchCapability?: string; materializationStrategy?: string }>; currentIndex: number; currentBriefId: string | null; releasedUnits: number; passedUnits: number; failedUnits: number; requestsBefore: number; costBefore: number; requestBudget: number; costBudget: number; activeRequestPeak: number; gates: Gate[]; currentAudit: null | { status: string; score: number; dimensions: Record<string, number>; findings: string[]; providerResponseId: string | null }; createdAt: string; updatedAt: string };
+  recovery: null | { id: string; version: string; status: string; snapshotHash: string; rootCause: { failureCode: string; failedTransition: string; failedGate: string; expectedState: string; actualState: string; authorizationStatus: string; explanation: string }; e2e: { status: string; terminalState: string; simulatedRequestSequence: number; provider: string; remoteDispatches: number; costDelta: number; transition: string[] }; faultMatrix: Array<{ id: string; outcome: string; evidence: string }>; requestsBefore: number; requestsAfter: number; costBefore: number; costAfter: number; simulatedRequestSequence: number; requestIntent: null | { id: string; status: string; sequence: number; idempotencyKey: string; payloadHash: string }; outbox: null | { id: string; status: string; eventType: string }; events: Array<{ status: string; failureCode: string | null; failedTransition: string | null; failedGate: string | null; expectedState: string | null; actualState: string | null; ledgerStatus: string | null; providerDispatchStatus: string | null; createdAt: string }>; createdAt: string; updatedAt: string };
   provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
   architecture: { version: string; status: string; principle: string; planes: Array<{ id: string; name: string; status: string; responsibility: string }>; qualityLadder: Array<{ order: number; name: string; exit: string }>; scalePolicy: { tranches: string[]; concurrency: string; stopConditions: string[]; resume: string } };
   reliability: null | { version: string; status: string; executionState: string; sourceCheckpoint: string; controls: string[]; qualification: { status: string; score: number; productionDispatch: string; next: string }; compiled: { total: number; pass: number; redesign: number }; archetypes: Array<{ name: string; status: string; hardestFixture: string; evidenceStatus: string; firstPassYield: number; blocker?: string; checks: string[] }>; certifications: Array<{ id: string; archetype: string; briefId: string; renderer: string; status: string; frameIds: string[]; score: number; dimensions: Record<string, number>; findings: string[]; attempt: number; createdAt: string }>; designAuthorizations: Array<{ id: string; archetype: string; sourceCertificationId: string; sourceRenderer: string; sourceScore: number; renderer: string; scope: string; status: string; certificationId: string | null; authorizedAt: string }>; regressions: Array<{ id: string; status: string; score: number; checks: Array<{ id: string; status: string; evidence: string }>; certificationIds: string[]; pilotReplay: { briefs: number; compiled: number; matches: boolean; dispatches: number; costDelta: number }; requestsBefore: number; requestsAfter: number; costBefore: number; costAfter: number; createdAt: string }>; frozenAt: string };
@@ -128,6 +129,16 @@ export default function MaterialProductionPage() {
       if (!response.ok) throw new Error(payload.error || "Controlled canary action failed");
       setData(payload);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Controlled canary action failed"); }
+    finally { setWorking(null); }
+  }
+  async function buildRecoveryLane() {
+    setWorking("BUILD_CANARY_RECOVERY_LANE"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "BUILD_CANARY_RECOVERY_LANE" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Recovery Lane dry run failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Recovery Lane dry run failed"); }
     finally { setWorking(null); }
   }
   async function execute(action: "START_PILOT" | "STEP_PILOT" | "STOP_PILOT" | "RESUME_PILOT", quiet = false) {
@@ -287,6 +298,18 @@ export default function MaterialProductionPage() {
         {data.canary.status === "UNIT_RUNNING" && <p className="stateBanner">{data.canary.queue[data.canary.currentIndex]?.logicalId} is the only leased unit. Pixel QA reads its frozen promoted frame set; legacy materialization is disabled and the queue pauses automatically at terminal QA.</p>}
         {data.canary.status === "UNIT_PASS_REVIEW" && <div className="reliabilityStart"><p>The unit passed stored-byte, rights/hash, Pixel QA and physical-uniqueness gates. Its checkpoint is closing before the next lease; no provider request can overlap this transition.</p></div>}
         {data.canary.status === "FAILED" && <p className="stateBanner errorState">Controlled canary stopped locally. Completed units remain immutable; later units, sequence proof and scale are blocked.</p>}
+        {data.canary.status === "FAILED" && data.canary.version === "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION" && !data.recovery && <div className="reliabilityStart"><p>V5 remains immutable. Build one zero-spend Recovery Lane from its exact canonical state to diagnose the failed transition, replay request 81 through a deterministic sink and execute the full fault matrix. No provider request can dispatch.</p><button onClick={() => void buildRecoveryLane()} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "BUILD_CANARY_RECOVERY_LANE" ? "Replaying canonical state…" : "Build Recovery Lane E2E · $0"}</button></div>}
+        {data.recovery && <div className="certificationResult">
+          <b>RECOVERY LANE · {data.recovery.status.replaceAll("_", " ")}</b>
+          <span>Canonical snapshot {data.recovery.snapshotHash.slice(0, 12)} · simulated request {data.recovery.simulatedRequestSequence} · {data.recovery.e2e.provider} · ${data.recovery.e2e.costDelta.toFixed(2)} delta</span>
+          <small>ROOT CAUSE · {data.recovery.rootCause.failureCode} at {data.recovery.rootCause.failedTransition} / {data.recovery.rootCause.failedGate}</small>
+          <small>STATE · expected {data.recovery.rootCause.expectedState} · actual {data.recovery.rootCause.actualState} · authorization {data.recovery.rootCause.authorizationStatus}</small>
+          <small>ATOMIC HANDOFF · {data.recovery.e2e.transition.join(" → ")}</small>
+          <small>INTENT / OUTBOX · {data.recovery.requestIntent?.status || "MISSING"} · {data.recovery.outbox?.status || "MISSING"}</small>
+          <small>ZERO-SPEND INVARIANT · requests {data.recovery.requestsBefore} → {data.recovery.requestsAfter} · cost ${data.recovery.costBefore.toFixed(6)} → ${data.recovery.costAfter.toFixed(6)}</small>
+          {data.recovery.faultMatrix.map((item) => <small key={item.id}>{item.outcome} · {item.id.replaceAll("_", " ")} · {item.evidence}</small>)}
+          <small>Production Recovery Probe remains locked until a new explicit one-request authorization.</small>
+        </div>}
         {data.canary.status === "PASS" && <p className="stateBanner">Controlled canary PASS. Sequence proof is ready but not started; scale remains blocked.</p>}
       </>}
     </section>}

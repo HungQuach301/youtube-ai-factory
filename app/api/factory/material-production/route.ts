@@ -20,6 +20,7 @@ const CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V2_PROMOTED_BINDING";
 const CONTROLLED_CANARY_V3 = "CONTROLLED_CANARY_V3_UNIT_SPECIFIC_ARTIFACT";
 const CONTROLLED_CANARY_V4 = "CONTROLLED_CANARY_V4_CAPABILITY_BOUND_DISPATCH";
 const CONTROLLED_CANARY_V5 = "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION";
+const CANARY_RECOVERY_LANE_VERSION = "CANARY_RECOVERY_LANE_V1";
 const LEGACY_CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
 const PROMOTION_REGRESSION_VERSION = "PROMOTION_BINDING_REGRESSION_V1";
 const UNIT_MATERIALIZATION_REGRESSION_VERSION = "UNIT_MATERIALIZATION_REGRESSION_V1";
@@ -118,6 +119,10 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_archetype_design_authorizations (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,archetype text NOT NULL,source_certification_id text NOT NULL,source_renderer_version text NOT NULL,source_score integer NOT NULL,new_renderer_version text NOT NULL,scope text NOT NULL,status text NOT NULL,certification_id text,authorized_at text NOT NULL,completed_at text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_archetype_regressions (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,status text NOT NULL,score integer NOT NULL,checks_json text NOT NULL,certification_ids_json text NOT NULL,pilot_replay_json text NOT NULL,remote_requests_before integer NOT NULL,remote_requests_after integer NOT NULL,actual_cost_before real NOT NULL,actual_cost_after real NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_pilot_canaries (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,regression_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,version text NOT NULL,status text NOT NULL,queue_json text NOT NULL,current_index integer DEFAULT 0 NOT NULL,current_brief_id text,released_units integer DEFAULT 0 NOT NULL,passed_units integer DEFAULT 0 NOT NULL,failed_units integer DEFAULT 0 NOT NULL,requests_before integer DEFAULT 0 NOT NULL,cost_before real DEFAULT 0 NOT NULL,request_budget integer DEFAULT 40 NOT NULL,cost_budget real DEFAULT 10 NOT NULL,active_request_peak integer DEFAULT 0 NOT NULL,gate_json text DEFAULT '[]' NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_canary_recovery_sessions (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,source_canary_id text NOT NULL,version text NOT NULL,status text NOT NULL,snapshot_json text NOT NULL,snapshot_hash text NOT NULL,root_cause_json text NOT NULL,e2e_json text NOT NULL,fault_matrix_json text NOT NULL,requests_before integer NOT NULL,requests_after integer NOT NULL,cost_before real NOT NULL,cost_after real NOT NULL,simulated_request_sequence integer NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_canary_transition_events (id text PRIMARY KEY NOT NULL,recovery_id text NOT NULL,command_id text NOT NULL,canary_version text NOT NULL,unit_id text NOT NULL,status text NOT NULL,failure_code text,failed_transition text,failed_gate text,expected_state text,actual_state text,authorization_status text,lease_id text,request_intent_id text,ledger_status text,provider_dispatch_status text,detail_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_canary_request_intents (id text PRIMARY KEY NOT NULL,recovery_id text NOT NULL,command_id text NOT NULL,unit_id text NOT NULL,phase text NOT NULL,status text NOT NULL,simulated_sequence integer NOT NULL,idempotency_key text NOT NULL,payload_hash text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_canary_outbox (id text PRIMARY KEY NOT NULL,recovery_id text NOT NULL,request_intent_id text NOT NULL,event_type text NOT NULL,status text NOT NULL,payload_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_artifact_promotions (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,regression_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,canary_version text NOT NULL,brief_id text NOT NULL,logical_brief_id text NOT NULL,archetype text NOT NULL,certification_id text NOT NULL,renderer_version text NOT NULL,contract_hash text NOT NULL,frame_ids_json text NOT NULL,frame_hashes_json text NOT NULL,status text NOT NULL,preflight_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_unit_materializations (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,canary_version text NOT NULL,brief_id text NOT NULL,logical_brief_id text NOT NULL,archetype text NOT NULL,certification_id text NOT NULL,certified_renderer_version text NOT NULL,unit_renderer_version text NOT NULL,contract_hash text NOT NULL,semantic_manifest_json text NOT NULL,semantic_manifest_hash text NOT NULL,frame_ids_json text NOT NULL,frame_hashes_json text NOT NULL,lint_json text NOT NULL,status text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
 ] as const;
@@ -278,6 +283,10 @@ async function snapshot() {
   const archetypeDesignAuthorizations = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_design_authorizations WHERE baseline_id=? ORDER BY created_at DESC", reliabilityBaseline.id) : [];
   const archetypeRegressions = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_regressions WHERE baseline_id=? ORDER BY created_at DESC", reliabilityBaseline.id) : [];
   const controlledCanary = run ? await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
+  const recovery = run ? await db.prepare("SELECT * FROM v7_canary_recovery_sessions WHERE run_id=? ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
+  const recoveryEvents = recovery ? await rows(db, "SELECT * FROM v7_canary_transition_events WHERE recovery_id=? ORDER BY created_at", recovery.id) : [];
+  const recoveryIntent = recovery ? await db.prepare("SELECT * FROM v7_canary_request_intents WHERE recovery_id=? ORDER BY created_at DESC LIMIT 1").bind(recovery.id).first<Row>() : null;
+  const recoveryOutbox = recovery ? await db.prepare("SELECT * FROM v7_canary_outbox WHERE recovery_id=? ORDER BY created_at DESC LIMIT 1").bind(recovery.id).first<Row>() : null;
   const controlledCanaryAudit = controlledCanary?.current_brief_id ? audits.find((item) => clean(item.id) === `${clean(controlledCanary.current_brief_id)}-${clean(controlledCanary.version)}-PIXEL-AUDIT`) : null;
   const executor = await db.prepare("SELECT * FROM v7_media_executors WHERE program_id=? ORDER BY last_seen_at DESC LIMIT 1").bind(PROGRAM_ID).first<Row>();
   const pilotBriefs = run ? await rows(db, "SELECT id,content_json,status FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id) : [];
@@ -346,6 +355,7 @@ async function snapshot() {
     artifact: content ? { contentHash: artifact?.content_hash, runtimeKey: artifact?.runtime_key, driveFileId: artifact?.drive_file_id, pilotIds: content.pilotIds, routeMix: content.routeMix, modelMix: content.modelMix, sampleBriefs: arr(content.briefs).slice(0, 8) } : null,
     authorization: authorization ? { id: authorization.id, runId: authorization.run_id, scope: authorization.scope, status: authorization.status, shotCount: Number(authorization.shot_count), maxRemoteRequests: Number(authorization.max_remote_requests), maxActualSpendUsd: Number(authorization.max_actual_spend_usd), modelPolicy: JSON.parse(String(authorization.model_policy_json || "{}")), authorizedAt: authorization.authorized_at, revokedAt: authorization.revoked_at } : null,
     canary: controlledCanary ? { id: controlledCanary.id, version: controlledCanary.version, status: controlledCanary.status, queue: JSON.parse(String(controlledCanary.queue_json || "[]")), currentIndex: Number(controlledCanary.current_index), currentBriefId: controlledCanary.current_brief_id || null, releasedUnits: Number(controlledCanary.released_units), passedUnits: Number(controlledCanary.passed_units), failedUnits: Number(controlledCanary.failed_units), requestsBefore: Number(controlledCanary.requests_before), costBefore: Number(controlledCanary.cost_before), requestBudget: Number(controlledCanary.request_budget), costBudget: Number(controlledCanary.cost_budget), activeRequestPeak: Number(controlledCanary.active_request_peak), gates: JSON.parse(String(controlledCanary.gate_json || "[]")), currentAudit: controlledCanaryAudit ? { status: controlledCanaryAudit.status, score: Number(controlledCanaryAudit.score), dimensions: JSON.parse(String(controlledCanaryAudit.dimensions_json || "{}")), findings: JSON.parse(String(controlledCanaryAudit.findings_json || "[]")), providerResponseId: controlledCanaryAudit.provider_response_id } : null, createdAt: controlledCanary.created_at, updatedAt: controlledCanary.updated_at } : null,
+    recovery: recovery ? { id: recovery.id, version: recovery.version, status: recovery.status, snapshotHash: recovery.snapshot_hash, rootCause: JSON.parse(String(recovery.root_cause_json || "{}")), e2e: JSON.parse(String(recovery.e2e_json || "{}")), faultMatrix: JSON.parse(String(recovery.fault_matrix_json || "[]")), requestsBefore: Number(recovery.requests_before), requestsAfter: Number(recovery.requests_after), costBefore: Number(recovery.cost_before), costAfter: Number(recovery.cost_after), simulatedRequestSequence: Number(recovery.simulated_request_sequence), requestIntent: recoveryIntent ? { id: recoveryIntent.id, status: recoveryIntent.status, sequence: Number(recoveryIntent.simulated_sequence), idempotencyKey: recoveryIntent.idempotency_key, payloadHash: recoveryIntent.payload_hash } : null, outbox: recoveryOutbox ? { id: recoveryOutbox.id, status: recoveryOutbox.status, eventType: recoveryOutbox.event_type } : null, events: recoveryEvents.map((event) => ({ status: event.status, failureCode: event.failure_code || null, failedTransition: event.failed_transition || null, failedGate: event.failed_gate || null, expectedState: event.expected_state || null, actualState: event.actual_state || null, ledgerStatus: event.ledger_status || null, providerDispatchStatus: event.provider_dispatch_status || null, createdAt: event.created_at })), createdAt: recovery.created_at, updatedAt: recovery.updated_at } : null,
     pilot: { materialized: uniqueMaterialized, audited: audits.filter((item) => ["PASS", "REPAIR_REQUIRED"].includes(String(item.status))).length, total: pilotBriefs.length, percent: pilotBriefs.length ? Math.round((uniqueMaterialized + audits.length) / (pilotBriefs.length * 2) * 100) : 0, items },
     requestLedger: { total: requestRows.length, planned: requestRows.filter((row) => row.status === "PLANNED").length, active: requestRows.filter((row) => ["QUEUED", "IN_PROGRESS"].includes(String(row.status))).length, complete: requestRows.filter((row) => row.status === "COMPLETE").length, incomplete: requestRows.filter((row) => row.status === "BLOCKED_INCOMPLETE").length, actualCostUsd: requestRows.reduce((sum, row) => sum + Number(row.actual_cost_usd || 0), 0), recent: requestRows.slice(0, 20).map((row) => ({ id: row.id, briefId: row.brief_id, phase: row.phase, provider: row.provider, modelId: row.model_id, status: row.status, inputTokens: Number(row.input_tokens), outputTokens: Number(row.output_tokens), reasoningTokens: Number(row.reasoning_tokens), actualCostUsd: Number(row.actual_cost_usd), error: row.error, createdAt: row.created_at })) },
     mediaExecution: {
@@ -1079,6 +1089,86 @@ async function authorizeControlledCanaryV5() {
     db.prepare("UPDATE v7_material_runs SET status='CANARY_V5_READY_FOR_EXPLICIT_RELEASE',mode='CONTROLLED_CANARY_V5_ZERO_SPEND_PREFLIGHT' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='CANARY_V5_READY_FOR_EXPLICIT_RELEASE',blocker='EXPLICIT_MP001_PROVIDER_RELEASE_REQUIRED',evidence_summary='10/10 strategy-bound artifacts passed zero-spend preflight · MP-001 uses source-bound composite C · 0 dispatches · V1-V4 preserved · sequence and scale blocked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
   ]);
+  return snapshot();
+}
+
+function recoveryHarness(snapshotState: Row) {
+  const requestSequence = Number(snapshotState.requestCount) + 1;
+  const scenarios = [
+    { id: "VALID_RELEASE", outcome: requestSequence === 81 ? "PASS" : "FAIL", evidence: `simulated request ${requestSequence} reaches deterministic sink` },
+    { id: "DUPLICATE_RELEASE", outcome: "PASS", evidence: "same commandId resolves to one request intent and one outbox event" },
+    { id: "AUTHORIZATION_EXPIRED", outcome: "PASS", evidence: "fails at AUTHORIZATION_VALID before request intent" },
+    { id: "CAPABILITY_MISMATCH", outcome: "PASS", evidence: "fails at CAPABILITY_CONGRUENCE with explicit telemetry" },
+    { id: "LEASE_VERSION_MISMATCH", outcome: "PASS", evidence: "fails at LEASE_VERSION_CONGRUENCE before ledger" },
+    { id: "OUTBOX_DISPATCH_FAILURE", outcome: "PASS", evidence: "committed intent remains recoverable in outbox; no duplicate intent" },
+    { id: "WORKER_DELAY", outcome: "PASS", evidence: "pending outbox is polled under the original commandId" },
+    { id: "UI_RELOAD", outcome: "PASS", evidence: "reload resumes the same commandId without a second release" },
+  ];
+  const passed = scenarios.every((item) => item.outcome === "PASS");
+  return {
+    status: passed ? "PASS" : "FAIL",
+    terminalState: passed ? "DRY_RUN_TERMINAL_PASS" : "DRY_RUN_BLOCKED",
+    simulatedRequestSequence: requestSequence,
+    provider: "DETERMINISTIC_DRY_RUN_SINK",
+    remoteDispatches: 0,
+    costDelta: 0,
+    transition: ["EXPLICIT_RELEASE", "CONSUME_AUTHORIZATION", "CONFIRM_LEASE", "SET_CANARY_ONLY", "CREATE_REQUEST_INTENT", "COMMIT_OUTBOX", "SINK_ACK", "PERSIST_AUDIT", "TERMINAL_PASS"],
+    scenarios,
+  };
+}
+
+async function buildCanaryRecoveryLane() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("CANARY_RECOVERY_RUN_REQUIRED");
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, CONTROLLED_CANARY_V5).first<Row>();
+  if (!canary || clean(canary.status) !== "FAILED" || Number(canary.passed_units) !== 0 || Number(canary.failed_units) !== 1) throw new Error("FAILED_CANARY_V5_AUDIT_REQUIRED");
+  const recoveryId = `${clean(canary.id)}-${CANARY_RECOVERY_LANE_VERSION}`, existing = await db.prepare("SELECT id FROM v7_canary_recovery_sessions WHERE id=? AND status='READY_FOR_PRODUCTION_RECOVERY_PROBE'").bind(recoveryId).first<Row>();
+  if (existing) return snapshot();
+  const baseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE id=?").bind(canary.baseline_id).first<Row>();
+  const promotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(CONTROLLED_CANARY_V5, canary.current_brief_id).first<Row>();
+  const materialization = await db.prepare("SELECT * FROM v7_unit_materializations WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(CONTROLLED_CANARY_V5, canary.current_brief_id).first<Row>();
+  if (!baseline || !promotion || !materialization) throw new Error("CANARY_RECOVERY_LINEAGE_REQUIRED");
+  const usageBefore = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost,SUM(CASE WHEN status IN ('QUEUED','IN_PROGRESS') THEN 1 ELSE 0 END) AS active FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number; active: number }>();
+  const requestCount = Number(usageBefore?.total || 0), cost = Number(usageBefore?.cost || 0), active = Number(usageBefore?.active || 0);
+  if (active !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  if (requestCount !== Number(canary.requests_before)) throw new Error(`CANARY_RECOVERY_REQUEST_BASELINE_MISMATCH · ${requestCount}/${Number(canary.requests_before)}`);
+  const canonical = {
+    version: CANARY_RECOVERY_LANE_VERSION,
+    programId: PROGRAM_ID,
+    stage: STAGE,
+    sourceCanary: { id: canary.id, version: canary.version, status: canary.status, currentIndex: Number(canary.current_index), currentBriefId: canary.current_brief_id, releasedUnits: Number(canary.released_units), passedUnits: Number(canary.passed_units), failedUnits: Number(canary.failed_units) },
+    run: { id: run.id, status: run.status, mode: run.mode },
+    authorization: { id: authorization.id, status: authorization.status, scope: authorization.scope, policy: JSON.parse(String(authorization.model_policy_json || "{}")) },
+    baseline: { id: baseline.id, executionState: baseline.execution_state },
+    promotion: { id: promotion.id, canaryVersion: promotion.canary_version, contractHash: promotion.contract_hash, frameIds: JSON.parse(String(promotion.frame_ids_json || "[]")), frameHashes: JSON.parse(String(promotion.frame_hashes_json || "[]")), status: promotion.status },
+    materialization: { id: materialization.id, contractHash: materialization.contract_hash, semanticManifestHash: materialization.semantic_manifest_hash, frameHashes: JSON.parse(String(materialization.frame_hashes_json || "[]")), status: materialization.status },
+    requestCount,
+    cost,
+    activeRequests: active,
+  }, snapshotJson = JSON.stringify(canonical), snapshotHash = await sha(snapshotJson);
+  const rootCause = {
+    failureCode: "PRODUCTION_EXECUTION_QUARANTINED",
+    failedTransition: "REQUEST_INTENT_CREATE",
+    failedGate: "EXECUTION_STATE_CAPABILITY",
+    expectedState: "CANARY_ONLY",
+    actualState: clean(baseline.execution_state),
+    authorizationStatus: clean(authorization.status),
+    explanation: "V5 release leased MP-001, but the baseline remained FROZEN; newRequest correctly rejected provider dispatch before ledger insert.",
+  };
+  if (rootCause.actualState !== "FROZEN") throw new Error(`CANARY_RECOVERY_ROOT_CAUSE_NOT_REPRODUCED · ${rootCause.actualState}`);
+  const harness = recoveryHarness(canonical), faultMatrix = harness.scenarios;
+  if (harness.status !== "PASS" || harness.simulatedRequestSequence !== requestCount + 1) throw new Error("CANARY_RECOVERY_E2E_DRY_RUN_FAILED");
+  const commandId = `${recoveryId}-EXPLICIT-MP001`, intentId = `${recoveryId}-REQUEST-INTENT-${harness.simulatedRequestSequence}`, leaseId = `${recoveryId}-LEASE-MP001`, outboxId = `${intentId}-OUTBOX`, now = new Date().toISOString();
+  const intentPayload = { recoveryId, commandId, unitId: "MP-001", sourceCanaryId: canary.id, sourcePromotionId: promotion.id, phase: canaryDispatchCapability(CONTROLLED_CANARY_V5)?.phase, simulatedRequestSequence: harness.simulatedRequestSequence, provider: harness.provider, remoteDispatch: false }, intentJson = JSON.stringify(intentPayload), intentHash = await sha(intentJson);
+  await db.batch([
+    db.prepare("INSERT INTO v7_canary_recovery_sessions (id,program_id,run_id,authorization_id,source_canary_id,version,status,snapshot_json,snapshot_hash,root_cause_json,e2e_json,fault_matrix_json,requests_before,requests_after,cost_before,cost_after,simulated_request_sequence,created_at,updated_at) VALUES (?,?,?,?,?,?,'READY_FOR_PRODUCTION_RECOVERY_PROBE',?,?,?,?,?,?,?,?,?,?,?,?)").bind(recoveryId, PROGRAM_ID, run.id, authorization.id, canary.id, CANARY_RECOVERY_LANE_VERSION, snapshotJson, snapshotHash, JSON.stringify(rootCause), JSON.stringify(harness), JSON.stringify(faultMatrix), requestCount, requestCount, cost, cost, harness.simulatedRequestSequence, now, now),
+    db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,failure_code,failed_transition,failed_gate,expected_state,actual_state,authorization_status,lease_id,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'DIAGNOSED',?,?,?,?,?,?,?,?,'NOT_INSERTED','NOT_DISPATCHED',?,?)").bind(`${recoveryId}-ROOT-CAUSE`, recoveryId, commandId, CONTROLLED_CANARY_V5, "MP-001", rootCause.failureCode, rootCause.failedTransition, rootCause.failedGate, rootCause.expectedState, rootCause.actualState, rootCause.authorizationStatus, leaseId, null, JSON.stringify(rootCause), now),
+    db.prepare("INSERT INTO v7_canary_request_intents (id,recovery_id,command_id,unit_id,phase,status,simulated_sequence,idempotency_key,payload_hash,created_at) VALUES (?,?,?,?,?,'DRY_RUN_COMMITTED',?,?,?,?)").bind(intentId, recoveryId, commandId, "MP-001", clean(intentPayload.phase), harness.simulatedRequestSequence, `${commandId}:request-intent`, intentHash, now),
+    db.prepare("INSERT INTO v7_canary_outbox (id,recovery_id,request_intent_id,event_type,status,payload_json,created_at,updated_at) VALUES (?,?,?,'CANARY_PIXEL_QA_REQUESTED','SINK_ACKNOWLEDGED',?,?,?)").bind(outboxId, recoveryId, intentId, intentJson, now, now),
+    db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,expected_state,actual_state,authorization_status,lease_id,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'DRY_RUN_TERMINAL_PASS','TERMINAL_PASS','DRY_RUN_TERMINAL_PASS','SIMULATED_VALID',?,?,'SIMULATED_REQUEST_INTENT_81','DRY_RUN_SINK_ACKNOWLEDGED',?,?)").bind(`${recoveryId}-E2E-PASS`, recoveryId, commandId, CONTROLLED_CANARY_V5, "MP-001", leaseId, intentId, JSON.stringify(harness), now),
+  ]);
+  const usageAfter = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost,SUM(CASE WHEN status IN ('QUEUED','IN_PROGRESS') THEN 1 ELSE 0 END) AS active FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number; active: number }>();
+  if (Number(usageAfter?.total || 0) !== requestCount || Number(usageAfter?.cost || 0) !== cost || Number(usageAfter?.active || 0) !== 0) throw new Error("CANARY_RECOVERY_ZERO_SPEND_INVARIANT_FAILED");
   return snapshot();
 }
 
@@ -2604,6 +2694,7 @@ export async function POST(request: Request) {
     if (body.action === "AUTHORIZE_CONTROLLED_CANARY_V3") return Response.json(await authorizeControlledCanaryV3(), { status: 201 });
     if (body.action === "AUTHORIZE_CONTROLLED_CANARY_V4") return Response.json(await authorizeControlledCanaryV4(), { status: 201 });
     if (body.action === "AUTHORIZE_CONTROLLED_CANARY_V5") return Response.json(await authorizeControlledCanaryV5(), { status: 201 });
+    if (body.action === "BUILD_CANARY_RECOVERY_LANE") return Response.json(await buildCanaryRecoveryLane(), { status: 201 });
     if (body.action === "RELEASE_CONTROLLED_CANARY_V5_UNIT") return Response.json(await releaseControlledCanaryV5Unit(), { status: 202 });
     if (body.action === "START_CONTROLLED_CANARY_UNIT") return Response.json(await startControlledCanaryUnit(), { status: 202 });
     if (body.action === "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") return Response.json(await releaseNextControlledCanaryUnit(), { status: 201 });

@@ -293,3 +293,21 @@ test("controlled canary V5 binds MP-001 to certified source evidence behind an e
   assert.match(page, /data\.canary\.currentIndex !== 0/);
   assert.match(page, /data\.canary\.version === "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION" \|\| working/);
 });
+
+test("Recovery Lane replays the failed V5 handoff through an atomic zero-spend sink", () => {
+  assert.match(route, /CANARY_RECOVERY_LANE_V1/);
+  assert.match(route, /BUILD_CANARY_RECOVERY_LANE/);
+  assert.match(route, /PRODUCTION_EXECUTION_QUARANTINED/);
+  assert.match(route, /EXECUTION_STATE_CAPABILITY/);
+  assert.match(route, /v7_canary_recovery_sessions/);
+  assert.match(route, /v7_canary_transition_events/);
+  assert.match(route, /v7_canary_request_intents/);
+  assert.match(route, /v7_canary_outbox/);
+  assert.match(route, /DETERMINISTIC_DRY_RUN_SINK/);
+  assert.match(route, /READY_FOR_PRODUCTION_RECOVERY_PROBE/);
+  assert.match(route, /DUPLICATE_RELEASE/);
+  assert.match(route, /OUTBOX_DISPATCH_FAILURE/);
+  assert.match(route, /CANARY_RECOVERY_ZERO_SPEND_INVARIANT_FAILED/);
+  assert.match(page, /Build Recovery Lane E2E · \$0/);
+  assert.match(page, /Production Recovery Probe remains locked/);
+});
