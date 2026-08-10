@@ -393,7 +393,8 @@ test("Stabilization Release enforces typed scope, canonical rehearsal and legacy
   assert.match(route, /STABILIZED_CONTRACT_VERSION = "EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V3"/);
   assert.match(route, /declaredContractMode === alignedContractVersion/);
   assert.match(route, /declaredContractMode\.startsWith\("EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V"\)/);
-  assert.match(route, /ON CONFLICT\(id\) DO UPDATE SET certification_id=excluded\.certification_id/);
+  assert.match(route, /INSERT OR IGNORE INTO v7_unit_materializations/);
+  assert.match(route, /INSERT OR IGNORE INTO v7_artifact_promotions/);
   assert.match(route, /SEALED_RELEASE_SET = \["MP-001"\]/);
   assert.match(route, /deriveCanonicalPilotManifest/);
   assert.match(route, /canonicalPilotManifestHash/);
