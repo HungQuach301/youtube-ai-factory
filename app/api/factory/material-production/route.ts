@@ -1836,7 +1836,8 @@ async function prepareStabilizedMp002TargetedRepair() {
   if (clean(currentItem?.logicalId) !== "MP-002" || clean(authorization.status) !== "PAUSED") throw new Error("MP002_TARGETED_REPAIR_SCOPE_MISMATCH");
   const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
   if (Number(active?.total || 0) !== 0) throw new Error("MP002_TARGETED_REPAIR_ACTIVE_REQUESTS");
-  const priorAudit = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND id LIKE ? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, canary.current_brief_id, `%${STABILIZATION_RELEASE_VERSION}-PIXEL-AUDIT%`).first<Row>();
+  const priorAuditId = `${clean(canary.current_brief_id)}-${STABILIZATION_RELEASE_VERSION}-PIXEL-AUDIT`;
+  const priorAudit = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND id=? AND status='REPAIR_REQUIRED'").bind(authorization.id, canary.current_brief_id, priorAuditId).first<Row>();
   if (!priorAudit || Number(priorAudit.score) !== 74 || clean(priorAudit.status) !== "REPAIR_REQUIRED") throw new Error("MP002_74_FAILED_AUDIT_REQUIRED");
   const eventId = `${clean(canary.id)}-${MP002_TARGETED_REPAIR_VERSION}-PREPARED`, existing = await db.prepare("SELECT id FROM v7_canary_transition_events WHERE id=?").bind(eventId).first<Row>();
   if (existing) return snapshot();
@@ -2007,7 +2008,9 @@ async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, c
   const recoveryIntent = recovery ? await db.prepare("SELECT * FROM v7_canary_request_intents WHERE recovery_id=? AND status='PROVIDER_DISPATCHED' ORDER BY created_at DESC LIMIT 1").bind(recovery.id).first<Row>() : null;
   const canaryVersion = clean(canary.version), promotion = await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(canaryVersion, brief.id).first<Row>();
   const binding = promotion ? await validatePromotionBinding(env, db, promotion) : null;
-  const audit = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND id LIKE ? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, brief.id, `%${canaryVersion}-PIXEL-AUDIT%`).first<Row>();
+  const promotionPreflight = promotion ? rec(JSON.parse(String(promotion.preflight_json || "{}"))) : {}, repairAttempt = Number(promotionPreflight.repairAttempt || 0);
+  const auditId = `${clean(brief.id)}-${canaryVersion}-PIXEL-AUDIT${repairAttempt ? `-REPAIR-${repairAttempt}` : ""}`;
+  const audit = await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND id=?").bind(authorization.id, brief.id, auditId).first<Row>();
   const dimensions = audit ? rec(JSON.parse(String(audit.dimensions_json || "{}"))) : {}, dimensionFloor = Object.values(dimensions).length >= 5 && Object.values(dimensions).every((value) => Number(value) >= 90);
   const priorQueue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec).slice(0, Number(canary.current_index)), priorPromotions: Row[] = [];
   for (const prior of priorQueue) { const item = await db.prepare("SELECT frame_hashes_json FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(canaryVersion, prior.briefId).first<Row>(); if (item) priorPromotions.push(item); }

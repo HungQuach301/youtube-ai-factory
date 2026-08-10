@@ -427,6 +427,9 @@ test("MP-002 has one append-only targeted repair that closes the observed P1 def
   assert.match(route, /PREPARE_STABILIZED_MP002_TARGETED_REPAIR/);
   assert.match(route, /RELEASE_STABILIZED_MP002_TARGETED_REPAIR/);
   assert.match(route, /MP002_74_FAILED_AUDIT_REQUIRED/);
+  assert.match(route, /const priorAuditId = `\$\{clean\(canary\.current_brief_id\)\}-\$\{STABILIZATION_RELEASE_VERSION\}-PIXEL-AUDIT`/);
+  assert.doesNotMatch(route, /id LIKE \? ORDER BY created_at DESC LIMIT 1"\)\.bind\(authorization\.id, canary\.current_brief_id/);
+  assert.match(route, /const auditId = `\$\{clean\(brief\.id\)\}-\$\{canaryVersion\}-PIXEL-AUDIT\$\{repairAttempt/);
   assert.match(route, /ENTRY_PROCESSING_AMOUNT_COVISIBLE/);
   assert.match(route, /EXIT_PHYSICAL_WITHDRAWAL/);
   assert.match(route, /HAND_WITHDRAWS_CARD/);
