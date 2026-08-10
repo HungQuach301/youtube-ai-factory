@@ -37,9 +37,10 @@ const MP002_TARGETED_REPAIR_VERSION = "MP002_TARGETED_REPAIR_V1";
 const MP002_TARGETED_REPAIR_RENDERER = "PRODUCTION_SCENE_RENDERER_V4_MP002_TARGETED_REPAIR";
 const MP002_PIXEL_ORACLE_REPAIR_VERSION = "MP002_PIXEL_ORACLE_REPAIR_V2";
 const MP002_PIXEL_ORACLE_REPAIR_RENDERER = "PRODUCTION_SCENE_RENDERER_V5_PIXEL_ORACLE";
-const PREVIOUS_CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V2";
-const CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V3";
-const CANONICAL_UNIT_SCENES_RENDERER = "PRODUCTION_SCENE_RENDERER_V7_VERTICAL_RECORDS";
+const LEGACY_CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V2";
+const PREVIOUS_CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V3";
+const CANONICAL_UNIT_SCENES_VERSION = "CANONICAL_UNIT_SCENES_V4";
+const CANONICAL_UNIT_SCENES_RENDERER = "PRODUCTION_SCENE_RENDERER_V8_ORDERED_ROLES";
 const SEALED_RELEASE_SET = ["MP-001"] as const;
 const LEGACY_CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
 const PROMOTION_REGRESSION_VERSION = "PROMOTION_BINDING_REGRESSION_V1";
@@ -1601,9 +1602,9 @@ function renderProductionScene(manifest: Row, state: 0 | 1 | 2) {
     if(state>=1){fill(448,316,298,58,"#ffffff");text("REWARD",470,335,3,"#1b6b56");}
     if(state===2){fill(404,184,4,188,"#72c8a3");text("SEPARATE ROWS",468,408,2,"#a8cdbd");}
   } else if(sceneType==="ROLE_TILES"){
-    fill(320,190,320,178,"#f4edd7");centerAt("PURCHASE + REWARD",480,250,3,"#173d35",22);
-    if(state>=1){fill(86,166,190,90,"#e8b65d");centerAt("MERCHANT",181,196,3,"#173d35",14);fill(86,292,250,90,"#d7eee5");centerAt("PROCESSOR OR",211,314,2,"#173d35",18);centerAt("ACQUIRER",211,338,2,"#173d35",18);}
-    if(state===2){line(280,212,316,238,4,"#72c8a3");line(338,338,388,316,4,"#72c8a3");}
+    fill(350,190,260,178,"#f4edd7");centerAt("PURCHASE",480,232,3,"#173d35",16);centerAt("REWARD",480,294,3,"#1b6b56",16);
+    if(state===1){fill(72,160,220,88,"#e8b65d");centerAt("MERCHANT",182,190,3,"#173d35",14);text("FIRST",146,222,2,"#6b5422");fill(72,316,250,104,"#d7eee5");centerAt("PROCESSOR OR",197,334,2,"#173d35",18);centerAt("ACQUIRER",197,360,2,"#173d35",18);centerAt("ENTERING NEXT",197,392,2,"#52766b",18);}
+    if(state===2){fill(58,214,238,112,"#e8b65d");centerAt("MERCHANT",177,246,3,"#173d35",14);centerAt("ROLE",177,292,2,"#6b5422",10);fill(664,214,238,112,"#d7eee5");centerAt("PROCESSOR OR",783,234,2,"#173d35",18);centerAt("ACQUIRER",783,262,2,"#173d35",18);centerAt("ROLE",783,296,2,"#52766b",10);}
   } else if(sceneType==="SPLIT_RECORD"){
     if(state===0){fill(326,176,308,208,"#f4edd7");centerAt("PURCHASE $100",480,232,4,"#173d35",18);centerAt("ONE RECORD",480,304,2,"#52766b",18);}
     else {fill(86,160,340,236,"#eef5f1");fill(534,160,340,236,"#f4edd7");centerAt("CARDHOLDER",256,214,3,"#173d35",16);centerAt("MERCHANT",704,214,3,"#173d35",16);centerAt("PURCHASE $100",256,292,2,"#2b8b68",18);centerAt("PURCHASE $100",704,292,2,"#8b6b2a",18);if(state===1)fill(472,140,16,276,"#72c8a3");}
@@ -2186,19 +2187,19 @@ async function buildCanonicalUnitScenes() {
     ]);
     return startControlledCanaryUnit();
   }
-  let canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version IN (?,?) AND status='SEQUENCE_OR_BATCH_FAILED_PRESERVED' ORDER BY created_at DESC LIMIT 1").bind(run.id,STABILIZATION_RELEASE_VERSION,PREVIOUS_CANONICAL_UNIT_SCENES_VERSION).first<Row>();
+  let canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version IN (?,?,?) AND status='SEQUENCE_OR_BATCH_FAILED_PRESERVED' ORDER BY created_at DESC LIMIT 1").bind(run.id,STABILIZATION_RELEASE_VERSION,LEGACY_CANONICAL_UNIT_SCENES_VERSION,PREVIOUS_CANONICAL_UNIT_SCENES_VERSION).first<Row>();
   const now=new Date().toISOString();
   if(canary){
-    if(Number(canary.current_index)!==2||clean(authorization.status)!=="PAUSED")throw new Error("MP003_FAILED_BATCH_CHECKPOINT_REQUIRED");
+    if(Number(canary.current_index)<2||clean(authorization.status)!=="PAUSED")throw new Error("CANONICAL_FAILED_BATCH_CHECKPOINT_REQUIRED");
     const priorAudit=await db.prepare("SELECT * FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND status='REPAIR_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(authorization.id,canary.current_brief_id).first<Row>();
-    if(!priorAudit)throw new Error("MP003_FAILED_AUDIT_REQUIRED");
-    const priorVersion=clean(canary.version),priorScore=Number(priorAudit.score);
-    const policy={...rec(JSON.parse(String(authorization.model_policy_json||"{}"))),version:CANONICAL_UNIT_SCENES_VERSION,renderer:CANONICAL_UNIT_SCENES_RENDERER,runToCompletion10Mp:true,batchAuthorized:true,autoRetry:false,autoAdvance:false,nextUnitDispatch:"TERMINAL_PASS_ONLY",canonicalSceneRebuild:{sourceVersion:priorVersion,sourceAuditId:priorAudit.id,sourceScore:priorScore,scope:"MP-003_THROUGH_MP-153",paidRequests:0,repair:"VERTICAL_DISTINCT_RECORD_ROWS"}};
+    if(!priorAudit)throw new Error("CANONICAL_FAILED_AUDIT_REQUIRED");
+    const priorVersion=clean(canary.version),priorScore=Number(priorAudit.score),failedQueue=arr(JSON.parse(String(canary.queue_json||"[]"))).map(rec)[Number(canary.current_index)],failedLogical=clean(failedQueue?.logicalId)||"MP-003",repair=failedLogical==="MP-004"?"ORDERED_ROLES_NO_ROUTE_CONNECTORS":"VERTICAL_DISTINCT_RECORD_ROWS";
+    const policy={...rec(JSON.parse(String(authorization.model_policy_json||"{}"))),version:CANONICAL_UNIT_SCENES_VERSION,renderer:CANONICAL_UNIT_SCENES_RENDERER,runToCompletion10Mp:true,batchAuthorized:true,autoRetry:false,autoAdvance:false,nextUnitDispatch:"TERMINAL_PASS_ONLY",canonicalSceneRebuild:{sourceVersion:priorVersion,sourceAuditId:priorAudit.id,sourceScore:priorScore,sourceFailedUnit:failedLogical,scope:"MP-003_THROUGH_MP-153",paidRequests:0,repair}};
     await db.batch([
       db.prepare("UPDATE v7_pilot_canaries SET version=?,status='SCENE_REBUILD_RUNNING',request_budget=request_budget+1,cost_budget=cost_budget+1,gate_json='[]',updated_at=?,completed_at=NULL WHERE id=?").bind(CANONICAL_UNIT_SCENES_VERSION,now,canary.id),
       db.prepare("UPDATE v7_material_authorizations SET scope='CANONICAL_UNIT_SCENE_REHEARSAL',status='PAUSED',max_remote_requests=max_remote_requests+1,max_actual_spend_usd=max_actual_spend_usd+1,model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(policy),now,authorization.id),
       db.prepare("UPDATE v7_material_runs SET status='CANONICAL_UNIT_SCENE_REBUILD',mode='ZERO_SPEND_GOLDEN_REGION_REHEARSAL' WHERE id=?").bind(run.id),
-      db.prepare("UPDATE v7_stage_states SET status='CANONICAL_UNIT_SCENE_REBUILD',blocker='ZERO_SPEND_REHEARSAL',evidence_summary=?,updated_at=? WHERE id=?").bind(`MP-003 ${priorScore}/100 preserved · compiling vertical distinct-record repair across canonical scenes · no paid dispatch`,now,STAGE_ID),
+      db.prepare("UPDATE v7_stage_states SET status='CANONICAL_UNIT_SCENE_REBUILD',blocker='ZERO_SPEND_REHEARSAL',evidence_summary=?,updated_at=? WHERE id=?").bind(`${failedLogical} ${priorScore}/100 preserved · compiling ${repair} across canonical scenes · no paid dispatch`,now,STAGE_ID),
     ]);
     canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE id=?").bind(canary.id).first<Row>();
   } else canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='SCENE_REBUILD_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(run.id,CANONICAL_UNIT_SCENES_VERSION).first<Row>();
@@ -2209,7 +2210,7 @@ async function buildCanonicalUnitScenes() {
     if(!brief||!sourcePromotion||!sourceUnit)throw new Error(`CANONICAL_SCENE_SOURCE_MISSING · ${logicalId}`);
     const sourceBinding=await validatePromotionBinding(env,db,sourcePromotion);if(!sourceBinding.passed)throw new Error(`CANONICAL_SCENE_SOURCE_INVALID · ${logicalId}`);
     const rebuildPolicy=rec(rec(JSON.parse(String(authorization.model_policy_json||"{}"))).canonicalSceneRebuild);
-    const manifest={...productionSceneManifest(sourceBinding.contractPayload,CANONICAL_UNIT_SCENES_RENDERER,"EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V7_VERTICAL_RECORDS"),sourceContractHash:rec(sourceBinding.manifest).sourceContractHash,canonicalPilotManifestVersion:rec(sourceBinding.manifest).canonicalPilotManifestVersion,canonicalPilotManifestHash:rec(sourceBinding.manifest).canonicalPilotManifestHash,rebuild:{version:CANONICAL_UNIT_SCENES_VERSION,sourcePromotionId:sourcePromotion.id,sourceFailedUnit:"MP-003",sourceFailedScore:Number(rebuildPolicy.sourceScore||0),repair:clean(rebuildPolicy.repair)}};
+    const manifest={...productionSceneManifest(sourceBinding.contractPayload,CANONICAL_UNIT_SCENES_RENDERER,"EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V8_ORDERED_ROLES"),sourceContractHash:rec(sourceBinding.manifest).sourceContractHash,canonicalPilotManifestVersion:rec(sourceBinding.manifest).canonicalPilotManifestVersion,canonicalPilotManifestHash:rec(sourceBinding.manifest).canonicalPilotManifestHash,rebuild:{version:CANONICAL_UNIT_SCENES_VERSION,sourcePromotionId:sourcePromotion.id,sourceFailedUnit:clean(rebuildPolicy.sourceFailedUnit),sourceFailedScore:Number(rebuildPolicy.sourceScore||0),repair:clean(rebuildPolicy.repair)}};
     const oracle=canonicalUnitPixelOracle(logicalId,manifest);if(!oracle.passed)throw new Error(`CANONICAL_SCENE_ORACLE_FAILED · ${logicalId} · ${oracle.checks.filter((gate)=>gate.status!=="PASS").map((gate)=>gate.id).join(",")}`);
     const frameIds:string[]=[],frameHashes:string[]=[];
     for(const [role,rendered] of [["CERT_ENTRY",oracle.frames[0]],["CERT_MIDPOINT",oracle.frames[1]],["CERT_EXIT",oracle.frames[2]]] as const){const fileId=await storeMaterial(env,db,authorization,brief,{role,identity:`CANONICAL-V6-${logicalId}-${role}`,bytes:rendered.bytes,mimeType:"image/png",extension:"png",sourceType:CANONICAL_UNIT_SCENES_RENDERER,provider:"FRAMEFLOW_OWNED",providerAssetId:clean(sourcePromotion.certification_id),sourceUrl:clean(sourcePromotion.certification_id),landingUrl:clean(sourcePromotion.certification_id),licenseCode:"CHANNEL_OWNED",width:rendered.width,height:rendered.height});const stored=await db.prepare("SELECT content_hash FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();frameIds.push(fileId);frameHashes.push(clean(stored?.content_hash));}
