@@ -3667,6 +3667,15 @@ async function sequenceProofQa() {
     if (!object) throw new Error(`SEQUENCE_SAMPLE_MISSING · ${clean(frame.logicalId)}`);
     imageUrls.push(`data:${clean(file?.mime_type)};base64,${base64(new Uint8Array(await new Response(object.body).arrayBuffer()))}`);
   }
+  const requestBudget = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number }>();
+  const priorSequenceQa = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND phase='SEQUENCE_PROOF_QA'").bind(authorization.id).first<{ total: number }>();
+  const usedRequests = Number(requestBudget?.total || 0), authorizedRequests = Number(authorization.max_remote_requests || 0);
+  if (Number(priorSequenceQa?.total || 0) > 0) throw new Error("SEQUENCE_QA_EXACT_ONE_REQUEST_EXHAUSTED");
+  if (usedRequests === authorizedRequests) {
+    const extension = await db.prepare("UPDATE v7_material_authorizations SET max_remote_requests=?,updated_at=? WHERE id=? AND max_remote_requests=?").bind(usedRequests + 1, new Date().toISOString(), authorization.id, authorizedRequests).run();
+    if (Number(extension.meta?.changes || 0) !== 1) throw new Error("SEQUENCE_QA_EXACT_ONE_REQUEST_EXTENSION_CONFLICT");
+    authorization.max_remote_requests = usedRequests + 1;
+  }
   const setting = await modelSetting(db), requestId = await newRequest(db, authorization, "SEQUENCE-10MP", "SEQUENCE_PROOF_QA", "OPENAI", setting.modelId, setting.reasoningEffort, 1800, 4000), manifest = rec(JSON.parse(String(proof.source_manifest_json || "{}")));
   const prompt: Row[] = [{ type: "input_text", text: `Perform ${SEQUENCE_QA_RUBRIC} on ten ordered samples from the actual stored 30-second WebM. Each image is the midpoint of one canonical MP unit in playback order. Judge the sequence as a whole: semantic continuity, meaningful visual variety without template fatigue, one-second state rhythm, mobile legibility and factual safety. Do not re-grade already sealed unit details unless the sequence creates a new contradiction. Apply CONTROLLED_RELEASE_GATE_V1: STANDARD overall >=92 and all dimensions >=90 with no P0/P1; CONTROLLED overall >=88, semanticContinuity >=82, every other dimension >=88, no P0, no semantic P1, and at most one presentation P1. Return only JSON.\n\nSEQUENCE MANIFEST:\n${JSON.stringify({ version: manifest.version, order: manifest.order, durationSeconds: manifest.durationSeconds, secondsPerFrame: manifest.secondsPerFrame, noRegeneration: manifest.noRegeneration, noFallback: manifest.noFallback })}` }];
   for (const imageUrl of imageUrls) prompt.push({ type: "input_image", image_url: imageUrl, detail: "high" });
