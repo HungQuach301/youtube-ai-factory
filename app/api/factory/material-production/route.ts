@@ -1392,6 +1392,7 @@ async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, c
     { id: "ACTIVE_REQUESTS", status: "PASS" },
   ], passed = checks.every((item) => item.status === "PASS"), now = new Date().toISOString();
   const alignedRecovery = clean(recovery?.status) === "ALIGNED_PROBE_RUNNING", failedRecoveryStatus = alignedRecovery ? "ALIGNED_PROBE_FAILED_PRESERVED" : "PROBE_FAILED_PRESERVED", passedRecoveryStatus = alignedRecovery ? "ALIGNED_PROBE_PASS_REVIEW" : "PROBE_PASS_REVIEW";
+  const terminalEventId = recovery ? `${clean(recovery.id)}-${alignedRecovery ? "ALIGNED" : "PRIMARY"}-PROBE-TERMINAL` : "", terminalCommandId = recovery ? alignedRecovery ? `${clean(recovery.id)}-CONTRACT-ALIGNED-PROBE` : `${clean(recovery.id)}-PRODUCTION-PROBE-MP001` : "";
   if (!passed) {
     const statements = [
       db.prepare("UPDATE v7_pilot_canaries SET status='FAILED',failed_units=failed_units+1,gate_json=?,updated_at=?,completed_at=? WHERE id=?").bind(JSON.stringify(checks), now, now, canary.id),
@@ -1402,7 +1403,7 @@ async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, c
     ];
     if (recovery) statements.push(
       db.prepare("UPDATE v7_canary_recovery_sessions SET status=?,requests_after=?,cost_after=?,updated_at=? WHERE id=? AND status IN ('PROBE_RUNNING','ALIGNED_PROBE_RUNNING')").bind(failedRecoveryStatus, Number(usage?.total || 0), Number(usage?.cost || 0), now, recovery.id),
-      db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,failure_code,failed_transition,failed_gate,expected_state,actual_state,authorization_status,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PROBE_TERMINAL_FAIL','PIXEL_QA_GATE_FAILED','PERSIST_AUDIT_TO_TERMINAL','PIXEL_QA','TERMINAL_PASS','PROBE_FAILED_PRESERVED','PAUSED',?,'COMPLETE','TERMINAL',?,?)").bind(`${clean(recovery.id)}-PROBE-TERMINAL`, recovery.id, `${clean(recovery.id)}-PRODUCTION-PROBE-MP001`, canaryVersion, "MP-001", recoveryIntent?.id || null, JSON.stringify({ checks, requestsAfter: Number(usage?.total || 0), costAfter: Number(usage?.cost || 0) }), now),
+      db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,failure_code,failed_transition,failed_gate,expected_state,actual_state,authorization_status,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PROBE_TERMINAL_FAIL','PIXEL_QA_GATE_FAILED','PERSIST_AUDIT_TO_TERMINAL','PIXEL_QA','TERMINAL_PASS','PROBE_FAILED_PRESERVED','PAUSED',?,'COMPLETE','TERMINAL',?,?)").bind(terminalEventId, recovery.id, terminalCommandId, canaryVersion, "MP-001", recoveryIntent?.id || null, JSON.stringify({ checks, requestsAfter: Number(usage?.total || 0), costAfter: Number(usage?.cost || 0) }), now),
     );
     await db.batch(statements);
     return;
@@ -1417,7 +1418,7 @@ async function closeControlledCanaryUnit(db: DB, run: Row, authorization: Row, c
       db.prepare("UPDATE v7_canary_recovery_sessions SET status=?,requests_after=?,cost_after=?,updated_at=? WHERE id=? AND status IN ('PROBE_RUNNING','ALIGNED_PROBE_RUNNING')").bind(passedRecoveryStatus, Number(usage?.total || 0), Number(usage?.cost || 0), now, recovery.id),
     db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(now, authorization.id),
     db.prepare("UPDATE v7_architecture_baselines SET execution_state='FROZEN' WHERE id=?").bind(canary.baseline_id),
-    db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,expected_state,actual_state,authorization_status,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PROBE_TERMINAL_PASS','TERMINAL_PASS','PROBE_PASS_REVIEW','PAUSED',?,'COMPLETE','TERMINAL',?,?)").bind(`${clean(recovery.id)}-PROBE-TERMINAL`, recovery.id, `${clean(recovery.id)}-PRODUCTION-PROBE-MP001`, canaryVersion, "MP-001", recoveryIntent?.id || null, JSON.stringify({ checks, requestsAfter: Number(usage?.total || 0), costAfter: Number(usage?.cost || 0) }), now),
+    db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,expected_state,actual_state,authorization_status,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PROBE_TERMINAL_PASS','TERMINAL_PASS','PROBE_PASS_REVIEW','PAUSED',?,'COMPLETE','TERMINAL',?,?)").bind(terminalEventId, recovery.id, terminalCommandId, canaryVersion, "MP-001", recoveryIntent?.id || null, JSON.stringify({ checks, requestsAfter: Number(usage?.total || 0), costAfter: Number(usage?.cost || 0) }), now),
   );
   await db.batch(statements);
 }
