@@ -1769,7 +1769,8 @@ async function buildProductionScenePreflight() {
     queue.push({ briefId: clean(briefRow.id), logicalId, releaseSet: "ACTIVE_RELEASE_SET", canonicalPilotManifestVersion: CANONICAL_PILOT_MANIFEST_VERSION, canonicalPilotManifestHash, dispatchable: true, archetype: clean(unitContract.archetype), riskTier: clean(unitContract.riskTier), startSeconds: Number(briefRow.start_seconds), promotionId, certificationId: clean(certification.id), renderer: unitRenderer, bindingStatus: "FROZEN", dispatchCapability: capability.phase, qaRubric: STABILIZED_RUBRIC });
     unitGates.push({ logicalId, g0, frameHashes });
   }
-  await db.batch([...unitStatements, ...promotionStatements]);
+  const materializationStatements = [...unitStatements, ...promotionStatements];
+  if (materializationStatements.length > 0) await db.batch(materializationStatements);
   const bindings: Array<Awaited<ReturnType<typeof validatePromotionBinding>>> = [];
   for (const promotion of promotionRows) bindings.push(await validatePromotionBinding(env, db, promotion));
   const bindingGateIds = ["CERTIFICATION_TO_PRODUCTION_BINDING", "BOUND_HASH_CONGRUENCE", "UNIT_CONTRACT_CONGRUENCE", "SEMANTIC_MANIFEST_CONGRUENCE", "UNIT_SPECIFIC_PIXELS", "CANARY_ARTIFACT_READINESS", "NO_LEGACY_FALLBACK"];

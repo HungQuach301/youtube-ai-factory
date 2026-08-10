@@ -397,6 +397,7 @@ test("Stabilization Release enforces typed scope, canonical rehearsal and legacy
   assert.match(route, /STABILIZATION_PARTIAL_ARTIFACT_DRIFT/);
   assert.match(route, /if \(!existingUnit\) unitStatements\.push/);
   assert.match(route, /promotionRows\.push\(existingPromotion \|\|/);
+  assert.match(route, /if \(materializationStatements\.length > 0\) await db\.batch\(materializationStatements\)/);
   assert.match(route, /SEALED_RELEASE_SET = \["MP-001"\]/);
   assert.match(route, /deriveCanonicalPilotManifest/);
   assert.match(route, /canonicalPilotManifestHash/);
