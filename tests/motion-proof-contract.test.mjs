@@ -463,5 +463,7 @@ test("remaining canonical units compile contract-specific scenes before paid res
   assert.match(route, /CANONICAL_UNIT_GOLDEN_REGION_ORACLE_V1/);
   for (const logicalId of ["MP-003", "MP-004", "MP-007", "MP-008", "MP-018", "MP-039", "MP-115", "MP-153"]) assert.match(route, new RegExp(`"${logicalId}"`));
   assert.match(route, /8\/8 canonical unit scenes · 24\/24 frames/);
+  assert.match(route, /Interrupted pre-dispatch lease recovered · baseline CANARY_ONLY/);
+  assert.match(route, /UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY'/);
   assert.match(page, /Build 8 canonical unit scenes · G0\/G1 · \$0/);
 });

@@ -2167,6 +2167,20 @@ async function releaseNextReleaseTrainBatchUnit() {
 async function buildCanonicalUnitScenes() {
   const env=await runtime(),db=env.DB!,{run,authorization}=await current(db);
   if(!run||!authorization||!env.BUCKET)throw new Error("CANONICAL_UNIT_SCENES_CONFIGURATION_REQUIRED");
+  const interrupted=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='FAILED' ORDER BY created_at DESC LIMIT 1").bind(run.id,CANONICAL_UNIT_SCENES_VERSION).first<Row>();
+  if(interrupted){
+    const active=await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{total:number}>(),audit=await db.prepare("SELECT id FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND id LIKE ?").bind(authorization.id,interrupted.current_brief_id,`%${CANONICAL_UNIT_SCENES_VERSION}%`).first<Row>();
+    if(Number(active?.total||0)!==0||audit)throw new Error("CANONICAL_SCENE_INTERRUPTED_RECOVERY_NOT_CLEAN");
+    const resumedAt=new Date().toISOString(),policy={...rec(JSON.parse(String(authorization.model_policy_json||"{}"))),version:CANONICAL_UNIT_SCENES_VERSION,batchAuthorized:true,runToCompletion10Mp:true,autoRetry:false,autoAdvance:false,nextUnitDispatch:"TERMINAL_PASS_ONLY"};
+    await db.batch([
+      db.prepare("UPDATE v7_pilot_canaries SET status='AUTHORIZED',updated_at=?,completed_at=NULL WHERE id=?").bind(resumedAt,interrupted.id),
+      db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=?").bind(interrupted.baseline_id),
+      db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(policy),resumedAt,authorization.id),
+      db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED',mode='RUN_TO_10MP_CANONICAL_SCENES' WHERE id=?").bind(run.id),
+      db.prepare("UPDATE v7_stage_states SET status='CANONICAL_SCENE_REHEARSAL_PASS',blocker='TERMINAL_GATE_PER_UNIT',evidence_summary='Interrupted pre-dispatch lease recovered · baseline CANARY_ONLY · ledger unchanged · resuming same MP unit',updated_at=? WHERE id=?").bind(resumedAt,STAGE_ID),
+    ]);
+    return startControlledCanaryUnit();
+  }
   let canary=await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='SEQUENCE_OR_BATCH_FAILED_PRESERVED' ORDER BY created_at DESC LIMIT 1").bind(run.id,STABILIZATION_RELEASE_VERSION).first<Row>();
   const now=new Date().toISOString();
   if(canary){
@@ -2207,6 +2221,7 @@ async function buildCanonicalUnitScenes() {
   const readyAt=new Date().toISOString(),policy={...rec(JSON.parse(String(authorization.model_policy_json||"{}"))),version:CANONICAL_UNIT_SCENES_VERSION,renderer:CANONICAL_UNIT_SCENES_RENDERER,canonicalSceneRebuild:{...rec(rec(JSON.parse(String(authorization.model_policy_json||"{}"))).canonicalSceneRebuild),completed:true,units:8,g0g1:"PASS"},batchAuthorized:true,runToCompletion10Mp:true,autoRetry:false,autoAdvance:false,nextUnitDispatch:"TERMINAL_PASS_ONLY"};
   await db.batch([
     db.prepare("UPDATE v7_pilot_canaries SET status='AUTHORIZED',gate_json=?,updated_at=?,completed_at=NULL WHERE id=?").bind(JSON.stringify(finalChecks),readyAt,canary.id),
+    db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=?").bind(canary.baseline_id),
     db.prepare("UPDATE v7_material_authorizations SET scope='RUN_TO_10MP_CANONICAL_SCENES',status='AUTHORIZED',model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(policy),readyAt,authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED',mode='RUN_TO_10MP_CANONICAL_SCENES' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='CANONICAL_SCENE_REHEARSAL_PASS',blocker='TERMINAL_GATE_PER_UNIT',evidence_summary='8/8 canonical unit scenes · 24/24 frames · G0/G1 golden-region and read-back PASS · resuming MP-003',updated_at=? WHERE id=?").bind(readyAt,STAGE_ID),
@@ -3360,7 +3375,7 @@ async function stepPilot() {
     if (canary) {
       await db.batch([
         db.prepare("UPDATE v7_material_briefs SET status='REPAIR_REQUIRED' WHERE id=? AND status IN ('MATERIALIZING','QA_DISPATCHING')").bind(canary.current_brief_id),
-        db.prepare("UPDATE v7_pilot_canaries SET status='FAILED',failed_units=failed_units+1,updated_at=?,completed_at=? WHERE id=?").bind(now, now, canary.id),
+        db.prepare("UPDATE v7_pilot_canaries SET status=?,failed_units=failed_units+1,updated_at=?,completed_at=? WHERE id=?").bind(isReleaseTrainCanary(canary.version) ? "SEQUENCE_OR_BATCH_FAILED_PRESERVED" : "FAILED", now, now, canary.id),
         db.prepare("UPDATE v7_architecture_baselines SET execution_state='FROZEN' WHERE id=?").bind(canary.baseline_id),
         db.prepare("UPDATE v7_material_runs SET status='CANARY_BLOCKED' WHERE id=?").bind(run.id),
         db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(now, authorization.id),
