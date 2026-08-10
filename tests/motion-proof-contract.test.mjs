@@ -514,6 +514,9 @@ test("integrated sequence production creates PRODUCT_COMPLETE before independent
   assert.match(executor, /executeIntegratedSequence/);
   assert.match(executor, /COVER_TO_CONTAIN/);
   assert.match(executor, /framesScanned/);
+  assert.match(executor, /measuredDurationSeconds - \(1 \/ fps\)/);
+  assert.match(route, /FRAME_ALIGNED_20_25_45_PER_UNIT/);
+  assert.match(route, /TIMEBASE_UNSAFE_FINAL_SCAN/);
   assert.match(page, /Produce Sequence V2 · \$0/);
   assert.match(page, /QA is one independent audit only after PRODUCT_COMPLETE/);
 });

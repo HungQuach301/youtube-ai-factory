@@ -73,13 +73,13 @@ function renderIntegratedSequence(sourcePaths, outputPath, specification, width,
 }
 
 function measureIntegratedSequence(renderPath, specification, fitMode, width, height, fps, work) {
-  const scanRaw = execFileSync("ffprobe", ["-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=nb_read_frames,width,height,avg_frame_rate", "-of", "json", renderPath], { encoding: "utf8", maxBuffer: 2_000_000 });
-  const stream = JSON.parse(scanRaw).streams?.[0] || {}, framesScanned = Number(stream.nb_read_frames || 0);
+  const scanRaw = execFileSync("ffprobe", ["-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=nb_read_frames,width,height,avg_frame_rate:format=duration", "-of", "json", renderPath], { encoding: "utf8", maxBuffer: 2_000_000 });
+  const scan = JSON.parse(scanRaw), stream = scan.streams?.[0] || {}, measuredDurationSeconds = Number(scan.format?.duration || 0), framesScanned = Number(stream.nb_read_frames || 0);
   const diagnostic = spawnSync("ffmpeg", ["-hide_banner", "-i", renderPath, "-vf", "blackdetect=d=0.02:pix_th=0.02,freezedetect=n=-45dB:d=0.1", "-an", "-f", "null", "-"], { encoding: "utf8", maxBuffer: 8_000_000 });
   const stderr = String(diagnostic.stderr || ""), blackDurations = [...stderr.matchAll(/black_duration:([0-9.]+)/g)].map((match) => Number(match[1])), freezeDurations = [...stderr.matchAll(/freeze_duration: ([0-9.]+)/g)].map((match) => Number(match[1]));
   const sampleHashes = [];
   for (let index = 0; index < 60; index++) {
-    const path = join(work, `scan-${String(index).padStart(2, "0")}.jpg`), timestamp = Math.min(29.95, index * 0.5 + 0.25);
+    const path = join(work, `scan-${String(index).padStart(2, "0")}.jpg`), timestamp = Math.max(0, Math.min(measuredDurationSeconds - (1 / fps), index * 0.5 + 0.25));
     sampleHashes.push(sha256(extractFrame(renderPath, path, timestamp, 320, 180)));
   }
   const adjacentSampleDuplicates = sampleHashes.slice(1).filter((hash, index) => hash === sampleHashes[index]).length;
@@ -99,6 +99,7 @@ function measureIntegratedSequence(renderPath, specification, fitMode, width, he
     measuredWidth: Number(stream.width),
     measuredHeight: Number(stream.height),
     measuredFps: String(stream.avg_frame_rate || ""),
+    measuredDurationSeconds,
     expectedWidth: width,
     expectedHeight: height,
     expectedFps: fps,

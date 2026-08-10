@@ -17,8 +17,8 @@ const MOTION_QA_RUBRIC = "MOTION_PROOF_QA_V1";
 const MOTION_RIGHTS_BUNDLE_VERSION = "MOTION_RIGHTS_BUNDLE_V1";
 const SEQUENCE_RENDERER_VERSION = "CANONICAL_10MP_SEQUENCE_V1";
 const SEQUENCE_QA_RUBRIC = "30_SECOND_SEQUENCE_QA_V1";
-const INTEGRATED_SEQUENCE_COMPOSER_VERSION = "INTEGRATED_SEQUENCE_COMPOSER_V2";
-const SEQUENCE_SPECIFICATION_VERSION = "SEQUENCE_PRODUCT_SPECIFICATION_V2";
+const INTEGRATED_SEQUENCE_COMPOSER_VERSION = "INTEGRATED_SEQUENCE_COMPOSER_V2_1_TIMEBASE_SAFE";
+const SEQUENCE_SPECIFICATION_VERSION = "SEQUENCE_PRODUCT_SPECIFICATION_V2_1";
 const SEQUENCE_PRODUCTION_DOD_VERSION = "SEQUENCE_PRODUCT_DOD_V1";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
 const DATA_VISUALIZATION_V3 = "RECONCILED_WATERFALL_PRIMITIVES_V3";
@@ -3656,6 +3656,11 @@ async function produceIntegratedSequence() {
   if (!canary) throw new Error("SEQUENCE_PRODUCT_REQUIRES_10_OF_10_CANARY_PASS");
   const active = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
   if (active) throw new Error("SEQUENCE_PRODUCT_BLOCKED_ACTIVE_PROVIDER_REQUEST");
+  const staleProduct = await db.prepare("SELECT * FROM v7_sequence_products WHERE authorization_id=? AND status='PRODUCING' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (staleProduct && clean(staleProduct.composer_version) !== INTEGRATED_SEQUENCE_COMPOSER_VERSION) {
+    const staleJob = await db.prepare("SELECT status,error FROM v7_media_jobs WHERE authorization_id=? AND job_type='INTEGRATED_SEQUENCE_RENDER' AND contract_json LIKE ? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, `%\"productId\":\"${clean(staleProduct.id)}\"%`).first<Row>();
+    if (clean(staleJob?.status) === "FAILED") await db.prepare("UPDATE v7_sequence_products SET status='PRODUCTION_BLOCKED',measurements_json=?,corrections_json=?,updated_at=? WHERE id=? AND status='PRODUCING'").bind(JSON.stringify({ escapedDefect: "TIMEBASE_UNSAFE_FINAL_SCAN", productComplete: false }), JSON.stringify([{ code: "COMPOSER_VERSION_REJECTED", reason: clean(staleJob?.error) }]), new Date().toISOString(), staleProduct.id).run();
+  }
   const existing = await db.prepare("SELECT * FROM v7_sequence_products WHERE authorization_id=? AND source_proof_id=? AND composer_version=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, sourceProof.id, INTEGRATED_SEQUENCE_COMPOSER_VERSION).first<Row>();
   if (existing) return snapshot();
 
@@ -3678,14 +3683,15 @@ async function produceIntegratedSequence() {
     if (!brief) throw new Error(`SEQUENCE_PRODUCT_BRIEF_MISSING · ${logicalId}`);
     const content = rec(JSON.parse(String(brief.content_json || "{}"))), unitSources = sources.filter((source) => clean(source.logicalId) === logicalId);
     if (unitSources.length !== 3 || !["ENTRY", "MIDPOINT", "EXIT"].every((state) => unitSources.some((source) => clean(source.state) === state))) throw new Error(`SEQUENCE_PRODUCT_UNIT_STATE_INCOMPLETE · ${logicalId}`);
+    const narrativeRole = short(content.viewerMustUnderstand, 180);
     scenes.push({
       logicalId,
       canonicalOrder: index + 1,
-      narrativeRole: short(content.viewerMustUnderstand, 180),
-      entryState: short(content.entryState, 140),
-      exitState: short(content.exitState, 140),
+      narrativeRole,
+      entryState: short(content.entryState || content.visualEntry || `Opening state for ${narrativeRole}`, 180),
+      exitState: short(content.exitState || content.visualExit || `Resolved state for ${narrativeRole}`, 180),
       durationSeconds: 3,
-      stateDurations: { entry: 0.65, midpoint: 0.85, exit: 1.5 },
+      stateDurations: { entry: 0.666667, midpoint: 0.833333, exit: 1.5 },
       motionProfile: motionProfiles[index],
       fit: "CONTAIN_NO_CROP",
       sourceIds: unitSources.map((source) => clean(source.fileId)),
@@ -3702,7 +3708,7 @@ async function produceIntegratedSequence() {
     output: { width: 960, height: 540, codec: "vp9", audio: "NONE" },
     narrative: { order: scenes.map((scene) => scene.logicalId), scenes, continuityEdges, exactEdgeCount: 9 },
     composition: { renderer: INTEGRATED_SEQUENCE_COMPOSER_VERSION, noRegeneration: true, noNewClaims: true, noNewAudienceText: true, fit: "CONTAIN_NO_CROP", background: "#082f28", stateTransitionSeconds: 0.12, sceneTransitionSeconds: 0.18, adjacentMotionProfileMustDiffer: true },
-    mobile: { targetViewport: "360x640", safeZoneInsetPercent: 6, minimumExitDwellSeconds: 1.5, sourceMustRemainFullyVisible: true },
+    mobile: { targetViewport: "360x640", safeZoneInsetPercent: 6, minimumExitDwellSeconds: 1.5, sourceMustRemainFullyVisible: true, timebasePolicy: "FRAME_ALIGNED_20_25_45_PER_UNIT" },
     productionLoop: { states: ["PLAN", "COMPOSE", "RENDER", "MEASURE", "AUTO_CORRECT"], maxIterations: 3, measureActualMaster: true, fullFrameScan: true, qaRequests: 0 },
     definitionOfDone: { version: SEQUENCE_PRODUCTION_DOD_VERSION, exactSources: 30, exactUnits: 10, sourceHashMatch: true, exactDurationSeconds: 30, durationToleranceSeconds: 0.08, fps: 30, continuityEdges: 9, noCrop: true, mobileSafe: true, adjacentTreatmentDuplicates: 0, blackFrameSecondsMax: 0.04, frozenFrameSecondsMax: 1.7, fullFrameScan: true },
   };
