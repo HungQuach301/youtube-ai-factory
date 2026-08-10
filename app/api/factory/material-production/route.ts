@@ -2162,6 +2162,8 @@ async function releaseNextReleaseTrainBatchUnit() {
   const now = new Date().toISOString();
   await db.batch([
     db.prepare("UPDATE v7_pilot_canaries SET status='AUTHORIZED',current_index=?,current_brief_id=?,updated_at=? WHERE id=?").bind(nextIndex, next.briefId, now, canary.id),
+    db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=?").bind(canary.baseline_id),
+    db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(now,authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='CANARY_AUTHORIZED' WHERE id=?").bind(run.id),
   ]);
   return startControlledCanaryUnit();
@@ -3397,11 +3399,21 @@ async function stepPilot() {
 
 async function stepReleaseTrainUnit() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
-  if (!run || !authorization || clean(run.status) !== "CANARY_UNIT_RUNNING" || clean(authorization.status) !== "AUTHORIZED") throw new Error("STABILIZED_UNIT_EXECUTOR_NOT_READY");
+  if (!run || !authorization || clean(run.status) !== "CANARY_UNIT_RUNNING") throw new Error("STABILIZED_UNIT_EXECUTOR_NOT_READY");
   const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND status='UNIT_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
   const policy = rec(JSON.parse(String(authorization.model_policy_json || "{}")));
   const executorVersions = [STABILIZATION_RELEASE_VERSION, MP002_TARGETED_REPAIR_VERSION, MP002_PIXEL_ORACLE_REPAIR_VERSION, CANONICAL_UNIT_SCENES_VERSION];
   if (!canary || !executorVersions.includes(clean(canary.version)) || clean(policy.version) !== clean(canary.version) || policy.sequenceProofReleased !== true || policy.autoRetry !== false || policy.autoAdvance !== false) throw new Error("STABILIZED_UNIT_EXECUTOR_POLICY_MISMATCH");
+  if(clean(authorization.status)==="PAUSED"&&policy.runToCompletion10Mp===true){
+    const active=await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{total:number}>(),audit=await db.prepare("SELECT id FROM v7_material_audits WHERE authorization_id=? AND brief_id=? AND id LIKE ?").bind(authorization.id,canary.current_brief_id,`%${clean(canary.version)}%`).first<Row>();
+    if(Number(active?.total||0)!==0||audit)throw new Error("STABILIZED_UNIT_LEASE_RECOVERY_NOT_CLEAN");
+    const resumedAt=new Date().toISOString();
+    await db.batch([
+      db.prepare("UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY' WHERE id=?").bind(canary.baseline_id),
+      db.prepare("UPDATE v7_material_authorizations SET status='AUTHORIZED',updated_at=? WHERE id=?").bind(resumedAt,authorization.id),
+      db.prepare("UPDATE v7_stage_states SET evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(canary.current_brief_id)} lease recovered before provider dispatch · authorization ACTIVE · baseline CANARY_ONLY`,resumedAt,STAGE_ID),
+    ]);
+  } else if(clean(authorization.status)!=="AUTHORIZED") throw new Error("STABILIZED_UNIT_EXECUTOR_NOT_READY");
   return stepPilot();
 }
 
