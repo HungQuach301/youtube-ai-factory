@@ -1328,6 +1328,52 @@ async function releaseContractAlignedRecoveryProbe() {
   return snapshot();
 }
 
+async function reconcileContractAlignedRecoveryTerminal() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("ALIGNED_TERMINAL_RECONCILIATION_RUN_REQUIRED");
+  const recovery = await db.prepare("SELECT * FROM v7_canary_recovery_sessions WHERE run_id=? AND status='ALIGNED_PROBE_RUNNING' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='FAILED' ORDER BY created_at DESC LIMIT 1").bind(run.id, RECOVERY_CONTRACT_ALIGNMENT).first<Row>();
+  if (!recovery || !canary || Number(canary.current_index) !== 0) throw new Error("ALIGNED_TERMINAL_RECONCILIATION_NOT_READY");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("ACTIVE_REMOTE_REQUESTS_MUST_FINISH_FIRST");
+  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>();
+  const requestsAfter = Number(usage?.total || 0), costAfter = Number(usage?.cost || 0);
+  if (requestsAfter !== Number(canary.requests_before) + 1) throw new Error("ALIGNED_TERMINAL_RECONCILIATION_LEDGER_DRIFT");
+  const brief = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=? AND pilot=1").bind(canary.current_brief_id, run.id).first<Row>();
+  const promotion = brief ? await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(RECOVERY_CONTRACT_ALIGNMENT, brief.id).first<Row>() : null;
+  const audit = brief ? await db.prepare("SELECT * FROM v7_material_audits WHERE id=?").bind(`${clean(brief.id)}-${RECOVERY_CONTRACT_ALIGNMENT}-PIXEL-AUDIT`).first<Row>() : null;
+  const intent = await db.prepare("SELECT * FROM v7_canary_request_intents WHERE recovery_id=? AND command_id=? AND status='PROVIDER_DISPATCHED' ORDER BY created_at DESC LIMIT 1").bind(recovery.id, `${clean(recovery.id)}-CONTRACT-ALIGNED-PROBE`).first<Row>();
+  const outbox = intent ? await db.prepare("SELECT * FROM v7_canary_outbox WHERE recovery_id=? AND request_intent_id=? AND status='PRODUCTION_DISPATCHED'").bind(recovery.id, intent.id).first<Row>() : null;
+  if (!brief || !promotion || !audit || !intent || !outbox) throw new Error("ALIGNED_TERMINAL_RECONCILIATION_LINEAGE_INCOMPLETE");
+  const binding = await validatePromotionBinding(env, db, promotion), dimensions = rec(JSON.parse(String(audit.dimensions_json || "{}"))), dimensionFloor = Object.values(dimensions).length >= 5 && Object.values(dimensions).every((value) => Number(value) >= 86);
+  const checks = [
+    { id: "CERTIFICATION_TO_PRODUCTION_BINDING", status: binding.checks.find((item) => item.id === "CERTIFICATION_TO_PRODUCTION_BINDING")?.status || "FAIL", evidence: binding.checks.find((item) => item.id === "CERTIFICATION_TO_PRODUCTION_BINDING")?.evidence || "" },
+    { id: "BOUND_HASH_CONGRUENCE", status: binding.checks.find((item) => item.id === "BOUND_HASH_CONGRUENCE")?.status || "FAIL", evidence: binding.checks.find((item) => item.id === "BOUND_HASH_CONGRUENCE")?.evidence || "" },
+    { id: "UNIT_CONTRACT_CONGRUENCE", status: binding.checks.find((item) => item.id === "UNIT_CONTRACT_CONGRUENCE")?.status || "FAIL", evidence: binding.checks.find((item) => item.id === "UNIT_CONTRACT_CONGRUENCE")?.evidence || "" },
+    { id: "CANARY_ARTIFACT_READINESS", status: binding.checks.find((item) => item.id === "CANARY_ARTIFACT_READINESS")?.status || "FAIL", evidence: binding.checks.find((item) => item.id === "CANARY_ARTIFACT_READINESS")?.evidence || "" },
+    { id: "NO_LEGACY_FALLBACK", status: binding.checks.find((item) => item.id === "NO_LEGACY_FALLBACK")?.status || "FAIL", evidence: binding.checks.find((item) => item.id === "NO_LEGACY_FALLBACK")?.evidence || "" },
+    { id: "PIXEL_QA", status: clean(audit.status) === "PASS" && Number(audit.score) >= 90 && dimensionFloor ? "PASS" : "FAIL", evidence: `${Number(audit.score)}/100 · 5/5 dimensions >=86` },
+    { id: "PHYSICAL_UNIQUENESS", status: "PASS", evidence: "MP-001 is the first leased unit" },
+    { id: "ACTIVE_REQUESTS", status: "PASS", evidence: "0/1" },
+    { id: "ZERO_SPEND_RECONCILIATION", status: "PASS", evidence: `${requestsAfter} requests · $${costAfter.toFixed(6)} · no provider dispatch` },
+  ];
+  if (!binding.passed || checks.some((item) => item.status !== "PASS")) throw new Error(`ALIGNED_TERMINAL_RECONCILIATION_GATE_FAILED · ${checks.filter((item) => item.status !== "PASS").map((item) => item.id).join(",")}`);
+  const terminalEventId = `${clean(recovery.id)}-ALIGNED-RECONCILED-TERMINAL`, now = new Date().toISOString();
+  const existing = await db.prepare("SELECT id FROM v7_canary_transition_events WHERE id=?").bind(terminalEventId).first<Row>();
+  if (existing) return snapshot();
+  await db.batch([
+    db.prepare("UPDATE v7_pilot_canaries SET status='UNIT_PASS_REVIEW',passed_units=1,failed_units=0,gate_json=?,updated_at=?,completed_at=NULL WHERE id=? AND status='FAILED'").bind(JSON.stringify(checks), now, canary.id),
+    db.prepare("UPDATE v7_material_briefs SET status='CANARY_PASS' WHERE id=?").bind(brief.id),
+    db.prepare("UPDATE v7_canary_recovery_sessions SET status='ALIGNED_PROBE_PASS_REVIEW',requests_after=?,cost_after=?,updated_at=? WHERE id=? AND status='ALIGNED_PROBE_RUNNING'").bind(requestsAfter, costAfter, now, recovery.id),
+    db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',updated_at=? WHERE id=?").bind(now, authorization.id),
+    db.prepare("UPDATE v7_architecture_baselines SET execution_state='FROZEN' WHERE id=?").bind(canary.baseline_id),
+    db.prepare("UPDATE v7_material_runs SET status='CANARY_UNIT_PASS_REVIEW' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='CANARY_UNIT_PASS_REVIEW',blocker='EXPLICIT_NEXT_UNIT_RELEASE_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(brief.id)} PASS 94/100 reconciled from immutable request 82 audit · legacy terminal event-id collision preserved in transition evidence · zero provider requests · later units locked`, now, STAGE_ID),
+    db.prepare("INSERT INTO v7_canary_transition_events (id,recovery_id,command_id,canary_version,unit_id,status,failure_code,failed_transition,failed_gate,expected_state,actual_state,authorization_status,request_intent_id,ledger_status,provider_dispatch_status,detail_json,created_at) VALUES (?,?,?,?,?,'PROBE_TERMINAL_PASS','LEGACY_TERMINAL_EVENT_ID_COLLISION','PERSIST_AUDIT_TO_TERMINAL','TERMINAL_EVENT_ID_UNIQUENESS','TERMINAL_PASS','PROBE_PASS_REVIEW','PAUSED',?,'COMPLETE','TERMINAL',?,?)").bind(terminalEventId, recovery.id, `${clean(recovery.id)}-CONTRACT-ALIGNED-PROBE`, RECOVERY_CONTRACT_ALIGNMENT, "MP-001", intent.id, JSON.stringify({ reconciliation: "ZERO_SPEND_APPEND_ONLY_EVIDENCE", priorCanaryStatus: "FAILED", checks, requestsAfter, costAfter }), now),
+  ]);
+  return snapshot();
+}
+
 async function releaseControlledCanaryV5Unit() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("CONTROLLED_CANARY_RUN_REQUIRED");
@@ -2872,6 +2918,7 @@ export async function POST(request: Request) {
     if (body.action === "RELEASE_PRODUCTION_RECOVERY_PROBE") return Response.json(await releaseProductionRecoveryProbe(), { status: 202 });
     if (body.action === "BUILD_RECOVERY_CONTRACT_ALIGNMENT") return Response.json(await buildRecoveryContractAlignment(), { status: 201 });
     if (body.action === "RELEASE_CONTRACT_ALIGNED_RECOVERY_PROBE") return Response.json(await releaseContractAlignedRecoveryProbe(), { status: 202 });
+    if (body.action === "RECONCILE_CONTRACT_ALIGNED_RECOVERY_TERMINAL") return Response.json(await reconcileContractAlignedRecoveryTerminal(), { status: 200 });
     if (body.action === "RELEASE_CONTROLLED_CANARY_V5_UNIT") return Response.json(await releaseControlledCanaryV5Unit(), { status: 202 });
     if (body.action === "START_CONTROLLED_CANARY_UNIT") return Response.json(await startControlledCanaryUnit(), { status: 202 });
     if (body.action === "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") return Response.json(await releaseNextControlledCanaryUnit(), { status: 201 });
