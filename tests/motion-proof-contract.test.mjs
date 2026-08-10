@@ -359,20 +359,20 @@ test("Release Train seals MP-001, batches zero-spend G0/G1 and opens only MP-002
   assert.match(route, /SEQUENCE_OR_BATCH_FAILED_PRESERVED/);
   assert.match(route, /BATCH_UNIT_PASS_REVIEW/);
   assert.match(page, /Build Release Train G0\/G1 · \$0/);
-  assert.match(page, /Build Production Scene Renderer v2 · \$0/);
-  assert.match(page, /Run repaired MP-002 Sequence Proof · max \$1/);
+  assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
+  assert.match(page, /Run request 84 · MP-002 Sequence Proof · max \$1/);
   assert.match(page, /Run MP-003–MP-010 bounded batch/);
   assert.match(page, /data\.authorization\?\.modelPolicy\.batchAuthorized !== true/);
 });
 
-test("Production Scene Renderer preserves request 83 and preflights all remaining units before request 84", () => {
+test("Production Scene Renderer is superseded by stabilized executable scenes before request 84", () => {
   assert.match(route, /RELEASE_TRAIN_V2_PRODUCTION_SCENE_RENDERER/);
   assert.match(route, /PRODUCTION_SCENE_RENDERER_V2/);
   assert.match(route, /SHOT_CONTRACT_PIXEL_QA_V2/);
   assert.match(route, /BUILD_PRODUCTION_SCENE_PREFLIGHT/);
   assert.match(route, /MP002_42_FAILED_SEQUENCE_PROOF_REQUIRED/);
   assert.match(route, /PRODUCTION_SCENE_CANONICAL_LEDGER_DRIFT/);
-  assert.match(route, /EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V2/);
+  assert.match(route, /EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V3/);
   assert.match(route, /EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V2/);
   assert.match(route, /PRODUCTION_SCENE_G0_FAILED/);
   assert.match(route, /PRODUCTION_SCENE_G1_FAILED/);
@@ -382,6 +382,27 @@ test("Production Scene Renderer preserves request 83 and preflights all remainin
   assert.match(route, /predictedOverall: 96/);
   assert.match(route, /predictedCriticalFloor: 93/);
   assert.match(route, /request 84 is the only possible next dispatch/);
-  assert.match(page, /Build Production Scene Renderer v2 · \$0/);
-  assert.match(page, /Run repaired MP-002 Sequence Proof · max \$1/);
+  assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
+  assert.match(page, /Run request 84 · MP-002 Sequence Proof · max \$1/);
+});
+
+test("Stabilization Release enforces typed scope, canonical rehearsal and legacy isolation before request 84", () => {
+  assert.match(route, /STABILIZATION_RELEASE_V1_TYPED_STATE_MACHINE/);
+  assert.match(route, /PRODUCTION_SCENE_RENDERER_V3_STABILIZED/);
+  assert.match(route, /SHOT_CONTRACT_PIXEL_QA_V3/);
+  assert.match(route, /SEALED_RELEASE_SET = \["MP-001"\]/);
+  assert.match(route, /ACTIVE_RELEASE_SET = \["MP-002", "MP-003", "MP-004", "MP-005", "MP-006", "MP-007", "MP-008", "MP-009", "MP-010"\]/);
+  assert.match(route, /STABILIZATION_RELEASE_SET_INTERSECTION/);
+  assert.match(route, /STABILIZATION_TYPED_ACTIVE_SET_INVALID/);
+  assert.match(route, /STABILIZATION_SEALED_UNIT_ENTERED_ACTIVE_RENDERER/);
+  assert.match(route, /STABILIZATION_REHEARSAL_LEDGER_DRIFT/);
+  assert.match(route, /STABILIZATION_RELOAD_CONVERGENCE_FAILED/);
+  assert.match(route, /STABILIZATION_REHEARSAL_TO_PRODUCTION_HASH_DRIFT/);
+  assert.match(route, /EXACT_TYPED_SCOPE/);
+  assert.match(route, /CANONICAL_REHEARSAL/);
+  assert.match(route, /LEGACY_ISOLATION/);
+  assert.match(route, /LEGACY_ACTION_UNREACHABLE_AFTER_STABILIZATION/);
+  assert.match(route, /autoAdvance: false/);
+  assert.match(route, /BUILD_STABILIZATION_RELEASE/);
+  assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
 });

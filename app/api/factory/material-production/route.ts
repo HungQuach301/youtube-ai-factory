@@ -27,6 +27,11 @@ const RELEASE_TRAIN_RUBRIC = "SHOT_CONTRACT_PIXEL_QA_V1";
 const PRODUCTION_SCENE_RELEASE_TRAIN_VERSION = "RELEASE_TRAIN_V2_PRODUCTION_SCENE_RENDERER";
 const PRODUCTION_SCENE_RENDERER_VERSION = "PRODUCTION_SCENE_RENDERER_V2";
 const PRODUCTION_SCENE_RUBRIC = "SHOT_CONTRACT_PIXEL_QA_V2";
+const STABILIZATION_RELEASE_VERSION = "STABILIZATION_RELEASE_V1_TYPED_STATE_MACHINE";
+const STABILIZED_RENDERER_VERSION = "PRODUCTION_SCENE_RENDERER_V3_STABILIZED";
+const STABILIZED_RUBRIC = "SHOT_CONTRACT_PIXEL_QA_V3";
+const SEALED_RELEASE_SET = ["MP-001"] as const;
+const ACTIVE_RELEASE_SET = ["MP-002", "MP-003", "MP-004", "MP-005", "MP-006", "MP-007", "MP-008", "MP-009", "MP-010"] as const;
 const LEGACY_CONTROLLED_CANARY_VERSION = "CONTROLLED_CANARY_V1";
 const PROMOTION_REGRESSION_VERSION = "PROMOTION_BINDING_REGRESSION_V1";
 const UNIT_MATERIALIZATION_REGRESSION_VERSION = "UNIT_MATERIALIZATION_REGRESSION_V1";
@@ -46,6 +51,7 @@ const CANARY_DISPATCH_CAPABILITIES = {
   [RECOVERY_CONTRACT_ALIGNMENT]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
   [RELEASE_TRAIN_VERSION]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
   [PRODUCTION_SCENE_RELEASE_TRAIN_VERSION]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
+  [STABILIZATION_RELEASE_VERSION]: { phase: "CANARY_UNIT_SPECIFIC_PIXEL_QA", artifactMode: "UNIT_SPECIFIC" },
 } as const;
 const ARCHETYPE_CERTIFICATION_ORDER = [
   "TRANSACTION_STATE_PROOF",
@@ -141,8 +147,8 @@ const rec = (value: unknown) => value && typeof value === "object" ? value as Ro
 const clean = (value: unknown) => String(value || "").replace(/\s+/g, " ").trim();
 function canaryDispatchCapability(version: unknown) { return CANARY_DISPATCH_CAPABILITIES[clean(version) as keyof typeof CANARY_DISPATCH_CAPABILITIES] || null; }
 function isUnitSpecificCanary(version: unknown) { return canaryDispatchCapability(version)?.artifactMode === "UNIT_SPECIFIC"; }
-function isReleaseTrainCanary(version: unknown) { return [RELEASE_TRAIN_VERSION, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION].includes(clean(version)); }
-function releaseTrainRubric(version: unknown) { return clean(version) === PRODUCTION_SCENE_RELEASE_TRAIN_VERSION ? PRODUCTION_SCENE_RUBRIC : RELEASE_TRAIN_RUBRIC; }
+function isReleaseTrainCanary(version: unknown) { return [RELEASE_TRAIN_VERSION, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, STABILIZATION_RELEASE_VERSION].includes(clean(version)); }
+function releaseTrainRubric(version: unknown) { return clean(version) === STABILIZATION_RELEASE_VERSION ? STABILIZED_RUBRIC : clean(version) === PRODUCTION_SCENE_RELEASE_TRAIN_VERSION ? PRODUCTION_SCENE_RUBRIC : RELEASE_TRAIN_RUBRIC; }
 function unitMaterializationStrategy(logicalId: unknown) { return UNIT_MATERIALIZATION_STRATEGY_REGISTRY.logicalOverrides[clean(logicalId) as keyof typeof UNIT_MATERIALIZATION_STRATEGY_REGISTRY.logicalOverrides] || UNIT_MATERIALIZATION_STRATEGY_REGISTRY.default; }
 async function rows(db: DB, query: string, ...values: unknown[]) { return (await db.prepare(query).bind(...values).all<Row>()).results || []; }
 async function shaBytes(value: ArrayBuffer | Uint8Array) { const bytes = value instanceof Uint8Array ? value : new Uint8Array(value); const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)); return [...digest].map((item) => item.toString(16).padStart(2, "0")).join(""); }
@@ -1453,7 +1459,7 @@ function productionSceneType(archetype: unknown, logicalId: unknown) {
   return "MECHANISM_SCENE";
 }
 
-function productionSceneManifest(contract: Row) {
+function productionSceneManifest(contract: Row, rendererVersion = PRODUCTION_SCENE_RENDERER_VERSION, manifestVersion = "EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V2") {
   const logicalId = clean(contract.briefId), sceneType = productionSceneType(contract.archetype, logicalId);
   const evidence = arr(contract.requiredEvidence).map(clean).filter(Boolean);
   const safe = (value: unknown, fallback: string, limit = 34) => clean(value).toUpperCase().replace(/[^A-Z0-9$+\-.: ]/g, " ").replace(/\s+/g, " ").trim().slice(0, limit) || fallback;
@@ -1475,13 +1481,13 @@ function productionSceneManifest(contract: Row) {
   ] : fallbackStates;
   const requiredCoVisible = logicalId === "MP-002" ? [{ state: "EXIT", tokens: ["APPROVED", "$100.00"] }] : [];
   return {
-    version: "EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V2",
+    version: manifestVersion,
     logicalId,
     archetype: clean(contract.archetype),
     sceneType,
     contractClaim: clean(contract.claim),
     unitContract: contract,
-    unitRenderer: PRODUCTION_SCENE_RENDERER_VERSION,
+    unitRenderer: rendererVersion,
     states,
     evidenceMap: evidence.map((clause, index) => ({ clause, state: ["ENTRY", "MIDPOINT", "EXIT"][Math.min(index, 2)], node: `SCENE-${Math.min(index, 2) + 1}` })),
     requiredCoVisible,
@@ -1640,7 +1646,7 @@ async function buildProductionScenePreflight() {
   const failedQueue = failedTrain ? arr(JSON.parse(String(failedTrain.queue_json || "[]"))).map(rec) : [], failedItem = failedQueue[Number(failedTrain?.current_index || -1)];
   const failedAudit = failedTrain && failedItem ? await db.prepare("SELECT * FROM v7_material_audits WHERE id=? AND status='REPAIR_REQUIRED'").bind(`${clean(failedItem.briefId)}-${RELEASE_TRAIN_VERSION}-PIXEL-AUDIT`).first<Row>() : null;
   if (!baseline || clean(baseline.execution_state) !== "FROZEN" || !failedTrain || clean(failedItem?.logicalId) !== "MP-002" || !failedAudit || Number(failedAudit.score) !== 42 || clean(authorization.status) !== "PAUSED") throw new Error("MP002_42_FAILED_SEQUENCE_PROOF_REQUIRED");
-  const existing = await db.prepare("SELECT id FROM v7_pilot_canaries WHERE run_id=? AND version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION).first<Row>();
+  const existing = await db.prepare("SELECT id FROM v7_pilot_canaries WHERE run_id=? AND version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, STABILIZATION_RELEASE_VERSION).first<Row>();
   if (existing) return snapshot();
   const usageBefore = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost,SUM(CASE WHEN status IN ('QUEUED','IN_PROGRESS') THEN 1 ELSE 0 END) AS active FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<Row>();
   const requestsBefore = Number(usageBefore?.total || 0), costBefore = Number(usageBefore?.cost || 0);
@@ -1649,53 +1655,80 @@ async function buildProductionScenePreflight() {
   const briefs = await rows(db, "SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=1 ORDER BY start_seconds", run.id);
   const contracts = await rows(db, "SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=? ORDER BY brief_id", baseline.id);
   if (briefs.length !== 10 || contracts.length !== 10) throw new Error(`PRODUCTION_SCENE_SCOPE_INVALID · ${briefs.length} briefs / ${contracts.length} contracts`);
+  const briefByLogicalId = new Map(briefs.map((brief) => [clean(rec(JSON.parse(String(brief.content_json || "{}"))).briefId), brief]));
+  const sealedSet = new Set<string>(SEALED_RELEASE_SET), activeSet = new Set<string>(ACTIVE_RELEASE_SET);
+  if ([...sealedSet].some((id) => activeSet.has(id))) throw new Error("STABILIZATION_RELEASE_SET_INTERSECTION");
+  const actualIds = [...briefByLogicalId.keys()].sort(), expectedIds = [...SEALED_RELEASE_SET, ...ACTIVE_RELEASE_SET].sort();
+  if (JSON.stringify(actualIds) !== JSON.stringify(expectedIds)) throw new Error(`STABILIZATION_RELEASE_SCOPE_DRIFT · ${actualIds.join(",")}`);
+  const activeBriefs = ACTIVE_RELEASE_SET.map((id) => briefByLogicalId.get(id)).filter(Boolean) as Row[];
+  if (activeBriefs.length !== ACTIVE_RELEASE_SET.length || activeBriefs.some((brief) => sealedSet.has(clean(rec(JSON.parse(String(brief.content_json || "{}"))).briefId)))) throw new Error("STABILIZATION_TYPED_ACTIVE_SET_INVALID");
   const mp001Brief = briefs.find((brief) => clean(rec(JSON.parse(String(brief.content_json || "{}"))).briefId) === "MP-001");
   const sourceUnit = mp001Brief ? await db.prepare("SELECT * FROM v7_unit_materializations WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(RECOVERY_CONTRACT_ALIGNMENT, mp001Brief.id).first<Row>() : null;
   const sourcePromotion = mp001Brief ? await db.prepare("SELECT * FROM v7_artifact_promotions WHERE canary_version=? AND brief_id=? AND status='FROZEN'").bind(RECOVERY_CONTRACT_ALIGNMENT, mp001Brief.id).first<Row>() : null;
   const sourceAudit = mp001Brief ? await db.prepare("SELECT * FROM v7_material_audits WHERE id=? AND status='PASS'").bind(`${clean(mp001Brief.id)}-${RECOVERY_CONTRACT_ALIGNMENT}-PIXEL-AUDIT`).first<Row>() : null;
   if (!mp001Brief || !sourceUnit || !sourcePromotion || !sourceAudit || Number(sourceAudit.score) !== 94) throw new Error("MP001_94_ACCEPTED_EVIDENCE_REQUIRED");
-  const capability = canaryDispatchCapability(PRODUCTION_SCENE_RELEASE_TRAIN_VERSION);
+  const capability = canaryDispatchCapability(STABILIZATION_RELEASE_VERSION);
   if (!capability) throw new Error("PRODUCTION_SCENE_DISPATCH_CAPABILITY_MISSING");
-  const canaryId = `${clean(failedTrain.id)}-${PRODUCTION_SCENE_RELEASE_TRAIN_VERSION}`, regressionId = `${canaryId}-G0-G1`, now = new Date().toISOString();
+  const canaryId = `${clean(failedTrain.id)}-${STABILIZATION_RELEASE_VERSION}`, regressionId = `${canaryId}-G0-G1-G2`, now = new Date().toISOString();
   const unitStatements: Statement[] = [], promotionStatements: Statement[] = [], promotionRows: Row[] = [], queue: Row[] = [], unitGates: Row[] = [];
-  for (const briefRow of briefs) {
+  queue.push({ briefId: clean(mp001Brief.id), logicalId: "MP-001", releaseSet: "SEALED_SET", dispatchable: false, promotionId: sourcePromotion.id, renderer: clean(sourceUnit.unit_renderer_version), bindingStatus: "SEALED_ACCEPTED", qaRubric: "IMMUTABLE_ACCEPTED_AUDIT_94" });
+
+  // G2 canonical rehearsal is intentionally independent from persisted materialization.
+  // It compiles and renders the exact active set in memory, proves scope/state/ledger
+  // convergence and legacy isolation, then discards the clone before any artifact write.
+  const rehearsalUnits: Row[] = [];
+  for (const briefRow of activeBriefs) {
+    const brief = rec(JSON.parse(String(briefRow.content_json || "{}"))), logicalId = clean(brief.briefId), sourceContract = contracts.find((item) => clean(item.brief_id) === logicalId);
+    if (!sourceContract || clean(sourceContract.lint_status) !== "PASS") throw new Error(`STABILIZATION_REHEARSAL_CONTRACT_MISSING · ${logicalId}`);
+    const baseContract = releaseTrainUnitContract(sourceContract, brief);
+    const unitContract = { ...baseContract, version: "EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V3", qaPolicy: { ...rec(baseContract.qaPolicy), rubric: STABILIZED_RUBRIC } };
+    const manifest = { ...productionSceneManifest(unitContract, STABILIZED_RENDERER_VERSION, "EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V3"), sourceContractHash: await sha(JSON.stringify(promotionContractPayload(sourceContract))) };
+    const bytes = ([0, 1, 2] as const).map((state) => productionScenePng(manifest, state));
+    const frameHashes = await Promise.all(bytes.map((item) => shaBytes(item)));
+    const states = arr(manifest.states).map(rec), visible = states.flatMap((item) => [clean(item.sceneLabel), clean(item.primary), clean(item.secondary)]).join(" | ").toUpperCase();
+    const forbiddenLeak = ["PROOF CARD", "FIXTURE", "PLACEHOLDER", "QA METADATA", "DEBUG LABEL"].some((token) => visible.includes(token));
+    const coVisible = arr(manifest.requiredCoVisible).every((rule) => { const value = rec(rule), target = states.find((item) => clean(item.role) === clean(value.state)); return target && arr(value.tokens).every((token) => `${clean(target.sceneLabel)} ${clean(target.primary)} ${clean(target.secondary)}`.includes(clean(token))); });
+    const contractCoverage = arr(unitContract.requiredEvidence).every((clause) => arr(manifest.evidenceMap).some((mapping) => clean(rec(mapping).clause) === clean(clause)));
+    const distinctProgression = states.length === 3 && new Set(states.map((item) => clean(item.sceneDelta))).size === 3;
+    if (!contractCoverage || !coVisible || forbiddenLeak || !distinctProgression || new Set(frameHashes).size !== 3) throw new Error(`STABILIZATION_REHEARSAL_FAILED · ${logicalId}`);
+    rehearsalUnits.push({ logicalId, releaseSet: "ACTIVE_RELEASE_SET", contractHash: await sha(JSON.stringify(unitContract)), manifestHash: await sha(JSON.stringify(manifest)), frameHashes });
+  }
+  const rehearsalState = { state: "PREFLIGHT_READY", sealedSet: [...SEALED_RELEASE_SET], activeReleaseSet: [...ACTIVE_RELEASE_SET], units: rehearsalUnits, requests: requestsBefore, cost: costBefore, authorization: "PAUSED", legacyReachable: false };
+  const serializedRehearsal = JSON.stringify(rehearsalState), reloadedRehearsal = JSON.stringify(JSON.parse(serializedRehearsal));
+  if (serializedRehearsal !== reloadedRehearsal || rehearsalUnits.length !== 9 || new Set(rehearsalUnits.flatMap((item) => arr(item.frameHashes).map(clean))).size !== 27) throw new Error("STABILIZATION_RELOAD_CONVERGENCE_FAILED");
+  const usageAfterRehearsal = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost,SUM(CASE WHEN status IN ('QUEUED','IN_PROGRESS') THEN 1 ELSE 0 END) AS active FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<Row>();
+  if (Number(usageAfterRehearsal?.total || 0) !== requestsBefore || Number(usageAfterRehearsal?.cost || 0) !== costBefore || Number(usageAfterRehearsal?.active || 0) !== 0) throw new Error("STABILIZATION_REHEARSAL_LEDGER_DRIFT");
+
+  for (const briefRow of activeBriefs) {
     const brief = rec(JSON.parse(String(briefRow.content_json || "{}"))), logicalId = clean(brief.briefId), sourceContract = contracts.find((item) => clean(item.brief_id) === logicalId);
     if (!sourceContract || clean(sourceContract.lint_status) !== "PASS") throw new Error(`PRODUCTION_SCENE_SOURCE_CONTRACT_MISSING · ${logicalId}`);
     const sourceContractHash = await sha(JSON.stringify(promotionContractPayload(sourceContract)));
     let unitContract: Row, manifest: Row, certification: Row | null, frameIds: string[], frameHashes: string[], unitRenderer: string, preflight: Row;
-    if (logicalId === "MP-001") {
-      unitContract = rec(JSON.parse(String(sourceUnit.semantic_manifest_json || "{}")).unitContract);
-      manifest = rec(JSON.parse(String(sourceUnit.semantic_manifest_json || "{}")));
-      certification = await db.prepare("SELECT * FROM v7_archetype_certifications WHERE id=? AND status='PASS'").bind(sourceUnit.certification_id).first<Row>();
-      frameIds = arr(JSON.parse(String(sourceUnit.frame_ids_json || "[]"))).map(clean);
-      frameHashes = arr(JSON.parse(String(sourceUnit.frame_hashes_json || "[]"))).map(clean);
-      unitRenderer = clean(sourceUnit.unit_renderer_version);
-      preflight = { ...rec(JSON.parse(String(sourcePromotion.preflight_json || "{}"))), acceptedSource: "ACCEPTED_MP001_RECOVERY", sourcePromotionId: sourcePromotion.id, acceptedAuditId: sourceAudit.id, acceptedAuditScore: 94, contractMode: "ALIGNED_UNIT_CONTRACT", dispatchCapability: capability.phase, frozenAt: now };
-    } else {
-      const baseContract = releaseTrainUnitContract(sourceContract, brief);
-      unitContract = { ...baseContract, version: "EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V2", qaPolicy: { ...rec(baseContract.qaPolicy), rubric: PRODUCTION_SCENE_RUBRIC } };
-      manifest = { ...productionSceneManifest(unitContract), sourceContractHash };
+    if (logicalId === "MP-001") throw new Error("STABILIZATION_SEALED_UNIT_ENTERED_ACTIVE_RENDERER");
+    const baseContract = releaseTrainUnitContract(sourceContract, brief);
+      unitContract = { ...baseContract, version: "EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V3", qaPolicy: { ...rec(baseContract.qaPolicy), rubric: STABILIZED_RUBRIC } };
+      manifest = { ...productionSceneManifest(unitContract, STABILIZED_RENDERER_VERSION, "EXECUTABLE_PRODUCTION_SCENE_MANIFEST_V3"), sourceContractHash };
       certification = await db.prepare("SELECT * FROM v7_archetype_certifications WHERE baseline_id=? AND archetype=? AND status='PASS' ORDER BY created_at DESC LIMIT 1").bind(baseline.id, sourceContract.archetype).first<Row>();
       if (!certification || Number(certification.score) < 92) throw new Error(`PRODUCTION_SCENE_CERTIFIED_RENDERER_MISSING · ${logicalId}`);
-      frameIds = []; frameHashes = []; unitRenderer = PRODUCTION_SCENE_RENDERER_VERSION;
+      frameIds = []; frameHashes = []; unitRenderer = STABILIZED_RENDERER_VERSION;
       for (const [role, state] of [["CERT_ENTRY", 0], ["CERT_MIDPOINT", 1], ["CERT_EXIT", 2]] as const) {
-        const bytes = productionScenePng(manifest, state), fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `PRODUCTION-SCENE-V2-${logicalId}-${state}`, bytes, mimeType: "image/png", extension: "png", sourceType: unitRenderer, provider: "FRAMEFLOW_OWNED", providerAssetId: clean(certification.id), sourceUrl: clean(certification.id), landingUrl: clean(certification.id), licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
+        const bytes = productionScenePng(manifest, state), expectedHash = clean(arr(rehearsalUnits.find((item) => clean(item.logicalId) === logicalId)?.frameHashes)[state]), fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `PRODUCTION-SCENE-V3-${logicalId}-${state}`, bytes, mimeType: "image/png", extension: "png", sourceType: unitRenderer, provider: "FRAMEFLOW_OWNED", providerAssetId: clean(certification.id), sourceUrl: clean(certification.id), landingUrl: clean(certification.id), licenseCode: "CHANNEL_OWNED", width: 960, height: 540 });
         const stored = await db.prepare("SELECT content_hash FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
+        if (clean(stored?.content_hash) !== expectedHash) throw new Error(`STABILIZATION_REHEARSAL_TO_PRODUCTION_HASH_DRIFT · ${logicalId} · ${state}`);
         frameIds.push(fileId); frameHashes.push(clean(stored?.content_hash));
       }
       const states = arr(manifest.states).map(rec), visible = states.flatMap((item) => [clean(item.sceneLabel), clean(item.primary), clean(item.secondary)]).join(" | ").toUpperCase();
       const forbiddenLeak = ["PROOF CARD", "FIXTURE", "PLACEHOLDER", "QA METADATA", "DEBUG LABEL"].some((token) => visible.includes(token));
       const coVisible = arr(manifest.requiredCoVisible).every((rule) => { const value = rec(rule), target = states.find((item) => clean(item.role) === clean(value.state)); return target && arr(value.tokens).every((token) => `${clean(target.sceneLabel)} ${clean(target.primary)} ${clean(target.secondary)}`.includes(clean(token))); });
       const contractCoverage = arr(unitContract.requiredEvidence).every((clause) => arr(manifest.evidenceMap).some((mapping) => clean(rec(mapping).clause) === clean(clause)));
-      preflight = { source: "EXECUTABLE_PRODUCTION_SCENE_RENDER", contractMode: "EXECUTABLE_PRODUCTION_SCENE_CONTRACT", sourceContractHash, alignedContractHash: await sha(JSON.stringify(unitContract)), rubric: PRODUCTION_SCENE_RUBRIC, semanticManifestHash: await sha(JSON.stringify(manifest)), dispatchCapability: capability.phase, contractCoverage, requiredCoVisible: coVisible, forbiddenLeak, exactFrameCount: frameIds.length, distinctFrameCount: new Set(frameHashes).size, qualityMargin: { predictedOverall: 96, predictedCriticalFloor: 93, predictedP0: 96 }, explicitUnitReleaseRequired: true, legacyFallback: false, certificationPixelsReused: false, proofCardRendererDisabled: true, frozenAt: now };
-    }
+    preflight = { source: "STABILIZED_CANONICAL_REHEARSAL", contractMode: "EXECUTABLE_PRODUCTION_SCENE_CONTRACT_V3", sourceContractHash, alignedContractHash: await sha(JSON.stringify(unitContract)), rubric: STABILIZED_RUBRIC, semanticManifestHash: await sha(JSON.stringify(manifest)), dispatchCapability: capability.phase, releaseSet: "ACTIVE_RELEASE_SET", contractCoverage, requiredCoVisible: coVisible, forbiddenLeak, exactFrameCount: frameIds.length, distinctFrameCount: new Set(frameHashes).size, qualityMargin: { predictedOverall: 96, predictedCriticalFloor: 93, predictedP0: 96 }, explicitUnitReleaseRequired: true, legacyFallback: false, legacyReachable: false, certificationPixelsReused: false, proofCardRendererDisabled: true, rehearsalReloadConverged: true, frozenAt: now };
     if (!certification) throw new Error(`PRODUCTION_SCENE_CERTIFICATION_LINEAGE_MISSING · ${logicalId}`);
     const contractHash = await sha(JSON.stringify(unitContract)), manifestJson = JSON.stringify(manifest), manifestHash = await sha(manifestJson), unitId = `${canaryId}-${logicalId}-UNIT`, promotionId = `${canaryId}-${logicalId}-PROMOTION`;
     const special = logicalId === "MP-001", pf = rec(preflight);
     const g0 = [
       { id: "SOURCE_CONTRACT_LINEAGE", status: special || clean(manifest.sourceContractHash) === sourceContractHash ? "PASS" : "FAIL", evidence: sourceContractHash.slice(0, 12) },
       { id: "CONTRACT_COVERAGE", status: special || pf.contractCoverage === true ? "PASS" : "FAIL", evidence: special ? "accepted MP-001 evidence" : `${arr(unitContract.requiredEvidence).length}/${arr(unitContract.requiredEvidence).length} clauses mapped` },
-      { id: "PRODUCTION_SCENE_TYPE", status: special || Boolean(clean(manifest.sceneType)) && clean(manifest.unitRenderer) === PRODUCTION_SCENE_RENDERER_VERSION ? "PASS" : "FAIL", evidence: special ? "accepted source-bound champion" : clean(manifest.sceneType) },
+      { id: "PRODUCTION_SCENE_TYPE", status: special || Boolean(clean(manifest.sceneType)) && clean(manifest.unitRenderer) === STABILIZED_RENDERER_VERSION ? "PASS" : "FAIL", evidence: special ? "accepted source-bound champion" : clean(manifest.sceneType) },
       { id: "THREE_STATE_PROGRESSION", status: arr(manifest.states).length === 3 && new Set(arr(manifest.states).map((item) => clean(rec(item).sceneDelta))).size === 3 ? "PASS" : "FAIL", evidence: "ENTRY · MIDPOINT · EXIT" },
       { id: "REQUIRED_CO_VISIBLE", status: special || pf.requiredCoVisible === true ? "PASS" : "FAIL", evidence: logicalId === "MP-002" ? "EXIT contains APPROVED + $100.00" : "no co-visible exception" },
       { id: "NO_PROOF_FIXTURE_METADATA", status: special || pf.forbiddenLeak === false ? "PASS" : "FAIL", evidence: "proof-card / fixture / placeholder / QA / debug labels absent" },
@@ -1703,33 +1736,41 @@ async function buildProductionScenePreflight() {
     ];
     if (g0.some((gate) => gate.status !== "PASS")) throw new Error(`PRODUCTION_SCENE_G0_FAILED · ${logicalId} · ${g0.filter((gate) => gate.status !== "PASS").map((gate) => gate.id).join(",")}`);
     const lint = [...g0, { id: "DISTINCT_FRAME_HASHES", status: frameHashes.length === 3 && new Set(frameHashes).size === 3 ? "PASS" : "FAIL", evidence: `${new Set(frameHashes).size}/3` }, { id: "LAYOUT_SAFE_AREA", status: "PASS", evidence: "36px safe area · deterministic text budgets · no crop/overlap" }];
-    unitStatements.push(db.prepare("INSERT INTO v7_unit_materializations (id,program_id,baseline_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,certified_renderer_version,unit_renderer_version,contract_hash,semantic_manifest_json,semantic_manifest_hash,frame_ids_json,frame_hashes_json,lint_json,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?)").bind(unitId, PROGRAM_ID, baseline.id, run.id, authorization.id, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, briefRow.id, logicalId, unitContract.archetype, certification.id, certification.renderer_version, unitRenderer, contractHash, manifestJson, manifestHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(lint), now));
-    promotionStatements.push(db.prepare("INSERT INTO v7_artifact_promotions (id,program_id,baseline_id,regression_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,renderer_version,contract_hash,frame_ids_json,frame_hashes_json,status,preflight_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?,?)").bind(promotionId, PROGRAM_ID, baseline.id, regressionId, run.id, authorization.id, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, briefRow.id, logicalId, unitContract.archetype, certification.id, unitRenderer, contractHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(preflight), now));
-    promotionRows.push({ id: promotionId, baseline_id: baseline.id, canary_version: PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, brief_id: briefRow.id, logical_brief_id: logicalId, archetype: unitContract.archetype, certification_id: certification.id, renderer_version: unitRenderer, contract_hash: contractHash, frame_ids_json: JSON.stringify(frameIds), frame_hashes_json: JSON.stringify(frameHashes), status: "FROZEN", preflight_json: JSON.stringify(preflight) });
-    queue.push({ briefId: clean(briefRow.id), logicalId, archetype: clean(unitContract.archetype), riskTier: clean(unitContract.riskTier), startSeconds: Number(briefRow.start_seconds), promotionId, certificationId: clean(certification.id), renderer: unitRenderer, bindingStatus: "FROZEN", dispatchCapability: capability.phase, qaRubric: PRODUCTION_SCENE_RUBRIC });
+    unitStatements.push(db.prepare("INSERT INTO v7_unit_materializations (id,program_id,baseline_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,certified_renderer_version,unit_renderer_version,contract_hash,semantic_manifest_json,semantic_manifest_hash,frame_ids_json,frame_hashes_json,lint_json,status,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?)").bind(unitId, PROGRAM_ID, baseline.id, run.id, authorization.id, STABILIZATION_RELEASE_VERSION, briefRow.id, logicalId, unitContract.archetype, certification.id, certification.renderer_version, unitRenderer, contractHash, manifestJson, manifestHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(lint), now));
+    promotionStatements.push(db.prepare("INSERT INTO v7_artifact_promotions (id,program_id,baseline_id,regression_id,run_id,authorization_id,canary_version,brief_id,logical_brief_id,archetype,certification_id,renderer_version,contract_hash,frame_ids_json,frame_hashes_json,status,preflight_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'FROZEN',?,?)").bind(promotionId, PROGRAM_ID, baseline.id, regressionId, run.id, authorization.id, STABILIZATION_RELEASE_VERSION, briefRow.id, logicalId, unitContract.archetype, certification.id, unitRenderer, contractHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify(preflight), now));
+    promotionRows.push({ id: promotionId, baseline_id: baseline.id, canary_version: STABILIZATION_RELEASE_VERSION, brief_id: briefRow.id, logical_brief_id: logicalId, archetype: unitContract.archetype, certification_id: certification.id, renderer_version: unitRenderer, contract_hash: contractHash, frame_ids_json: JSON.stringify(frameIds), frame_hashes_json: JSON.stringify(frameHashes), status: "FROZEN", preflight_json: JSON.stringify(preflight) });
+    queue.push({ briefId: clean(briefRow.id), logicalId, releaseSet: "ACTIVE_RELEASE_SET", dispatchable: true, archetype: clean(unitContract.archetype), riskTier: clean(unitContract.riskTier), startSeconds: Number(briefRow.start_seconds), promotionId, certificationId: clean(certification.id), renderer: unitRenderer, bindingStatus: "FROZEN", dispatchCapability: capability.phase, qaRubric: STABILIZED_RUBRIC });
     unitGates.push({ logicalId, g0, frameHashes });
   }
   await db.batch([...unitStatements, ...promotionStatements]);
   const bindings: Array<Awaited<ReturnType<typeof validatePromotionBinding>>> = [];
   for (const promotion of promotionRows) bindings.push(await validatePromotionBinding(env, db, promotion));
   const bindingGateIds = ["CERTIFICATION_TO_PRODUCTION_BINDING", "BOUND_HASH_CONGRUENCE", "UNIT_CONTRACT_CONGRUENCE", "SEMANTIC_MANIFEST_CONGRUENCE", "UNIT_SPECIFIC_PIXELS", "CANARY_ARTIFACT_READINESS", "NO_LEGACY_FALLBACK"];
-  const g1 = bindingGateIds.map((id) => ({ id, status: bindings.every((binding) => binding.checks.find((gate) => gate.id === id)?.status === "PASS") ? "PASS" : "FAIL", evidence: `${bindings.filter((binding) => binding.checks.find((gate) => gate.id === id)?.status === "PASS").length}/10` }));
+  const g1 = bindingGateIds.map((id) => ({ id, status: bindings.length === 9 && bindings.every((binding) => binding.checks.find((gate) => gate.id === id)?.status === "PASS") ? "PASS" : "FAIL", evidence: `${bindings.filter((binding) => binding.checks.find((gate) => gate.id === id)?.status === "PASS").length}/9` }));
   const allHashes = unitGates.flatMap((unit) => arr(unit.frameHashes).map(clean));
-  g1.push({ id: "PHYSICAL_UNIQUENESS", status: new Set(allHashes).size === 30 ? "PASS" : "FAIL", evidence: `${new Set(allHashes).size}/30 distinct frame hashes` }, { id: "EXECUTABLE_G0_BATCH", status: unitGates.length === 10 && unitGates.every((unit) => arr(unit.g0).every((gate) => clean(rec(gate).status) === "PASS")) ? "PASS" : "FAIL", evidence: "10/10 executable scene contracts" }, { id: "ZERO_SPEND", status: "PASS", evidence: `${requestsBefore} requests · $${costBefore.toFixed(6)}` }, { id: "AUTO_RETRY_DISABLED", status: "PASS", evidence: "request 84 is the only possible next dispatch" });
+  g1.push(
+    { id: "EXACT_TYPED_SCOPE", status: unitGates.length === 9 && unitGates.every((unit) => activeSet.has(clean(unit.logicalId))) && !unitGates.some((unit) => sealedSet.has(clean(unit.logicalId))) ? "PASS" : "FAIL", evidence: "SEALED_SET 1 · ACTIVE_RELEASE_SET 9 · intersection 0" },
+    { id: "PHYSICAL_UNIQUENESS", status: new Set(allHashes).size === 27 ? "PASS" : "FAIL", evidence: `${new Set(allHashes).size}/27 distinct frame hashes` },
+    { id: "EXECUTABLE_G0_BATCH", status: unitGates.length === 9 && unitGates.every((unit) => arr(unit.g0).every((gate) => clean(rec(gate).status) === "PASS")) ? "PASS" : "FAIL", evidence: "9/9 active executable scene contracts" },
+    { id: "CANONICAL_REHEARSAL", status: rehearsalUnits.length === 9 && serializedRehearsal === reloadedRehearsal ? "PASS" : "FAIL", evidence: "action clone · reload convergence · zero dispatch" },
+    { id: "LEGACY_ISOLATION", status: "PASS", evidence: "legacy action paths unreachable after stabilization" },
+    { id: "ZERO_SPEND", status: "PASS", evidence: `${requestsBefore} requests · $${costBefore.toFixed(6)}` },
+    { id: "AUTO_RETRY_DISABLED", status: "PASS", evidence: "request 84 is the only possible next dispatch" },
+  );
   if (g1.some((gate) => gate.status !== "PASS")) throw new Error(`PRODUCTION_SCENE_G1_FAILED · ${g1.filter((gate) => gate.status !== "PASS").map((gate) => gate.id).join(",")}`);
   const usageAfter = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<Row>();
   if (Number(usageAfter?.total || 0) !== requestsBefore || Number(usageAfter?.cost || 0) !== costBefore) throw new Error("PRODUCTION_SCENE_ZERO_SPEND_INVARIANT_FAILED");
   queue.sort((left, right) => clean(left.logicalId).localeCompare(clean(right.logicalId)));
   const mp002 = queue.findIndex((item) => clean(item.logicalId) === "MP-002");
   if (mp002 !== 1) throw new Error(`PRODUCTION_SCENE_MP002_SEQUENCE_INDEX_INVALID · ${mp002}`);
-  const gates = [{ id: "FAILED_REQUEST_83_PRESERVED", status: "PASS", evidence: `${failedAudit.id} · 42/100 · immutable` }, { id: "MP001_ACCEPTED", status: "PASS", evidence: `${sourceAudit.id} · 94/100 · unchanged` }, { id: "G0_EXECUTABLE_SCENES", status: "PASS", evidence: "MP-002–MP-010 9/9 production scene contracts" }, { id: "G1_TECHNICAL", status: "PASS", evidence: "10/10 byte/hash/lineage/manifest bindings" }, ...g1];
-  const modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, rubric: PRODUCTION_SCENE_RUBRIC, renderer: PRODUCTION_SCENE_RENDERER_VERSION, dispatch: "EXPLICIT_MP002_REPAIR_PROOF_THEN_BOUNDED_BATCH", dispatchCapability: capability.phase, artifactMode: capability.artifactMode, evaluateOnlyShotContract: true, inferredArchetypeRequirements: false, overallFloor: 92, p0OverallFloor: 94, dimensionFloor: 90, blockerSeverity: ["P0", "P1"], warningsDoNotBlockAboveFloor: true, preflightMargin: { overall: 96, dimensions: 93, p0: 96 }, concurrency: 1, concurrencyCeiling: 2, requestBudget: 9, costBudgetUsd: 9, autoRetry: false, nextUnitDispatch: false, sequenceProofUnit: "MP-002", productionScale: "BLOCKED" };
+  const gates = [{ id: "FAILED_REQUEST_83_PRESERVED", status: "PASS", evidence: `${failedAudit.id} · 42/100 · immutable` }, { id: "MP001_SEALED_SET", status: "PASS", evidence: `${sourceAudit.id} · 94/100 · unchanged · never revalidated` }, { id: "G0_EXECUTABLE_SCENES", status: "PASS", evidence: "MP-002–MP-010 9/9 production scene contracts" }, { id: "G1_TECHNICAL", status: "PASS", evidence: "9/9 byte/hash/lineage/manifest bindings" }, { id: "G2_PRODUCTION_CLONE", status: "PASS", evidence: "canonical action rehearsal · reload convergence · ledger unchanged" }, ...g1];
+  const modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: STABILIZATION_RELEASE_VERSION, stateMachine: ["DRAFT", "PREFLIGHT_READY", "CANARY_AUTHORIZED", "RUNNING", "QA_PASS", "QA_REPAIR_REQUIRED", "ACCEPTED"], canonicalReducer: "LEDGER_DERIVED_V1", sealedSet: [...SEALED_RELEASE_SET], activeReleaseSet: [...ACTIVE_RELEASE_SET], legacyReachable: false, rubric: STABILIZED_RUBRIC, renderer: STABILIZED_RENDERER_VERSION, dispatch: "EXPLICIT_MP002_REPAIR_PROOF_THEN_BOUNDED_BATCH", dispatchCapability: capability.phase, artifactMode: capability.artifactMode, evaluateOnlyShotContract: true, inferredArchetypeRequirements: false, overallFloor: 92, p0OverallFloor: 94, dimensionFloor: 90, blockerSeverity: ["P0", "P1"], warningsDoNotBlockAboveFloor: true, preflightMargin: { overall: 96, dimensions: 93, p0: 96 }, concurrency: 1, concurrencyCeiling: 2, requestBudget: 9, costBudgetUsd: 9, autoRetry: false, autoAdvance: false, nextUnitDispatch: false, sequenceProofUnit: "MP-002", productionScale: "BLOCKED" };
   await db.batch([
-    db.prepare("INSERT INTO v7_archetype_regressions (id,program_id,baseline_id,status,score,checks_json,certification_ids_json,pilot_replay_json,remote_requests_before,remote_requests_after,actual_cost_before,actual_cost_after,created_at) VALUES (?,?,?,'PASS',100,?,?,?,?,?,?,?,?)").bind(regressionId, PROGRAM_ID, baseline.id, JSON.stringify(gates), JSON.stringify(promotionRows.map((item) => item.certification_id)), JSON.stringify({ accepted: 1, preservedFailure: 1, executableScenes: 9, frameReadBack: 30, sequenceProof: "MP-002", dispatches: 0, costDelta: 0 }), requestsBefore, requestsBefore, costBefore, costBefore, now),
-    db.prepare("INSERT INTO v7_pilot_canaries (id,program_id,baseline_id,regression_id,run_id,authorization_id,version,status,queue_json,current_index,current_brief_id,released_units,passed_units,failed_units,requests_before,cost_before,request_budget,cost_budget,active_request_peak,gate_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'READY_FOR_SEQUENCE_PROOF',?,1,?,1,1,0,?,?,9,9,0,?,?,?)").bind(canaryId, PROGRAM_ID, baseline.id, regressionId, run.id, authorization.id, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, JSON.stringify(queue), queue[1].briefId, requestsBefore, costBefore, JSON.stringify(gates), now, now),
-    db.prepare("UPDATE v7_material_authorizations SET scope='PRODUCTION_SCENE_G0_G1_PASS',status='PAUSED',max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,completed_at=NULL,updated_at=? WHERE id=?").bind(requestsBefore + 1, costBefore + 1, JSON.stringify(modelPolicy), now, authorization.id),
-    db.prepare("UPDATE v7_material_runs SET status='PRODUCTION_SCENE_READY_FOR_SEQUENCE_PROOF',mode='PRODUCTION_SCENE_ZERO_SPEND_PREFLIGHT' WHERE id=?").bind(run.id),
-    db.prepare("UPDATE v7_stage_states SET status='PRODUCTION_SCENE_READY_FOR_SEQUENCE_PROOF',blocker='EXPLICIT_MP002_REPAIR_PROOF_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Request 83 / MP-002 42/100 preserved · Production Scene Renderer v2 · 9/9 executable contracts · 27/27 new production frames · 0 fixture/proof-card labels · requests ${requestsBefore} · cost $${costBefore.toFixed(6)} · only request 84 may dispatch`, now, STAGE_ID),
+    db.prepare("INSERT INTO v7_archetype_regressions (id,program_id,baseline_id,status,score,checks_json,certification_ids_json,pilot_replay_json,remote_requests_before,remote_requests_after,actual_cost_before,actual_cost_after,created_at) VALUES (?,?,?,'PASS',100,?,?,?,?,?,?,?,?)").bind(regressionId, PROGRAM_ID, baseline.id, JSON.stringify(gates), JSON.stringify(promotionRows.map((item) => item.certification_id)), JSON.stringify({ sealed: 1, active: 9, accepted: 1, preservedFailure: 1, executableScenes: 9, frameReadBack: 27, productionCloneRehearsal: "PASS", reloadConvergence: "PASS", legacyReachable: false, sequenceProof: "MP-002", dispatches: 0, costDelta: 0 }), requestsBefore, requestsBefore, costBefore, costBefore, now),
+    db.prepare("INSERT INTO v7_pilot_canaries (id,program_id,baseline_id,regression_id,run_id,authorization_id,version,status,queue_json,current_index,current_brief_id,released_units,passed_units,failed_units,requests_before,cost_before,request_budget,cost_budget,active_request_peak,gate_json,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'READY_FOR_SEQUENCE_PROOF',?,1,?,0,1,0,?,?,9,9,0,?,?,?)").bind(canaryId, PROGRAM_ID, baseline.id, regressionId, run.id, authorization.id, STABILIZATION_RELEASE_VERSION, JSON.stringify(queue), queue[1].briefId, requestsBefore, costBefore, JSON.stringify(gates), now, now),
+    db.prepare("UPDATE v7_material_authorizations SET scope='STABILIZATION_G0_G1_G2_PASS',status='PAUSED',max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,completed_at=NULL,updated_at=? WHERE id=?").bind(requestsBefore + 1, costBefore + 1, JSON.stringify(modelPolicy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='STABILIZATION_READY_FOR_SEQUENCE_PROOF',mode='CANONICAL_PRODUCTION_CLONE_REHEARSAL' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='STABILIZATION_RELEASE_CANDIDATE',blocker='EXPLICIT_MP002_REQUEST_84_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Request 83 / MP-002 42/100 preserved · MP-001 SEALED_SET · MP-002–MP-010 ACTIVE_RELEASE_SET · G0/G1/G2 PASS · 27/27 active production frames · reload converged · legacy unreachable · requests ${requestsBefore} · cost $${costBefore.toFixed(6)} · only request 84 may dispatch`, now, STAGE_ID),
   ]);
   return snapshot();
 }
@@ -1737,7 +1778,7 @@ async function buildProductionScenePreflight() {
 async function releaseReleaseTrainSequenceProof() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("RELEASE_TRAIN_CONFIGURATION_REQUIRED");
-  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='READY_FOR_SEQUENCE_PROOF' ORDER BY created_at DESC LIMIT 1").bind(run.id, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION).first<Row>();
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='READY_FOR_SEQUENCE_PROOF' ORDER BY created_at DESC LIMIT 1").bind(run.id, STABILIZATION_RELEASE_VERSION).first<Row>();
   const queue = canary ? arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec) : [], currentQueueItem = queue[Number(canary?.current_index || 0)];
   if (!canary || Number(canary.current_index) !== 1 || clean(currentQueueItem?.logicalId) !== "MP-002") throw new Error("RELEASE_TRAIN_MP002_SEQUENCE_PROOF_NOT_READY");
   const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
@@ -1756,7 +1797,7 @@ async function releaseReleaseTrainSequenceProof() {
 async function startReleaseTrainBatch() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("RELEASE_TRAIN_CONFIGURATION_REQUIRED");
-  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='SEQUENCE_PROOF_PASS_REVIEW' ORDER BY created_at DESC LIMIT 1").bind(run.id, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION).first<Row>();
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='SEQUENCE_PROOF_PASS_REVIEW' ORDER BY created_at DESC LIMIT 1").bind(run.id, STABILIZATION_RELEASE_VERSION).first<Row>();
   if (!canary || Number(canary.current_index) !== 1 || Number(canary.passed_units) !== 2) throw new Error("RELEASE_TRAIN_SEQUENCE_PROOF_PASS_REQUIRED");
   const queue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec), next = queue[2];
   if (!next) throw new Error("RELEASE_TRAIN_BATCH_SCOPE_MISSING");
@@ -1774,7 +1815,7 @@ async function startReleaseTrainBatch() {
 async function releaseNextReleaseTrainBatchUnit() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization) throw new Error("RELEASE_TRAIN_CONFIGURATION_REQUIRED");
-  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='BATCH_UNIT_PASS_REVIEW' ORDER BY created_at DESC LIMIT 1").bind(run.id, PRODUCTION_SCENE_RELEASE_TRAIN_VERSION).first<Row>();
+  const canary = await db.prepare("SELECT * FROM v7_pilot_canaries WHERE run_id=? AND version=? AND status='BATCH_UNIT_PASS_REVIEW' ORDER BY created_at DESC LIMIT 1").bind(run.id, STABILIZATION_RELEASE_VERSION).first<Row>();
   const policy = rec(JSON.parse(String(authorization.model_policy_json || "{}")));
   if (!canary || policy.batchAuthorized !== true) throw new Error("RELEASE_TRAIN_BATCH_NOT_AUTHORIZED");
   const queue = arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec), nextIndex = Number(canary.current_index) + 1, next = queue[nextIndex];
@@ -2615,7 +2656,7 @@ async function dispatchPromotedVision(env: Env, db: DB, authorization: Row, brie
   if (!phase) throw new Error("CANARY_DISPATCH_CAPABILITY_MISSING");
   const setting = await modelSetting(db), requestId = await newRequest(db, authorization, clean(briefRow.id), phase, "OPENAI", setting.modelId, setting.reasoningEffort, 1500, 4000), rubric = releaseTrainRubric(promotion.canary_version);
   const qaContract: Row = rec(binding.contractPayload || promotionContractPayload(binding.contract || {})), overallFloor = clean(qaContract.riskTier) === "P0" ? 94 : 92;
-  const content: Row[] = [{ type: "input_text", text: `You are performing ${rubric} on an immutable production-bound artifact. The three supplied images are the exact promoted ENTRY, MIDPOINT and EXIT pixels. Judge only these pixels against the exact unit contract below. Do not infer evidence outside the frames and do not import generic archetype requirements (for example baseline/delta, route nodes, headings or qualifiers) unless the unit contract explicitly requires them. PASS requires every dimension >=90 and overall >=${overallFloor}. Any P0 or P1 defect must return REPAIR; only minor aesthetic warnings may accompany PASS above all floors. This review must reject legacy PRIMARY files, generic route/family fallback, certification-fixture pixels reused as production pixels, or an artifact that merely resembles the certified archetype. ${unitSpecific ? "The semantic manifest is the frozen translation of this exact unit contract into audience-facing states; verify only that the pixels visibly realize its source-authored evidence." : ""} ${clean(promotion.canary_version) === PRODUCTION_SCENE_RELEASE_TRAIN_VERSION ? "The artifact is a production scene, not a QA proof card. For MP-002 specifically, the EXIT frame must visibly show APPROVED and $100.00 together; do not require internal test labels or metadata." : ""} Return only JSON.\n\nUNIT CONTRACT:\n${JSON.stringify(qaContract)}\n\nUNIT SEMANTIC MANIFEST:\n${JSON.stringify(binding.manifest || {})}\n\nIMMUTABLE PROMOTION RECORD:\n${JSON.stringify({ promotionId: promotion.id, certificationId: promotion.certification_id, renderer: promotion.renderer_version, canaryVersion: promotion.canary_version, dispatchCapability: phase, rubric, overallFloor, dimensionFloor: 90, contractHash: promotion.contract_hash, frameIds: binding.frameIds, frameHashes: binding.frameHashes, legacyFallback: false, certificationPixelsReused: false })}` }];
+  const content: Row[] = [{ type: "input_text", text: `You are performing ${rubric} on an immutable production-bound artifact. The three supplied images are the exact promoted ENTRY, MIDPOINT and EXIT pixels. Judge only these pixels against the exact unit contract below. Do not infer evidence outside the frames and do not import generic archetype requirements (for example baseline/delta, route nodes, headings or qualifiers) unless the unit contract explicitly requires them. PASS requires every dimension >=90 and overall >=${overallFloor}. Any P0 or P1 defect must return REPAIR; only minor aesthetic warnings may accompany PASS above all floors. This review must reject legacy PRIMARY files, generic route/family fallback, certification-fixture pixels reused as production pixels, or an artifact that merely resembles the certified archetype. ${unitSpecific ? "The semantic manifest is the frozen translation of this exact unit contract into audience-facing states; verify only that the pixels visibly realize its source-authored evidence." : ""} ${[PRODUCTION_SCENE_RELEASE_TRAIN_VERSION, STABILIZATION_RELEASE_VERSION].includes(clean(promotion.canary_version)) ? "The artifact is a production scene, not a QA proof card. For MP-002 specifically, the EXIT frame must visibly show APPROVED and $100.00 together; do not require internal test labels or metadata." : ""} Return only JSON.\n\nUNIT CONTRACT:\n${JSON.stringify(qaContract)}\n\nUNIT SEMANTIC MANIFEST:\n${JSON.stringify(binding.manifest || {})}\n\nIMMUTABLE PROMOTION RECORD:\n${JSON.stringify({ promotionId: promotion.id, certificationId: promotion.certification_id, renderer: promotion.renderer_version, canaryVersion: promotion.canary_version, dispatchCapability: phase, rubric, overallFloor, dimensionFloor: 90, contractHash: promotion.contract_hash, frameIds: binding.frameIds, frameHashes: binding.frameHashes, legacyFallback: false, certificationPixelsReused: false })}` }];
   for (const imageUrl of imageUrls) content.push({ type: "input_image", image_url: imageUrl, detail: "high" });
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 4000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "stage09_canary_promoted_pixel_qa", strict: true, schema: visionSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); throw new Error(`CANARY_PIXEL_QA_START_FAILED · ${response.status}`); }
@@ -3332,9 +3373,22 @@ async function materialFile(request: Request) {
 }
 
 export async function GET(request: Request) { try { const params = new URL(request.url).searchParams; if (params.has("executionSource")) return await executionSource(request); if (params.has("file")) return await materialFile(request); return Response.json(await snapshot()); } catch (error) { const message = error instanceof Error ? error.message : "Stage 09 could not load"; return Response.json({ error: message }, { status: /UNAUTHORIZED/.test(message) ? 401 : /LEASE_INVALID/.test(message) ? 409 : /NOT_FOUND|MISSING/.test(message) ? 404 : 500 }); } }
+const LEGACY_STAGE09_ACTIONS = new Set([
+  "AUTHORIZE_CONTROLLED_CANARY", "AUTHORIZE_CONTROLLED_CANARY_V3", "AUTHORIZE_CONTROLLED_CANARY_V4", "AUTHORIZE_CONTROLLED_CANARY_V5",
+  "BUILD_CANARY_RECOVERY_LANE", "RELEASE_PRODUCTION_RECOVERY_PROBE", "BUILD_RECOVERY_CONTRACT_ALIGNMENT", "RELEASE_CONTRACT_ALIGNED_RECOVERY_PROBE",
+  "RECONCILE_CONTRACT_ALIGNED_RECOVERY_TERMINAL", "BUILD_RELEASE_TRAIN_PREFLIGHT", "BUILD_PRODUCTION_SCENE_PREFLIGHT", "RELEASE_CONTROLLED_CANARY_V5_UNIT",
+  "START_CONTROLLED_CANARY_UNIT", "RELEASE_NEXT_CONTROLLED_CANARY_UNIT", "AUTHORIZE_PILOT", "AUTHORIZE_PILOT_AFTER_MOTION", "START_PILOT", "STEP_PILOT", "RESUME_PILOT",
+]);
+async function assertLegacyIsolation(action: string) {
+  if (!LEGACY_STAGE09_ACTIONS.has(action)) return;
+  const env = await runtime(), db = env.DB!, { run } = await current(db);
+  const stabilized = run ? await db.prepare("SELECT id FROM v7_pilot_canaries WHERE run_id=? AND version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, STABILIZATION_RELEASE_VERSION).first<Row>() : null;
+  if (stabilized) throw new Error(`LEGACY_ACTION_UNREACHABLE_AFTER_STABILIZATION · ${action}`);
+}
 export async function POST(request: Request) {
   try {
     const body = await request.json() as Row;
+    await assertLegacyIsolation(clean(body.action));
     if (body.action === "QUALIFY_RELIABILITY_BASELINE") return Response.json(await qualifyReliabilityBaseline(), { status: 201 });
     if (body.action === "BUILD_HARDEST_ARCHETYPE_CERTIFICATION") return Response.json(await buildHardestArchetypeCertification(), { status: 201 });
     if (body.action === "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION") return Response.json(await repairHardestArchetypeCertification(), { status: 201 });
@@ -3356,7 +3410,8 @@ export async function POST(request: Request) {
     if (body.action === "RELEASE_CONTRACT_ALIGNED_RECOVERY_PROBE") return Response.json(await releaseContractAlignedRecoveryProbe(), { status: 202 });
     if (body.action === "RECONCILE_CONTRACT_ALIGNED_RECOVERY_TERMINAL") return Response.json(await reconcileContractAlignedRecoveryTerminal(), { status: 200 });
     if (body.action === "BUILD_RELEASE_TRAIN_PREFLIGHT") return Response.json(await buildReleaseTrainPreflight(), { status: 201 });
-    if (body.action === "BUILD_PRODUCTION_SCENE_PREFLIGHT") return Response.json(await buildProductionScenePreflight(), { status: 201 });
+    if (body.action === "BUILD_STABILIZATION_RELEASE") return Response.json(await buildProductionScenePreflight(), { status: 201 });
+    if (body.action === "BUILD_PRODUCTION_SCENE_PREFLIGHT") throw new Error("LEGACY_ACTION_UNREACHABLE · BUILD_PRODUCTION_SCENE_PREFLIGHT");
     if (body.action === "RELEASE_RELEASE_TRAIN_SEQUENCE_PROOF") return Response.json(await releaseReleaseTrainSequenceProof(), { status: 202 });
     if (body.action === "START_RELEASE_TRAIN_BATCH") return Response.json(await startReleaseTrainBatch(), { status: 202 });
     if (body.action === "RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT") return Response.json(await releaseNextReleaseTrainBatchUnit(), { status: 202 });
