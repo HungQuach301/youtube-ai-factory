@@ -2561,10 +2561,8 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
   const baseline = await db.prepare("SELECT execution_state FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   let sequenceQaAuthorized = false;
   if (phase === "SEQUENCE_PROOF_QA" && briefId === "SEQUENCE-10MP") {
-    const [canary, proof] = await Promise.all([
-      db.prepare("SELECT id,status,passed_units,failed_units FROM v7_pilot_canaries WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>(),
-      db.prepare("SELECT canary_id,status,unit_count,frame_count FROM v7_sequence_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>(),
-    ]);
+    const proof = await db.prepare("SELECT canary_id,status,unit_count,frame_count FROM v7_sequence_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+    const canary = proof ? await db.prepare("SELECT id,status,passed_units,failed_units FROM v7_pilot_canaries WHERE id=? LIMIT 1").bind(proof.canary_id).first<Row>() : null;
     sequenceQaAuthorized = Boolean(canary && proof)
       && clean(canary?.status) === "PASS"
       && Number(canary?.passed_units) === 10

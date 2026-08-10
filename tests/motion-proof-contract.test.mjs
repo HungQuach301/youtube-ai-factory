@@ -478,6 +478,8 @@ test("10 sealed MP units compile into one immutable 30-second sequence gate", ()
   assert.match(route, /noFallback: true/);
   assert.match(route, /SEQUENCE_PROOF_QA/);
   assert.match(route, /phase === "SEQUENCE_PROOF_QA" && briefId === "SEQUENCE-10MP"/);
+  assert.match(route, /FROM v7_pilot_canaries WHERE id=\? LIMIT 1/);
+  assert.match(route, /bind\(proof\.canary_id\)/);
   assert.match(route, /clean\(canary\?\.status\) === "PASS"/);
   assert.match(route, /Number\(canary\?\.passed_units\) === 10/);
   assert.match(route, /clean\(proof\?\.status\) === "QA_REQUIRED"/);
