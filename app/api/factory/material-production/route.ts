@@ -21,8 +21,8 @@ const SEQUENCE_PRODUCT_AUDIT_RUBRIC = "SEQUENCE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const INTEGRATED_SEQUENCE_COMPOSER_VERSION = "INTEGRATED_SEQUENCE_COMPOSER_V2_1_TIMEBASE_SAFE";
 const SEQUENCE_SPECIFICATION_VERSION = "SEQUENCE_PRODUCT_SPECIFICATION_V2_1";
 const SEQUENCE_PRODUCTION_DOD_VERSION = "SEQUENCE_PRODUCT_DOD_V1";
-const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V6";
-const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V6_STATE_TRANSITION_BOUND";
+const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V7";
+const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V7_SPATIAL_RELATION_BOUND";
 const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const WAVE_BATCH_AUDIT_TRANSPORT_VERSION = "WAVE_AUDIT_TRANSPORT_V2_VERIFIED_JPEG_PROXY";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
@@ -4317,7 +4317,7 @@ function waveProductionContract(briefRow: Row) {
 }
 
 function waveProductionManifest(contract: Row) {
-  const manifest = productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V6_STATE_TRANSITION_BOUND");
+  const manifest = productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V7_SPATIAL_RELATION_BOUND");
   const viewerLabel = (value: unknown, fallback: string) => clean(value).toUpperCase().replace(/[^A-Z0-9$+\-.: ]/g, " ").replace(/\s+/g, " ").trim().slice(0, 24) || fallback;
   const corpus = `${clean(contract.claim)} ${arr(contract.requiredEvidence).map(clean).join(" ")}`.toUpperCase();
   const actors = ["CARDHOLDER", "MERCHANT", "PROCESSOR", "ACQUIRER", "NETWORK", "ISSUING BANK", "ISSUER"].filter((actor) => corpus.includes(actor));
@@ -4356,10 +4356,10 @@ function waveProductionManifest(contract: Row) {
     ...manifest,
     states,
     sceneType: `WAVE_${kind}`,
-    semanticModel: { version: "CONTRACT_SIGNATURE_SCENE_GRAPH_V4_STATE_BOUND", kind, actors: semanticActors, requiredElements, corpusHashInput: corpus, relationPolicy: "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE" },
+    semanticModel: { version: "CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND", kind, actors: semanticActors, requiredElements, corpusHashInput: corpus, relationPolicy: "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE" },
     batchVersion: WAVE_BATCH_1_VERSION,
     productionRoute: contract.productionRoute,
-    specificationCompiler: "STATE_TRANSITION_BOUND_COMPILER_V6",
+    specificationCompiler: "SPATIAL_RELATION_BOUND_COMPILER_V7",
     layoutPolicy: { ...rec(manifest.layoutPolicy), maximumViewerLabelGlyphs: 24, labelFitEnforcedAtCompileTime: true, reservedRegions: true, minimumLabelScale: 2, noGenericTemplateFallback: true },
   };
 }
@@ -4378,14 +4378,14 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
   const specialized=["PARTICIPANT_SEQUENCE","PARTICIPANT_INCIDENCE","DUAL_RECORD_FOCUS","IDENTIFIER_ISOLATION","ABSENCE_AUDIT","EVIDENCE_BARRIER","BOUNDED_INTERVAL"],stateLabels:Record<string,string[]>={PARTICIPANT_SEQUENCE:["BASE PARTICIPANTS","NETWORK REVEALED","ISSUER REVEALED"],PARTICIPANT_INCIDENCE:["REWARD GLOW","QUESTIONS MOVE OUT","ORIGIN UNRESOLVED"],DUAL_RECORD_FOCUS:["CARDHOLDER FOCUS","FOCUS TRANSFER","MERCHANT FOCUS"],IDENTIFIER_ISOLATION:["MERCHANT DOMINANT","PANELS ALIGN","IDENTIFIER ONLY"],ABSENCE_AUDIT:["MATCHED FACTS","ABSENCE LOCK","NO PATH"],EVIDENCE_BARRIER:["MATCHED FACTS","CONNECTOR STOPS","BARRIER HOLDS"],BOUNDED_INTERVAL:["PLACEHOLDER","INTERVAL OPENS","RANGE HOLDS"]};
   fill(0,0,width,height,theme[0]);fill(0,0,width,12,accent);fill(28,30,904,474,theme[1]);if(!specialized.includes(kind))for(let index=0;index<5;index++)fill(842+index*14,82-(signatureSeed>>index)%12,9,10+(signatureSeed>>(index+2))%18,index<=state?accent:"#5a655f");if(["DUAL_RECORD_FOCUS","IDENTIFIER_ISOLATION","ABSENCE_AUDIT","EVIDENCE_BARRIER"].includes(kind))text(safe(kind.replaceAll("_"," "),30),52,52,3,theme[2]);else center(kind.replaceAll("_"," "),480,52,3,theme[2],30);center(stateLabels[kind]?.[state]||["CONTEXT","MECHANISM","OUTCOME"][state],480,84,2,accent,24);
   if(kind==="PARTICIPANT_SEQUENCE"){
-    const names=[actors[0]||"MERCHANT",actors[1]||"PROCESSOR",actors[2]||"NETWORK",actors[3]||"ISSUING BANK"];
-    names.forEach((name,index)=>{const active=index<=state+1;labelBox(46+index*224,138,196,82,active?name:"AWAITING ID",active);});
-    labelBox(302,254,356,72,"$100 PURCHASE",true);labelBox(302,344,356,58,"REWARD ENTRY",true);
-    if(state>=1)line(144,230,816,230,6,"#72c8a3");if(state===2){center("INCIDENCE UNRESOLVED",480,430,3,"#e8b65d",24);center("?",816,342,5,"#e8b65d",1);}
+    const names=[actors[0]||"MERCHANT",actors[1]||"PROCESSOR",actors[2]||"NETWORK",actors[3]||"ISSUING BANK"],positions=[[70,146],[70,344],[694,146],[694,344]];
+    names.forEach((name,index)=>{const active=index<=state+1;labelBox(positions[index][0],positions[index][1],196,72,active?name:"AWAITING ID",active);if(active)for(let step=1;step<=3;step++){const sx=positions[index][0]+98,sy=positions[index][1]+36,ratio=step/4;circle(Math.round(sx+(480-sx)*ratio),Math.round(sy+(274-sy)*ratio),4,accent);}});
+    labelBox(328,220,304,76,"$100 PURCHASE",true);labelBox(354,314,252,54,"REWARD ENTRY",true);
+    if(state===2){center("INCIDENCE UNRESOLVED",480,418,3,"#e8b65d",24);center("?",816,322,5,"#e8b65d",1);}
   } else if(kind==="PARTICIPANT_INCIDENCE"){
     const names=[actors[0]||"MERCHANT",actors[1]||"PROCESSOR",actors[2]||"NETWORK",actors[3]||"ISSUING BANK"];
     const pos=[[108,160],[686,160],[108,342],[686,342]];names.forEach((name,index)=>labelBox(pos[index][0],pos[index][1],166,64,name,true));
-    circle(480,276,state===0?82:state===1?58:42,state===0?"#e8b65d":state===1?"#72c8a3":"#31594e");center("$100 PURCHASE",480,244,2,state===2?"#ffffff":"#173d35",18);center("REWARD ENTRY",480,284,2,state===2?"#ffffff":"#173d35",18);
+    circle(480,276,state===0?92:state===1?70:50,state===0?"#e8b65d":state===1?"#72c8a3":"#31594e");fill(330,236,300,86,"#eef5f1");fill(330,236,300,8,accent);center("$100 PURCHASE",480,255,2,"#173d35",18);center("REWARD ENTRY",480,291,2,"#173d35",18);
     if(state>=1)names.forEach((_,index)=>{const x=pos[index][0]+83,y=pos[index][1]+32;for(let step=1;step<=3;step++){const ratio=step/4;circle(Math.round(480+(x-480)*ratio),Math.round(276+(y-276)*ratio),5,"#72c8a3");}center("?",Math.round(480+(x-480)*0.62),Math.round(276+(y-276)*0.62)-8,2,"#e8b65d",1);});
     if(state===2)center("UNRESOLVED ORIGIN",480,430,3,"#e8b65d",22);
   } else if(kind==="DUAL_RECORD_FOCUS"){
@@ -4402,10 +4402,11 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
     fill(62,142,350,250,"#eef5f1");fill(548,142,350,250,"#eef5f1");for(const [x,title] of [[76,"CARDHOLDER RECORD"],[562,"MERCHANT RECORD"]] as const){fill(x,158,322,38,"#1b2b4a");center(title,x+161,169,2,"#ffffff",20);fill(x+12,210,298,38,"#ffffff");center("ID 7A3F",x+161,220,2,"#173d35",12);fill(x+12,262,298,38,"#ffffff");center("AMOUNT $100",x+161,272,2,"#173d35",16);fill(x+12,314,298,50,"#101b31");center(state===0?"BLANK ZONE":state===1?"ABSENCE LOCKED":"STILL BLANK",x+161,328,2,"#d7eee5",18);}
     if(state===2){line(412,270,548,270,5,"#8fa69d");line(452,236,508,304,8,"#e8b65d");line(508,236,452,304,8,"#e8b65d");center("NO FEE TO REWARD PATH",480,426,2,"#e8b65d",26);}else center("EXPLANATORY ZONES ABSENT",480,426,2,"#d7eee5",28);
   } else if(kind==="EVIDENCE_BARRIER"){
-    fill(62,142,350,250,"#fff6df");fill(548,142,350,250,"#fff6df");for(const [x,title] of [[76,"RECORD LEFT"],[562,"RECORD RIGHT"]] as const){fill(x,158,322,38,"#464035");center(title,x+161,169,2,"#ffffff",16);fill(x+12,214,298,48,"#ffffff");center("SHARED ID 7A3F",x+161,229,2,"#173d35",18);fill(x+12,286,298,48,"#ffffff");center("SHARED AMOUNT $100",x+161,301,2,"#173d35",22);}
-    if(state>=1){line(412,270,454,270,6,"#72c8a3");circle(454,270,9,"#72c8a3");fill(466,184,28,204,"#e8b65d");fill(374,404,212,34,"#29261f");center("PROPOSED FEE TO REWARD",480,414,2,"#fff6df",26);}if(state===2){line(506,236,548,304,7,"#8fa69d");line(548,236,506,304,7,"#8fa69d");fill(376,442,208,34,"#29261f");center("NO CAUSAL LINK",480,452,2,"#e8b65d",18);}
+    fill(58,138,340,118,"#fff6df");fill(562,322,340,118,"#fff6df");fill(72,152,312,32,"#464035");fill(576,336,312,32,"#464035");center("RECORD LEFT",228,160,2,"#ffffff",16);center("RECORD RIGHT",732,344,2,"#ffffff",16);center("SHARED ID 7A3F",228,198,2,"#173d35",18);center("SHARED AMOUNT $100",228,226,2,"#173d35",22);center("SHARED ID 7A3F",732,382,2,"#173d35",18);center("SHARED AMOUNT $100",732,410,2,"#173d35",22);
+    const unsupportedColor=state===2?"#34443f":"#eef5f1",unsupportedText=state===2?"UNSUPPORTED DIMMED":"UNSUPPORTED FIELD";fill(92,292,246,44,unsupportedColor);fill(622,218,246,44,unsupportedColor);center(unsupportedText,215,304,2,state===2?"#8fa69d":"#173d35",22);center(unsupportedText,745,230,2,state===2?"#8fa69d":"#173d35",22);
+    if(state>=1){line(398,222,452,258,6,"#72c8a3");circle(452,258,9,"#72c8a3");line(474,170,516,404,18,"#e8b65d");fill(342,454,276,34,"#29261f");center("PROPOSED FEE TO REWARD",480,464,2,"#fff6df",26);}if(state===2){line(520,248,562,330,7,"#8fa69d");line(562,248,520,330,7,"#8fa69d");center("NO CAUSAL LINK",480,116,2,"#e8b65d",18);}
   } else if(kind==="BOUNDED_INTERVAL"){
-    labelBox(52,154,236,220,"BLANK $100 PURCHASE CARD",true);fill(318,146,34,244,"#e8b65d");center("WARNING",335,402,2,"#e8b65d",10);
+    labelBox(52,154,236,220,"BLANK $100 PURCHASE CARD",true);fill(310,138,54,270,"#e8b65d");for(let rail=0;rail<7;rail++)fill(318,150+rail*34,38,12,rail%2?"#593823":"#fff0df");fill(232,420,210,38,"#342014");center("WARNING RAIL",337,431,2,"#fff0df",16);
     const intervalW=[180,330,500][state];fill(392,206,intervalW,112,"#eef5f1");center(state===0?"FEE PLACEHOLDER":"BOUNDED INTERVAL",392+intervalW/2,238,2,"#173d35",20);line(412,292,372+intervalW,292,5,"#72c8a3");line(412,276,412,308,5,"#72c8a3");line(372+intervalW,276,372+intervalW,308,5,"#72c8a3");
     fill(392,350,500,42,"#061b18");center("ILLUSTRATIVE RANGE",642,362,2,"#d7eee5",22);if(state===2)center("NOT A POINT ESTIMATE",642,420,2,"#e8b65d",24);
   } else if(kind==="PROCESS_FLOW"){
@@ -4422,24 +4423,24 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
 function waveProductOracle(manifest: Row) {
   const frames=([0,1,2] as const).map((state)=>renderWaveSemanticScene(manifest,state)),states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean);
   const checks=[
-    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V4_STATE_BOUND"&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
+    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND"&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
     {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL",evidence:"three states preserve full source clauses"},
     {id:"MOBILE_TEXT_FIT",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL",evidence:"reserved regions and two-pixel minimum glyph scale"},
     {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&clean(semantic.kind)!==""?"PASS":"FAIL",evidence:clean(semantic.kind)},
     {id:"NO_INTERNAL_IDS",status:states.every((item)=>!`${clean(item.sceneLabel)} ${clean(item.primary)} ${clean(item.secondary)}`.includes(clean(manifest.logicalId)))?"PASS":"FAIL",evidence:"audience labels exclude logical IDs"},
     {id:"TEMPORAL_DELTA",status:new Set(frames.map((frame)=>base64(frame.bytes).slice(-180))).size===3?"PASS":"FAIL",evidence:"semantic state pixels differ"},
   ];
-  return{version:"WAVE_STATE_TRANSITION_PRODUCT_ORACLE_V6",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
+  return{version:"WAVE_SPATIAL_RELATION_PRODUCT_ORACLE_V7",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
 }
 
 function waveManifestQualification(manifest: Row) {
   const states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean),checks=[
-    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V4_STATE_BOUND"&&required.length>=3?"PASS":"FAIL"},
+    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND"&&required.length>=3?"PASS":"FAIL"},
     {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL"},
     {id:"RESERVED_LAYOUT_REGIONS",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL"},
     {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&Boolean(clean(semantic.kind))?"PASS":"FAIL"},
   ];
-  return { version:"WAVE_MANIFEST_QUALIFICATION_V6", checks, passed:checks.every((item)=>item.status==="PASS"), signatureInput:{ kind:semantic.kind, actors:semantic.actors, requiredElements:required, corpusHashInput:semantic.corpusHashInput, states:states.map((item)=>({role:item.role,sourceEvidence:item.sourceEvidence})), layoutPolicy:manifest.layoutPolicy } };
+  return { version:"WAVE_MANIFEST_QUALIFICATION_V7", checks, passed:checks.every((item)=>item.status==="PASS"), signatureInput:{ kind:semantic.kind, actors:semantic.actors, requiredElements:required, corpusHashInput:semantic.corpusHashInput, states:states.map((item)=>({role:item.role,sourceEvidence:item.sourceEvidence})), layoutPolicy:manifest.layoutPolicy } };
 }
 
 function selectBatchAuditSample(scope: Row[]) {
@@ -4521,7 +4522,7 @@ async function produceNextWaveBatch1Shot() {
   const specification = { version: "SHOT_PRODUCT_SPECIFICATION_V1", batchVersion: WAVE_BATCH_1_VERSION, engineVersion: WAVE_PRODUCTION_ENGINE_VERSION, contract, manifest }, specificationJson = JSON.stringify(specification), specificationHash = await sha(specificationJson), frameIds: string[] = [], frameHashes: string[] = [];
   const superseded = await db.prepare("SELECT id FROM v7_shot_products WHERE batch_id=? AND brief_id=? AND engine_version<>? ORDER BY created_at DESC LIMIT 1").bind(batch.id, briefRow.id, WAVE_PRODUCTION_ENGINE_VERSION).first<Row>();
   for (const [role, frame] of [["CERT_ENTRY", oracle.frames[0]], ["CERT_MIDPOINT", oracle.frames[1]], ["CERT_EXIT", oracle.frames[2]]] as const) {
-    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH1-${clean(contract.briefId)}-${role}-E6`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: WAVE_PRODUCTION_ENGINE_VERSION, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: "wave-09-batch-1-engine-v6", archiveFolder: "Wave 09 Batch 1 Engine V6" });
+    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH1-${clean(contract.briefId)}-${role}-E7`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: WAVE_PRODUCTION_ENGINE_VERSION, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: "wave-09-batch-1-engine-v7", archiveFolder: "Wave 09 Batch 1 Engine V7" });
     const stored = await db.prepare("SELECT content_hash,status FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
     if (!stored || clean(stored.status) !== "STORED_VERIFIED") throw new Error(`BATCH_1_FRAME_READ_BACK_FAILED · ${clean(contract.briefId)} · ${role}`);
     frameIds.push(fileId); frameHashes.push(clean(stored.content_hash));
@@ -4593,7 +4594,7 @@ async function adoptWaveBatch1SemanticEngineRootCorrection() {
     db.prepare("UPDATE v7_batch_product_audits SET status='ENGINE_ROOT_CAUSE_PRESERVED',updated_at=? WHERE id=?").bind(now, audit.id),
     db.prepare("UPDATE v7_production_batches SET version=?,engine_version=?,status='PRODUCING',specification_hash=?,completed_units=0,blocked_units=0,current_index=0,root_cause_policy_json=?,request_budget=request_budget+1,completed_at=NULL,updated_at=? WHERE id=?").bind(WAVE_BATCH_1_VERSION, WAVE_PRODUCTION_ENGINE_VERSION, specificationHash, JSON.stringify(rootCausePolicy), now, batch.id),
     db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',max_remote_requests=max_remote_requests+1,model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(modelPolicy), now, authorization.id),
-    db.prepare("UPDATE v7_material_runs SET status='BATCH_1_REPRODUCING',mode='STATE_TRANSITION_BOUND_ENGINE_V6' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_material_runs SET status='BATCH_1_REPRODUCING',mode='SPATIAL_RELATION_BOUND_ENGINE_V7' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='BATCH_1_REPRODUCING',blocker='ENGINE_V3_PRODUCT_COMPLETION',evidence_summary=?,updated_at=? WHERE id=?").bind(`V2 audit ${Number(audit.score)}/100 preserved · 26 V2 products retained as rejected-engine evidence · semantic scene-graph V3 qualified 26/26 across ${kinds.size} scene kinds · reproducing all 26 · no output repair`, now, STAGE_ID),
   ]);
   return snapshot();
