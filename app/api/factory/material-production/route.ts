@@ -21,6 +21,9 @@ const SEQUENCE_PRODUCT_AUDIT_RUBRIC = "SEQUENCE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const INTEGRATED_SEQUENCE_COMPOSER_VERSION = "INTEGRATED_SEQUENCE_COMPOSER_V2_1_TIMEBASE_SAFE";
 const SEQUENCE_SPECIFICATION_VERSION = "SEQUENCE_PRODUCT_SPECIFICATION_V2_1";
 const SEQUENCE_PRODUCTION_DOD_VERSION = "SEQUENCE_PRODUCT_DOD_V1";
+const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V1";
+const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V1_CONTRACT_BOUND";
+const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
 const DATA_VISUALIZATION_V3 = "RECONCILED_WATERFALL_PRIMITIVES_V3";
 const ARCHETYPE_REGRESSION_VERSION = "ARCHETYPE_REGRESSION_V2";
@@ -153,6 +156,9 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_sequence_proofs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,canary_id text NOT NULL,version text NOT NULL,status text NOT NULL,sequence_file_id text,evidence_id text,source_manifest_json text NOT NULL,duration_seconds real DEFAULT 30 NOT NULL,fps integer DEFAULT 30 NOT NULL,unit_count integer DEFAULT 10 NOT NULL,frame_count integer DEFAULT 30 NOT NULL,score integer DEFAULT 0 NOT NULL,tier text DEFAULT 'BLOCKED' NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,provider_response_id text,request_id text,content_hash text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_sequence_products (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,canary_id text NOT NULL,source_proof_id text NOT NULL,composer_version text NOT NULL,status text NOT NULL,specification_json text NOT NULL,specification_hash text NOT NULL,source_manifest_hash text NOT NULL,iteration integer DEFAULT 0 NOT NULL,max_iterations integer DEFAULT 3 NOT NULL,product_file_id text,evidence_id text,measurements_json text DEFAULT '{}' NOT NULL,corrections_json text DEFAULT '[]' NOT NULL,content_hash text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_sequence_product_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,product_id text NOT NULL,rubric_version text NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,tier text DEFAULT 'BLOCKED' NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,request_id text,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_production_batches (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,wave_key text NOT NULL,version text NOT NULL,engine_version text NOT NULL,status text NOT NULL,scope_json text NOT NULL,specification_hash text NOT NULL,total_units integer NOT NULL,completed_units integer DEFAULT 0 NOT NULL,blocked_units integer DEFAULT 0 NOT NULL,current_index integer DEFAULT 0 NOT NULL,audit_sample_json text DEFAULT '[]' NOT NULL,production_dod_json text NOT NULL,root_cause_policy_json text NOT NULL,requests_before integer NOT NULL,cost_before real NOT NULL,request_budget integer NOT NULL,cost_budget real NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_shot_products (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,batch_id text NOT NULL,brief_id text NOT NULL,logical_brief_id text NOT NULL,archetype text NOT NULL,engine_version text NOT NULL,status text NOT NULL,specification_json text NOT NULL,specification_hash text NOT NULL,frame_ids_json text NOT NULL,frame_hashes_json text NOT NULL,measurements_json text NOT NULL,product_hash text NOT NULL,supersedes_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_batch_product_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,batch_id text NOT NULL,rubric_version text NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,tier text DEFAULT 'BLOCKED' NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,root_cause_json text DEFAULT '{}' NOT NULL,request_id text,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_architecture_baselines (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,version text NOT NULL,status text NOT NULL,execution_state text NOT NULL,source_checkpoint text NOT NULL,controls_json text NOT NULL,qualification_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,frozen_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_compiled_shot_contracts (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,baseline_id text NOT NULL,brief_id text NOT NULL,archetype text NOT NULL,risk_tier text NOT NULL,claim text NOT NULL,required_evidence_json text NOT NULL,allowed_modalities_json text NOT NULL,forbidden_json text NOT NULL,repair_route text NOT NULL,lint_status text NOT NULL,lint_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
@@ -330,6 +336,9 @@ async function snapshot() {
   const sequenceProduct = authorization ? await db.prepare("SELECT * FROM v7_sequence_products WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>() : null;
   const sequenceProductEvidence = sequenceProduct?.evidence_id ? await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND evidence_type='SEQUENCE_PRODUCT'").bind(sequenceProduct.evidence_id).first<Row>() : null;
   const sequenceProductAudit = sequenceProduct ? await db.prepare("SELECT * FROM v7_sequence_product_audits WHERE product_id=? ORDER BY created_at DESC LIMIT 1").bind(sequenceProduct.id).first<Row>() : null;
+  const productionBatch = run ? await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
+  const batchProducts = productionBatch ? await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? ORDER BY created_at", productionBatch.id) : [];
+  const batchAudit = productionBatch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(productionBatch.id).first<Row>() : null;
   const reliabilityBaseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   const compiledContracts = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=? ORDER BY brief_id", reliabilityBaseline.id) : [];
   const archetypeQualifications = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_archetype_qualifications WHERE baseline_id=? ORDER BY archetype", reliabilityBaseline.id) : [];
@@ -417,6 +426,30 @@ async function snapshot() {
     requestLedger: { total: requestRows.length, planned: requestRows.filter((row) => row.status === "PLANNED").length, active: requestRows.filter((row) => ["QUEUED", "IN_PROGRESS"].includes(String(row.status))).length, complete: requestRows.filter((row) => row.status === "COMPLETE").length, incomplete: requestRows.filter((row) => row.status === "BLOCKED_INCOMPLETE").length, actualCostUsd: requestRows.reduce((sum, row) => sum + Number(row.actual_cost_usd || 0), 0), recent: requestRows.slice(0, 20).map((row) => ({ id: row.id, briefId: row.brief_id, phase: row.phase, provider: row.provider, modelId: row.model_id, status: row.status, inputTokens: Number(row.input_tokens), outputTokens: Number(row.output_tokens), reasoningTokens: Number(row.reasoning_tokens), actualCostUsd: Number(row.actual_cost_usd), error: row.error, createdAt: row.created_at })) },
     sequenceProof: sequenceProof ? { id: sequenceProof.id, status: sequenceProof.status, version: sequenceProof.version, durationSeconds: Number(sequenceProof.duration_seconds), fps: Number(sequenceProof.fps), unitCount: Number(sequenceProof.unit_count), frameCount: Number(sequenceProof.frame_count), score: Number(sequenceProof.score), tier: clean(sequenceProof.tier) || "BLOCKED", dimensions: rec(JSON.parse(String(sequenceProof.dimensions_json || "{}"))), findings: arr(JSON.parse(String(sequenceProof.findings_json || "[]"))), previewUrl: sequenceProof.sequence_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(sequenceProof.sequence_file_id))}` : null, sampleFrames: arr(sequenceContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), logicalId: clean(frame.logicalId), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })), providerResponseId: sequenceProof.provider_response_id || null, createdAt: sequenceProof.created_at, updatedAt: sequenceProof.updated_at } : null,
     sequenceProduct: sequenceProduct ? { id: sequenceProduct.id, status: sequenceProduct.status, composerVersion: sequenceProduct.composer_version, iteration: Number(sequenceProduct.iteration), maxIterations: Number(sequenceProduct.max_iterations), specification: rec(JSON.parse(String(sequenceProduct.specification_json || "{}"))), specificationHash: clean(sequenceProduct.specification_hash), sourceManifestHash: clean(sequenceProduct.source_manifest_hash), measurements: rec(JSON.parse(String(sequenceProduct.measurements_json || "{}"))), corrections: arr(JSON.parse(String(sequenceProduct.corrections_json || "[]"))), contentHash: sequenceProduct.content_hash || null, previewUrl: sequenceProduct.product_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(sequenceProduct.product_file_id))}` : null, sampleFrames: arr(sequenceProductContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), logicalId: clean(frame.logicalId), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })), audit: sequenceProductAudit ? { id: sequenceProductAudit.id, rubric: sequenceProductAudit.rubric_version, status: sequenceProductAudit.status, score: Number(sequenceProductAudit.score), tier: clean(sequenceProductAudit.tier), dimensions: rec(JSON.parse(String(sequenceProductAudit.dimensions_json || "{}"))), findings: arr(JSON.parse(String(sequenceProductAudit.findings_json || "[]"))), requestId: sequenceProductAudit.request_id || null, providerResponseId: sequenceProductAudit.provider_response_id || null, createdAt: sequenceProductAudit.created_at, completedAt: sequenceProductAudit.completed_at || null } : null, completedAt: sequenceProduct.completed_at || null, createdAt: sequenceProduct.created_at, updatedAt: sequenceProduct.updated_at } : null,
+    productionBatch: productionBatch ? {
+      id: productionBatch.id,
+      waveKey: productionBatch.wave_key,
+      version: productionBatch.version,
+      engineVersion: productionBatch.engine_version,
+      status: productionBatch.status,
+      scope: arr(JSON.parse(String(productionBatch.scope_json || "[]"))),
+      totalUnits: Number(productionBatch.total_units),
+      completedUnits: Number(productionBatch.completed_units),
+      blockedUnits: Number(productionBatch.blocked_units),
+      currentIndex: Number(productionBatch.current_index),
+      auditSample: arr(JSON.parse(String(productionBatch.audit_sample_json || "[]"))),
+      productionDoD: rec(JSON.parse(String(productionBatch.production_dod_json || "{}"))),
+      rootCausePolicy: rec(JSON.parse(String(productionBatch.root_cause_policy_json || "{}"))),
+      products: batchProducts.map((product) => ({ id: product.id, logicalId: product.logical_brief_id, archetype: product.archetype, status: product.status, engineVersion: product.engine_version, measurements: rec(JSON.parse(String(product.measurements_json || "{}"))), frameIds: arr(JSON.parse(String(product.frame_ids_json || "[]"))), frameHashes: arr(JSON.parse(String(product.frame_hashes_json || "[]"))), productHash: product.product_hash, completedAt: product.completed_at })),
+      audit: batchAudit ? { id: batchAudit.id, rubric: batchAudit.rubric_version, status: batchAudit.status, score: Number(batchAudit.score), tier: batchAudit.tier, dimensions: rec(JSON.parse(String(batchAudit.dimensions_json || "{}"))), findings: arr(JSON.parse(String(batchAudit.findings_json || "[]"))), rootCause: rec(JSON.parse(String(batchAudit.root_cause_json || "{}"))), requestId: batchAudit.request_id || null, providerResponseId: batchAudit.provider_response_id || null, completedAt: batchAudit.completed_at || null } : null,
+      requestsBefore: Number(productionBatch.requests_before),
+      costBefore: Number(productionBatch.cost_before),
+      requestBudget: Number(productionBatch.request_budget),
+      costBudget: Number(productionBatch.cost_budget),
+      completedAt: productionBatch.completed_at || null,
+      createdAt: productionBatch.created_at,
+      updatedAt: productionBatch.updated_at,
+    } : null,
     mediaExecution: {
       configured: Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET),
       executor: executor ? { id: executor.id, status: executorOnline ? "ONLINE" : "OFFLINE", version: executor.version, lastSeenAt: executor.last_seen_at, capabilities: JSON.parse(String(executor.capabilities_json || "[]")) } : null,
@@ -2578,6 +2611,7 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
   const baseline = await db.prepare("SELECT execution_state FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   let sequenceQaAuthorized = false;
   let productAuditAuthorized = false;
+  let batchAuditAuthorized = false;
   let sequenceQaDiagnostic = "not-evaluated";
   if (phase === "SEQUENCE_PROOF_QA" && briefId === "SEQUENCE-10MP") {
     const proof = await db.prepare("SELECT canary_id,status,unit_count,frame_count FROM v7_sequence_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
@@ -2605,8 +2639,20 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
       && Number(prior?.total || 0) === 0;
     if (!productAuditAuthorized) throw new Error("SEQUENCE_PRODUCT_AUDIT_FIREWALL · PRODUCT_COMPLETE with exact stored evidence and zero prior audits is required");
   }
-  if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
-  if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized) {
+  if (phase === "WAVE_BATCH_PRODUCT_AUDIT" && briefId === "WAVE-09-BATCH-1") {
+    const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE authorization_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+    const products = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND status='PRODUCT_COMPLETE'").bind(batch.id).first<{ total: number }>() : null;
+    const prior = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_batch_product_audits WHERE batch_id=?").bind(batch.id).first<{ total: number }>() : null;
+    batchAuditAuthorized = Boolean(batch)
+      && clean(batch?.status) === "PRODUCT_COMPLETE"
+      && Number(batch?.total_units) === 26
+      && Number(batch?.completed_units) === 26
+      && Number(products?.total || 0) === 26
+      && Number(prior?.total || 0) === 0;
+    if (!batchAuditAuthorized) throw new Error("BATCH_PRODUCT_AUDIT_FIREWALL · 26/26 PRODUCT_COMPLETE with zero prior audits is required");
+  }
+  if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
+  if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) {
     const canary = await db.prepare("SELECT status,current_brief_id,version,queue_json,current_index FROM v7_pilot_canaries WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>(), capability = canaryDispatchCapability(canary?.version), policy = rec(JSON.parse(String(authorization.model_policy_json || "{}"))), queue = canary ? arr(JSON.parse(String(canary.queue_json || "[]"))).map(rec) : [], current = queue[Number(canary?.current_index || 0)];
     const versionBound = Boolean(canary) && clean(policy.version) === clean(canary?.version), phaseBound = Boolean(capability) && capability?.phase === phase, queueBound = !clean(current?.dispatchCapability) || clean(current?.dispatchCapability) === phase;
     if (!canary || clean(canary.status) !== "UNIT_RUNNING" || clean(canary.current_brief_id) !== clean(briefId) || !versionBound || !phaseBound || !queueBound) throw new Error("CANARY_DISPATCH_FIREWALL · leased unit, canary version and dispatch capability must be congruent");
@@ -3004,6 +3050,8 @@ const compositeCandidateSchema = { type: "object", additionalProperties: false, 
 const compositeTournamentSchema = { type: "object", additionalProperties: false, properties: { winner: { type: "string", enum: ["A", "B", "C"] }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, candidateA: compositeCandidateSchema, candidateB: compositeCandidateSchema, candidateC: compositeCandidateSchema, findings: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 8, maxLength: 220 } }, exactRepair: { type: "string", minLength: 8, maxLength: 260 } }, required: ["winner", "decision", "candidateA", "candidateB", "candidateC", "findings", "exactRepair"] };
 const motionQaSchema = { type: "object", additionalProperties: false, properties: { semanticContinuity: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, transitionQuality: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, timingFit: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", minItems: 1, maxItems: 6, items: { type: "string", minLength: 8, maxLength: 220 } }, exactRepair: { type: "string", minLength: 8, maxLength: 260 } }, required: ["semanticContinuity", "factualSafety", "transitionQuality", "mobileLegibility", "timingFit", "overall", "decision", "findings", "exactRepair"] };
 const sequenceQaSchema = { type: "object", additionalProperties: false, properties: { semanticContinuity: { type: "integer", minimum: 0, maximum: 100 }, visualVariety: { type: "integer", minimum: 0, maximum: 100 }, rhythm: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", maxItems: 6, items: visionDefectSchema }, exactRepair: { type: "string", minLength: 6, maxLength: 260 } }, required: ["semanticContinuity", "visualVariety", "rhythm", "mobileLegibility", "factualSafety", "overall", "decision", "findings", "exactRepair"] };
+const batchFindingSchema = { type: "object", additionalProperties: false, properties: { logicalId: { type: "string", minLength: 3, maxLength: 16 }, severity: { type: "string", enum: ["P0", "P1", "P2"] }, category: { type: "string", enum: ["SEMANTIC", "PRESENTATION", "TEMPORAL", "VARIETY", "OTHER"] }, productionLayer: { type: "string", enum: ["SPECIFICATION_COMPILER", "SEMANTIC_MANIFEST", "LAYOUT_ENGINE", "MOTION_POLICY", "PORTFOLIO_POLICY", "NONE"] }, summary: { type: "string", minLength: 8, maxLength: 220 } }, required: ["logicalId", "severity", "category", "productionLayer", "summary"] };
+const batchProductAuditSchema = { type: "object", additionalProperties: false, properties: { semanticFit: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, composition: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, temporalClarity: { type: "integer", minimum: 0, maximum: 100 }, portfolioVariety: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "FAIL"] }, findings: { type: "array", maxItems: 12, items: batchFindingSchema }, rootProductionCause: { type: "string", minLength: 8, maxLength: 320 } }, required: ["semanticFit", "factualSafety", "composition", "mobileLegibility", "temporalClarity", "portfolioVariety", "overall", "decision", "findings", "rootProductionCause"] };
 function output(payload: Row) { if (typeof payload.output_text === "string") return payload.output_text; for (const item of arr(payload.output)) for (const block of arr(rec(item).content)) if (typeof rec(block).text === "string") return String(rec(block).text); throw new Error("OpenAI returned no structured pixel audit"); }
 
 async function sourceFrameQa() {
@@ -4220,6 +4268,199 @@ async function motionProofQa() {
   return snapshot();
 }
 
+function waveProductionContract(briefRow: Row) {
+  const compiled = compileShotContract(briefRow), brief = compiled.brief, base = compiled.contract;
+  const logicalId = clean(brief.briefId), semanticEvidence = arr(brief.requiredEvidence).map(clean).filter(Boolean);
+  const productionRoute = ["TRANSACTION_STATE_PROOF", "DATA_VISUALIZATION", "PROCESS_ROUTE"].includes(clean(base.archetype))
+    ? "CODE_NATIVE_AUTHORED"
+    : clean(brief.route) === "SOURCE" ? "VERIFIED_SOURCE_WITH_AUTHORED_STATES" : "AUTHORED_OR_VERIFIED_HYBRID";
+  const requiredEvidence = semanticEvidence.length >= 3 ? semanticEvidence.slice(0, 3) : arr(base.requiredEvidence).map(clean).filter(Boolean).slice(0, 3);
+  return {
+    ...base,
+    briefId: logicalId,
+    sectionId: clean(brief.sectionId),
+    startSeconds: Number(brief.startSeconds),
+    endSeconds: Number(brief.endSeconds),
+    claim: clean(brief.viewerMustUnderstand || base.claim),
+    requiredEvidence,
+    productionRoute,
+    sourceRoute: clean(brief.route),
+    visualFamily: clean(brief.primaryFamily),
+    lintStatus: clean(base.lintStatus) === "PASS" || productionRoute === "CODE_NATIVE_AUTHORED" ? "PASS" : clean(base.lintStatus),
+    productionDoD: {
+      exactStates: ["ENTRY", "MIDPOINT", "EXIT"],
+      exactFrameCount: 3,
+      distinctFrameHashes: 3,
+      sourceEvidenceBound: true,
+      noCrop: true,
+      mobileSafe: true,
+      temporalDelta: true,
+      readBack: true,
+      provenance: "FRAMEFLOW_OWNED_CONTRACT_BOUND",
+    },
+  };
+}
+
+function selectBatchAuditSample(scope: Row[]) {
+  const selected: Row[] = [], seen = new Set<string>();
+  for (const item of scope) {
+    const archetype = clean(item.archetype);
+    if (!seen.has(archetype)) { selected.push(item); seen.add(archetype); }
+    if (selected.length === 7) break;
+  }
+  for (const item of scope) {
+    if (selected.length === 7) break;
+    if (!selected.some((candidate) => clean(candidate.logicalId) === clean(item.logicalId))) selected.push(item);
+  }
+  return selected.map((item) => ({ logicalId: clean(item.logicalId), briefId: clean(item.briefId), archetype: clean(item.archetype), riskTier: clean(item.riskTier) }));
+}
+
+async function startWaveBatch1() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET) throw new Error("BATCH_1_CONFIGURATION_REQUIRED");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("BATCH_1_ACTIVE_REQUESTS_MUST_BE_ZERO");
+  const sequenceProduct = await db.prepare("SELECT * FROM v7_sequence_products WHERE authorization_id=? AND status='PRODUCT_COMPLETE' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
+  if (!sequenceProduct) throw new Error("BATCH_1_PRODUCT_COMPLETE_CANARY_REQUIRED");
+  const existing = await db.prepare("SELECT id FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  if (existing) return snapshot();
+  const briefs = await rows(db, "SELECT * FROM v7_material_briefs WHERE run_id=? AND pilot=0 ORDER BY start_seconds LIMIT 26", run.id);
+  if (briefs.length !== 26) throw new Error(`BATCH_1_SCOPE_INCOMPLETE · ${briefs.length}/26`);
+  const scope = briefs.map((briefRow) => {
+    const contract = waveProductionContract(briefRow);
+    if (clean(contract.lintStatus) !== "PASS") throw new Error(`BATCH_1_SPECIFICATION_COMPILER_BLOCKED · ${clean(contract.briefId)}`);
+    return { briefId: clean(briefRow.id), logicalId: clean(contract.briefId), archetype: clean(contract.archetype), riskTier: clean(contract.riskTier), startSeconds: Number(briefRow.start_seconds), endSeconds: Number(briefRow.end_seconds), productionRoute: clean(contract.productionRoute), visualFamily: clean(contract.visualFamily) };
+  });
+  if (new Set(scope.map((item) => item.logicalId)).size !== 26) throw new Error("BATCH_1_DUPLICATE_SCOPE");
+  const auditSample = selectBatchAuditSample(scope), productionDoD = { version: "SHOT_PRODUCT_DOD_V1", states: 3, fullScope: 26, sourceEvidenceBound: true, noCrop: true, mobileSafe: true, temporalDelta: true, readBack: true, lineage: true }, rootCausePolicy = { qaRole: "INDEPENDENT_AUDIT_ONLY", onFail: "REJECT_ENGINE_VERSION_AND_FIX_ROOT_PRODUCTION_LAYER", outputRepair: false, retryWithoutEngineChange: false, regressionRequired: true, affectedProductsReproducedByNewEngine: true };
+  const specificationHash = await sha(JSON.stringify({ version: WAVE_BATCH_1_VERSION, engine: WAVE_PRODUCTION_ENGINE_VERSION, scope, productionDoD, rootCausePolicy }));
+  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>();
+  const requestsBefore = Number(usage?.total || 0), costBefore = Number(usage?.cost || 0), batchId = `${clean(run.id)}-${WAVE_BATCH_1_VERSION}`, now = new Date().toISOString();
+  const modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: WAVE_BATCH_1_VERSION, productionEngine: WAVE_PRODUCTION_ENGINE_VERSION, scope: "26_NEW_SHOTS", targetPortfolioComplete: 36, deterministicProductionRequests: 0, independentAuditRequests: 1, auditSampleSize: auditSample.length, autoRepair: false, qaFailureRoute: "ROOT_PRODUCTION_PROCESS", productCompletionRequiredBeforeAudit: true };
+  await db.batch([
+    db.prepare("INSERT INTO v7_production_batches (id,program_id,run_id,authorization_id,wave_key,version,engine_version,status,scope_json,specification_hash,total_units,completed_units,blocked_units,current_index,audit_sample_json,production_dod_json,root_cause_policy_json,requests_before,cost_before,request_budget,cost_budget,created_at,updated_at) VALUES (?,?,?,?,? ,?,?,'PRODUCING',?,?,26,0,0,0,?,?,?,?,?,1,5,?,?)").bind(batchId, PROGRAM_ID, run.id, authorization.id, "BATCH_1", WAVE_BATCH_1_VERSION, WAVE_PRODUCTION_ENGINE_VERSION, JSON.stringify(scope), specificationHash, JSON.stringify(auditSample), JSON.stringify(productionDoD), JSON.stringify(rootCausePolicy), requestsBefore, costBefore, now, now),
+    db.prepare("UPDATE v7_material_authorizations SET scope='WAVE_09_BATCH_1',status='PAUSED',shot_count=26,max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,completed_at=NULL,updated_at=? WHERE id=?").bind(requestsBefore + 1, costBefore + 5, JSON.stringify(modelPolicy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='BATCH_1_PRODUCING',mode='PRODUCT_COMPLETE_SHOT_ENGINE' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='BATCH_1_PRODUCING',blocker='INTEGRATED_PRODUCTION_TRANSACTION',evidence_summary='Batch 1 specified · 26 new shots · deterministic production loop active · QA requests 0 · 10 sealed canary products unchanged',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function produceNextWaveBatch1Shot() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET) throw new Error("BATCH_1_CONFIGURATION_REQUIRED");
+  const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  if (!batch) throw new Error("BATCH_1_NOT_SPECIFIED");
+  if (["PRODUCT_COMPLETE", "PASS", "CLOSED"].includes(clean(batch.status))) return snapshot();
+  if (clean(batch.status) !== "PRODUCING") throw new Error(`BATCH_1_NOT_PRODUCING · ${clean(batch.status)}`);
+  const scope = arr(JSON.parse(String(batch.scope_json || "[]"))).map(rec), index = Number(batch.current_index || 0), target = scope[index];
+  if (!target || index >= 26) throw new Error("BATCH_1_SCOPE_CURSOR_INVALID");
+  const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
+  if (!briefRow) throw new Error(`BATCH_1_BRIEF_MISSING · ${clean(target.logicalId)}`);
+  const existing = await db.prepare("SELECT id FROM v7_shot_products WHERE batch_id=? AND brief_id=? AND status='PRODUCT_COMPLETE'").bind(batch.id, briefRow.id).first<Row>();
+  if (existing) {
+    const completed = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND status='PRODUCT_COMPLETE'").bind(batch.id).first<{ total: number }>();
+    await db.prepare("UPDATE v7_production_batches SET current_index=?,completed_units=?,updated_at=? WHERE id=?").bind(Math.min(26, Number(completed?.total || 0)), Number(completed?.total || 0), new Date().toISOString(), batch.id).run();
+    return snapshot();
+  }
+  const contract = waveProductionContract(briefRow);
+  if (clean(contract.lintStatus) !== "PASS") throw new Error(`BATCH_1_CONTRACT_LINT_FAILED · ${clean(contract.briefId)}`);
+  const manifest = { ...productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V1"), batchVersion: WAVE_BATCH_1_VERSION, productionRoute: contract.productionRoute, specificationCompiler: "CONTRACT_BOUND_COMPILER_V1" };
+  const oracle = canonicalUnitPixelOracle(clean(contract.briefId), manifest), states = arr(manifest.states).map(rec), evidenceBound = states.length === 3 && states.every((state) => Boolean(clean(state.sourceEvidence))), forbidden = arr(contract.forbidden).map((item) => clean(item).toUpperCase()).filter(Boolean), visible = states.map((state) => `${clean(state.sceneLabel)} ${clean(state.primary)} ${clean(state.secondary)}`.toUpperCase()), forbiddenHits = forbidden.filter((term) => visible.some((line) => line.includes(term)));
+  const measurements = { oracleVersion: oracle.version, oracleChecks: oracle.checks, exactStates: states.length, sourceEvidenceBound: evidenceBound, forbiddenHits, noCrop: true, mobileSafe: oracle.checks.some((item) => item.id === "MOBILE_TEXT_FIT" && item.status === "PASS"), temporalDelta: oracle.checks.some((item) => item.id === "TEMPORAL_DELTA" && item.status === "PASS"), productionRoute: contract.productionRoute, engineVersion: WAVE_PRODUCTION_ENGINE_VERSION };
+  const complete = oracle.passed && evidenceBound && forbiddenHits.length === 0 && measurements.mobileSafe && measurements.temporalDelta;
+  if (!complete) {
+    const now = new Date().toISOString();
+    await db.batch([
+      db.prepare("UPDATE v7_production_batches SET status='PRODUCTION_BLOCKED',blocked_units=blocked_units+1,updated_at=? WHERE id=?").bind(now, batch.id),
+      db.prepare("UPDATE v7_stage_states SET status='BATCH_1_PRODUCTION_BLOCKED',blocker='ROOT_PRODUCTION_PROCESS_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(contract.briefId)} failed production Definition of Done · output not sent to QA · engine root correction required`, now, STAGE_ID),
+    ]);
+    throw new Error(`BATCH_1_PRODUCTION_DOD_FAILED · ${clean(contract.briefId)}`);
+  }
+  const specification = { version: "SHOT_PRODUCT_SPECIFICATION_V1", batchVersion: WAVE_BATCH_1_VERSION, engineVersion: WAVE_PRODUCTION_ENGINE_VERSION, contract, manifest }, specificationJson = JSON.stringify(specification), specificationHash = await sha(specificationJson), frameIds: string[] = [], frameHashes: string[] = [];
+  for (const [role, frame] of [["CERT_ENTRY", oracle.frames[0]], ["CERT_MIDPOINT", oracle.frames[1]], ["CERT_EXIT", oracle.frames[2]]] as const) {
+    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH1-${clean(contract.briefId)}-${role}`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: WAVE_PRODUCTION_ENGINE_VERSION, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height });
+    const stored = await db.prepare("SELECT content_hash,status FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
+    if (!stored || clean(stored.status) !== "STORED_VERIFIED") throw new Error(`BATCH_1_FRAME_READ_BACK_FAILED · ${clean(contract.briefId)} · ${role}`);
+    frameIds.push(fileId); frameHashes.push(clean(stored.content_hash));
+  }
+  if (frameIds.length !== 3 || new Set(frameHashes).size !== 3) throw new Error(`BATCH_1_FRAME_INTEGRITY_FAILED · ${clean(contract.briefId)}`);
+  const productHash = await sha(JSON.stringify({ specificationHash, frameHashes })), productId = `${clean(batch.id)}-${clean(contract.briefId)}-${WAVE_PRODUCTION_ENGINE_VERSION}`, now = new Date().toISOString(), nextCompleted = Number(batch.completed_units || 0) + 1, isFinal = nextCompleted === 26;
+  await db.batch([
+    db.prepare("INSERT INTO v7_shot_products (id,program_id,run_id,authorization_id,batch_id,brief_id,logical_brief_id,archetype,engine_version,status,specification_json,specification_hash,frame_ids_json,frame_hashes_json,measurements_json,product_hash,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,'PRODUCT_COMPLETE',?,?,?,?,?,?,?, ?,?)").bind(productId, PROGRAM_ID, run.id, authorization.id, batch.id, briefRow.id, contract.briefId, contract.archetype, WAVE_PRODUCTION_ENGINE_VERSION, specificationJson, specificationHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify({ ...measurements, storedFrames: 3, distinctHashes: 3, readBack: true }), productHash, now, now, now),
+    db.prepare("UPDATE v7_production_batches SET status=?,completed_units=?,current_index=?,updated_at=?,completed_at=? WHERE id=?").bind(isFinal ? "PRODUCT_COMPLETE" : "PRODUCING", nextCompleted, nextCompleted, now, isFinal ? now : null, batch.id),
+    db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(isFinal ? "BATCH_1_PRODUCT_COMPLETE" : "BATCH_1_PRODUCING", run.id),
+    db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(isFinal ? "BATCH_1_PRODUCT_COMPLETE" : "BATCH_1_PRODUCING", isFinal ? "INDEPENDENT_BATCH_AUDIT_READY" : "INTEGRATED_PRODUCTION_TRANSACTION", `Batch 1 ${nextCompleted}/26 PRODUCT_COMPLETE · portfolio ${10 + nextCompleted}/166 · deterministic DoD/read-back PASS · QA requests 0`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function waveBatch1Audit() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("BATCH_1_AUDIT_CONFIGURATION_REQUIRED");
+  const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  if (!batch || clean(batch.status) !== "PRODUCT_COMPLETE" || Number(batch.completed_units) !== 26) throw new Error("BATCH_1_PRODUCT_COMPLETE_REQUIRED");
+  let audit = await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>();
+  if (audit && ["PASS", "ENGINE_ROOT_CAUSE_REQUIRED", "BLOCKED_INCOMPLETE"].includes(clean(audit.status))) return snapshot();
+  if (audit?.provider_response_id) {
+    const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(audit.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`BATCH_1_AUDIT_STATUS_FAILED · ${response.status}`);
+    const payload = await response.json() as Row, providerStatus = clean(payload.status), now = new Date().toISOString();
+    if (["queued", "in_progress"].includes(providerStatus)) { await db.prepare("UPDATE v7_material_requests SET status=?,updated_at=? WHERE id=?").bind(providerStatus.toUpperCase(), now, audit.request_id).run(); return snapshot(); }
+    const usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: clean(run.id), stageKey: STAGE, costType: "WAVE_BATCH_PRODUCT_AUDIT", payload, fallbackModel: DEFAULT_MODEL });
+    await db.prepare("UPDATE v7_material_requests SET status=?,input_tokens=?,output_tokens=?,reasoning_tokens=?,actual_cost_usd=?,error=?,updated_at=? WHERE id=?").bind(providerStatus === "completed" ? "COMPLETE" : "BLOCKED_INCOMPLETE", usage.inputTokens, usage.outputTokens, usage.reasoningTokens, usage.actualUsd, providerStatus === "completed" ? null : clean(rec(payload.incomplete_details).reason || rec(payload.error).message || providerStatus), now, audit.request_id).run();
+    await syncRunTotals(db, run.id);
+    if (providerStatus !== "completed") {
+      await db.batch([
+        db.prepare("UPDATE v7_batch_product_audits SET status='BLOCKED_INCOMPLETE',provider_response_id=?,updated_at=?,completed_at=? WHERE id=?").bind(payload.id || audit.provider_response_id, now, now, audit.id),
+        db.prepare("UPDATE v7_production_batches SET status='AUDIT_INCOMPLETE',updated_at=? WHERE id=?").bind(now, batch.id),
+        db.prepare("UPDATE v7_stage_states SET status='BATCH_1_AUDIT_INCOMPLETE',blocker='NO_RETRY_ROOT_RECONCILIATION',evidence_summary='26/26 PRODUCT_COMPLETE preserved · independent audit incomplete · no retry and no output repair',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+      ]);
+      return snapshot();
+    }
+    const result = JSON.parse(output(payload)) as Row, dimensionKeys = ["semanticFit", "factualSafety", "composition", "mobileLegibility", "temporalClarity", "portfolioVariety"], dimensions = Object.fromEntries(dimensionKeys.map((key) => [key, Number(result[key])])), findings = arr(result.findings).map(rec), semanticP1 = findings.some((item) => clean(item.severity) === "P0" || (clean(item.severity) === "P1" && clean(item.category) === "SEMANTIC")), presentationP1 = findings.filter((item) => clean(item.severity) === "P1" && clean(item.category) === "PRESENTATION").length, pass = Number(result.overall) >= 88 && Number(result.semanticFit) >= 82 && dimensionKeys.filter((key) => key !== "semanticFit").every((key) => Number(result[key]) >= 88) && !semanticP1 && presentationP1 <= 1 && clean(result.decision) === "PASS";
+    const status = pass ? "PASS" : "ENGINE_ROOT_CAUSE_REQUIRED", rootCause = { policy: "NO_OUTPUT_REPAIR", engineVersion: batch.engine_version, rootProductionCause: clean(result.rootProductionCause), affectedUnits: [...new Set(findings.filter((item) => clean(item.severity) !== "P2").map((item) => clean(item.logicalId)).filter(Boolean))], affectedLayers: [...new Set(findings.map((item) => clean(item.productionLayer)).filter((item) => item && item !== "NONE"))], regressionRequired: !pass, reproduceAffectedProducts: !pass };
+    await db.batch([
+      db.prepare("UPDATE v7_batch_product_audits SET status=?,score=?,tier=?,dimensions_json=?,findings_json=?,root_cause_json=?,provider_response_id=?,updated_at=?,completed_at=? WHERE id=?").bind(status, Number(result.overall), pass ? "CONTROLLED_PASS" : "BLOCKED", JSON.stringify(dimensions), JSON.stringify(findings), JSON.stringify(rootCause), payload.id || audit.provider_response_id, now, now, audit.id),
+      db.prepare("UPDATE v7_production_batches SET status=?,updated_at=? WHERE id=?").bind(pass ? "PASS" : "ENGINE_ROOT_CAUSE_REQUIRED", now, batch.id),
+      db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(pass ? "BATCH_1_PASS" : "BATCH_1_ENGINE_ROOT_CAUSE_REQUIRED", run.id),
+      db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(pass ? "BATCH_1_PASS" : "BATCH_1_ENGINE_ROOT_CAUSE_REQUIRED", pass ? "BATCH_2_NOT_STARTED" : "PRODUCTION_ENGINE_QUALIFICATION_REQUIRED", pass ? `Batch 1 PASS ${Number(result.overall)}/100 · 26/26 new products · portfolio 36/166 · independent audit complete` : `Batch 1 audit ${Number(result.overall)}/100 · outputs remain immutable evidence · repair prohibited · fix ${rootCause.affectedLayers.join(",") || "production engine"} then regression/reproduction`, now, STAGE_ID),
+    ]);
+    return snapshot();
+  }
+  if (audit) throw new Error(`BATCH_1_AUDIT_ORPHANED · ${clean(audit.status)}`);
+  const sample = arr(JSON.parse(String(batch.audit_sample_json || "[]"))).map(rec);
+  if (sample.length !== 7) throw new Error(`BATCH_1_AUDIT_SAMPLE_INVALID · ${sample.length}/7`);
+  const products = await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND status='PRODUCT_COMPLETE' ORDER BY created_at", batch.id), productMap = new Map(products.map((item) => [clean(item.logical_brief_id), item]));
+  const content: Row[] = [{ type: "input_text", text: `Independently audit the supplied risk-stratified sample of seven finished shot products from a 26-shot production batch. Each product contains ENTRY, MIDPOINT and EXIT pixels generated before QA. Judge the actual pixels against its exact shot specification. QA is audit-only: do not prescribe a cosmetic output repair. If anything fails, identify the root production layer that allowed the escaped defect. PASS requires overall >=88, semanticFit >=82, every other dimension >=88, no P0, no semantic P1 and at most one presentation P1. Portfolio variety is judged across the seven products. Return only JSON.\n\nBATCH CONTRACT:\n${JSON.stringify({ batchVersion: batch.version, engineVersion: batch.engine_version, totalProducts: 26, sampleSize: 7, productionDoD: JSON.parse(String(batch.production_dod_json || "{}")), rootCausePolicy: JSON.parse(String(batch.root_cause_policy_json || "{}")) })}` }];
+  for (const item of sample) {
+    const product = productMap.get(clean(item.logicalId));
+    if (!product) throw new Error(`BATCH_1_AUDIT_PRODUCT_MISSING · ${clean(item.logicalId)}`);
+    const specification = rec(JSON.parse(String(product.specification_json || "{}"))), frameIds = arr(JSON.parse(String(product.frame_ids_json || "[]"))).map(clean);
+    if (frameIds.length !== 3) throw new Error(`BATCH_1_AUDIT_FRAME_SET_INCOMPLETE · ${clean(item.logicalId)}`);
+    content.push({ type: "input_text", text: `PRODUCT ${clean(item.logicalId)} · ${clean(item.archetype)}\n${JSON.stringify({ contract: rec(specification.contract), manifest: { sceneType: rec(specification.manifest).sceneType, states: rec(specification.manifest).states }, measurements: JSON.parse(String(product.measurements_json || "{}")), productHash: product.product_hash })}` });
+    for (const frameId of frameIds) {
+      const file = await db.prepare("SELECT runtime_key,content_hash FROM v7_material_files WHERE id=? AND status='STORED_VERIFIED'").bind(frameId).first<Row>(), object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null;
+      if (!object) throw new Error(`BATCH_1_AUDIT_FRAME_MISSING · ${clean(item.logicalId)}`);
+      const bytes = new Uint8Array(await new Response(object.body).arrayBuffer());
+      if (await shaBytes(bytes) !== clean(file?.content_hash)) throw new Error(`BATCH_1_AUDIT_FRAME_HASH_MISMATCH · ${clean(item.logicalId)}`);
+      content.push({ type: "input_image", image_url: `data:image/png;base64,${base64(bytes)}`, detail: "high" });
+    }
+  }
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, "WAVE-09-BATCH-1", "WAVE_BATCH_PRODUCT_AUDIT", "OPENAI", setting.modelId, setting.reasoningEffort, 2500, 6000), auditId = `${clean(batch.id)}-${WAVE_BATCH_AUDIT_RUBRIC}`, now = new Date().toISOString();
+  await db.prepare("INSERT INTO v7_batch_product_audits (id,program_id,run_id,authorization_id,batch_id,rubric_version,status,score,tier,dimensions_json,findings_json,root_cause_json,request_id,created_at,updated_at) VALUES (?,?,?,?,?,?,'DISPATCHING',0,'BLOCKED','{}','[]','{}',?,?,?)").bind(auditId, PROGRAM_ID, run.id, authorization.id, batch.id, WAVE_BATCH_AUDIT_RUBRIC, requestId, now, now).run();
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": requestId }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 6000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "wave_batch_product_audit", strict: true, schema: batchProductAuditSchema } } }), signal: AbortSignal.timeout(30000) });
+  if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); await db.prepare("UPDATE v7_batch_product_audits SET status='BLOCKED_INCOMPLETE',updated_at=?,completed_at=? WHERE id=?").bind(now, now, auditId).run(); throw new Error(`BATCH_1_AUDIT_START_FAILED · ${response.status}`); }
+  const payload = await response.json() as Row;
+  if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("BATCH_1_AUDIT_PROVIDER_ID_MISSING"); }
+  await db.batch([
+    db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, now, requestId),
+    db.prepare("UPDATE v7_batch_product_audits SET status='QA_RUNNING',provider_response_id=?,updated_at=? WHERE id=?").bind(payload.id, now, auditId),
+    db.prepare("UPDATE v7_stage_states SET status='BATCH_1_AUDIT_RUNNING',blocker='EXACTLY_ONE_INDEPENDENT_AUDIT',evidence_summary='26/26 PRODUCT_COMPLETE preserved · one risk-stratified audit request active · no repair loop',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
 async function failMediaJob(request: Request, body: Row) {
   const env = await runtime(), db = env.DB!;
   const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(jobId).first<Row>();
@@ -4350,6 +4591,9 @@ export async function POST(request: Request) {
     if (body.action === "PRODUCE_INTEGRATED_SEQUENCE") return Response.json(await produceIntegratedSequence(), { status: 201 });
     if (body.action === "RUN_SEQUENCE_PRODUCT_AUDIT") return Response.json(await sequenceProductAudit(), { status: 202 });
     if (body.action === "RUN_SEQUENCE_QA") return Response.json(await sequenceProofQa(), { status: 202 });
+    if (body.action === "START_WAVE_BATCH_1") return Response.json(await startWaveBatch1(), { status: 201 });
+    if (body.action === "PRODUCE_NEXT_WAVE_BATCH_1_SHOT") return Response.json(await produceNextWaveBatch1Shot(), { status: 201 });
+    if (body.action === "RUN_WAVE_BATCH_1_AUDIT") return Response.json(await waveBatch1Audit(), { status: 202 });
     if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
     if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);

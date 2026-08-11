@@ -59,6 +59,12 @@ Missing lineage blocks scale even when the pixels appear acceptable. This preven
 
 Stage 09 converts every frozen semantic shot contract into a rights-ready, stored, visually verified production asset. A prompt, URL, catalog result, generation plan or provider thumbnail never counts as material evidence.
 
+## Product-complete wave execution
+
+Production waves use `SPECIFIED → PRODUCING → PRODUCT_COMPLETE` as their business lifecycle. Batch boundaries coordinate load only; they are not QA gates. Every shot is compiled into a source-bound three-state product specification and becomes complete only after stored-pixel read-back, three distinct hashes, mobile-safe fit, temporal delta, provenance and forbidden-evidence checks pass.
+
+Independent QA runs only after every shot in the batch is `PRODUCT_COMPLETE`. A failed audit rejects the production-engine version and names the root production layer. It never authorizes cosmetic output repair or a retry without an engine change. The affected engine capability must be corrected, regression-qualified and used to reproduce affected products under a new version while preserving failed outputs as immutable evidence.
+
 ## Binding decisions
 
 1. **Meaning precedes pixels.** Every material brief inherits immutable timing, narration clause, visual job, entry/motion/exit states, factual acceptance and mobile acceptance from Stage 08.
