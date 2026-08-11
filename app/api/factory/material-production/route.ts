@@ -21,8 +21,8 @@ const SEQUENCE_PRODUCT_AUDIT_RUBRIC = "SEQUENCE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const INTEGRATED_SEQUENCE_COMPOSER_VERSION = "INTEGRATED_SEQUENCE_COMPOSER_V2_1_TIMEBASE_SAFE";
 const SEQUENCE_SPECIFICATION_VERSION = "SEQUENCE_PRODUCT_SPECIFICATION_V2_1";
 const SEQUENCE_PRODUCTION_DOD_VERSION = "SEQUENCE_PRODUCT_DOD_V1";
-const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V5";
-const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V5_CONTRACT_SIGNATURE_ART_DIRECTION";
+const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V6";
+const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V6_STATE_TRANSITION_BOUND";
 const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const WAVE_BATCH_AUDIT_TRANSPORT_VERSION = "WAVE_AUDIT_TRANSPORT_V2_VERIFIED_JPEG_PROXY";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
@@ -4317,12 +4317,12 @@ function waveProductionContract(briefRow: Row) {
 }
 
 function waveProductionManifest(contract: Row) {
-  const manifest = productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V5_CONTRACT_SIGNATURE_ART_DIRECTION");
+  const manifest = productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V6_STATE_TRANSITION_BOUND");
   const viewerLabel = (value: unknown, fallback: string) => clean(value).toUpperCase().replace(/[^A-Z0-9$+\-.: ]/g, " ").replace(/\s+/g, " ").trim().slice(0, 24) || fallback;
   const corpus = `${clean(contract.claim)} ${arr(contract.requiredEvidence).map(clean).join(" ")}`.toUpperCase();
   const actors = ["CARDHOLDER", "MERCHANT", "PROCESSOR", "ACQUIRER", "NETWORK", "ISSUING BANK", "ISSUER"].filter((actor) => corpus.includes(actor));
   const kind = /INTERVAL|BOUNDED RANGE|RANGE LABEL|FEE PLACEHOLDER/.test(corpus) ? "BOUNDED_INTERVAL"
-    : /SHARED IDENTIFIER|SHARED AMOUNT/.test(corpus) && /EVIDENCE BARRIER|CAUSAL LINK|PROPOSED CONNECTOR/.test(corpus) ? "EVIDENCE_BARRIER"
+    : /EVIDENCE BARRIER|PROPOSED CONNECTOR|CONNECTOR.{0,30}BARRIER/.test(corpus) ? "EVIDENCE_BARRIER"
       : /BLANK|ABSENT/.test(corpus) && /FEE/.test(corpus) && /REWARD/.test(corpus) ? "ABSENCE_AUDIT"
         : /IDENTIFIER/.test(corpus) ? "IDENTIFIER_ISOLATION"
           : /CARDHOLDER/.test(corpus) && /MERCHANT/.test(corpus) && /RECORD/.test(corpus) ? "DUAL_RECORD_FOCUS"
@@ -4356,10 +4356,10 @@ function waveProductionManifest(contract: Row) {
     ...manifest,
     states,
     sceneType: `WAVE_${kind}`,
-    semanticModel: { version: "CONTRACT_SIGNATURE_SCENE_GRAPH_V3", kind, actors: semanticActors, requiredElements, corpusHashInput: corpus, relationPolicy: "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE" },
+    semanticModel: { version: "CONTRACT_SIGNATURE_SCENE_GRAPH_V4_STATE_BOUND", kind, actors: semanticActors, requiredElements, corpusHashInput: corpus, relationPolicy: "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE" },
     batchVersion: WAVE_BATCH_1_VERSION,
     productionRoute: contract.productionRoute,
-    specificationCompiler: "CONTRACT_SIGNATURE_ART_DIRECTION_COMPILER_V5",
+    specificationCompiler: "STATE_TRANSITION_BOUND_COMPILER_V6",
     layoutPolicy: { ...rec(manifest.layoutPolicy), maximumViewerLabelGlyphs: 24, labelFitEnforcedAtCompileTime: true, reservedRegions: true, minimumLabelScale: 2, noGenericTemplateFallback: true },
   };
 }
@@ -4375,16 +4375,17 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
   const line=(x1:number,y1:number,x2:number,y2:number,t:number,hex:string)=>{const steps=Math.max(Math.abs(x2-x1),Math.abs(y2-y1));for(let i=0;i<=steps;i++){const p=steps?i/steps:0;fill(Math.round(x1+(x2-x1)*p)-Math.floor(t/2),Math.round(y1+(y2-y1)*p)-Math.floor(t/2),t,t,hex);}};
   const labelBox=(x:number,y:number,w:number,h:number,label:unknown,active=true)=>{fill(x,y,w,h,active?"#eef5f1":"#173d35");fill(x,y,w,8,active?"#72c8a3":"#31594e");const words=safe(label,30).split(" "),split=Math.ceil(words.length/2),a=words.slice(0,split).join(" "),b=words.slice(split).join(" ");center(a,x+w/2,y+Math.max(22,Math.round(h/2)-20),2,active?"#173d35":"#9abbb0",18);if(b)center(b,x+w/2,y+Math.max(48,Math.round(h/2)+8),2,active?"#173d35":"#9abbb0",18);};
   const semantic=rec(manifest.semanticModel),kind=clean(semantic.kind),actors=arr(semantic.actors).map(clean),signatureSeed=[...clean(semantic.corpusHashInput)].reduce((total,char)=>total+char.charCodeAt(0),0),palette=[["#e8b65d","#72c8a3","#7fe2b5"],["#d6a6ff","#83c5ff","#8ee3cf"],["#ffb27a","#ffd166","#8bd3c7"]][signatureSeed%3],accent=palette[state],themes:Record<string,[string,string,string]>={PARTICIPANT_SEQUENCE:["#28140d","#4a271b","#fff1df"],PARTICIPANT_INCIDENCE:["#071b35","#102e55","#e3f0ff"],DUAL_RECORD_FOCUS:["#0f2b2c","#174448","#e6fffb"],IDENTIFIER_ISOLATION:["#25183a","#3c2858","#f3eaff"],ABSENCE_AUDIT:["#101b31","#1b2b4a","#ecf3ff"],EVIDENCE_BARRIER:["#29261f","#464035","#fff6df"],BOUNDED_INTERVAL:["#342014","#593823","#fff0df"]},theme=themes[kind]||["#061b18","#0b3029","#d7eee5"];
-  fill(0,0,width,height,theme[0]);fill(0,0,width,12,accent);fill(28,30,904,474,theme[1]);for(let index=0;index<5;index++)fill(842+index*14,82-(signatureSeed>>index)%12,9,10+(signatureSeed>>(index+2))%18,index<=state?accent:"#5a655f");if(["DUAL_RECORD_FOCUS","IDENTIFIER_ISOLATION","ABSENCE_AUDIT","EVIDENCE_BARRIER"].includes(kind))text(safe(kind.replaceAll("_"," "),30),52,52,3,theme[2]);else center(kind.replaceAll("_"," "),480,52,3,theme[2],30);center(["CONTEXT","MECHANISM","OUTCOME"][state],480,84,2,accent,18);
+  const specialized=["PARTICIPANT_SEQUENCE","PARTICIPANT_INCIDENCE","DUAL_RECORD_FOCUS","IDENTIFIER_ISOLATION","ABSENCE_AUDIT","EVIDENCE_BARRIER","BOUNDED_INTERVAL"],stateLabels:Record<string,string[]>={PARTICIPANT_SEQUENCE:["BASE PARTICIPANTS","NETWORK REVEALED","ISSUER REVEALED"],PARTICIPANT_INCIDENCE:["REWARD GLOW","QUESTIONS MOVE OUT","ORIGIN UNRESOLVED"],DUAL_RECORD_FOCUS:["CARDHOLDER FOCUS","FOCUS TRANSFER","MERCHANT FOCUS"],IDENTIFIER_ISOLATION:["MERCHANT DOMINANT","PANELS ALIGN","IDENTIFIER ONLY"],ABSENCE_AUDIT:["MATCHED FACTS","ABSENCE LOCK","NO PATH"],EVIDENCE_BARRIER:["MATCHED FACTS","CONNECTOR STOPS","BARRIER HOLDS"],BOUNDED_INTERVAL:["PLACEHOLDER","INTERVAL OPENS","RANGE HOLDS"]};
+  fill(0,0,width,height,theme[0]);fill(0,0,width,12,accent);fill(28,30,904,474,theme[1]);if(!specialized.includes(kind))for(let index=0;index<5;index++)fill(842+index*14,82-(signatureSeed>>index)%12,9,10+(signatureSeed>>(index+2))%18,index<=state?accent:"#5a655f");if(["DUAL_RECORD_FOCUS","IDENTIFIER_ISOLATION","ABSENCE_AUDIT","EVIDENCE_BARRIER"].includes(kind))text(safe(kind.replaceAll("_"," "),30),52,52,3,theme[2]);else center(kind.replaceAll("_"," "),480,52,3,theme[2],30);center(stateLabels[kind]?.[state]||["CONTEXT","MECHANISM","OUTCOME"][state],480,84,2,accent,24);
   if(kind==="PARTICIPANT_SEQUENCE"){
     const names=[actors[0]||"MERCHANT",actors[1]||"PROCESSOR",actors[2]||"NETWORK",actors[3]||"ISSUING BANK"];
-    names.forEach((name,index)=>labelBox(46+index*224,138,196,82,name,index<=state+1));
+    names.forEach((name,index)=>{const active=index<=state+1;labelBox(46+index*224,138,196,82,active?name:"AWAITING ID",active);});
     labelBox(302,254,356,72,"$100 PURCHASE",true);labelBox(302,344,356,58,"REWARD ENTRY",true);
     if(state>=1)line(144,230,816,230,6,"#72c8a3");if(state===2){center("INCIDENCE UNRESOLVED",480,430,3,"#e8b65d",24);center("?",816,342,5,"#e8b65d",1);}
   } else if(kind==="PARTICIPANT_INCIDENCE"){
     const names=[actors[0]||"MERCHANT",actors[1]||"PROCESSOR",actors[2]||"NETWORK",actors[3]||"ISSUING BANK"];
     const pos=[[108,160],[686,160],[108,342],[686,342]];names.forEach((name,index)=>labelBox(pos[index][0],pos[index][1],166,64,name,true));
-    circle(480,276,state===0?82:state===1?58:32,state===0?"#e8b65d":state===1?"#72c8a3":"#31594e");center("$100 PURCHASE",480,244,2,"#173d35",18);center("REWARD ENTRY",480,284,2,"#173d35",18);
+    circle(480,276,state===0?82:state===1?58:42,state===0?"#e8b65d":state===1?"#72c8a3":"#31594e");center("$100 PURCHASE",480,244,2,state===2?"#ffffff":"#173d35",18);center("REWARD ENTRY",480,284,2,state===2?"#ffffff":"#173d35",18);
     if(state>=1)names.forEach((_,index)=>{const x=pos[index][0]+83,y=pos[index][1]+32;for(let step=1;step<=3;step++){const ratio=step/4;circle(Math.round(480+(x-480)*ratio),Math.round(276+(y-276)*ratio),5,"#72c8a3");}center("?",Math.round(480+(x-480)*0.62),Math.round(276+(y-276)*0.62)-8,2,"#e8b65d",1);});
     if(state===2)center("UNRESOLVED ORIGIN",480,430,3,"#e8b65d",22);
   } else if(kind==="DUAL_RECORD_FOCUS"){
@@ -4394,7 +4395,7 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
     if(state>=1){fill(rightX+24,216,rightW-48,48,"#ffffff");fill(rightX+24,282,rightW-48,48,"#ffffff");center("TRANSACTION ID",rightX+rightW/2,231,2,"#173d35",18);center("AMOUNT FIELD",rightX+rightW/2,297,2,"#173d35",18);}
     fill(466,182,28,212,"#e8b65d");center(state===0?"CARDHOLDER FOCUS":state===1?"FOCUS TRANSFER":"MERCHANT FOCUS",480,418,2,"#d7eee5",22);if(state===2)center("NO LINK",480,450,2,"#e8b65d",12);
   } else if(kind==="IDENTIFIER_ISOLATION"){
-    const lx=state===0?44:70,lw=state===0?250:360,rx=state===0?338:530,rw=state===0?576:360;fill(lx,144,lw,244,"#eef5f1");fill(rx,144,rw,244,"#eef5f1");fill(lx+14,158,lw-28,38,"#3c2858");fill(rx+14,158,rw-28,38,"#3c2858");center("CARDHOLDER RECORD",lx+lw/2,169,2,"#ffffff",20);center("MERCHANT RECORD",rx+rw/2,169,2,"#ffffff",18);
+    const lx=state===0?-30:70,lw=state===0?280:360,rx=state===0?294:530,rw=state===0?620:360;fill(lx,144,lw,244,"#eef5f1");fill(rx,144,rw,244,"#eef5f1");fill(lx+14,158,lw-28,38,"#3c2858");fill(rx+14,158,rw-28,38,"#3c2858");center("CARDHOLDER RECORD",lx+lw/2,169,2,"#ffffff",20);center("MERCHANT RECORD",rx+rw/2,169,2,"#ffffff",18);
     for(const [x,w] of [[lx,lw],[rx,rw]]){fill(x+22,218,w-44,52,"#ffffff");center("ID 7A3F",x+w/2,235,3,"#173d35",12);if(state<2){fill(x+22,298,w-44,40,"#d7e3dd");center("UNRELATED FIELDS",x+w/2,309,2,"#52766b",20);}}
     if(state===2)center("ONLY SHARED IDENTIFIER",480,422,3,"#72c8a3",26);else center(state===0?"DOMINANT MERCHANT RECORD":"EQUAL PANELS",480,422,2,"#d7eee5",28);
   } else if(kind==="ABSENCE_AUDIT"){
@@ -4402,7 +4403,7 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
     if(state===2){line(412,270,548,270,5,"#8fa69d");line(452,236,508,304,8,"#e8b65d");line(508,236,452,304,8,"#e8b65d");center("NO FEE TO REWARD PATH",480,426,2,"#e8b65d",26);}else center("EXPLANATORY ZONES ABSENT",480,426,2,"#d7eee5",28);
   } else if(kind==="EVIDENCE_BARRIER"){
     fill(62,142,350,250,"#fff6df");fill(548,142,350,250,"#fff6df");for(const [x,title] of [[76,"RECORD LEFT"],[562,"RECORD RIGHT"]] as const){fill(x,158,322,38,"#464035");center(title,x+161,169,2,"#ffffff",16);fill(x+12,214,298,48,"#ffffff");center("SHARED ID 7A3F",x+161,229,2,"#173d35",18);fill(x+12,286,298,48,"#ffffff");center("SHARED AMOUNT $100",x+161,301,2,"#173d35",22);}
-    if(state>=1){line(412,270,548,270,6,"#72c8a3");fill(402,404,156,34,"#061b18");center("PROPOSED CONNECTOR",480,414,2,"#d7eee5",20);}if(state===2){fill(466,184,28,204,"#e8b65d");fill(376,442,208,34,"#061b18");center("NO CAUSAL LINK",480,452,2,"#e8b65d",18);}
+    if(state>=1){line(412,270,454,270,6,"#72c8a3");circle(454,270,9,"#72c8a3");fill(466,184,28,204,"#e8b65d");fill(374,404,212,34,"#29261f");center("PROPOSED FEE TO REWARD",480,414,2,"#fff6df",26);}if(state===2){line(506,236,548,304,7,"#8fa69d");line(548,236,506,304,7,"#8fa69d");fill(376,442,208,34,"#29261f");center("NO CAUSAL LINK",480,452,2,"#e8b65d",18);}
   } else if(kind==="BOUNDED_INTERVAL"){
     labelBox(52,154,236,220,"BLANK $100 PURCHASE CARD",true);fill(318,146,34,244,"#e8b65d");center("WARNING",335,402,2,"#e8b65d",10);
     const intervalW=[180,330,500][state];fill(392,206,intervalW,112,"#eef5f1");center(state===0?"FEE PLACEHOLDER":"BOUNDED INTERVAL",392+intervalW/2,238,2,"#173d35",20);line(412,292,372+intervalW,292,5,"#72c8a3");line(412,276,412,308,5,"#72c8a3");line(372+intervalW,276,372+intervalW,308,5,"#72c8a3");
@@ -4414,31 +4415,31 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
   } else {
     labelBox(74,178,300,178,kind==="SOURCE_COMPARISON"?"VERIFIED SOURCE":"CONTEXT",true);labelBox(586,178,300,178,state===0?"CLAIM":state===1?"MECHANISM":"OUTCOME",true);if(state>=1){line(374,267,586,267,8,accent);circle(480,267,18,accent);}if(state===2)center("RELATION EXPLICIT",480,414,3,accent,22);
   }
-  if(!["PARTICIPANT_SEQUENCE","PARTICIPANT_INCIDENCE","DUAL_RECORD_FOCUS","IDENTIFIER_ISOLATION","ABSENCE_AUDIT","EVIDENCE_BARRIER","BOUNDED_INTERVAL"].includes(kind))[0,1,2].forEach((index)=>fill(382+index*72,518,54,8,index<=state?accent:"#315447"));
+  if(!specialized.includes(kind))[0,1,2].forEach((index)=>fill(382+index*72,518,54,8,index<=state?accent:"#315447"));
   for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);}const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);const bytes=joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);return{bytes,pixels,width,height};
 }
 
 function waveProductOracle(manifest: Row) {
   const frames=([0,1,2] as const).map((state)=>renderWaveSemanticScene(manifest,state)),states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean);
   const checks=[
-    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V3"&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
+    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V4_STATE_BOUND"&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
     {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL",evidence:"three states preserve full source clauses"},
     {id:"MOBILE_TEXT_FIT",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL",evidence:"reserved regions and two-pixel minimum glyph scale"},
     {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&clean(semantic.kind)!==""?"PASS":"FAIL",evidence:clean(semantic.kind)},
     {id:"NO_INTERNAL_IDS",status:states.every((item)=>!`${clean(item.sceneLabel)} ${clean(item.primary)} ${clean(item.secondary)}`.includes(clean(manifest.logicalId)))?"PASS":"FAIL",evidence:"audience labels exclude logical IDs"},
     {id:"TEMPORAL_DELTA",status:new Set(frames.map((frame)=>base64(frame.bytes).slice(-180))).size===3?"PASS":"FAIL",evidence:"semantic state pixels differ"},
   ];
-  return{version:"WAVE_CONTRACT_SIGNATURE_PRODUCT_ORACLE_V5",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
+  return{version:"WAVE_STATE_TRANSITION_PRODUCT_ORACLE_V6",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
 }
 
 function waveManifestQualification(manifest: Row) {
   const states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean),checks=[
-    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V3"&&required.length>=3?"PASS":"FAIL"},
+    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V4_STATE_BOUND"&&required.length>=3?"PASS":"FAIL"},
     {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL"},
     {id:"RESERVED_LAYOUT_REGIONS",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL"},
     {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&Boolean(clean(semantic.kind))?"PASS":"FAIL"},
   ];
-  return { version:"WAVE_MANIFEST_QUALIFICATION_V5", checks, passed:checks.every((item)=>item.status==="PASS"), signatureInput:{ kind:semantic.kind, actors:semantic.actors, requiredElements:required, corpusHashInput:semantic.corpusHashInput, states:states.map((item)=>({role:item.role,sourceEvidence:item.sourceEvidence})), layoutPolicy:manifest.layoutPolicy } };
+  return { version:"WAVE_MANIFEST_QUALIFICATION_V6", checks, passed:checks.every((item)=>item.status==="PASS"), signatureInput:{ kind:semantic.kind, actors:semantic.actors, requiredElements:required, corpusHashInput:semantic.corpusHashInput, states:states.map((item)=>({role:item.role,sourceEvidence:item.sourceEvidence})), layoutPolicy:manifest.layoutPolicy } };
 }
 
 function selectBatchAuditSample(scope: Row[]) {
@@ -4520,7 +4521,7 @@ async function produceNextWaveBatch1Shot() {
   const specification = { version: "SHOT_PRODUCT_SPECIFICATION_V1", batchVersion: WAVE_BATCH_1_VERSION, engineVersion: WAVE_PRODUCTION_ENGINE_VERSION, contract, manifest }, specificationJson = JSON.stringify(specification), specificationHash = await sha(specificationJson), frameIds: string[] = [], frameHashes: string[] = [];
   const superseded = await db.prepare("SELECT id FROM v7_shot_products WHERE batch_id=? AND brief_id=? AND engine_version<>? ORDER BY created_at DESC LIMIT 1").bind(batch.id, briefRow.id, WAVE_PRODUCTION_ENGINE_VERSION).first<Row>();
   for (const [role, frame] of [["CERT_ENTRY", oracle.frames[0]], ["CERT_MIDPOINT", oracle.frames[1]], ["CERT_EXIT", oracle.frames[2]]] as const) {
-    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH1-${clean(contract.briefId)}-${role}-E5`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: WAVE_PRODUCTION_ENGINE_VERSION, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: "wave-09-batch-1-engine-v5", archiveFolder: "Wave 09 Batch 1 Engine V5" });
+    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH1-${clean(contract.briefId)}-${role}-E6`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: WAVE_PRODUCTION_ENGINE_VERSION, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: "wave-09-batch-1-engine-v6", archiveFolder: "Wave 09 Batch 1 Engine V6" });
     const stored = await db.prepare("SELECT content_hash,status FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
     if (!stored || clean(stored.status) !== "STORED_VERIFIED") throw new Error(`BATCH_1_FRAME_READ_BACK_FAILED · ${clean(contract.briefId)} · ${role}`);
     frameIds.push(fileId); frameHashes.push(clean(stored.content_hash));
@@ -4592,7 +4593,7 @@ async function adoptWaveBatch1SemanticEngineRootCorrection() {
     db.prepare("UPDATE v7_batch_product_audits SET status='ENGINE_ROOT_CAUSE_PRESERVED',updated_at=? WHERE id=?").bind(now, audit.id),
     db.prepare("UPDATE v7_production_batches SET version=?,engine_version=?,status='PRODUCING',specification_hash=?,completed_units=0,blocked_units=0,current_index=0,root_cause_policy_json=?,request_budget=request_budget+1,completed_at=NULL,updated_at=? WHERE id=?").bind(WAVE_BATCH_1_VERSION, WAVE_PRODUCTION_ENGINE_VERSION, specificationHash, JSON.stringify(rootCausePolicy), now, batch.id),
     db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',max_remote_requests=max_remote_requests+1,model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(modelPolicy), now, authorization.id),
-    db.prepare("UPDATE v7_material_runs SET status='BATCH_1_REPRODUCING',mode='CONTRACT_SIGNATURE_ART_DIRECTION_ENGINE_V5' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_material_runs SET status='BATCH_1_REPRODUCING',mode='STATE_TRANSITION_BOUND_ENGINE_V6' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='BATCH_1_REPRODUCING',blocker='ENGINE_V3_PRODUCT_COMPLETION',evidence_summary=?,updated_at=? WHERE id=?").bind(`V2 audit ${Number(audit.score)}/100 preserved · 26 V2 products retained as rejected-engine evidence · semantic scene-graph V3 qualified 26/26 across ${kinds.size} scene kinds · reproducing all 26 · no output repair`, now, STAGE_ID),
   ]);
   return snapshot();

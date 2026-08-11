@@ -39,8 +39,8 @@ test("Batch audit is one bounded risk-stratified request after 26 products", () 
 });
 
 test("production DoD failure rejects the prior engine and qualifies the replacement compiler across all 26 shots", () => {
-  assert.match(route, /SHOT_PRODUCT_ENGINE_V5_CONTRACT_SIGNATURE_ART_DIRECTION/);
-  assert.match(route, /CONTRACT_SIGNATURE_ART_DIRECTION_COMPILER_V5/);
+  assert.match(route, /SHOT_PRODUCT_ENGINE_V6_STATE_TRANSITION_BOUND/);
+  assert.match(route, /STATE_TRANSITION_BOUND_COMPILER_V6/);
   assert.match(route, /maximumViewerLabelGlyphs: 24/);
   assert.match(route, /BATCH_1_ROOT_CORRECTION_REQUIRES_ZERO_EMITTED_PRODUCTS/);
   assert.match(route, /scope\.length !== 26 \|\| failures\.length/);
@@ -62,7 +62,7 @@ test("audit transport failure is reconciled before provider dispatch without tou
 });
 
 test("failed independent QA replaces the semantic production system and reproduces all 26 products", () => {
-  assert.match(route, /CONTRACT_SIGNATURE_SCENE_GRAPH_V3/);
+  assert.match(route, /CONTRACT_SIGNATURE_SCENE_GRAPH_V4_STATE_BOUND/);
   for (const kind of ["PARTICIPANT_SEQUENCE", "PARTICIPANT_INCIDENCE", "DUAL_RECORD_FOCUS", "IDENTIFIER_ISOLATION", "ABSENCE_AUDIT", "EVIDENCE_BARRIER", "BOUNDED_INTERVAL"]) assert.match(route, new RegExp(kind));
   assert.match(route, /PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE/);
   assert.match(route, /ENGINE_ROOT_CAUSE_PRESERVED/);
@@ -70,8 +70,8 @@ test("failed independent QA replaces the semantic production system and reproduc
   assert.match(route, /reproduceScope: "ALL_26_PRODUCTS"/);
   assert.match(route, /priorProductsPreservedAsEvidence: true/);
   assert.match(route, /supersedes_id/);
-  assert.match(route, /wave-09-batch-1-engine-v5/);
+  assert.match(route, /wave-09-batch-1-engine-v6/);
   assert.match(route, /DUPLICATE_RENDER_SPECIFICATION/);
-  assert.match(route, /WAVE_MANIFEST_QUALIFICATION_V5/);
+  assert.match(route, /WAVE_MANIFEST_QUALIFICATION_V6/);
   assert.match(page, /Qualify replacement engine and reproduce 26/);
 });
