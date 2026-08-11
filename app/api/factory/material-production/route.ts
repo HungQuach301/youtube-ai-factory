@@ -4884,7 +4884,36 @@ async function materialFile(request: Request) {
   return new Response(object.body, { headers: { "content-type": file.mime_type, "cache-control": "private, max-age=300", "content-disposition": "inline" } });
 }
 
-export async function GET(request: Request) { try { const params = new URL(request.url).searchParams; if (params.has("executionSource")) return await executionSource(request); if (params.has("file")) return await materialFile(request); return Response.json(await snapshot()); } catch (error) { const message = error instanceof Error ? error.message : "Stage 09 could not load"; return Response.json({ error: message }, { status: /UNAUTHORIZED/.test(message) ? 401 : /LEASE_INVALID/.test(message) ? 409 : /NOT_FOUND|MISSING/.test(message) ? 404 : 500 }); } }
+async function operatorSnapshot() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  const stage = await db.prepare("SELECT status,blocker,evidence_summary,updated_at FROM v7_stage_states WHERE id=? LIMIT 1").bind(STAGE_ID).first<Row>();
+  const batch1 = run ? await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
+  const batch2 = run ? await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_2' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
+  const batch1Audit = batch1 ? await db.prepare("SELECT status,score,tier,completed_at FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch1.id).first<Row>() : null;
+  const batch2Audit = batch2 ? await db.prepare("SELECT status,score,tier,completed_at FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch2.id).first<Row>() : null;
+  const ledger = authorization ? await db.prepare("SELECT COUNT(*) AS total,SUM(CASE WHEN status IN ('QUEUED','IN_PROGRESS') THEN 1 ELSE 0 END) AS active,SUM(CASE WHEN status='COMPLETE' THEN 1 ELSE 0 END) AS complete,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<Row>() : null;
+  const batch1Completed = Number(batch1?.completed_units || 0);
+  const batch2Completed = Number(batch2?.completed_units || 0);
+  const portfolioComplete = 10 + batch1Completed + batch2Completed;
+  const activeRequests = Number(ledger?.active || 0);
+  const batch1Passed = clean(batch1?.status) === "PASS" && batch1Completed === 26 && clean(batch1Audit?.status) === "PASS";
+  const canStartBatch2 = batch1Passed && portfolioComplete === 36 && !batch2 && activeRequests === 0;
+  return {
+    controlPlane: { version: "v242", mode: "CONTROL_PLANE_LITE", mediaPolicy: "ON_DEMAND_ONLY", generatedAt: new Date().toISOString() },
+    checkpoint: { deployment: "v242", sourceCheckpoint: "v241", status: "LIVE_CANDIDATE" },
+    stage: { status: clean(stage?.status || "UNKNOWN"), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary), updatedAt: stage?.updated_at || null },
+    portfolio: { complete: portfolioComplete, total: 166, baseline: 10 },
+    batches: {
+      batch1: batch1 ? { status: clean(batch1.status), completed: batch1Completed, total: Number(batch1.total_units || 26), auditStatus: clean(batch1Audit?.status || "NOT_STARTED"), auditScore: Number(batch1Audit?.score || 0) } : null,
+      batch2: batch2 ? { status: clean(batch2.status), completed: batch2Completed, total: Number(batch2.total_units || 50), auditStatus: clean(batch2Audit?.status || "NOT_STARTED"), auditScore: Number(batch2Audit?.score || 0), activatedAt: batch2.created_at } : null,
+    },
+    activation: { batch2Records: batch2 ? 1 : 0, idempotencyKey: "START_WAVE_BATCH_2_V242", canStart: canStartBatch2 },
+    requests: { total: Number(ledger?.total || 0), active: activeRequests, complete: Number(ledger?.complete || 0), actualCostUsd: Number(ledger?.cost || 0) },
+    safeguards: { batch1Seal: batch1Passed, portfolioBaseline: portfolioComplete === 36, noBatch2Activation: !batch2, activeRequestsZero: activeRequests === 0, noOutputRepair: true, rootCauseOnly: true },
+  };
+}
+
+export async function GET(request: Request) { try { const params = new URL(request.url).searchParams; if (params.has("executionSource")) return await executionSource(request); if (params.has("file")) return await materialFile(request); if (params.get("view") === "operator") return Response.json(await operatorSnapshot(), { headers: { "cache-control": "no-store" } }); return Response.json(await snapshot()); } catch (error) { const message = error instanceof Error ? error.message : "Stage 09 could not load"; return Response.json({ error: message }, { status: /UNAUTHORIZED/.test(message) ? 401 : /LEASE_INVALID/.test(message) ? 409 : /NOT_FOUND|MISSING/.test(message) ? 404 : 500 }); } }
 const LEGACY_STAGE09_ACTIONS = new Set([
   "AUTHORIZE_CONTROLLED_CANARY", "AUTHORIZE_CONTROLLED_CANARY_V3", "AUTHORIZE_CONTROLLED_CANARY_V4", "AUTHORIZE_CONTROLLED_CANARY_V5",
   "BUILD_CANARY_RECOVERY_LANE", "RELEASE_PRODUCTION_RECOVERY_PROBE", "BUILD_RECOVERY_CONTRACT_ALIGNMENT", "RELEASE_CONTRACT_ALIGNED_RECOVERY_PROBE",

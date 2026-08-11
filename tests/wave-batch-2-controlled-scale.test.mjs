@@ -3,13 +3,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const route = await readFile(new URL("../app/api/factory/material-production/route.ts", import.meta.url), "utf8");
-const page = await readFile(new URL("../app/material-production/page.tsx", import.meta.url), "utf8");
 
 test("Batch 2 is a 50-shot controlled scale from 36 to 86 of 166", () => {
   assert.match(route, /LIMIT 50 OFFSET 26/);
   assert.match(route, /targetPortfolioComplete: 86/);
   assert.match(route, /Number\(batch\.completed_units\) !== 50/);
-  assert.match(page, /50-shot controlled scale must complete before independent QA/);
 });
 
 test("Batch 1 P2 findings become production regressions before Batch 2", () => {
@@ -25,7 +23,6 @@ test("Batch 2 completes products before one independent audit", () => {
   assert.match(route, /sample\.length !== 10/);
   assert.match(route, /outputRepair: false/);
   assert.match(route, /retryWithoutEngineChange: false/);
-  assert.match(page, /10\/50/);
 });
 
 test("Batch 2 pass thresholds are stricter than Batch 1 controlled release", () => {

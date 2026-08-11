@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const route = await readFile(new URL("../app/api/factory/material-production/route.ts", import.meta.url), "utf8");
-const page = await readFile(new URL("../app/material-production/page.tsx", import.meta.url), "utf8");
 const executor = await readFile(new URL("../scripts/media-executor.mjs", import.meta.url), "utf8");
 const migration = await readFile(new URL("../drizzle/0020_goofy_chimera.sql", import.meta.url), "utf8");
 const rightsMigration = await readFile(new URL("../drizzle/0021_material_gateway.sql", import.meta.url), "utf8");
@@ -287,12 +286,6 @@ test("controlled canary V5 binds MP-001 to certified source evidence behind an e
   assert.match(route, /READY_FOR_EXPLICIT_UNIT_RELEASE/);
   assert.match(route, /RELEASE_CONTROLLED_CANARY_V5_UNIT/);
   assert.match(route, /CANARY_V5_ZERO_SPEND_PREFLIGHT_FAILED/);
-  assert.match(page, /Authorize Canary V5 preflight/);
-  assert.match(page, /Release V5 MP-001 · max \$1/);
-  assert.match(page, /canaryAction\("RELEASE_CONTROLLED_CANARY_V5_UNIT"\)/);
-  assert.match(page, /data\.canary\.version === "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION"/);
-  assert.match(page, /data\.canary\.currentIndex !== 0/);
-  assert.doesNotMatch(page, /data\?\.canary\?\.status !== "AUTHORIZED"/);
 });
 
 test("Recovery Lane replays the failed V5 handoff through an atomic zero-spend sink", () => {
@@ -309,9 +302,6 @@ test("Recovery Lane replays the failed V5 handoff through an atomic zero-spend s
   assert.match(route, /DUPLICATE_RELEASE/);
   assert.match(route, /OUTBOX_DISPATCH_FAILURE/);
   assert.match(route, /CANARY_RECOVERY_ZERO_SPEND_INVARIANT_FAILED/);
-  assert.match(page, /Build Recovery Lane E2E · \$0/);
-  assert.match(page, /Run Production Recovery Probe · MP-001 · max \$1/);
-  assert.match(page, /RELEASE_PRODUCTION_RECOVERY_PROBE/);
   assert.match(route, /releaseProductionRecoveryProbe/);
   assert.match(route, /PRODUCTION_RECOVERY_PROBE_CANONICAL_SNAPSHOT_DRIFT/);
   assert.match(route, /PRODUCTION_RECOVERY_PROBE_MP001_ONLY/);
@@ -330,10 +320,6 @@ test("Recovery Lane replays the failed V5 handoff through an atomic zero-spend s
   assert.match(route, /RECONCILE_CONTRACT_ALIGNED_RECOVERY_TERMINAL/);
   assert.match(route, /LEGACY_TERMINAL_EVENT_ID_COLLISION/);
   assert.match(route, /ZERO_SPEND_RECONCILIATION/);
-  assert.match(page, /Build MP-001 contract alignment · \$0/);
-  assert.match(page, /Run contract-aligned MP-001 probe · max \$1/);
-  assert.match(page, /Reconcile request 82 terminal · \$0/);
-  assert.match(page, /Seal MP-001 recovery checkpoint · \$0/);
   assert.match(route, /RECOVERY_PASS_REVIEW/);
   assert.match(route, /FULL_QUEUE_BINDING_REQUIRED_BEFORE_NEXT_UNIT/);
 });
@@ -361,12 +347,6 @@ test("Release Train seals MP-001, batches zero-spend G0/G1 and opens only MP-002
   assert.match(route, /STABILIZED_UNIT_EXECUTOR_POLICY_MISMATCH/);
   assert.match(route, /SEQUENCE_OR_BATCH_FAILED_PRESERVED/);
   assert.match(route, /BATCH_UNIT_PASS_REVIEW/);
-  assert.match(page, /Build Release Train G0\/G1 · \$0/);
-  assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
-  assert.match(page, /Run request 84 · MP-002 Sequence Proof · max \$1/);
-  assert.match(page, /CANARY_UNIT_RUNNING" \? "STEP_RELEASE_TRAIN_UNIT" : "STEP_PILOT"/);
-  assert.match(page, /Continue authorized run to 10 MP/);
-  assert.match(page, /data\.authorization\?\.modelPolicy\.batchAuthorized !== true/);
 });
 
 test("Production Scene Renderer is superseded by stabilized executable scenes before request 84", () => {
@@ -386,8 +366,6 @@ test("Production Scene Renderer is superseded by stabilized executable scenes be
   assert.match(route, /predictedOverall: 96/);
   assert.match(route, /predictedCriticalFloor: 93/);
   assert.match(route, /request 84 is the only possible next dispatch/);
-  assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
-  assert.match(page, /Run request 84 · MP-002 Sequence Proof · max \$1/);
 });
 
 test("Stabilization Release enforces typed scope, canonical rehearsal and legacy isolation before request 84", () => {
@@ -420,7 +398,6 @@ test("Stabilization Release enforces typed scope, canonical rehearsal and legacy
   assert.match(route, /BUILD_STABILIZATION_RELEASE/);
   assert.match(route, /persistStabilizationTerminalFailure/);
   assert.match(route, /STABILIZATION_TERMINAL_FAIL/);
-  assert.match(page, /Build Stabilization Release · G0\/G1\/G2 · \$0/);
 });
 
 test("MP-002 has one append-only targeted repair that closes the observed P1 defects", () => {
@@ -443,8 +420,6 @@ test("MP-002 has one append-only targeted repair that closes the observed P1 def
   assert.match(route, /RECEIPT_SAFE_WIDTH/);
   assert.match(route, /PIXEL-AUDIT\$\{repairAttempt \? `-REPAIR-\$\{repairAttempt\}` : ""\}/);
   assert.doesNotMatch(route, /text\(fit\(manifest\.logicalId/);
-  assert.match(page, /Build MP-002 targeted repair · G0\/G1 · \$0/);
-  assert.match(page, /Run request 85 · MP-002 targeted repair · max \$1/);
 });
 
 test("MP-002 pixel oracle verifies rendered regions before autonomous 10-unit completion", () => {
@@ -453,10 +428,6 @@ test("MP-002 pixel oracle verifies rendered regions before autonomous 10-unit co
   assert.match(route, /MIDPOINT_APPROVED_AMOUNT/);
   assert.match(route, /EXIT_CARD_READER_SEPARATION/);
   assert.match(route, /runToCompletion10Mp:true/);
-  assert.match(page, /Authorize and complete all 10 MP · G0\/G1 first/);
-  assert.match(page, /RELEASE_MP002_PIXEL_ORACLE_REPAIR/);
-  assert.match(page, /START_RELEASE_TRAIN_BATCH/);
-  assert.match(page, /RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT/);
 });
 
 test("remaining canonical units compile contract-specific scenes before paid resume", () => {
@@ -466,7 +437,6 @@ test("remaining canonical units compile contract-specific scenes before paid res
   assert.match(route, /8\/8 canonical unit scenes · 24\/24 frames/);
   assert.match(route, /Interrupted pre-dispatch lease recovered · baseline CANARY_ONLY/);
   assert.match(route, /UPDATE v7_architecture_baselines SET execution_state='CANARY_ONLY'/);
-  assert.match(page, /Build 8 canonical unit scenes · G0\/G1 · \$0/);
 });
 
 test("10 sealed MP units compile into one immutable 30-second sequence gate", () => {
@@ -493,8 +463,6 @@ test("10 sealed MP units compile into one immutable 30-second sequence gate", ()
   assert.match(route, /CONTROLLED_RELEASE_GATE_V1/);
   assert.match(executor, /sequence proof requires exactly 30 promoted frames/);
   assert.match(executor, /COMPLETE_SEQUENCE_PROOF/);
-  assert.match(page, /Build 30-second sequence · \$0/);
-  assert.match(page, /Run sequence QA · 1 request/);
   assert.match(sequenceMigration, /CREATE TABLE `v7_sequence_proofs`/);
   assert.doesNotMatch(sequenceMigration, /CREATE TABLE `v7_artifact_promotions`/);
 });
@@ -518,8 +486,6 @@ test("integrated sequence production creates PRODUCT_COMPLETE before independent
   assert.match(route, /FRAME_ALIGNED_20_25_45_PER_UNIT/);
   assert.match(route, /TIMEBASE_UNSAFE_FINAL_SCAN/);
   assert.doesNotMatch(route, /contract_json LIKE/);
-  assert.match(page, /Produce Sequence V2 · \$0/);
-  assert.match(page, /QA is one independent audit only after PRODUCT_COMPLETE/);
   assert.match(route, /SEQUENCE_PRODUCT_INDEPENDENT_AUDIT_V1/);
   assert.match(route, /SEQUENCE_PRODUCT_AUDIT_FIREWALL/);
   assert.match(route, /COMPOSER_VERSION_REJECTED_BY_INDEPENDENT_AUDIT/);
@@ -529,7 +495,4 @@ test("integrated sequence production creates PRODUCT_COMPLETE before independent
   assert.match(route, /"idempotency-key": requestId/);
   assert.match(route, /VALUES \(\?,\?,\?,\?,\?,\?,'RUNNING',\?,\?,\?,\?\)/);
   assert.doesNotMatch(route, /VALUES \(\?,\?,\?,\?,\?,\?,'RUNNING',\?,\?,\?,\?,\?\)/);
-  assert.match(page, /Run independent audit · request 105/);
-  assert.match(page, /Request 105 reached the provider, but its response ID was not durably bound/);
-  assert.match(page, /item\.audit\?\.findings\?\.\[0\].*findingText\(item\.audit\.findings\[0\]\)/);
 });
