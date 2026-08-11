@@ -48,3 +48,13 @@ test("production DoD failure rejects V1 and qualifies the replacement compiler a
   assert.match(route, /emittedProductsBeforeCorrection: 0/);
   assert.match(page, /Qualify and adopt Engine V2/);
 });
+
+test("audit transport failure is reconciled before provider dispatch without touching products", () => {
+  assert.match(route, /WAVE_AUDIT_TRANSPORT_V2_VERIFIED_JPEG_PROXY/);
+  assert.match(route, /BATCH_1_AUDIT_RENDERER_REPLAY_MISMATCH/);
+  assert.match(route, /jpeg\.encode\(\{ data: rendered\.pixels/);
+  assert.match(route, /BLOCKED_TRANSPORT_PRE_DISPATCH/);
+  assert.match(route, /providerRequestsCreated: 0, tokenUsage: 0, costUsd: 0, outputRepair: false, qaRetry: false/);
+  assert.match(route, /max_remote_requests=max_remote_requests\+1/);
+  assert.match(page, /Adopt verified audit transport V2/);
+});

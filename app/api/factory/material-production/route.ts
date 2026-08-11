@@ -24,6 +24,7 @@ const SEQUENCE_PRODUCTION_DOD_VERSION = "SEQUENCE_PRODUCT_DOD_V1";
 const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V2";
 const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V2_LAYOUT_CONTRACT_BOUND";
 const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
+const WAVE_BATCH_AUDIT_TRANSPORT_VERSION = "WAVE_AUDIT_TRANSPORT_V2_VERIFIED_JPEG_PROXY";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
 const DATA_VISUALIZATION_V3 = "RECONCILED_WATERFALL_PRIMITIVES_V3";
 const ARCHETYPE_REGRESSION_VERSION = "ARCHETYPE_REGRESSION_V2";
@@ -4456,6 +4457,7 @@ async function waveBatch1Audit() {
   if (!batch || clean(batch.status) !== "PRODUCT_COMPLETE" || Number(batch.completed_units) !== 26) throw new Error("BATCH_1_PRODUCT_COMPLETE_REQUIRED");
   let audit = await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>();
   if (audit && ["PASS", "ENGINE_ROOT_CAUSE_REQUIRED", "BLOCKED_INCOMPLETE"].includes(clean(audit.status))) return snapshot();
+  if (clean(audit?.status) === "BLOCKED_TRANSPORT_PRE_DISPATCH") audit = null;
   if (audit?.provider_response_id) {
     const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(audit.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
     if (!response.ok) throw new Error(`BATCH_1_AUDIT_STATUS_FAILED · ${response.status}`);
@@ -4493,15 +4495,19 @@ async function waveBatch1Audit() {
     const specification = rec(JSON.parse(String(product.specification_json || "{}"))), frameIds = arr(JSON.parse(String(product.frame_ids_json || "[]"))).map(clean);
     if (frameIds.length !== 3) throw new Error(`BATCH_1_AUDIT_FRAME_SET_INCOMPLETE · ${clean(item.logicalId)}`);
     content.push({ type: "input_text", text: `PRODUCT ${clean(item.logicalId)} · ${clean(item.archetype)}\n${JSON.stringify({ contract: rec(specification.contract), manifest: { sceneType: rec(specification.manifest).sceneType, states: rec(specification.manifest).states }, measurements: JSON.parse(String(product.measurements_json || "{}")), productHash: product.product_hash })}` });
-    for (const frameId of frameIds) {
+    for (const [frameIndex, frameId] of frameIds.entries()) {
       const file = await db.prepare("SELECT runtime_key,content_hash FROM v7_material_files WHERE id=? AND status='STORED_VERIFIED'").bind(frameId).first<Row>(), object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null;
       if (!object) throw new Error(`BATCH_1_AUDIT_FRAME_MISSING · ${clean(item.logicalId)}`);
       const bytes = new Uint8Array(await new Response(object.body).arrayBuffer());
       if (await shaBytes(bytes) !== clean(file?.content_hash)) throw new Error(`BATCH_1_AUDIT_FRAME_HASH_MISMATCH · ${clean(item.logicalId)}`);
-      content.push({ type: "input_image", image_url: `data:image/png;base64,${base64(bytes)}`, detail: "high" });
+      const rendered = renderProductionScene(rec(specification.manifest), frameIndex as 0 | 1 | 2);
+      if (await shaBytes(rendered.bytes) !== clean(file?.content_hash)) throw new Error(`BATCH_1_AUDIT_RENDERER_REPLAY_MISMATCH · ${clean(item.logicalId)} · ${frameIndex}`);
+      const proxy = new Uint8Array(jpeg.encode({ data: rendered.pixels, width: rendered.width, height: rendered.height }, 88).data), proxyHash = await shaBytes(proxy);
+      content.push({ type: "input_text", text: `AUDIT TRANSPORT ${WAVE_BATCH_AUDIT_TRANSPORT_VERSION} · state ${frameIndex + 1}/3 · immutable source SHA-256 ${clean(file?.content_hash)} · verified replay · JPEG proxy SHA-256 ${proxyHash}` });
+      content.push({ type: "input_image", image_url: `data:image/jpeg;base64,${base64(proxy)}`, detail: "high" });
     }
   }
-  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, "WAVE-09-BATCH-1", "WAVE_BATCH_PRODUCT_AUDIT", "OPENAI", setting.modelId, setting.reasoningEffort, 2500, 6000), auditId = `${clean(batch.id)}-${WAVE_BATCH_AUDIT_RUBRIC}`, now = new Date().toISOString();
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, "WAVE-09-BATCH-1", "WAVE_BATCH_PRODUCT_AUDIT", "OPENAI", setting.modelId, setting.reasoningEffort, 2500, 6000), auditId = `${clean(batch.id)}-${WAVE_BATCH_AUDIT_RUBRIC}-${WAVE_BATCH_AUDIT_TRANSPORT_VERSION}`, now = new Date().toISOString();
   await db.prepare("INSERT INTO v7_batch_product_audits (id,program_id,run_id,authorization_id,batch_id,rubric_version,status,score,tier,dimensions_json,findings_json,root_cause_json,request_id,created_at,updated_at) VALUES (?,?,?,?,?,?,'DISPATCHING',0,'BLOCKED','{}','[]','{}',?,?,?)").bind(auditId, PROGRAM_ID, run.id, authorization.id, batch.id, WAVE_BATCH_AUDIT_RUBRIC, requestId, now, now).run();
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": requestId }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 6000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "wave_batch_product_audit", strict: true, schema: batchProductAuditSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); await db.prepare("UPDATE v7_batch_product_audits SET status='BLOCKED_INCOMPLETE',updated_at=?,completed_at=? WHERE id=?").bind(now, now, auditId).run(); throw new Error(`BATCH_1_AUDIT_START_FAILED · ${response.status}`); }
@@ -4511,6 +4517,25 @@ async function waveBatch1Audit() {
     db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, now, requestId),
     db.prepare("UPDATE v7_batch_product_audits SET status='QA_RUNNING',provider_response_id=?,updated_at=? WHERE id=?").bind(payload.id, now, auditId),
     db.prepare("UPDATE v7_stage_states SET status='BATCH_1_AUDIT_RUNNING',blocker='EXACTLY_ONE_INDEPENDENT_AUDIT',evidence_summary='26/26 PRODUCT_COMPLETE preserved · one risk-stratified audit request active · no repair loop',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function reconcileWaveBatch1AuditTransport() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("BATCH_1_AUDIT_TRANSPORT_CONFIGURATION_REQUIRED");
+  const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  const audit = batch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>() : null;
+  const request = audit?.request_id ? await db.prepare("SELECT * FROM v7_material_requests WHERE id=?").bind(audit.request_id).first<Row>() : null;
+  if (!batch || clean(batch.status) !== "PRODUCT_COMPLETE" || !audit || clean(audit.status) !== "DISPATCHING" || clean(audit.provider_response_id) || !request || !["QUEUED", "IN_PROGRESS"].includes(clean(request.status))) throw new Error("BATCH_1_ORPHANED_PRE_DISPATCH_CHECKPOINT_REQUIRED");
+  if (Number(request.input_tokens || 0) !== 0 || Number(request.output_tokens || 0) !== 0 || Number(request.actual_cost_usd || 0) !== 0) throw new Error("BATCH_1_AUDIT_TRANSPORT_NOT_ZERO_USAGE");
+  const now = new Date().toISOString(), policy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), auditTransportVersion: WAVE_BATCH_AUDIT_TRANSPORT_VERSION, transportCorrection: { failedTransport: "LOSSLESS_PNG_INLINE_V1", rootCause: "UNBOUNDED_21_FRAME_BASE64_PAYLOAD_BEFORE_PROVIDER_ID", replacement: "HASH_VERIFIED_DETERMINISTIC_REPLAY_TO_JPEG_PROXY", providerRequestsCreated: 0, tokenUsage: 0, costUsd: 0, outputRepair: false, qaRetry: false } };
+  await db.batch([
+    db.prepare("UPDATE v7_material_requests SET status='FAILED',error='AUDIT_TRANSPORT_V1_OVERSIZE_BEFORE_PROVIDER_ID',updated_at=? WHERE id=?").bind(now, request.id),
+    db.prepare("UPDATE v7_batch_product_audits SET status='BLOCKED_TRANSPORT_PRE_DISPATCH',root_cause_json=?,updated_at=?,completed_at=? WHERE id=?").bind(JSON.stringify(policy.transportCorrection), now, now, audit.id),
+    db.prepare("UPDATE v7_production_batches SET request_budget=request_budget+1,updated_at=? WHERE id=?").bind(now, batch.id),
+    db.prepare("UPDATE v7_material_authorizations SET max_remote_requests=max_remote_requests+1,model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(policy), now, authorization.id),
+    db.prepare("UPDATE v7_stage_states SET status='BATCH_1_PRODUCT_COMPLETE',blocker='INDEPENDENT_BATCH_AUDIT_READY',evidence_summary='26/26 PRODUCT_COMPLETE preserved · lossless PNG audit transport V1 rejected before provider ID at zero tokens / $0 · hash-verified JPEG proxy transport V2 qualified · output pixels unchanged',updated_at=? WHERE id=?").bind(now, STAGE_ID),
   ]);
   return snapshot();
 }
@@ -4648,6 +4673,7 @@ export async function POST(request: Request) {
     if (body.action === "START_WAVE_BATCH_1") return Response.json(await startWaveBatch1(), { status: 201 });
     if (body.action === "ADOPT_WAVE_BATCH_1_ENGINE_ROOT_CORRECTION") return Response.json(await adoptWaveBatch1EngineRootCorrection(), { status: 201 });
     if (body.action === "PRODUCE_NEXT_WAVE_BATCH_1_SHOT") return Response.json(await produceNextWaveBatch1Shot(), { status: 201 });
+    if (body.action === "RECONCILE_WAVE_BATCH_1_AUDIT_TRANSPORT") return Response.json(await reconcileWaveBatch1AuditTransport(), { status: 201 });
     if (body.action === "RUN_WAVE_BATCH_1_AUDIT") return Response.json(await waveBatch1Audit(), { status: 202 });
     if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
