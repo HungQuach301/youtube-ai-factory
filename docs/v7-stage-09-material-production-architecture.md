@@ -65,6 +65,8 @@ Production waves use `SPECIFIED → PRODUCING → PRODUCT_COMPLETE` as their bus
 
 Independent QA runs only after every shot in the batch is `PRODUCT_COMPLETE`. A failed audit rejects the production-engine version and names the root production layer. It never authorizes cosmetic output repair or a retry without an engine change. The affected engine capability must be corrected, regression-qualified and used to reproduce affected products under a new version while preserving failed outputs as immutable evidence.
 
+Batch 2 V8 audit evidence established a systemic coarse-template escape: distinct shot contracts could collapse into repeated layouts, omit contract entities and relations, and inject generic economic labels. The V9 correction replaces scene-type templates with a contract-bound scene graph. Every ENTRY/MIDPOINT/EXIT state carries source-clause nodes, relation direction and negative constraints into the renderer. Admission requires 50/50 manifest/oracle PASS, zero unsupported generic labels, 50 unique product signatures and 150/150 unique frame hashes. V8 products and their 32/100 audit remain immutable evidence; V9 reproduces all 50 products and receives a new independent audit rather than retrying the rejected audit.
+
 ## Binding decisions
 
 1. **Meaning precedes pixels.** Every material brief inherits immutable timing, narration clause, visual job, entry/motion/exit states, factual acceptance and mobile acceptance from Stage 08.

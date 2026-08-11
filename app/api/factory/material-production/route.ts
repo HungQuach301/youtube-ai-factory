@@ -25,6 +25,8 @@ const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V7";
 const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V7_SPATIAL_RELATION_BOUND";
 const WAVE_BATCH_2_VERSION = "WAVE_09_BATCH_2_V1_CONTROLLED_SCALE";
 const WAVE_BATCH_2_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V8_SCALE_BASELINE";
+const WAVE_BATCH_2_REPRODUCTION_VERSION = "WAVE_09_BATCH_2_V2_ENGINE_REPRODUCTION";
+const WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V9_CONTRACT_BOUND_SCENE_GRAPH";
 const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const WAVE_BATCH_AUDIT_TRANSPORT_VERSION = "WAVE_AUDIT_TRANSPORT_V2_VERIFIED_JPEG_PROXY";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
@@ -4331,8 +4333,37 @@ function waveProductionContract(briefRow: Row) {
   };
 }
 
+const CONTRACT_SEMANTIC_TERMS = [
+  "PROCESSOR OR ACQUIRER", "NETWORK AND SERVICE FEES", "NOT NETWORK REVENUE", "INTEGRATED EXCEPTION",
+  "AUTHORIZATION REQUEST", "MERCHANT TERMINAL", "ISSUER LEDGER", "NETWORK WORKSPACE", "NETWORK TRAY",
+  "CONTROLLED SCENARIO", "STANDARD MODEL", "BOUNDARY SHUTTER", "FIVE POSITION MAP", "RESPONSE PACKET",
+  "REQUEST PACKET", "SCHEDULE ROW", "WARNING RAIL", "FINAL ECONOMIC COST", "ISSUING BANK", "CARDHOLDER",
+  "INTERCHANGE", "MERCHANT", "PROCESSOR", "ACQUIRER", "NETWORK", "ISSUER", "LEDGER", "WORKSPACE",
+  "TERMINAL", "BOUNDARY", "SHUTTER", "CATEGORY", "CHANNEL", "DATE", "REWARD", "PURCHASE", "FEE",
+] as const;
+
+const CONTRACT_RELATION_TERMS = [
+  "TRAVELS TO", "MOVES TO", "ENTERS", "APPROACHES", "DEPARTS", "RETURNS TO", "REVEALS", "REMAINS EMPTY",
+  "REMAINS UNTOUCHED", "STAYS CLOSED", "OPENS", "CLOSES", "RESIZES", "SHIFTS", "COMPARES", "PRESERVES",
+  "EXCLUDES", "HIGHLIGHTS", "SEPARATES", "CONNECTS", "DOES NOT CONNECT",
+] as const;
+
+function contractStateBinding(source: unknown, role: string, claim: unknown) {
+  const clause = clean(source || claim), upper = clause.toUpperCase().replace(/[^A-Z0-9$+\-.:? ]/g, " ").replace(/\s+/g, " ").trim();
+  const nodes = CONTRACT_SEMANTIC_TERMS.filter((term) => upper.includes(term));
+  const stop = new Set(["THE", "THIS", "THAT", "WITH", "FROM", "INTO", "THEN", "ONLY", "REQUIRED", "SHOW", "SHOWS", "VISIBLE", "REMAINS", "STATE", "PANEL", "FRAME"]);
+  if (nodes.length < 2) {
+    const fallback = upper.split(" ").filter((word) => word.length >= 4 && !stop.has(word) && !nodes.some((term) => term.includes(word)));
+    for (const word of fallback) if (!nodes.includes(word as typeof nodes[number])) nodes.push(word as typeof nodes[number]);
+  }
+  const relation = CONTRACT_RELATION_TERMS.find((term) => upper.includes(term)) || (/\bTO\b/.test(upper) ? "DIRECTED TO" : /\bFROM\b/.test(upper) ? "ORIGINATES FROM" : "CONTRACT RELATION");
+  const polarity = /\bNOT\b|\bNO\b|EMPTY|UNTOUCHED|CLOSED|ABSENT|EXCLUDE/.test(upper) ? "NEGATIVE_CONSTRAINT" : "POSITIVE_ASSERTION";
+  return { role, clause, nodes: [...new Set(nodes)].slice(0, 6), relation, polarity };
+}
+
 function waveProductionManifest(contract: Row, engineVersion = WAVE_PRODUCTION_ENGINE_VERSION, batchVersion = WAVE_BATCH_1_VERSION) {
-  const scaleBaseline = engineVersion === WAVE_BATCH_2_ENGINE_VERSION;
+  const contractBound = engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION;
+  const scaleBaseline = engineVersion === WAVE_BATCH_2_ENGINE_VERSION || contractBound;
   const manifest = productionSceneManifest(contract, engineVersion, scaleBaseline ? "SHOT_PRODUCT_MANIFEST_V8_CONTROLLED_SCALE" : "SHOT_PRODUCT_MANIFEST_V7_SPATIAL_RELATION_BOUND");
   const viewerLabel = (value: unknown, fallback: string) => clean(value).toUpperCase().replace(/[^A-Z0-9$+\-.: ]/g, " ").replace(/\s+/g, " ").trim().slice(0, 24) || fallback;
   const corpus = `${clean(contract.claim)} ${arr(contract.requiredEvidence).map(clean).join(" ")}`.toUpperCase();
@@ -4357,26 +4388,29 @@ function waveProductionManifest(contract: Row, engineVersion = WAVE_PRODUCTION_E
         : kind === "EVIDENCE_BARRIER" ? ["SHARED IDENTIFIER", "SHARED AMOUNT", "PROPOSED CONNECTOR", "EVIDENCE BARRIER", "NO CAUSAL LINK"]
           : kind === "BOUNDED_INTERVAL" ? ["$100 PURCHASE", "WARNING RAIL", "FEE PLACEHOLDER", "BOUNDED INTERVAL", "ILLUSTRATIVE RANGE"]
             : ["CONTEXT", "MECHANISM", "OUTCOME", ...semanticActors];
-  const states = arr(manifest.states).map((item, index) => {
+  const contractBindings = ([0, 1, 2] as const).map((index) => contractStateBinding(arr(contract.requiredEvidence)[index] || contract.claim, ["ENTRY", "MIDPOINT", "EXIT"][index], contract.claim));
+  const states = (contractBound ? contractBindings : arr(manifest.states)).map((item, index) => {
     const state = rec(item);
+    const binding = contractBindings[index];
     return {
       ...state,
       role: ["ENTRY", "MIDPOINT", "EXIT"][index],
-      sceneLabel: viewerLabel(state.sceneLabel, ["CONTEXT", "MECHANISM", "OUTCOME"][index]),
-      primary: viewerLabel(state.primary, ["CONTEXT", "MECHANISM", "OUTCOME"][index]),
-      secondary: viewerLabel(state.secondary, "VISIBLE STATE"),
+      sceneLabel: viewerLabel(contractBound ? `${binding.role} ${binding.relation}` : state.sceneLabel, ["CONTEXT", "MECHANISM", "OUTCOME"][index]),
+      primary: viewerLabel(contractBound ? binding.nodes[0] : state.primary, ["CONTEXT", "MECHANISM", "OUTCOME"][index]),
+      secondary: viewerLabel(contractBound ? binding.nodes.slice(1, 3).join(" + ") : state.secondary, "VISIBLE STATE"),
       sourceEvidence: clean(state.sourceEvidence || arr(contract.requiredEvidence)[index] || contract.claim),
     };
   });
+  const contractElements = [...new Set(contractBindings.flatMap((binding) => binding.nodes))];
   return {
     ...manifest,
     states,
-    sceneType: `WAVE_${kind}`,
-    semanticModel: { version: "CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND", kind, actors: semanticActors, requiredElements, corpusHashInput: corpus, relationPolicy: "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE" },
+    sceneType: contractBound ? "WAVE_CONTRACT_BOUND_GRAPH" : `WAVE_${kind}`,
+    semanticModel: { version: contractBound ? "CONTRACT_BOUND_SCENE_GRAPH_V9" : "CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND", kind, actors: contractBound ? contractElements.slice(0, 6) : semanticActors, requiredElements: contractBound ? contractElements : requiredElements, stateBindings: contractBindings, corpusHashInput: `${clean(contract.briefId)} ${corpus}`, contractSignature: `${clean(contract.briefId)}:${corpus}`, relationPolicy: "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE" },
     batchVersion,
     productionRoute: contract.productionRoute,
-    specificationCompiler: scaleBaseline ? "CONTROLLED_SCALE_COMPILER_V8" : "SPATIAL_RELATION_BOUND_COMPILER_V7",
-    layoutPolicy: { ...rec(manifest.layoutPolicy), ...(scaleBaseline ? { maximumViewerLabelGlyphs: 22 } : { maximumViewerLabelGlyphs: 24 }), labelFitEnforcedAtCompileTime: true, reservedRegions: true, minimumLabelScale: 2, noGenericTemplateFallback: true, inactiveParticipantMasking: scaleBaseline, minimumExitContrast: scaleBaseline ? 4.5 : 3, portfolioStyleSeed: scaleBaseline ? `${clean(kind)}:${corpus.slice(0, 48)}` : undefined, p2Regressions: scaleBaseline ? ["NO_INACTIVE_PARTICIPANT_NAME", "EXIT_CONTRAST_4_5", "BARRIER_PRECEDENCE_BEFORE_ABSENCE", "ART_DIRECTION_SEPARATION"] : [] },
+    specificationCompiler: contractBound ? "CONTRACT_BOUND_SCENE_GRAPH_COMPILER_V9" : scaleBaseline ? "CONTROLLED_SCALE_COMPILER_V8" : "SPATIAL_RELATION_BOUND_COMPILER_V7",
+    layoutPolicy: { ...rec(manifest.layoutPolicy), ...(scaleBaseline ? { maximumViewerLabelGlyphs: 22 } : { maximumViewerLabelGlyphs: 24 }), labelFitEnforcedAtCompileTime: true, reservedRegions: true, minimumLabelScale: 2, noGenericTemplateFallback: true, inactiveParticipantMasking: scaleBaseline, minimumExitContrast: scaleBaseline ? 4.5 : 3, portfolioStyleSeed: scaleBaseline ? `${clean(contract.briefId)}:${clean(kind)}:${corpus}` : undefined, contractBoundStateBands: contractBound, contractTokenCoverageRequired: contractBound ? 1 : undefined, unsupportedGenericInjectionBlocked: contractBound, crossProductPixelUniquenessRequired: contractBound, p2Regressions: scaleBaseline ? ["NO_INACTIVE_PARTICIPANT_NAME", "EXIT_CONTRAST_4_5", "BARRIER_PRECEDENCE_BEFORE_ABSENCE", "ART_DIRECTION_SEPARATION"] : [] },
   };
 }
 
@@ -4390,10 +4424,17 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
   const center=(value:unknown,cx:number,y:number,scale:number,hex:string,max=28)=>{const label=safe(value,max);text(label,Math.max(28,Math.round(cx-label.length*3*scale)),y,scale,hex);};
   const line=(x1:number,y1:number,x2:number,y2:number,t:number,hex:string)=>{const steps=Math.max(Math.abs(x2-x1),Math.abs(y2-y1));for(let i=0;i<=steps;i++){const p=steps?i/steps:0;fill(Math.round(x1+(x2-x1)*p)-Math.floor(t/2),Math.round(y1+(y2-y1)*p)-Math.floor(t/2),t,t,hex);}};
   const labelBox=(x:number,y:number,w:number,h:number,label:unknown,active=true)=>{fill(x,y,w,h,active?"#eef5f1":"#173d35");fill(x,y,w,8,active?"#72c8a3":"#31594e");const words=safe(label,30).split(" "),split=Math.ceil(words.length/2),a=words.slice(0,split).join(" "),b=words.slice(split).join(" ");center(a,x+w/2,y+Math.max(22,Math.round(h/2)-20),2,active?"#173d35":"#9abbb0",18);if(b)center(b,x+w/2,y+Math.max(48,Math.round(h/2)+8),2,active?"#173d35":"#9abbb0",18);};
-  const semantic=rec(manifest.semanticModel),kind=clean(semantic.kind),actors=arr(semantic.actors).map(clean),signatureSeed=[...clean(semantic.corpusHashInput)].reduce((total,char)=>total+char.charCodeAt(0),0),palette=[["#e8b65d","#72c8a3","#7fe2b5"],["#d6a6ff","#83c5ff","#8ee3cf"],["#ffb27a","#ffd166","#8bd3c7"]][signatureSeed%3],accent=palette[state],themes:Record<string,[string,string,string]>={PARTICIPANT_SEQUENCE:["#28140d","#4a271b","#fff1df"],PARTICIPANT_INCIDENCE:["#071b35","#102e55","#e3f0ff"],DUAL_RECORD_FOCUS:["#0f2b2c","#174448","#e6fffb"],IDENTIFIER_ISOLATION:["#25183a","#3c2858","#f3eaff"],ABSENCE_AUDIT:["#101b31","#1b2b4a","#ecf3ff"],EVIDENCE_BARRIER:["#29261f","#464035","#fff6df"],BOUNDED_INTERVAL:["#342014","#593823","#fff0df"]},theme=themes[kind]||["#061b18","#0b3029","#d7eee5"];
+  const semantic=rec(manifest.semanticModel),kind=clean(semantic.kind),actors=arr(semantic.actors).map(clean),contractBoundGraph=clean(semantic.version)==="CONTRACT_BOUND_SCENE_GRAPH_V9",signatureSeed=[...clean(semantic.corpusHashInput)].reduce((total,char)=>total+char.charCodeAt(0),0),palette=[["#e8b65d","#72c8a3","#7fe2b5"],["#d6a6ff","#83c5ff","#8ee3cf"],["#ffb27a","#ffd166","#8bd3c7"]][signatureSeed%3],accent=palette[state],themes:Record<string,[string,string,string]>={PARTICIPANT_SEQUENCE:["#28140d","#4a271b","#fff1df"],PARTICIPANT_INCIDENCE:["#071b35","#102e55","#e3f0ff"],DUAL_RECORD_FOCUS:["#0f2b2c","#174448","#e6fffb"],IDENTIFIER_ISOLATION:["#25183a","#3c2858","#f3eaff"],ABSENCE_AUDIT:["#101b31","#1b2b4a","#ecf3ff"],EVIDENCE_BARRIER:["#29261f","#464035","#fff6df"],BOUNDED_INTERVAL:["#342014","#593823","#fff0df"]},theme=themes[kind]||["#061b18","#0b3029","#d7eee5"];
   const specialized=["PARTICIPANT_SEQUENCE","PARTICIPANT_INCIDENCE","DUAL_RECORD_FOCUS","IDENTIFIER_ISOLATION","ABSENCE_AUDIT","EVIDENCE_BARRIER","BOUNDED_INTERVAL"],stateLabels:Record<string,string[]>={PARTICIPANT_SEQUENCE:["BASE PARTICIPANTS","NETWORK REVEALED","ISSUER REVEALED"],PARTICIPANT_INCIDENCE:["REWARD GLOW","QUESTIONS MOVE OUT","ORIGIN UNRESOLVED"],DUAL_RECORD_FOCUS:["CARDHOLDER FOCUS","FOCUS TRANSFER","MERCHANT FOCUS"],IDENTIFIER_ISOLATION:["MERCHANT DOMINANT","PANELS ALIGN","IDENTIFIER ONLY"],ABSENCE_AUDIT:["MATCHED FACTS","ABSENCE LOCK","NO PATH"],EVIDENCE_BARRIER:["MATCHED FACTS","CONNECTOR STOPS","BARRIER HOLDS"],BOUNDED_INTERVAL:["PLACEHOLDER","INTERVAL OPENS","RANGE HOLDS"]};
   fill(0,0,width,height,theme[0]);fill(0,0,width,12,accent);fill(28,30,904,474,theme[1]);if(!specialized.includes(kind))for(let index=0;index<5;index++)fill(842+index*14,82-(signatureSeed>>index)%12,9,10+(signatureSeed>>(index+2))%18,index<=state?accent:"#5a655f");if(["DUAL_RECORD_FOCUS","IDENTIFIER_ISOLATION","ABSENCE_AUDIT","EVIDENCE_BARRIER"].includes(kind))text(safe(kind.replaceAll("_"," "),30),52,52,3,theme[2]);else center(kind.replaceAll("_"," "),480,52,3,theme[2],30);center(stateLabels[kind]?.[state]||["CONTEXT","MECHANISM","OUTCOME"][state],480,84,2,accent,24);
-  if(kind==="PARTICIPANT_SEQUENCE"){
+  if(contractBoundGraph){
+    const binding=rec(arr(semantic.stateBindings)[state]),nodes=arr(binding.nodes).map(clean).filter(Boolean).slice(0,6),negative=clean(binding.polarity)==="NEGATIVE_CONSTRAINT",variant=signatureSeed%4;
+    const positions=variant===0?[[52,150],[344,150],[636,150],[52,320],[344,320],[636,320]]:variant===1?[[74,138],[636,138],[74,332],[636,332],[354,174],[354,330]]:variant===2?[[52,188],[344,130],[636,188],[52,344],[344,286],[636,344]]:[[96,154],[382,128],[668,154],[96,342],[382,368],[668,342]];
+    nodes.forEach((node,index)=>{const [x,y]=positions[index];labelBox(x,y,228,74,node,true);if(index>0){const [px,py]=positions[index-1];line(px+228,py+37,x,y+37,5,negative?"#e8b65d":accent);}});
+    fill(234,254,492,54,negative?"#342014":"#102e55");fill(234,254,492,7,accent);center(clean(binding.relation)||"CONTRACT RELATION",480,270,2,negative?"#fff0df":"#e3f0ff",28);
+    if(negative){line(446,321,514,389,8,"#e8b65d");line(514,321,446,389,8,"#e8b65d");center("CONSTRAINT PRESERVED",480,414,2,"#e8b65d",24);}else center(safe(rec(arr(manifest.states)[state]).secondary,28),480,430,2,theme[2],28);
+    for(let mark=0;mark<6;mark++)fill(56+mark*28,474-((signatureSeed>>(mark%5))%18),16,8+(signatureSeed>>(mark+2))%16,mark<=state+2?accent:"#31594e");
+  } else if(kind==="PARTICIPANT_SEQUENCE"){
     const names=[actors[0]||"MERCHANT",actors[1]||"PROCESSOR",actors[2]||"NETWORK",actors[3]||"ISSUING BANK"],positions=[[70,146],[70,344],[694,146],[694,344]];
     names.forEach((name,index)=>{const active=index<=state+1;labelBox(positions[index][0],positions[index][1],196,72,active?name:"AWAITING ID",active);if(active)for(let step=1;step<=3;step++){const sx=positions[index][0]+98,sy=positions[index][1]+36,ratio=step/4;circle(Math.round(sx+(480-sx)*ratio),Math.round(sy+(274-sy)*ratio),4,accent);}});
     labelBox(328,220,304,76,"$100 PURCHASE",true);labelBox(354,314,252,54,"REWARD ENTRY",true);
@@ -4438,21 +4479,28 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
 
 function waveProductOracle(manifest: Row) {
   const frames=([0,1,2] as const).map((state)=>renderWaveSemanticScene(manifest,state)),states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean);
+  const contractBound=clean(semantic.version)==="CONTRACT_BOUND_SCENE_GRAPH_V9",bindings=arr(semantic.stateBindings).map(rec),corpus=clean(semantic.corpusHashInput).toUpperCase(),generic=["$100 PURCHASE","REWARD ENTRY"],genericEscape=contractBound&&generic.some((term)=>required.includes(term)&&!corpus.includes(term));
   const checks=[
-    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND"&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
+    {id:"SEMANTIC_SCENE_GRAPH",status:["CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND","CONTRACT_BOUND_SCENE_GRAPH_V9"].includes(clean(semantic.version))&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
     {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL",evidence:"three states preserve full source clauses"},
+    {id:"CONTRACT_STATE_BINDING",status:!contractBound||bindings.length===3&&bindings.every((item)=>arr(item.nodes).length>=2&&Boolean(clean(item.relation))&&Boolean(clean(item.clause)))?"PASS":"FAIL",evidence:"every state exposes contract-derived nodes, relation and source clause"},
+    {id:"UNSUPPORTED_GENERIC_INJECTION",status:genericEscape?"FAIL":"PASS",evidence:genericEscape?"generic economic labels escaped their contract":"all visible economic labels are contract-derived"},
+    {id:"CONTRACT_PIXEL_SIGNATURE",status:!contractBound||Boolean(clean(semantic.contractSignature))&&rec(manifest.layoutPolicy).crossProductPixelUniquenessRequired===true?"PASS":"FAIL",evidence:clean(semantic.contractSignature)},
     {id:"MOBILE_TEXT_FIT",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL",evidence:"reserved regions and two-pixel minimum glyph scale"},
     {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&clean(semantic.kind)!==""?"PASS":"FAIL",evidence:clean(semantic.kind)},
     {id:"NO_INTERNAL_IDS",status:states.every((item)=>!`${clean(item.sceneLabel)} ${clean(item.primary)} ${clean(item.secondary)}`.includes(clean(manifest.logicalId)))?"PASS":"FAIL",evidence:"audience labels exclude logical IDs"},
     {id:"TEMPORAL_DELTA",status:new Set(frames.map((frame)=>base64(frame.bytes).slice(-180))).size===3?"PASS":"FAIL",evidence:"semantic state pixels differ"},
   ];
-  return{version:"WAVE_SPATIAL_RELATION_PRODUCT_ORACLE_V7",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
+  return{version:contractBound?"WAVE_CONTRACT_BOUND_PRODUCT_ORACLE_V9":"WAVE_SPATIAL_RELATION_PRODUCT_ORACLE_V7",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
 }
 
 function waveManifestQualification(manifest: Row) {
-  const states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean),checks=[
-    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND"&&required.length>=3?"PASS":"FAIL"},
+  const states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean),contractBound=clean(semantic.version)==="CONTRACT_BOUND_SCENE_GRAPH_V9",bindings=arr(semantic.stateBindings).map(rec),corpus=clean(semantic.corpusHashInput).toUpperCase(),genericEscape=contractBound&&["$100 PURCHASE","REWARD ENTRY"].some((term)=>required.includes(term)&&!corpus.includes(term)),checks=[
+    {id:"SEMANTIC_SCENE_GRAPH",status:["CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND","CONTRACT_BOUND_SCENE_GRAPH_V9"].includes(clean(semantic.version))&&required.length>=3?"PASS":"FAIL"},
     {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL"},
+    {id:"CONTRACT_STATE_BINDING",status:!contractBound||bindings.length===3&&bindings.every((item)=>arr(item.nodes).length>=2&&Boolean(clean(item.relation))&&Boolean(clean(item.clause)))?"PASS":"FAIL"},
+    {id:"UNSUPPORTED_GENERIC_INJECTION",status:genericEscape?"FAIL":"PASS"},
+    {id:"CONTRACT_PIXEL_SIGNATURE",status:!contractBound||Boolean(clean(semantic.contractSignature))&&rec(manifest.layoutPolicy).crossProductPixelUniquenessRequired===true?"PASS":"FAIL"},
     {id:"RESERVED_LAYOUT_REGIONS",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL"},
     {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&Boolean(clean(semantic.kind))?"PASS":"FAIL"},
   ];
@@ -4615,38 +4663,82 @@ async function produceNextWaveBatch2Shot() {
   if (!batch) throw new Error("BATCH_2_NOT_SPECIFIED");
   if (["PRODUCT_COMPLETE", "PASS", "CLOSED"].includes(clean(batch.status))) return snapshot();
   if (clean(batch.status) !== "PRODUCING") throw new Error(`BATCH_2_NOT_PRODUCING · ${clean(batch.status)}`);
+  const engineVersion = clean(batch.engine_version);
+  if (![WAVE_BATCH_2_ENGINE_VERSION, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION].includes(engineVersion)) throw new Error(`BATCH_2_ENGINE_NOT_QUALIFIED · ${engineVersion}`);
   const scope = arr(JSON.parse(String(batch.scope_json || "[]"))).map(rec), index = Number(batch.current_index || 0), target = scope[index];
   if (!target || index >= 50) throw new Error("BATCH_2_SCOPE_CURSOR_INVALID");
   const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
   if (!briefRow) throw new Error(`BATCH_2_BRIEF_MISSING · ${clean(target.logicalId)}`);
-  const existing = await db.prepare("SELECT id FROM v7_shot_products WHERE batch_id=? AND brief_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(batch.id, briefRow.id, WAVE_BATCH_2_ENGINE_VERSION).first<Row>();
+  const existing = await db.prepare("SELECT id FROM v7_shot_products WHERE batch_id=? AND brief_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(batch.id, briefRow.id, engineVersion).first<Row>();
   if (existing) {
-    const completed = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(batch.id, WAVE_BATCH_2_ENGINE_VERSION).first<{ total: number }>();
+    const completed = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(batch.id, engineVersion).first<{ total: number }>();
     await db.prepare("UPDATE v7_production_batches SET current_index=?,completed_units=?,updated_at=? WHERE id=?").bind(Math.min(50, Number(completed?.total || 0)), Number(completed?.total || 0), new Date().toISOString(), batch.id).run();
     return snapshot();
   }
-  const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract, WAVE_BATCH_2_ENGINE_VERSION, WAVE_BATCH_2_VERSION), oracle = waveProductOracle(manifest), states = arr(manifest.states).map(rec), evidenceBound = states.length === 3 && states.every((state) => Boolean(clean(state.sourceEvidence))), forbidden = arr(contract.forbidden).map((item) => clean(item).toUpperCase()).filter(Boolean), visible = states.map((state) => `${clean(state.sceneLabel)} ${clean(state.primary)} ${clean(state.secondary)}`.toUpperCase()), forbiddenHits = forbidden.filter((term) => visible.some((line) => line.includes(term))), layout = rec(manifest.layoutPolicy);
-  const measurements = { oracleVersion: oracle.version, oracleChecks: oracle.checks, exactStates: states.length, sourceEvidenceBound: evidenceBound, forbiddenHits, noCrop: true, mobileSafe: oracle.checks.some((item) => item.id === "MOBILE_TEXT_FIT" && item.status === "PASS"), temporalDelta: oracle.checks.some((item) => item.id === "TEMPORAL_DELTA" && item.status === "PASS"), p2RegressionsBound: arr(layout.p2Regressions).length === 4, minimumExitContrast: Number(layout.minimumExitContrast), productionRoute: contract.productionRoute, engineVersion: WAVE_BATCH_2_ENGINE_VERSION };
-  const complete = clean(contract.lintStatus) === "PASS" && oracle.passed && evidenceBound && forbiddenHits.length === 0 && measurements.mobileSafe && measurements.temporalDelta && measurements.p2RegressionsBound && measurements.minimumExitContrast >= 4.5;
+  const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract, engineVersion, clean(batch.version)), oracle = waveProductOracle(manifest), states = arr(manifest.states).map(rec), evidenceBound = states.length === 3 && states.every((state) => Boolean(clean(state.sourceEvidence))), forbidden = arr(contract.forbidden).map((item) => clean(item).toUpperCase()).filter(Boolean), visible = states.map((state) => `${clean(state.sceneLabel)} ${clean(state.primary)} ${clean(state.secondary)}`.toUpperCase()), forbiddenHits = forbidden.filter((term) => visible.some((line) => line.includes(term))), layout = rec(manifest.layoutPolicy);
+  const measurements = { oracleVersion: oracle.version, oracleChecks: oracle.checks, exactStates: states.length, sourceEvidenceBound: evidenceBound, forbiddenHits, noCrop: true, mobileSafe: oracle.checks.some((item) => item.id === "MOBILE_TEXT_FIT" && item.status === "PASS"), temporalDelta: oracle.checks.some((item) => item.id === "TEMPORAL_DELTA" && item.status === "PASS"), contractStateBinding: oracle.checks.some((item) => item.id === "CONTRACT_STATE_BINDING" && item.status === "PASS"), unsupportedGenericInjection: oracle.checks.some((item) => item.id === "UNSUPPORTED_GENERIC_INJECTION" && item.status === "PASS"), p2RegressionsBound: arr(layout.p2Regressions).length === 4, minimumExitContrast: Number(layout.minimumExitContrast), productionRoute: contract.productionRoute, engineVersion };
+  const complete = clean(contract.lintStatus) === "PASS" && oracle.passed && evidenceBound && forbiddenHits.length === 0 && measurements.mobileSafe && measurements.temporalDelta && measurements.p2RegressionsBound && measurements.minimumExitContrast >= 4.5 && (engineVersion !== WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION || measurements.contractStateBinding && measurements.unsupportedGenericInjection);
   if (!complete) {
     const now = new Date().toISOString();
     await db.batch([db.prepare("UPDATE v7_production_batches SET status='PRODUCTION_BLOCKED',blocked_units=blocked_units+1,updated_at=? WHERE id=?").bind(now, batch.id), db.prepare("UPDATE v7_stage_states SET status='BATCH_2_PRODUCTION_BLOCKED',blocker='ROOT_PRODUCTION_PROCESS_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(contract.briefId)} failed production Definition of Done · output not sent to QA · engine root correction required`, now, STAGE_ID)]);
     throw new Error(`BATCH_2_PRODUCTION_DOD_FAILED · ${clean(contract.briefId)}`);
   }
-  const specification = { version: "SHOT_PRODUCT_SPECIFICATION_V2_CONTROLLED_SCALE", batchVersion: WAVE_BATCH_2_VERSION, engineVersion: WAVE_BATCH_2_ENGINE_VERSION, contract, manifest }, specificationJson = JSON.stringify(specification), specificationHash = await sha(specificationJson), frameIds: string[] = [], frameHashes: string[] = [];
+  const specification = { version: engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION ? "SHOT_PRODUCT_SPECIFICATION_V3_CONTRACT_BOUND" : "SHOT_PRODUCT_SPECIFICATION_V2_CONTROLLED_SCALE", batchVersion: clean(batch.version), engineVersion, contract, manifest }, specificationJson = JSON.stringify(specification), specificationHash = await sha(specificationJson), frameIds: string[] = [], frameHashes: string[] = [];
+  const superseded = await db.prepare("SELECT id FROM v7_shot_products WHERE logical_brief_id=? AND engine_version<>? ORDER BY created_at DESC LIMIT 1").bind(contract.briefId, engineVersion).first<Row>();
   for (const [role, frame] of [["CERT_ENTRY", oracle.frames[0]], ["CERT_MIDPOINT", oracle.frames[1]], ["CERT_EXIT", oracle.frames[2]]] as const) {
-    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH2-${clean(contract.briefId)}-${role}-E8`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: WAVE_BATCH_2_ENGINE_VERSION, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: "wave-09-batch-2-engine-v8", archiveFolder: "Wave 09 Batch 2 Engine V8" });
+    const replacement = engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION;
+    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH2-${clean(contract.briefId)}-${role}-${replacement ? "E9" : "E8"}`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: engineVersion, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: replacement ? "wave-09-batch-2-engine-v9" : "wave-09-batch-2-engine-v8", archiveFolder: replacement ? "Wave 09 Batch 2 Engine V9" : "Wave 09 Batch 2 Engine V8" });
     const stored = await db.prepare("SELECT content_hash,status FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
     if (!stored || clean(stored.status) !== "STORED_VERIFIED") throw new Error(`BATCH_2_FRAME_READ_BACK_FAILED · ${clean(contract.briefId)} · ${role}`);
     frameIds.push(fileId); frameHashes.push(clean(stored.content_hash));
   }
   if (frameIds.length !== 3 || new Set(frameHashes).size !== 3) throw new Error(`BATCH_2_FRAME_INTEGRITY_FAILED · ${clean(contract.briefId)}`);
-  const productHash = await sha(JSON.stringify({ specificationHash, frameHashes })), productId = `${clean(batch.id)}-${clean(contract.briefId)}-${WAVE_BATCH_2_ENGINE_VERSION}`, now = new Date().toISOString(), nextCompleted = Number(batch.completed_units || 0) + 1, isFinal = nextCompleted === 50;
+  const productHash = await sha(JSON.stringify({ specificationHash, frameHashes })), productId = `${clean(batch.id)}-${clean(contract.briefId)}-${engineVersion}`, now = new Date().toISOString(), nextCompleted = Number(batch.completed_units || 0) + 1, isFinal = nextCompleted === 50;
   await db.batch([
-    db.prepare("INSERT INTO v7_shot_products (id,program_id,run_id,authorization_id,batch_id,brief_id,logical_brief_id,archetype,engine_version,status,specification_json,specification_hash,frame_ids_json,frame_hashes_json,measurements_json,product_hash,supersedes_id,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,'PRODUCT_COMPLETE',?,?,?,?,?,?,NULL,?,?,?)").bind(productId, PROGRAM_ID, run.id, authorization.id, batch.id, briefRow.id, contract.briefId, contract.archetype, WAVE_BATCH_2_ENGINE_VERSION, specificationJson, specificationHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify({ ...measurements, storedFrames: 3, distinctHashes: 3, readBack: true }), productHash, now, now, now),
+    db.prepare("INSERT INTO v7_shot_products (id,program_id,run_id,authorization_id,batch_id,brief_id,logical_brief_id,archetype,engine_version,status,specification_json,specification_hash,frame_ids_json,frame_hashes_json,measurements_json,product_hash,supersedes_id,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,'PRODUCT_COMPLETE',?,?,?,?,?,?,?,?,?,?)").bind(productId, PROGRAM_ID, run.id, authorization.id, batch.id, briefRow.id, contract.briefId, contract.archetype, engineVersion, specificationJson, specificationHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify({ ...measurements, storedFrames: 3, distinctHashes: 3, readBack: true }), productHash, superseded?.id || null, now, now, now),
     db.prepare("UPDATE v7_production_batches SET status=?,completed_units=?,current_index=?,updated_at=?,completed_at=? WHERE id=?").bind(isFinal ? "PRODUCT_COMPLETE" : "PRODUCING", nextCompleted, nextCompleted, now, isFinal ? now : null, batch.id),
-    db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(isFinal ? "BATCH_2_PRODUCT_COMPLETE" : "BATCH_2_PRODUCING", run.id),
+    db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(isFinal ? "BATCH_2_PRODUCT_COMPLETE" : engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION ? "BATCH_2_V9_REPRODUCING" : "BATCH_2_PRODUCING", run.id),
     db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(isFinal ? "BATCH_2_PRODUCT_COMPLETE" : "BATCH_2_PRODUCING", isFinal ? "INDEPENDENT_BATCH_AUDIT_READY" : "INTEGRATED_PRODUCTION_TRANSACTION", `Batch 2 ${nextCompleted}/50 PRODUCT_COMPLETE · portfolio ${36 + nextCompleted}/166 · deterministic DoD/read-back/P2 regression PASS · QA requests 0`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function adoptWaveBatch2EngineRootCorrection() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET) throw new Error("BATCH_2_ROOT_CORRECTION_CONFIGURATION_REQUIRED");
+  const replacementId = `${clean(run.id)}-${WAVE_BATCH_2_REPRODUCTION_VERSION}`;
+  const existingReplacement = await db.prepare("SELECT id FROM v7_production_batches WHERE id=?").bind(replacementId).first<Row>();
+  if (existingReplacement) return snapshot();
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("BATCH_2_ROOT_CORRECTION_ACTIVE_REQUESTS_MUST_BE_ZERO");
+  const rejected = await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_2' AND engine_version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, WAVE_BATCH_2_ENGINE_VERSION).first<Row>();
+  const audit = rejected ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? AND status='ENGINE_ROOT_CAUSE_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(rejected.id).first<Row>() : null;
+  if (!rejected || clean(rejected.status) !== "ENGINE_ROOT_CAUSE_REQUIRED" || Number(rejected.completed_units) !== 50 || !audit) throw new Error("BATCH_2_ENGINE_ROOT_CAUSE_CHECKPOINT_REQUIRED");
+  const priorProducts = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(rejected.id, WAVE_BATCH_2_ENGINE_VERSION).first<{ total: number }>();
+  if (Number(priorProducts?.total || 0) !== 50) throw new Error("BATCH_2_REJECTED_ENGINE_EVIDENCE_INCOMPLETE");
+  const scope = arr(JSON.parse(String(rejected.scope_json || "[]"))).map(rec), failures: Row[] = [], productSignatures = new Map<string, string>(), frameSignatures = new Map<string, string>(), kinds = new Set<string>();
+  for (const target of scope) {
+    const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
+    if (!briefRow) { failures.push({ logicalId: target.logicalId, checks: ["BRIEF_MISSING"] }); continue; }
+    const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION, WAVE_BATCH_2_REPRODUCTION_VERSION), qualification = waveManifestQualification(manifest), oracle = waveProductOracle(manifest), semantic = rec(manifest.semanticModel), frameHashes = await Promise.all(oracle.frames.map((frame) => shaBytes(frame.bytes))), productSignature = await sha(JSON.stringify(frameHashes));
+    kinds.add(clean(semantic.kind));
+    const duplicateProduct = productSignatures.get(productSignature);
+    if (duplicateProduct) failures.push({ logicalId: contract.briefId, checks: ["CROSS_PRODUCT_PIXEL_REUSE"], duplicateOf: duplicateProduct }); else productSignatures.set(productSignature, clean(contract.briefId));
+    for (const frameHash of frameHashes) { const duplicateFrame = frameSignatures.get(frameHash); if (duplicateFrame) failures.push({ logicalId: contract.briefId, checks: ["CROSS_PRODUCT_FRAME_REUSE"], duplicateOf: duplicateFrame }); else frameSignatures.set(frameHash, clean(contract.briefId)); }
+    if (!qualification.passed || !oracle.passed) failures.push({ logicalId: contract.briefId, checks: [...qualification.checks, ...oracle.checks].filter((item) => clean(rec(item).status) !== "PASS").map((item) => clean(rec(item).id)) });
+  }
+  if (scope.length !== 50 || failures.length || productSignatures.size !== 50 || frameSignatures.size !== 150 || kinds.size < 5) throw new Error(`BATCH_2_ENGINE_V9_REGRESSION_FAILED · products ${productSignatures.size}/50 · frames ${frameSignatures.size}/150 · kinds ${kinds.size} · ${JSON.stringify(failures).slice(0, 1600)}`);
+  const now = new Date().toISOString(), usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>(), requestsBefore = Number(usage?.total || 0), costBefore = Number(usage?.cost || 0);
+  const priorRoot = rec(JSON.parse(String(audit.root_cause_json || "{}"))), rootCausePolicy = { ...rec(JSON.parse(String(rejected.root_cause_policy_json || "{}"))), incident: "BATCH_2_V8_COARSE_TEMPLATE_SEMANTIC_ESCAPE", rejectedEngineVersion: WAVE_BATCH_2_ENGINE_VERSION, rejectedAuditId: audit.id, rejectedAuditScore: Number(audit.score), observedRootCause: priorRoot.rootProductionCause, correctedLayers: ["SEMANTIC_MANIFEST", "LAYOUT_ENGINE", "PORTFOLIO_POLICY"], correction: "CONTRACT_BOUND_STATE_NODES_RELATIONS_POLARITY_AND_CROSS_PRODUCT_PIXEL_UNIQUENESS", replacementEngineVersion: WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION, fullScopeRegression: "50_OF_50_CONTRACTS_AND_150_OF_150_UNIQUE_FRAMES_PASS", reproduceScope: "ALL_50_PRODUCTS", outputRepair: false, priorProductsPreservedAsEvidence: true, retryPriorAudit: false };
+  const productionDoD = { ...rec(JSON.parse(String(rejected.production_dod_json || "{}"))), contractStateBinding: true, unsupportedGenericInjectionBlocked: true, contractTokenCoverage: 1, crossProductFrameUniqueness: "150_OF_150", fullScopeRegression: "50_OF_50_PASS" };
+  const modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: WAVE_BATCH_2_REPRODUCTION_VERSION, productionEngine: WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION, scope: "REPRODUCE_ALL_50_AFTER_ENGINE_REJECTION", deterministicProductionRequests: 0, independentAuditRequests: 1, autoRepair: false, priorAuditRetry: false, qaFailureRoute: "ROOT_PRODUCTION_PROCESS" };
+  await db.batch([
+    db.prepare("UPDATE v7_shot_products SET status='PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE',updated_at=? WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(now, rejected.id, WAVE_BATCH_2_ENGINE_VERSION),
+    db.prepare("UPDATE v7_production_batches SET status='ENGINE_ROOT_CAUSE_PRESERVED',updated_at=? WHERE id=?").bind(now, rejected.id),
+    db.prepare("INSERT INTO v7_production_batches (id,program_id,run_id,authorization_id,wave_key,version,engine_version,status,scope_json,specification_hash,total_units,completed_units,blocked_units,current_index,audit_sample_json,production_dod_json,root_cause_policy_json,requests_before,cost_before,request_budget,cost_budget,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'PRODUCING',?,?,50,0,0,0,?,?,?,?,?,1,10,?,?)").bind(replacementId, PROGRAM_ID, run.id, authorization.id, "BATCH_2", WAVE_BATCH_2_REPRODUCTION_VERSION, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION, JSON.stringify(scope), await sha(JSON.stringify({ scope, productionDoD, rootCausePolicy, engine: WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION })), rejected.audit_sample_json, JSON.stringify(productionDoD), JSON.stringify(rootCausePolicy), requestsBefore, costBefore, now, now),
+    db.prepare("UPDATE v7_material_authorizations SET scope='WAVE_09_BATCH_2_ENGINE_V9_REPRODUCTION',status='PAUSED',shot_count=50,max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,completed_at=NULL,updated_at=? WHERE id=?").bind(requestsBefore + 1, costBefore + 10, JSON.stringify(modelPolicy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='BATCH_2_V9_REPRODUCING',mode='CONTRACT_BOUND_SCENE_GRAPH_REPRODUCTION' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='BATCH_2_V9_REPRODUCING',blocker='INTEGRATED_PRODUCTION_TRANSACTION',evidence_summary='V8 audit 32/100 preserved · V9 full-scope regression 50/50 and unique frames 150/150 PASS · reproducing all 50 products · no output repair · prior audit not retried',updated_at=? WHERE id=?").bind(now, STAGE_ID),
   ]);
   return snapshot();
 }
@@ -5031,6 +5123,7 @@ export async function POST(request: Request) {
     if (body.action === "RECONCILE_WAVE_BATCH_1_AUDIT_TRANSPORT") return Response.json(await reconcileWaveBatch1AuditTransport(), { status: 201 });
     if (body.action === "RUN_WAVE_BATCH_1_AUDIT") return Response.json(await waveBatch1Audit(), { status: 202 });
     if (body.action === "START_WAVE_BATCH_2") return Response.json(await startWaveBatch2(), { status: 201 });
+    if (body.action === "ADOPT_WAVE_BATCH_2_ENGINE_ROOT_CORRECTION") return Response.json(await adoptWaveBatch2EngineRootCorrection(), { status: 201 });
     if (body.action === "PRODUCE_NEXT_WAVE_BATCH_2_SHOT") return Response.json(await produceNextWaveBatch2Shot(), { status: 201 });
     if (body.action === "RUN_WAVE_BATCH_2_AUDIT") return Response.json(await waveBatch2Audit(), { status: 202 });
     if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());

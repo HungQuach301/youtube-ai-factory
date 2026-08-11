@@ -31,3 +31,30 @@ test("Batch 2 pass thresholds are stricter than Batch 1 controlled release", () 
   assert.match(route, /Number\(result\.factualSafety\) >= 92/);
   assert.match(route, /\["P0", "P1"\]\.includes/);
 });
+
+test("failed Batch 2 QA replaces V8 with a contract-bound V9 engine and preserves evidence", () => {
+  for (const control of [
+    "SHOT_PRODUCT_ENGINE_V9_CONTRACT_BOUND_SCENE_GRAPH",
+    "CONTRACT_BOUND_SCENE_GRAPH_V9",
+    "CONTRACT_BOUND_SCENE_GRAPH_COMPILER_V9",
+    "CONTRACT_STATE_BINDING",
+    "UNSUPPORTED_GENERIC_INJECTION",
+    "CONTRACT_PIXEL_SIGNATURE",
+    "CROSS_PRODUCT_PIXEL_REUSE",
+    "CROSS_PRODUCT_FRAME_REUSE",
+  ]) assert.match(route, new RegExp(control));
+  assert.match(route, /frameSignatures\.size !== 150/);
+  assert.match(route, /PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE/);
+  assert.match(route, /priorProductsPreservedAsEvidence: true/);
+  assert.match(route, /retryPriorAudit: false/);
+  assert.match(route, /reproduceScope: "ALL_50_PRODUCTS"/);
+  assert.match(route, /superseded\?\.id \|\| null/);
+});
+
+test("Batch 2 V9 production uses the batch-bound engine and never falls back to V8", () => {
+  assert.match(route, /const engineVersion = clean\(batch\.engine_version\)/);
+  assert.match(route, /BATCH_2_ENGINE_NOT_QUALIFIED/);
+  assert.match(route, /SHOT_PRODUCT_SPECIFICATION_V3_CONTRACT_BOUND/);
+  assert.match(route, /wave-09-batch-2-engine-v9/);
+  assert.match(route, /150_OF_150/);
+});
