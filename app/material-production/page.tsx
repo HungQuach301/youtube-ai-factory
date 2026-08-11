@@ -105,6 +105,12 @@ export default function MaterialProductionPage() {
     const timer = window.setTimeout(() => void (data.sequenceProduct?.audit?.status === "RUNNING" ? sequenceAction("RUN_SEQUENCE_PRODUCT_AUDIT", true) : data.sequenceProof?.status === "QA_RUNNING" ? sequenceAction("RUN_SEQUENCE_QA", true) : load()), 2500);
     return () => window.clearTimeout(timer);
   }, [data?.sequenceProof?.status, data?.sequenceProduct?.status, data?.requestLedger.active, working, load]);
+  useEffect(() => {
+    const orphan = data?.sequenceProduct?.status === "PRODUCT_COMPLETE" && !data.sequenceProduct.audit && data.requestLedger.recent.some((item) => item.phase === "SEQUENCE_PRODUCT_AUDIT" && ["QUEUED", "IN_PROGRESS"].includes(item.status));
+    if (!orphan || working) return;
+    const timer = window.setTimeout(() => void sequenceAction("RUN_SEQUENCE_PRODUCT_AUDIT", true), 900);
+    return () => window.clearTimeout(timer);
+  }, [data?.sequenceProduct?.status, data?.sequenceProduct?.audit, data?.requestLedger.recent, working]);
   async function build() {
     setWorking("BUILD"); setError(null);
     try {
@@ -266,6 +272,7 @@ export default function MaterialProductionPage() {
     finally { setWorking(null); }
   }
   if (!data) return <main className="shotShell"><p className="stateBanner">{error || "Loading Stage 09 production contract…"}</p></main>;
+  const productAuditRequest = data.requestLedger.recent.find((item) => item.phase === "SEQUENCE_PRODUCT_AUDIT");
   const ready = ["READY", "PILOT_READY", "PILOT_AUTHORIZED", "PILOT_PAUSED", "PILOT_PASS", "REPAIR_REQUIRED"].includes(data.stage.status);
   const failedTournament = data.pilot.items.find((item) => item.tournament?.status === "NO_PIXEL_CHAMPION");
   const repairedUnit = data.pilot.items.find((item) => (item.tournament?.repairAttempt || 0) > 0);
@@ -433,7 +440,8 @@ export default function MaterialProductionPage() {
         {data.sequenceProduct.previewUrl && <video src={data.sequenceProduct.previewUrl} controls playsInline preload="metadata" />}
         {data.sequenceProduct.sampleFrames.length > 0 && <div className="sequenceSamples">{data.sequenceProduct.sampleFrames.map((frame)=><figure key={frame.fileId}><Image src={frame.previewUrl} alt={`${frame.logicalId} completed product sample`} width={960} height={540} unoptimized /><figcaption>{frame.logicalId} · {frame.timestampSeconds.toFixed(2)}s</figcaption></figure>)}</div>}
         <div className={`productVerdict ${["PRODUCT_COMPLETE","RELEASED"].includes(data.sequenceProduct.status) ? "complete" : data.sequenceProduct.status === "PRODUCTION_BLOCKED" ? "blocked" : "running"}`}><strong>{data.sequenceProduct.status === "RELEASED" ? "Product released after independent audit" : data.sequenceProduct.status === "PRODUCT_COMPLETE" ? "Production Definition of Done passed" : data.sequenceProduct.status === "PRODUCTION_BLOCKED" ? "Composer stopped without declaring completion" : "Integrated production is running"}</strong><span>{data.sequenceProduct.status === "RELEASED" ? "Production completed before QA; the single independent audit passed and the production loop remains closed." : data.sequenceProduct.status === "PRODUCT_COMPLETE" ? "Source lineage, continuity graph, mobile-safe contain, full-frame scan and technical master read-back are complete. Independent audit 105 has not been started." : "QA remains outside the production loop. Scale stays locked until the product is complete."}</span></div>
-        {data.sequenceProduct.status === "PRODUCT_COMPLETE" && !data.sequenceProduct.audit && <div className="productStart"><div><small>ONE INDEPENDENT RELEASE AUDIT</small><strong>Audit the completed product · request 105</strong><p>Production is closed. This request can release or reject Composer V2.1; it cannot start a repair loop.</p></div><button onClick={() => void sequenceAction("RUN_SEQUENCE_PRODUCT_AUDIT")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RUN_SEQUENCE_PRODUCT_AUDIT" ? "Starting independent audit…" : "Run independent audit · request 105"}</button></div>}
+        {data.sequenceProduct.status === "PRODUCT_COMPLETE" && !data.sequenceProduct.audit && !productAuditRequest && <div className="productStart"><div><small>ONE INDEPENDENT RELEASE AUDIT</small><strong>Audit the completed product · request 105</strong><p>Production is closed. This request can release or reject Composer V2.1; it cannot start a repair loop.</p></div><button onClick={() => void sequenceAction("RUN_SEQUENCE_PRODUCT_AUDIT")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RUN_SEQUENCE_PRODUCT_AUDIT" ? "Starting independent audit…" : "Run independent audit · request 105"}</button></div>}
+        {data.sequenceProduct.status === "PRODUCT_COMPLETE" && !data.sequenceProduct.audit && productAuditRequest && <div className="productStart"><div><small>INDEPENDENT AUDIT · {productAuditRequest.status}</small><strong>Product Complete preserved · scale locked</strong><p>Request 105 reached the provider, but its response ID was not durably bound after the audit write failed. The transaction is closed without retry.</p></div></div>}
         {data.sequenceProduct.audit && <aside className={data.sequenceProduct.audit.status === "PASS" ? "pass" : data.sequenceProduct.audit.status === "RUNNING" ? "running" : "fail"}><b>{data.sequenceProduct.audit.status} · {data.sequenceProduct.audit.score}/100 · {data.sequenceProduct.audit.tier}</b><span>{Object.entries(data.sequenceProduct.audit.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{data.sequenceProduct.audit.findings.map((finding,index)=><small key={`${index}-${findingText(finding)}`}>{findingText(finding)}</small>)}</aside>}
         {data.sequenceProduct.corrections.length > 0 && <details className="productCorrections"><summary>Internal production corrections · {data.sequenceProduct.corrections.length}</summary>{data.sequenceProduct.corrections.map((correction,index)=><p key={`${index}-${correction.code}`}><b>{correction.code}</b> · {correction.reason}</p>)}</details>}
       </section>}

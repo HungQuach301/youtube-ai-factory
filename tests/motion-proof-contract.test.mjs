@@ -530,5 +530,6 @@ test("integrated sequence production creates PRODUCT_COMPLETE before independent
   assert.match(route, /VALUES \(\?,\?,\?,\?,\?,\?,'RUNNING',\?,\?,\?,\?\)/);
   assert.doesNotMatch(route, /VALUES \(\?,\?,\?,\?,\?,\?,'RUNNING',\?,\?,\?,\?,\?\)/);
   assert.match(page, /Run independent audit · request 105/);
+  assert.match(page, /Request 105 reached the provider, but its response ID was not durably bound/);
   assert.match(page, /item\.audit\?\.findings\?\.\[0\].*findingText\(item\.audit\.findings\[0\]\)/);
 });
