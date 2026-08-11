@@ -201,14 +201,11 @@ export default function Home() {
         <nav aria-label="Primary navigation">
           <button className="navItem active"><span>⌁</span>Command center</button>
           <a className="navItem" href="/control-plane"><span>◉</span>V7 control plane</a>
-          <a className="navItem" href="/intelligence"><span>◫</span>Intelligence</a>
-          <a className="navItem" href="/creative-contract"><span>◇</span>Creative contract</a>
-          <a className="navItem" href="/story-architecture"><span>▦</span>Story architecture</a>
-          <a className="navItem" href="/script-development"><span>≡</span>Script development</a>
-          <a className="navItem" href="/production-design"><span>▤</span>Production design</a>
-          <a className="navItem" href="/shot-orchestration"><span>▶</span>Shot orchestration</a>
-          <a className="navItem" href="/material-production"><span>◎</span>Production operator</a>
-          <a className="navItem" href="/continuity"><span>⌁</span>Continuity</a>
+          <button className="navItem"><span>◫</span>Market radar</button>
+          <button className="navItem"><span>◇</span>Topic backlog</button>
+          <button className="navItem"><span>▦</span>Content calendar</button>
+          <button className="navItem"><span>▶</span>Video projects</button>
+          <button className="navItem"><span>⌁</span>Analytics</button>
         </nav>
 
         <div className="sidebarBottom">

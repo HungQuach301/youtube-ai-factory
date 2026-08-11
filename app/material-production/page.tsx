@@ -1,117 +1,569 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useState } from "react";
 
-type Batch = { status: string; completed: number; total: number; auditStatus: string; auditScore: number; activatedAt?: string };
-type OperatorState = {
-  controlPlane: { version: string; mode: string; mediaPolicy: string; generatedAt: string };
-  checkpoint: { deployment: string; sourceCheckpoint: string; status: string };
-  stage: { status: string; blocker: string | null; evidence: string; updatedAt: string | null };
-  portfolio: { complete: number; total: number; baseline: number };
-  batches: { batch1: Batch | null; batch2: Batch | null };
-  activation: { batch2Records: number; idempotencyKey: string; canStart: boolean };
-  requests: { total: number; active: number; complete: number; actualCostUsd: number };
-  safeguards: Record<string, boolean>;
+type Gate = { id: string; status: string; evidence: string };
+type Finding = string | { logicalId?: string; severity?: string; category?: string; productionLayer?: string; summary?: string };
+function findingText(finding: Finding) {
+  if (typeof finding === "string") return finding;
+  return [finding.logicalId, finding.severity, finding.category, finding.productionLayer, finding.summary].filter(Boolean).join(" · ") || "QA finding";
+}
+type Brief = { briefId: string; shotId: string; startSeconds: number; endSeconds: number; viewerMustUnderstand: string; route: string; primaryFamily: string; renderPolicy: string; modelContract: { lane: string; expectedOutputTokens: number; safetyCeilingTokens: number; retryLimit: number }; pilot?: boolean };
+type Snapshot = {
+  stage: { status: string; threshold: number; blocker?: string; evidence: string };
+  upstream: { frozen: boolean; shotCount: number };
+  providerReadiness: Record<string, boolean>;
+  policy: Record<string, string | number>;
+  run: null | { status: string; score: number; briefCount: number; pilotCount: number; remoteRequests: number; actualCostUsd: number; gates: Gate[] };
+  artifact: null | { contentHash: string; routeMix: Record<string, number>; modelMix: Record<string, number>; sampleBriefs: Brief[]; pilotIds: string[] };
+  authorization: null | { id: string; status: string; shotCount: number; maxRemoteRequests: number; maxActualSpendUsd: number; authorizedAt: string; revokedAt?: string; modelPolicy: Record<string, unknown> };
+  canary: null | { id: string; version: string; status: string; queue: Array<{ briefId: string; logicalId: string; archetype: string; riskTier: string; startSeconds: number; promotionId?: string; certificationId?: string; renderer?: string; bindingStatus?: string; dispatchCapability?: string; materializationStrategy?: string }>; currentIndex: number; currentBriefId: string | null; releasedUnits: number; passedUnits: number; failedUnits: number; requestsBefore: number; costBefore: number; requestBudget: number; costBudget: number; activeRequestPeak: number; gates: Gate[]; currentAudit: null | { status: string; score: number; dimensions: Record<string, number>; findings: Finding[]; providerResponseId: string | null }; createdAt: string; updatedAt: string };
+  recovery: null | { id: string; version: string; status: string; snapshotHash: string; rootCause: { failureCode: string; failedTransition: string; failedGate: string; expectedState: string; actualState: string; authorizationStatus: string; explanation: string }; e2e: { status: string; terminalState: string; simulatedRequestSequence: number; provider: string; remoteDispatches: number; costDelta: number; transition: string[] }; faultMatrix: Array<{ id: string; outcome: string; evidence: string }>; requestsBefore: number; requestsAfter: number; costBefore: number; costAfter: number; simulatedRequestSequence: number; requestIntent: null | { id: string; status: string; sequence: number; idempotencyKey: string; payloadHash: string }; outbox: null | { id: string; status: string; eventType: string }; events: Array<{ status: string; failureCode: string | null; failedTransition: string | null; failedGate: string | null; expectedState: string | null; actualState: string | null; ledgerStatus: string | null; providerDispatchStatus: string | null; createdAt: string }>; createdAt: string; updatedAt: string };
+  provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
+  architecture: { version: string; status: string; principle: string; planes: Array<{ id: string; name: string; status: string; responsibility: string }>; qualityLadder: Array<{ order: number; name: string; exit: string }>; scalePolicy: { tranches: string[]; concurrency: string; stopConditions: string[]; resume: string; controlledQaSampling: string } };
+  releasePolicy: { version: string; standardOverall: number; controlledOverall: number; controlledSemanticFit: number; controlledOtherDimension: number; internalOnlyOverall: number; p0Max: number; semanticP1Max: number; presentationP1Max: number; controlledQaSampleRate: number };
+  reliability: null | { version: string; status: string; executionState: string; sourceCheckpoint: string; controls: string[]; qualification: { status: string; score: number; productionDispatch: string; next: string }; compiled: { total: number; pass: number; redesign: number }; archetypes: Array<{ name: string; status: string; hardestFixture: string; evidenceStatus: string; firstPassYield: number; blocker?: string; checks: string[] }>; certifications: Array<{ id: string; archetype: string; briefId: string; renderer: string; status: string; frameIds: string[]; score: number; dimensions: Record<string, number>; findings: Finding[]; attempt: number; createdAt: string }>; designAuthorizations: Array<{ id: string; archetype: string; sourceCertificationId: string; sourceRenderer: string; sourceScore: number; renderer: string; scope: string; status: string; certificationId: string | null; authorizedAt: string }>; regressions: Array<{ id: string; status: string; score: number; checks: Array<{ id: string; status: string; evidence: string }>; certificationIds: string[]; pilotReplay: { briefs: number; compiled: number; matches: boolean; dispatches: number; costDelta: number }; requestsBefore: number; requestsAfter: number; costBefore: number; costAfter: number; createdAt: string }>; frozenAt: string };
+  mediaExecution: { configured: boolean; executor: null | { id: string; status: string; version: string; lastSeenAt: string; capabilities: string[] }; counts: { queued: number; leased: number; complete: number; failed: number; blocked: number }; jobs: Array<{ id: string; briefId: string; type: string; status: string; attempt: number; maxAttempts: number; leaseOwner?: string; error?: string; createdAt: string; completedAt?: string }>; evidence: Array<{ id: string; briefId: string; type: string; status: string; technicalStatus: string; hash: string; createdAt: string; probe: { durationSeconds?: number; width?: number; height?: number; codec?: string; averageFrameRate?: string }; sourceQa: null | { status: string; score: number; dimensions: Record<string, number>; findings: Finding[]; repair: { replacementQuery?: string; sourceLayerContract?: string } }; frames: Array<{ role: string; timestampSeconds: number; width: number; height: number; mimeType: string; fileId: string; previewUrl: string }> }>; sourceQaActive: boolean; composite: { active: boolean; rubric: string; status: string; winner: string | null; score: number; dimensions: Record<string, number>; findings: Finding[]; repair: { exactRepair?: string }; candidates: Array<{ candidate: string; scores: Record<string, number>; frames: Array<{ state: string; fileId: string; previewUrl: string }> }> }; motionProof: null | { id: string; status: string; champion: string; renderer: string; durationSeconds: number; fps: number; score: number; dimensions: Record<string, number>; findings: Finding[]; motionFileId: string | null; previewUrl: string | null; contentHash: string | null; sourceHashes: Array<{ state: string; fileId: string; sha256: string }>; sampleFrames: Array<{ role: string; timestampSeconds: number; fileId: string; previewUrl: string }>; rightsRepairAvailable: boolean; audits: Array<{ attempt: number; status: string; score: number; evidenceBundleHash: string; providerResponseId: string; createdAt: string }> }; motionQaActive: boolean; nextGate: string };
+  sequenceProof: null | { id: string; status: string; version: string; durationSeconds: number; fps: number; unitCount: number; frameCount: number; score: number; tier: string; dimensions: Record<string, number>; findings: Finding[]; previewUrl: string | null; sampleFrames: Array<{ role: string; logicalId: string; timestampSeconds: number; fileId: string; previewUrl: string }>; providerResponseId: string | null; createdAt: string; updatedAt: string };
+  sequenceProduct: null | { id: string; status: "SPECIFIED" | "PRODUCING" | "PRODUCT_COMPLETE" | "PRODUCTION_BLOCKED" | "RELEASED"; composerVersion: string; iteration: number; maxIterations: number; specification: { principle?: string; narrative?: { scenes?: Array<{ logicalId: string; narrativeRole: string; motionProfile: string }>; continuityEdges?: unknown[] }; productionLoop?: { states?: string[]; maxIterations?: number }; definitionOfDone?: Record<string, unknown> }; specificationHash: string; sourceManifestHash: string; measurements: Record<string, number | boolean | string>; corrections: Array<{ iteration?: number; code?: string; reason?: string }>; contentHash: string | null; previewUrl: string | null; sampleFrames: Array<{ role: string; logicalId: string; timestampSeconds: number; fileId: string; previewUrl: string }>; audit: null | { id: string; rubric: string; status: string; score: number; tier: string; dimensions: Record<string, number>; findings: Finding[]; requestId: string | null; providerResponseId: string | null; createdAt: string; completedAt: string | null }; completedAt: string | null; createdAt: string; updatedAt: string };
+  productionBatch: null | { id: string; waveKey: string; version: string; engineVersion: string; status: string; scope: Array<{ briefId: string; logicalId: string; archetype: string; riskTier: string; startSeconds: number; endSeconds: number; productionRoute: string; visualFamily: string }>; totalUnits: number; completedUnits: number; blockedUnits: number; currentIndex: number; auditSample: Array<{ logicalId: string; briefId: string; archetype: string; riskTier: string }>; productionDoD: Record<string, unknown>; rootCausePolicy: Record<string, unknown>; products: Array<{ id: string; logicalId: string; archetype: string; status: string; engineVersion: string; measurements: Record<string, unknown>; frameIds: string[]; frameHashes: string[]; productHash: string; completedAt: string | null }>; audit: null | { id: string; rubric: string; status: string; score: number; tier: string; dimensions: Record<string, number>; findings: Finding[]; rootCause: { rootProductionCause?: string; affectedUnits?: string[]; affectedLayers?: string[]; regressionRequired?: boolean }; requestId: string | null; providerResponseId: string | null; completedAt: string | null }; requestsBefore: number; costBefore: number; requestBudget: number; costBudget: number; completedAt: string | null; createdAt: string; updatedAt: string };
+  pilot: { materialized: number; audited: number; total: number; percent: number; items: Array<{ id: string; briefId: string; route: string; family: string; meaning: string; materialStatus: string; pixelQaStatus: string; file: null | { id: string; provider: string; mimeType: string; bytes: number; hash: string; previewUrl: string }; overlay: null | { id: string; previewUrl: string }; tournament: null | { status: string; score: number; candidateCount: number; providerCoverage: number; championId?: string; bestCandidateId?: string; bestReason?: string; repairAttempt: number; assignedPixelJob?: string }; audit: null | { status: string; score: number; findings: Finding[] } }> };
+  requestLedger: { total: number; planned: number; active: number; complete: number; incomplete: number; actualCostUsd: number; recent: Array<{ id: string; briefId: string; phase: string; provider: string; modelId: string; status: string; inputTokens: number; outputTokens: number; reasoningTokens: number; actualCostUsd: number; error?: string; createdAt: string }> };
 };
 
-const labels: Record<string, string> = {
-  batch1Seal: "Batch 1 sealed",
-  portfolioBaseline: "Portfolio 36/166",
-  noBatch2Activation: "No Batch 2 activation",
-  activeRequestsZero: "No active requests",
-  noOutputRepair: "Output repair disabled",
-  rootCauseOnly: "Root-cause routing",
-};
-
-function human(value: string) { return value.replaceAll("_", " "); }
-
-export default function MaterialProductionOperator() {
-  const [data, setData] = useState<OperatorState | null>(null);
-  const [error, setError] = useState("");
-  const [working, setWorking] = useState(false);
-  const [notice, setNotice] = useState("Reading canonical production state…");
-
-  const refresh = useCallback(async () => {
+export default function MaterialProductionPage() {
+  const [data, setData] = useState<Snapshot | null>(null);
+  const [working, setWorking] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [modelId, setModelId] = useState("gpt-5.6-sol");
+  const [reasoningEffort, setReasoningEffort] = useState("low");
+  const load = useCallback(async () => {
     try {
-      const response = await fetch("/api/factory/material-production?view=operator", { cache: "no-store" });
-      const payload = await response.json() as OperatorState & { error?: string };
-      if (!response.ok) throw new Error(payload.error || "Canonical state could not be read");
-      setData(payload); setError(""); setNotice("Canonical state read successfully");
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Canonical state could not be read");
-    }
+      const response = await fetch("/api/factory/material-production", { cache: "no-store" });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Stage 09 could not load");
+      setData(payload); setModelId(payload.provider.model); setReasoningEffort(payload.provider.reasoningEffort); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Stage 09 could not load"); }
   }, []);
-
-  useEffect(() => { const timer = window.setTimeout(() => void refresh(), 0); return () => window.clearTimeout(timer); }, [refresh]);
-
-  const safeguardsPass = useMemo(() => data ? Object.values(data.safeguards).every(Boolean) : false, [data]);
-
-  async function startBatch2() {
-    if (!data?.activation.canStart || !safeguardsPass || working) return;
-    setWorking(true); setNotice("Running bounded preflight…");
+  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
+  useEffect(() => {
+    if (!["PILOT_RUNNING", "PILOT_REPAIR_RUNNING", "CANARY_UNIT_RUNNING"].includes(data?.run?.status || "") || working) return;
+    const timer = window.setTimeout(() => {
+      const action = data?.run?.status === "CANARY_UNIT_RUNNING" ? "STEP_RELEASE_TRAIN_UNIT" : "STEP_PILOT";
+      setWorking(action);
+      void fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) })
+        .then(async (response) => { const payload = await response.json() as Snapshot & { error?: string }; if (!response.ok) throw new Error(payload.error || "Pilot execution failed"); setData(payload); setError(null); })
+        .catch((reason: Error) => setError(reason.message))
+        .finally(() => setWorking(null));
+    }, 1400);
+    return () => window.clearTimeout(timer);
+  }, [data?.run?.status, data?.pilot.materialized, data?.pilot.audited, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (!(data?.canary?.version === "STABILIZATION_RELEASE_V1_TYPED_STATE_MACHINE" || data?.canary?.version?.startsWith("CANONICAL_UNIT_SCENES_V")) || data?.canary?.status !== "BATCH_UNIT_PASS_REVIEW" || data.authorization?.modelPolicy.batchAuthorized !== true || data.authorization.modelPolicy.runToCompletion10Mp !== true || working || data.requestLedger.active > 0) return;
+    const timer = window.setTimeout(() => void canaryAction("RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT"), 900);
+    return () => window.clearTimeout(timer);
+  }, [data?.canary?.status, data?.canary?.version, data?.canary?.passedUnits, data?.authorization?.modelPolicy.batchAuthorized, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (data?.canary?.version !== "MP002_PIXEL_ORACLE_REPAIR_V2" || data.canary.status !== "TARGETED_REPAIR_READY" || data.authorization?.modelPolicy.runToCompletion10Mp !== true || working || data.requestLedger.active > 0) return;
+    const timer = window.setTimeout(() => void canaryAction("RELEASE_MP002_PIXEL_ORACLE_REPAIR"), 900);
+    return () => window.clearTimeout(timer);
+  }, [data?.canary?.status, data?.canary?.version, data?.authorization?.modelPolicy.runToCompletion10Mp, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (data?.run?.status !== "CANONICAL_UNIT_SCENE_REBUILD" || !data.canary?.version?.startsWith("CANONICAL_UNIT_SCENES_V") || data.canary.status !== "SCENE_REBUILD_RUNNING" || working || data.requestLedger.active > 0) return;
+    const timer = window.setTimeout(() => void canaryAction("BUILD_CANONICAL_UNIT_SCENES"), 900);
+    return () => window.clearTimeout(timer);
+  }, [data?.run?.status, data?.canary?.status, data?.canary?.version, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (data?.canary?.version !== "MP002_PIXEL_ORACLE_REPAIR_V2" || data.canary.status !== "SEQUENCE_PROOF_PASS_REVIEW" || data.authorization?.modelPolicy.runToCompletion10Mp !== true || working || data.requestLedger.active > 0) return;
+    const timer = window.setTimeout(() => void canaryAction("START_RELEASE_TRAIN_BATCH"), 900);
+    return () => window.clearTimeout(timer);
+  }, [data?.canary?.status, data?.canary?.version, data?.authorization?.modelPolicy.runToCompletion10Mp, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (!data?.mediaExecution.sourceQaActive || working) return;
+    const timer = window.setTimeout(() => void sourceQa(true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [data?.mediaExecution.sourceQaActive, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (!data?.mediaExecution.composite.active || working) return;
+    const timer = window.setTimeout(() => void compositeTournament(true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [data?.mediaExecution.composite.active, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (!data?.mediaExecution.motionQaActive || working) return;
+    const timer = window.setTimeout(() => void motionAction("RUN_MOTION_QA", true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [data?.mediaExecution.motionQaActive, data?.requestLedger.active, working]);
+  useEffect(() => {
+    const running = data?.reliability?.certifications.find((item) => item.status === "QA_RUNNING");
+    if (!running || working) return;
+    const timer = window.setTimeout(() => void hardestCertification(running.archetype === "TRANSACTION_STATE_PROOF" ? "RUN_HARDEST_ARCHETYPE_QA" : "POLL_NEXT_ARCHETYPE_QA", true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [data?.reliability?.certifications, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if ((!data?.sequenceProof || !["RENDER_QUEUED", "RENDERING", "QA_RUNNING"].includes(data.sequenceProof.status)) && data?.sequenceProduct?.status !== "PRODUCING" && data?.sequenceProduct?.audit?.status !== "RUNNING" || working) return;
+    const timer = window.setTimeout(() => void (data.sequenceProduct?.audit?.status === "RUNNING" ? sequenceAction("RUN_SEQUENCE_PRODUCT_AUDIT", true) : data.sequenceProof?.status === "QA_RUNNING" ? sequenceAction("RUN_SEQUENCE_QA", true) : load()), 2500);
+    return () => window.clearTimeout(timer);
+  }, [data?.sequenceProof?.status, data?.sequenceProduct?.status, data?.requestLedger.active, working, load]);
+  useEffect(() => {
+    const orphan = data?.sequenceProduct?.status === "PRODUCT_COMPLETE" && !data.sequenceProduct.audit && data.requestLedger.recent.some((item) => item.phase === "SEQUENCE_PRODUCT_AUDIT" && ["QUEUED", "IN_PROGRESS"].includes(item.status));
+    if (!orphan || working) return;
+    const timer = window.setTimeout(() => void sequenceAction("RUN_SEQUENCE_PRODUCT_AUDIT", true), 900);
+    return () => window.clearTimeout(timer);
+  }, [data?.sequenceProduct?.status, data?.sequenceProduct?.audit, data?.requestLedger.recent, working]);
+  useEffect(() => {
+    if (data?.productionBatch?.status !== "PRODUCING" || data.productionBatch.completedUnits >= data.productionBatch.totalUnits || working || data.requestLedger.active > 0) return;
+    const timer = window.setTimeout(() => void batchAction(data.productionBatch?.waveKey === "BATCH_2" ? "PRODUCE_NEXT_WAVE_BATCH_2_SHOT" : "PRODUCE_NEXT_WAVE_BATCH_1_SHOT", true), 700);
+    return () => window.clearTimeout(timer);
+  }, [data?.productionBatch?.status, data?.productionBatch?.waveKey, data?.productionBatch?.completedUnits, data?.productionBatch?.totalUnits, data?.requestLedger.active, working]);
+  useEffect(() => {
+    if (data?.productionBatch?.audit?.status !== "QA_RUNNING" || working) return;
+    const timer = window.setTimeout(() => void batchAction(data.productionBatch?.waveKey === "BATCH_2" ? "RUN_WAVE_BATCH_2_AUDIT" : "RUN_WAVE_BATCH_1_AUDIT", true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [data?.productionBatch?.audit?.status, data?.productionBatch?.waveKey, data?.requestLedger.active, working]);
+  async function build() {
+    setWorking("BUILD"); setError(null);
     try {
-      const response = await fetch("/api/factory/material-production", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Idempotency-Key": data.activation.idempotencyKey },
-        body: JSON.stringify({ action: "START_WAVE_BATCH_2", idempotencyKey: data.activation.idempotencyKey }),
-      });
-      const payload = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(payload.error || "Batch 2 activation failed closed");
-      setNotice("Activation accepted once · reading back canonical state…");
-      await refresh();
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Batch 2 activation failed closed");
-    } finally { setWorking(false); }
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "BUILD_DRY_RUN" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Dry run failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Dry run failed"); }
+    finally { setWorking(null); }
   }
-
-  if (!data) return <main className="operatorShell"><section className="operatorLoading"><span className="operatorPulse"/><h1>Production Operator</h1><p>{error || notice}</p><button onClick={() => void refresh()}>Retry canonical read</button></section></main>;
-
-  const batch2 = data.batches.batch2;
-  return <main className="operatorShell">
-    <header className="operatorTopbar">
-      <Link href="/" className="operatorBrand"><span>F</span><div><strong>Frameflow</strong><small>Production Operator</small></div></Link>
-      <div className="operatorLive"><i/> {data.controlPlane.version} · {data.checkpoint.status}</div>
-    </header>
-
-    <section className="operatorHero">
-      <div><p>STAGE 09 · CONTROL PLANE LITE</p><h1>Run production without loading the gallery.</h1><span>Canonical state, activation control, request exposure and QA status only. Media stays on demand.</span></div>
-      <button className="operatorRefresh" onClick={() => void refresh()} disabled={working}>↻ Refresh state</button>
+  async function qualifyReliability() {
+    setWorking("QUALIFY_RELIABILITY_BASELINE"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "QUALIFY_RELIABILITY_BASELINE" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Reliability qualification failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Reliability qualification failed"); }
+    finally { setWorking(null); }
+  }
+  async function hardestCertification(action: "BUILD_HARDEST_ARCHETYPE_CERTIFICATION" | "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION" | "RUN_HARDEST_ARCHETYPE_QA" | "BUILD_NEXT_ARCHETYPE_CERTIFICATION" | "RUN_NEXT_ARCHETYPE_QA" | "POLL_NEXT_ARCHETYPE_QA" | "REPAIR_NEXT_ARCHETYPE_CERTIFICATION" | "AUTHORIZE_DATA_VISUALIZATION_V3" | "RUN_ARCHETYPE_REGRESSION", quiet = false) {
+    setWorking(action); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Hardest-first archetype certification failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Hardest-first archetype certification failed"); }
+    finally { setWorking(null); }
+  }
+  async function pilotAction(action: "AUTHORIZE_PILOT" | "AUTHORIZE_PILOT_AFTER_MOTION" | "REVOKE_PILOT") {
+    setWorking(action); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Pilot authorization failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Pilot authorization failed"); }
+    finally { setWorking(null); }
+  }
+  async function canaryAction(action: "AUTHORIZE_CONTROLLED_CANARY" | "AUTHORIZE_CONTROLLED_CANARY_V3" | "AUTHORIZE_CONTROLLED_CANARY_V4" | "AUTHORIZE_CONTROLLED_CANARY_V5" | "RELEASE_CONTROLLED_CANARY_V5_UNIT" | "RELEASE_PRODUCTION_RECOVERY_PROBE" | "BUILD_RECOVERY_CONTRACT_ALIGNMENT" | "RELEASE_CONTRACT_ALIGNED_RECOVERY_PROBE" | "RECONCILE_CONTRACT_ALIGNED_RECOVERY_TERMINAL" | "BUILD_RELEASE_TRAIN_PREFLIGHT" | "BUILD_STABILIZATION_RELEASE" | "RELEASE_RELEASE_TRAIN_SEQUENCE_PROOF" | "PREPARE_STABILIZED_MP002_TARGETED_REPAIR" | "RELEASE_STABILIZED_MP002_TARGETED_REPAIR" | "PREPARE_MP002_PIXEL_ORACLE_REPAIR" | "RELEASE_MP002_PIXEL_ORACLE_REPAIR" | "START_RELEASE_TRAIN_BATCH" | "RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT" | "BUILD_CANONICAL_UNIT_SCENES" | "START_CONTROLLED_CANARY_UNIT" | "RELEASE_NEXT_CONTROLLED_CANARY_UNIT") {
+    setWorking(action); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Controlled canary action failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Controlled canary action failed"); }
+    finally { setWorking(null); }
+  }
+  async function buildRecoveryLane() {
+    setWorking("BUILD_CANARY_RECOVERY_LANE"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "BUILD_CANARY_RECOVERY_LANE" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Recovery Lane dry run failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Recovery Lane dry run failed"); }
+    finally { setWorking(null); }
+  }
+  async function execute(action: "START_PILOT" | "STEP_PILOT" | "STOP_PILOT" | "RESUME_PILOT", quiet = false) {
+    setWorking(action); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Pilot execution failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Pilot execution failed"); }
+    finally { setWorking(null); }
+  }
+  async function upgradeFailedUnitArchitecture() {
+    setWorking("UPGRADE_FAILED_UNIT_ARCHITECTURE"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "UPGRADE_FAILED_UNIT_ARCHITECTURE" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Failed-unit architecture repair failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Failed-unit architecture repair failed"); }
+    finally { setWorking(null); }
+  }
+  async function repairFailedUnitRenderer() {
+    setWorking("REPAIR_FAILED_UNIT_RENDERER"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "REPAIR_FAILED_UNIT_RENDERER" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Semantic renderer repair failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Semantic renderer repair failed"); }
+    finally { setWorking(null); }
+  }
+  async function saveModel() {
+    setWorking("SET_MODEL"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "SET_MODEL", modelId, reasoningEffort }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Model selection failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Model selection failed"); }
+    finally { setWorking(null); }
+  }
+  async function planExecution() {
+    setWorking("PLAN_ROOT_CAUSE_EXECUTION"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PLAN_ROOT_CAUSE_EXECUTION" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Media execution planning failed");
+      setData(payload);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Media execution planning failed"); }
+    finally { setWorking(null); }
+  }
+  async function sourceQa(quiet = false) {
+    setWorking("RUN_SOURCE_FRAME_QA"); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "RUN_SOURCE_FRAME_QA" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Source-frame semantic QA failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Source-frame semantic QA failed"); }
+    finally { setWorking(null); }
+  }
+  async function replaceSource() {
+    setWorking("REPLACE_SOURCE_CANDIDATE"); setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "REPLACE_SOURCE_CANDIDATE" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Source replacement failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Source replacement failed"); }
+    finally { setWorking(null); }
+  }
+  async function compositeTournament(quiet = false) {
+    setWorking("RUN_COMPOSITE_TOURNAMENT"); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "RUN_COMPOSITE_TOURNAMENT" }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Composite tournament failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Composite tournament failed"); }
+    finally { setWorking(null); }
+  }
+  async function motionAction(action: "PLAN_MOTION_PROOF" | "RUN_MOTION_QA" | "PREPARE_MOTION_RIGHTS_REPAIR", quiet = false) {
+    setWorking(action); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Motion proof action failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Motion proof action failed"); }
+    finally { setWorking(null); }
+  }
+  async function sequenceAction(action: "PLAN_SEQUENCE_PROOF" | "RUN_SEQUENCE_QA" | "PRODUCE_INTEGRATED_SEQUENCE" | "RUN_SEQUENCE_PRODUCT_AUDIT", quiet = false) {
+    setWorking(action); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Sequence proof failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Sequence proof failed"); }
+    finally { setWorking(null); }
+  }
+  async function batchAction(action: "START_WAVE_BATCH_1" | "ADOPT_WAVE_BATCH_1_ENGINE_ROOT_CORRECTION" | "ADOPT_WAVE_BATCH_1_SEMANTIC_ENGINE_ROOT_CORRECTION" | "PRODUCE_NEXT_WAVE_BATCH_1_SHOT" | "RECONCILE_WAVE_BATCH_1_AUDIT_TRANSPORT" | "RUN_WAVE_BATCH_1_AUDIT" | "START_WAVE_BATCH_2" | "PRODUCE_NEXT_WAVE_BATCH_2_SHOT" | "RUN_WAVE_BATCH_2_AUDIT", quiet = false) {
+    setWorking(action); if (!quiet) setError(null);
+    try {
+      const response = await fetch("/api/factory/material-production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const payload = await response.json() as Snapshot & { error?: string };
+      if (!response.ok) throw new Error(payload.error || "Wave Batch 1 action failed");
+      setData(payload); setError(null);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Wave Batch 1 action failed"); }
+    finally { setWorking(null); }
+  }
+  if (!data) return <main className="shotShell"><p className="stateBanner">{error || "Loading Stage 09 production contract…"}</p></main>;
+  const productAuditRequest = data.requestLedger.recent.find((item) => item.phase === "SEQUENCE_PRODUCT_AUDIT");
+  const ready = ["READY", "PILOT_READY", "PILOT_AUTHORIZED", "PILOT_PAUSED", "PILOT_PASS", "REPAIR_REQUIRED"].includes(data.stage.status);
+  const failedTournament = data.pilot.items.find((item) => item.tournament?.status === "NO_PIXEL_CHAMPION");
+  const repairedUnit = data.pilot.items.find((item) => (item.tournament?.repairAttempt || 0) > 0);
+  const repairedUnitNeedsPixelQa = data.run?.status === "PILOT_REPAIR_REVIEW" && Boolean(repairedUnit) && repairedUnit?.audit?.status !== "PASS";
+  return <main className="shotShell">
+    <nav className="shotTop"><Link href="/control-plane">← V7 Control Plane</Link><span>PRODUCTION V7 · STAGE 09</span><b>{data.stage.status.replaceAll("_", " ")}</b></nav>
+    <section className="shotHero">
+      <div><p>FRESH MATERIAL PRODUCTION</p><h1>Prove the meaning before acquiring the pixels.</h1><span>Every frozen shot becomes a source-ready material brief. No prompt, URL or catalog result counts as footage.</span></div>
+      <aside><small>DRY-RUN FLOOR</small><strong>{data.run?.score || 0}<i>/100</i></strong><span>{data.run?.gates.filter((gate) => gate.status === "PASS").length || 0}/{data.run?.gates.length || 8} gates passed</span></aside>
     </section>
-
-    <div className={error ? "operatorNotice error" : "operatorNotice"}><span>{error ? "!" : "✓"}</span>{error || notice}<time>{new Date(data.controlPlane.generatedAt).toLocaleString()}</time></div>
-
-    <section className="operatorMetrics">
-      <article><small>CHECKPOINT</small><strong>{data.checkpoint.deployment}</strong><span>from {data.checkpoint.sourceCheckpoint}</span></article>
-      <article><small>PORTFOLIO</small><strong>{data.portfolio.complete}<em>/{data.portfolio.total}</em></strong><span>canonical products</span></article>
-      <article><small>ACTIVE REQUESTS</small><strong className={data.requests.active ? "danger" : "good"}>{data.requests.active}</strong><span>{data.requests.total} ledger records</span></article>
-      <article><small>ACTIVATION RECORDS</small><strong>{data.activation.batch2Records}</strong><span>Batch 2 · maximum one</span></article>
+    <section className="shotControl">
+      <div><small>UPSTREAM</small><strong>Stage 08 frozen · {data.upstream.shotCount} shots</strong></div>
+      <div><small>EXECUTION</small><strong>Zero-spend dry run</strong></div>
+      <div><small>REMOTE REQUESTS</small><strong>{data.run?.remoteRequests || 0}</strong></div>
+      <div><small>ACTUAL COST</small><strong>${(data.run?.actualCostUsd || 0).toFixed(2)}</strong></div>
+      <button onClick={build} disabled={Boolean(working) || !ready}>{working === "BUILD" ? "Creating clean Stage 09.4 run…" : data.run?.status === "REPAIR_REQUIRED" ? "Build clean Stage 09.4 pilot" : data.run ? "Rebuild deterministic dry run" : "Build zero-spend dry run"}</button>
     </section>
-
-    <section className="operatorGrid">
-      <article className="operatorPanel batchPanel">
-        <header><div><p>PRODUCTION PROGRESS</p><h2>Batch control</h2></div><b>{human(data.stage.status)}</b></header>
-        <div className="batchRows">
-          <div><span>01</span><div><strong>Batch 1</strong><small>{data.batches.batch1 ? `${data.batches.batch1.completed}/${data.batches.batch1.total} products · audit ${data.batches.batch1.auditScore}/100` : "No record"}</small></div><b>{data.batches.batch1 ? human(data.batches.batch1.status) : "MISSING"}</b></div>
-          <div className={batch2 ? "current" : "pending"}><span>02</span><div><strong>Batch 2</strong><small>{batch2 ? `${batch2.completed}/${batch2.total} products · audit ${human(batch2.auditStatus)}` : "Approved · awaiting one activation"}</small></div><b>{batch2 ? human(batch2.status) : "NOT STARTED"}</b></div>
-          <div className="locked"><span>03</span><div><strong>Batch 3</strong><small>Hard stop after 86/166</small></div><b>LOCKED</b></div>
+    {error && <p className="stateBanner errorState">{error}</p>}
+    <section className="reliabilityBaseline">
+      <header><div><p>COMMERCIAL RELIABILITY BASELINE</p><h2>Production is quarantined until archetypes—not isolated shots—are certified.</h2><span>Stage 09 no longer mixes architecture discovery, renderer debugging and production execution in one batch.</span></div><strong>{data.reliability?.status.replaceAll("_", " ") || "QUALIFICATION REQUIRED"}</strong></header>
+      {!data.reliability
+        ? <div className="reliabilityStart"><p>Freeze the v150 blocker, compile every pilot shot into observable evidence and modality contracts, then run the MP-153 hardest-first fixture with zero provider requests.</p><button onClick={() => void qualifyReliability()} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "QUALIFY_RELIABILITY_BASELINE" ? "Freezing and qualifying…" : "Freeze execution & qualify baseline · $0"}</button></div>
+        : <>
+          <div className="reliabilityMetrics">
+            <article><small>EXECUTION</small><b>{data.reliability.executionState}</b><span>production dispatch quarantined</span></article>
+            <article><small>COMPILER</small><b>{data.reliability.compiled.total}</b><span>{data.reliability.compiled.pass} pass · {data.reliability.compiled.redesign} redesign</span></article>
+            <article><small>QUALIFICATION</small><b>{data.reliability.qualification.score}/100</b><span>{data.reliability.qualification.status}</span></article>
+            <article><small>NEXT GATE</small><b>{data.reliability.qualification.next.replaceAll("_", " ")}</b><span>real evidence required</span></article>
+          </div>
+          <div className="reliabilityControls">{data.reliability.controls.map((control) => <span key={control}>{control.replaceAll("_", " ")}</span>)}</div>
+          <div className="archetypeGrid">{data.reliability.archetypes.map((archetype) => <article key={archetype.name}><header><b>{archetype.name.replaceAll("_", " ")}</b><span>{archetype.status.replaceAll("_", " ")}</span></header><p>Hardest fixture · {archetype.hardestFixture}</p><small>{archetype.checks.join(" · ")}</small><footer>{archetype.evidenceStatus.replaceAll("_", " ")}</footer></article>)}</div>
+          {data.reliability.certifications.length === 0 && <div className="reliabilityStart"><p>Hardest-first certification starts with MP-153 as a controlled transaction-state UI. Rendering and deterministic lint cost $0; no other archetype or pilot unit can dispatch.</p><button onClick={() => void hardestCertification("BUILD_HARDEST_ARCHETYPE_CERTIFICATION")} disabled={Boolean(working)}>{working === "BUILD_HARDEST_ARCHETYPE_CERTIFICATION" ? "Rendering certification frames…" : "Build MP-153 certification artifact · $0"}</button></div>}
+          {data.reliability.certifications[0]?.status === "QA_REQUIRED" && <div className="reliabilityStart"><p>MP-153 has 3/3 owned, distinct frames and passed deterministic lint. One bounded semantic QA is permitted for this archetype only.</p><button onClick={() => void hardestCertification("RUN_HARDEST_ARCHETYPE_QA")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RUN_HARDEST_ARCHETYPE_QA" ? "Starting certification QA…" : "Run hardest-first certification QA · 1 request"}</button></div>}
+          {data.reliability.certifications[0]?.status === "REPAIR_REQUIRED" && data.reliability.certifications[0]?.attempt === 1 && <div className="reliabilityStart"><p>Attempt 1 is preserved. Renderer V2 must fix clipped labels, keep NOT SETTLED in all states and make PROCESSING → CONFIRMING → VERIFIED visibly distinct before another QA.</p><button onClick={() => void hardestCertification("REPAIR_HARDEST_ARCHETYPE_CERTIFICATION")} disabled={Boolean(working)}>{working === "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION" ? "Applying bounded renderer repair…" : "Build certification repair V2 · $0"}</button></div>}
+          {data.reliability.archetypes.find((item) => item.name === "TRANSACTION_STATE_PROOF")?.status === "CERTIFIED" && !data.reliability.certifications.some((item) => item.archetype !== "TRANSACTION_STATE_PROOF" && ["QA_REQUIRED", "QA_RUNNING", "REPAIR_REQUIRED", "BLOCKED_INCOMPLETE"].includes(item.status)) && data.reliability.archetypes.some((item) => item.status !== "CERTIFIED") && <div className="reliabilityStart"><p>Build the next highest-risk representative fixture. Existing source pixels are reused for source-dependent archetypes; authored archetypes are rendered deterministically. Production remains quarantined.</p><button onClick={() => void hardestCertification("BUILD_NEXT_ARCHETYPE_CERTIFICATION")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "BUILD_NEXT_ARCHETYPE_CERTIFICATION" ? "Building next certification fixture…" : "Build next archetype fixture · $0"}</button></div>}
+          {data.reliability.certifications.find((item) => item.archetype !== "TRANSACTION_STATE_PROOF" && item.status === "QA_REQUIRED") && <div className="reliabilityStart"><p>The next archetype passed deterministic lint. One bounded semantic QA request is authorized; every other archetype and pilot dispatch remains blocked.</p><button onClick={() => void hardestCertification("RUN_NEXT_ARCHETYPE_QA")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RUN_NEXT_ARCHETYPE_QA" ? "Starting bounded certification QA…" : "Run next archetype QA · 1 request"}</button></div>}
+          {data.reliability.certifications.find((item) => item.archetype === "SOURCE_AUTHORED_HYBRID" && item.status === "REPAIR_REQUIRED" && item.attempt === 1) && <div className="reliabilityStart"><p>Attempt 1 is preserved. The bounded repair keeps the exact three pixels, rebinds the truthful PROCESSING contract and attaches registered provenance before one final QA.</p><button onClick={() => void hardestCertification("REPAIR_NEXT_ARCHETYPE_CERTIFICATION")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "REPAIR_NEXT_ARCHETYPE_CERTIFICATION" ? "Preparing bounded contract repair…" : "Prepare Mixed Hybrid repair · $0"}</button></div>}
+          {data.reliability.archetypes.find((item) => item.name === "DATA_VISUALIZATION")?.status === "CERTIFICATION_BLOCKED" && !data.reliability.designAuthorizations.some((item) => item.archetype === "DATA_VISUALIZATION") && <div className="reliabilityStart"><p>V2 is permanently closed at 90/100 after two attempts. Authorize V3 as a new renderer design—not attempt 3—with primitive operators, explicit connector topology and deterministic reconciliation lint.</p><button onClick={() => void hardestCertification("AUTHORIZE_DATA_VISUALIZATION_V3")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "AUTHORIZE_DATA_VISUALIZATION_V3" ? "Building authorized V3 design…" : "Authorize and build Data Visualization V3 · $0"}</button></div>}
+          {data.reliability.designAuthorizations.find((item) => item.archetype === "DATA_VISUALIZATION") && <div className="certificationResult"><b>DATA VISUALIZATION · NEW DESIGN SCOPE</b><span>{data.reliability.designAuthorizations.find((item) => item.archetype === "DATA_VISUALIZATION")?.sourceRenderer} {data.reliability.designAuthorizations.find((item) => item.archetype === "DATA_VISUALIZATION")?.sourceScore}/100 → {data.reliability.designAuthorizations.find((item) => item.archetype === "DATA_VISUALIZATION")?.renderer}</span><small>V1/V2 audits remain immutable. V3 attempt numbering starts at 1 inside its separately authorized design scope.</small></div>}
+          {data.reliability.archetypes.every((item) => item.status === "CERTIFIED") && data.reliability.regressions.length === 0 && <div className="reliabilityStart"><p>All 8 archetypes are certified. Run a zero-spend regression across latest scores, dimension floors, frame hashes, V3 design lineage, idempotency and the 10-shot routing replay. Production remains frozen.</p><button onClick={() => void hardestCertification("RUN_ARCHETYPE_REGRESSION")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RUN_ARCHETYPE_REGRESSION" ? "Running zero-spend regression…" : "Run 8/8 regression and pilot replay · $0"}</button></div>}
+          {data.reliability.regressions[0] && <div className="certificationResult"><b>ARCHETYPE REGRESSION · {data.reliability.regressions[0].status} {data.reliability.regressions[0].score}/100</b><span>8/8 certifications · pilot replay {data.reliability.regressions[0].pilotReplay.compiled}/10 · {data.reliability.regressions[0].pilotReplay.dispatches} requests · ${data.reliability.regressions[0].pilotReplay.costDelta.toFixed(6)} delta</span>{data.reliability.regressions[0].checks.map((check) => <small key={check.id}>{check.status} · {check.id.replaceAll("_", " ")} · {check.evidence}</small>)}</div>}
+          {data.reliability.certifications[0] && <div className="certificationResult"><b>{data.reliability.certifications[0].archetype.replaceAll("_", " ")} · {data.reliability.certifications[0].status.replaceAll("_", " ")}</b><span>{data.reliability.certifications[0].renderer} · {data.reliability.certifications[0].frameIds.length}/3 frames · score {data.reliability.certifications[0].score}/100</span>{data.reliability.certifications[0].findings.map((finding, index) => <small key={`${index}-${findingText(finding)}`}>{findingText(finding)}</small>)}</div>}
+          <p className="stateBanner">MP-153 is now a transaction-state qualification fixture. Generic stock is rejected before search; certification must use controlled UI, authored state animation or a verified hybrid.</p>
+        </>}
+    </section>
+    {data.reliability?.regressions[0]?.status === "PASS" && data.reliability.regressions[0].score === 100 && <section className="reliabilityBaseline">
+      <header><div><p>CONTROLLED CANARY · 10 SHOTS</p><h2>Only unit-specific, immutable production artifacts may enter the canary.</h2><span>Certified renderer → unit contract → semantic manifest → unit pixels → immutable promotion. Certification fixtures cannot substitute for production pixels; sequence proof and scale stay locked.</span></div><strong>{data.canary?.status.replaceAll("_", " ") || "READY NOT STARTED"}</strong></header>
+      {!data.canary && <div className="reliabilityStart"><p>Authorize the 10-shot queue from the certified compiler replay. This is a zero-spend action and does not dispatch a provider request.</p><button onClick={() => void canaryAction("AUTHORIZE_CONTROLLED_CANARY")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "AUTHORIZE_CONTROLLED_CANARY" ? "Authorizing controlled canary…" : "Authorize controlled canary · $0"}</button></div>}
+      {data.canary?.status === "FAILED" && data.canary.version === "CONTROLLED_CANARY_V1" && <div className="reliabilityStart"><p>Canary V1 remains frozen as failed evidence. Authorize V2 to build immutable production bindings and run the five new zero-spend admission checks; no provider request is created by this action.</p><button onClick={() => void canaryAction("AUTHORIZE_CONTROLLED_CANARY")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "AUTHORIZE_CONTROLLED_CANARY" ? "Binding certified artifacts…" : "Authorize Canary V2 binding · $0"}</button></div>}
+      {data.canary?.status === "FAILED" && data.canary.version === "CONTROLLED_CANARY_V2_PROMOTED_BINDING" && <div className="reliabilityStart"><p>Canary V2 remains frozen at 1/10. V3 materializes three audience-facing frames for each exact unit contract, binds a semantic manifest, and refuses certification-fixture pixel reuse before any provider dispatch.</p><button onClick={() => void canaryAction("AUTHORIZE_CONTROLLED_CANARY_V3")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "AUTHORIZE_CONTROLLED_CANARY_V3" ? "Materializing unit-specific artifacts…" : "Authorize Canary V3 unit artifacts · $0"}</button></div>}
+      {data.canary?.status === "FAILED" && data.canary.version === "CONTROLLED_CANARY_V3_UNIT_SPECIFIC_ARTIFACT" && <div className="reliabilityStart"><p>Canary V3 remains frozen at 0/10 with zero request delta. V4 preserves its unit-specific pixels and binds lease, promotion, model policy and provider phase through one versioned dispatch capability before any request can be created.</p><button onClick={() => void canaryAction("AUTHORIZE_CONTROLLED_CANARY_V4")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "AUTHORIZE_CONTROLLED_CANARY_V4" ? "Verifying capability-bound handoffs…" : "Authorize Canary V4 handoff · $0"}</button></div>}
+      {data.canary?.status === "FAILED" && data.canary.version === "CONTROLLED_CANARY_V4_CAPABILITY_BOUND_DISPATCH" && <div className="reliabilityStart"><p>Canary V4 remains frozen at 0/10 with its 84/100 audit. V5 replaces MP-001’s generic unit adapter with the exact source-bound composite C pixels already certified by composite and motion gates; authorization runs only byte/hash/lineage preflight and cannot release a provider request.</p><button onClick={() => void canaryAction("AUTHORIZE_CONTROLLED_CANARY_V5")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "AUTHORIZE_CONTROLLED_CANARY_V5" ? "Binding source-grounded pixels…" : "Authorize Canary V5 preflight · $0"}</button></div>}
+      {data.canary && <>
+        <div className="reliabilityMetrics">
+          <article><small>PROGRESS</small><b>{data.canary.passedUnits}/10</b><span>unit gates passed</span></article>
+          <article><small>CURRENT LEASE</small><b>{data.canary.queue[data.canary.currentIndex]?.logicalId || "COMPLETE"}</b><span>{data.canary.queue[data.canary.currentIndex]?.archetype.replaceAll("_", " ") || "queue closed"}</span></article>
+          <article><small>CONCURRENCY</small><b>{data.requestLedger.active}/1</b><span>active provider request</span></article>
+          <article><small>BOUNDED DELTA</small><b>{Math.max(0, data.requestLedger.total - data.canary.requestsBefore)}/{data.canary.requestBudget}</b><span>${Math.max(0, data.requestLedger.actualCostUsd - data.canary.costBefore).toFixed(6)} / ${data.canary.costBudget.toFixed(2)}</span></article>
         </div>
-        <footer><span>{data.stage.evidence}</span></footer>
-      </article>
-
-      <article className="operatorPanel guardPanel">
-        <header><div><p>FAIL-CLOSED PREFLIGHT</p><h2>Dispatch safeguards</h2></div><b>{safeguardsPass ? "PASS" : "BLOCKED"}</b></header>
-        <div className="guardList">{Object.entries(data.safeguards).map(([key, pass]) => <div key={key}><i className={pass ? "pass" : "fail"}>{pass ? "✓" : "×"}</i><span>{labels[key] || human(key)}</span><b>{pass ? "PASS" : "FAIL"}</b></div>)}</div>
-        <button className="batchStart" onClick={() => void startBatch2()} disabled={!data.activation.canStart || !safeguardsPass || working || Boolean(error)}>{working ? "Activating with idempotency control…" : batch2 ? "Batch 2 already activated" : "Preflight and start Batch 2"}</button>
-        <small className="idempotency">Idempotency · {data.activation.idempotencyKey}</small>
-      </article>
+        <div className="reliabilityControls">{data.canary.queue.map((item, index) => <span key={item.briefId}>{index < data.canary!.passedUnits ? "PASS" : index === data.canary!.currentIndex ? data.canary!.status.replaceAll("_", " ") : "LOCKED"} · {item.logicalId} · {item.riskTier}</span>)}</div>
+        {data.canary.currentAudit && <div className="certificationResult"><b>CURRENT CANARY AUDIT · {data.canary.currentAudit.status} {data.canary.currentAudit.score}/100</b><span>{Object.entries(data.canary.currentAudit.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{data.canary.currentAudit.findings.map((finding, index) => <small key={`${index}-${findingText(finding)}`}>{findingText(finding)}</small>)}</div>}
+        {["FAILED", "SEQUENCE_OR_BATCH_FAILED_PRESERVED"].includes(data.canary.status) && <div className="certificationResult"><b>TERMINAL CANARY GATES</b>{data.canary.gates.map((gate) => <small key={gate.id}>{gate.status} · {gate.id.replaceAll("_", " ")}{gate.evidence ? ` · ${gate.evidence}` : ""}</small>)}</div>}
+        {data.canary.status === "READY_FOR_EXPLICIT_UNIT_RELEASE" && data.canary.version === "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION" && <div className="reliabilityStart"><p>V5 zero-spend preflight passed. MP-001 is bound to the frozen source-bound composite champion; this control releases exactly one bounded Pixel QA request. All later units, sequence proof and scale remain locked.</p><button onClick={() => void canaryAction("RELEASE_CONTROLLED_CANARY_V5_UNIT")} disabled={Boolean(working) || data.requestLedger.active > 0 || data.canary.currentIndex !== 0}>{working === "RELEASE_CONTROLLED_CANARY_V5_UNIT" ? "Releasing MP-001 Pixel QA…" : "Release V5 MP-001 · max $1"}</button></div>}
+        {data.canary.status === "AUTHORIZED" && <div className="reliabilityStart"><p>Only {data.canary.queue[data.canary.currentIndex]?.logicalId} is being released. Every later unit remains locked until this unit reaches a verified PASS checkpoint.</p></div>}
+        {data.canary.status === "UNIT_RUNNING" && <p className="stateBanner">{data.canary.queue[data.canary.currentIndex]?.logicalId} is the only leased unit. Pixel QA reads its frozen promoted frame set; legacy materialization is disabled and the queue pauses automatically at terminal QA.</p>}
+        {data.canary.status === "UNIT_PASS_REVIEW" && <div className="reliabilityStart"><p>The unit passed stored-byte, rights/hash, Pixel QA and physical-uniqueness gates. Its checkpoint is closing before the next lease; no provider request can overlap this transition.</p></div>}
+        {data.canary.status === "FAILED" && <p className="stateBanner errorState">Controlled canary stopped locally. Completed units remain immutable; later units, sequence proof and scale are blocked.</p>}
+        {data.canary.status === "FAILED" && data.canary.version === "CONTROLLED_CANARY_V5_SOURCE_BOUND_MATERIALIZATION" && !data.recovery && <div className="reliabilityStart"><p>V5 remains immutable. Build one zero-spend Recovery Lane from its exact canonical state to diagnose the failed transition, replay request 81 through a deterministic sink and execute the full fault matrix. No provider request can dispatch.</p><button onClick={() => void buildRecoveryLane()} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "BUILD_CANARY_RECOVERY_LANE" ? "Replaying canonical state…" : "Build Recovery Lane E2E · $0"}</button></div>}
+        {data.recovery && <div className="certificationResult">
+          <b>RECOVERY LANE · {data.recovery.status.replaceAll("_", " ")}</b>
+          <span>Canonical snapshot {data.recovery.snapshotHash.slice(0, 12)} · simulated request {data.recovery.simulatedRequestSequence} · {data.recovery.e2e.provider} · ${data.recovery.e2e.costDelta.toFixed(2)} delta</span>
+          <small>ROOT CAUSE · {data.recovery.rootCause.failureCode} at {data.recovery.rootCause.failedTransition} / {data.recovery.rootCause.failedGate}</small>
+          <small>STATE · expected {data.recovery.rootCause.expectedState} · actual {data.recovery.rootCause.actualState} · authorization {data.recovery.rootCause.authorizationStatus}</small>
+          <small>ATOMIC HANDOFF · {data.recovery.e2e.transition.join(" → ")}</small>
+          <small>INTENT / OUTBOX · {data.recovery.requestIntent?.status || "MISSING"} · {data.recovery.outbox?.status || "MISSING"}</small>
+          <small>ZERO-SPEND INVARIANT · requests {data.recovery.requestsBefore} → {data.recovery.requestsAfter} · cost ${data.recovery.costBefore.toFixed(6)} → ${data.recovery.costAfter.toFixed(6)}</small>
+          {data.recovery.faultMatrix.map((item) => <small key={item.id}>{item.outcome} · {item.id.replaceAll("_", " ")} · {item.evidence}</small>)}
+          {data.recovery.status === "READY_FOR_PRODUCTION_RECOVERY_PROBE"
+            ? <small>Production Recovery Probe is release-ready for exactly one MP-001 request; retry, later units, sequence proof and scale remain locked.</small>
+            : <small>Production Recovery Probe is immutable at {data.recovery.status.replaceAll("_", " ")}.</small>}
+        </div>}
+        {data.recovery?.status === "READY_FOR_PRODUCTION_RECOVERY_PROBE" && <div className="reliabilityStart"><p>The canonical replay, request-81 intent/outbox handoff and all eight fault scenarios passed at $0. This control creates a new recovery-probe canary record, preserves failed V5, and releases exactly one MP-001 Pixel QA request.</p><button onClick={() => void canaryAction("RELEASE_PRODUCTION_RECOVERY_PROBE")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RELEASE_PRODUCTION_RECOVERY_PROBE" ? "Releasing production recovery probe…" : "Run Production Recovery Probe · MP-001 · max $1"}</button></div>}
+        {data.recovery?.status === "PROBE_FAILED_PRESERVED" && <div className="reliabilityStart"><p>The request-81 probe proved the full handoff but exposed a contract-to-pixel mismatch: MP-001 inherited Data Visualization baseline/delta requirements while its approved champion is a source-authored checkout composite. Preserve the 55/100 audit and build one zero-spend aligned unit contract whose states exactly match champion C.</p><button onClick={() => void canaryAction("BUILD_RECOVERY_CONTRACT_ALIGNMENT")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "BUILD_RECOVERY_CONTRACT_ALIGNMENT" ? "Aligning contract and immutable pixels…" : "Build MP-001 contract alignment · $0"}</button></div>}
+        {data.recovery?.status === "READY_FOR_CONTRACT_ALIGNED_PROBE" && data.canary.version === "PRODUCTION_RECOVERY_CONTRACT_ALIGNMENT_V1" && <div className="reliabilityStart"><p>The original compiled contract, failed probe, champion-C bytes and source-authored certification are all preserved and cross-bound. The aligned manifest now names the exact visible states without importing generic waterfall requirements.</p><button onClick={() => void canaryAction("RELEASE_CONTRACT_ALIGNED_RECOVERY_PROBE")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RELEASE_CONTRACT_ALIGNED_RECOVERY_PROBE" ? "Releasing contract-aligned probe…" : "Run contract-aligned MP-001 probe · max $1"}</button></div>}
+        {data.recovery?.status === "ALIGNED_PROBE_RUNNING" && data.canary.status === "FAILED" && data.canary.version === "PRODUCTION_RECOVERY_CONTRACT_ALIGNMENT_V1" && data.canary.currentAudit?.status === "PASS" && <div className="reliabilityStart"><p>Request 82 and its 94/100 audit are immutable and every production gate passes. Reconcile only the collided terminal event ID; this creates no provider request and keeps all later units locked.</p><button onClick={() => void canaryAction("RECONCILE_CONTRACT_ALIGNED_RECOVERY_TERMINAL")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RECONCILE_CONTRACT_ALIGNED_RECOVERY_TERMINAL" ? "Reconciling terminal evidence…" : "Reconcile request 82 terminal · $0"}</button></div>}
+        {data.recovery?.status === "ALIGNED_PROBE_PASS_REVIEW" && ["AUTHORIZED", "UNIT_RUNNING", "UNIT_PASS_REVIEW"].includes(data.canary.status) && data.canary.version === "PRODUCTION_RECOVERY_CONTRACT_ALIGNMENT_V1" && <div className="reliabilityStart"><p>MP-001 is already PASS. Seal the recovery checkpoint back to MP-001 review so the generic canary auto-advance cannot lease MP-002 before its full production binding exists.</p><button onClick={() => void canaryAction("RECONCILE_CONTRACT_ALIGNED_RECOVERY_TERMINAL")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RECONCILE_CONTRACT_ALIGNED_RECOVERY_TERMINAL" ? "Sealing recovery checkpoint…" : "Seal MP-001 recovery checkpoint · $0"}</button></div>}
+        {data.canary.status === "RECOVERY_PASS_REVIEW" && <div className="reliabilityStart"><p>MP-001 is sealed at 94/100. Build one zero-spend Release Train: accept its unchanged evidence, compile shot-specific contracts for MP-002–MP-010, then run batched G0 contract and G1 technical gates. Provider dispatch remains blocked.</p><button onClick={() => void canaryAction("BUILD_RELEASE_TRAIN_PREFLIGHT")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "BUILD_RELEASE_TRAIN_PREFLIGHT" ? "Building Release Train G0/G1…" : "Build Release Train G0/G1 · $0"}</button></div>}
+        {data.canary.status === "SEQUENCE_OR_BATCH_FAILED_PRESERVED" && data.canary.version === "RELEASE_TRAIN_V1_SHOT_CONTRACT_QA" && <div className="reliabilityStart"><p>Request 83 and MP-002’s 42/100 audit remain immutable. Build one Stabilization Release: MP-001 becomes a non-dispatchable SEALED_SET; the other nine units are derived directly from the versioned canonical pilot manifest. The production action is rehearsed on a canonical clone with reload, terminal, ledger and legacy-isolation checks before any paid request.</p><button onClick={() => void canaryAction("BUILD_STABILIZATION_RELEASE")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "BUILD_STABILIZATION_RELEASE" ? "Running canonical zero-spend rehearsal…" : "Build Stabilization Release · G0/G1/G2 · $0"}</button></div>}
+        {data.canary.status === "READY_FOR_SEQUENCE_PROOF" && data.canary.version === "STABILIZATION_RELEASE_V1_TYPED_STATE_MACHINE" && <div className="reliabilityStart"><p>Stabilization G0/G1/G2 passed: exact typed scope, 27/27 active production frames, reload convergence, unchanged ledger and no reachable legacy transition. MP-002 EXIT visibly co-locates APPROVED and $100.00. Only request 84 may now dispatch, with no retry.</p><button onClick={() => void canaryAction("RELEASE_RELEASE_TRAIN_SEQUENCE_PROOF")} disabled={Boolean(working) || data.requestLedger.active > 0 || data.canary.currentIndex !== 1}>{working === "RELEASE_RELEASE_TRAIN_SEQUENCE_PROOF" ? "Releasing repaired MP-002 proof…" : "Run request 84 · MP-002 Sequence Proof · max $1"}</button></div>}
+        {data.canary.status === "SEQUENCE_PROOF_PASS_REVIEW" && ["STABILIZATION_RELEASE_V1_TYPED_STATE_MACHINE", "MP002_TARGETED_REPAIR_V1", "MP002_PIXEL_ORACLE_REPAIR_V2"].includes(data.canary.version) && <div className="reliabilityStart"><p>MP-002 passed the controlled release gate. The remaining eight canonical units now run sequentially; every unit hard-stops at terminal QA and no blind retry is permitted.</p><button onClick={() => void canaryAction("START_RELEASE_TRAIN_BATCH")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "START_RELEASE_TRAIN_BATCH" ? "Opening bounded batch…" : "Continue authorized run to 10 MP"}</button></div>}
+        {data.canary.status === "BATCH_UNIT_PASS_REVIEW" && data.canary.version === "STABILIZATION_RELEASE_V1_TYPED_STATE_MACHINE" && <p className="stateBanner">The current stabilized unit passed and reached a hard-stop. The next frozen unit is released under the same bounded authorization; no repair retry is allowed.</p>}
+        {data.canary.status === "SEQUENCE_OR_BATCH_FAILED_PRESERVED" && data.canary.version === "STABILIZATION_RELEASE_V1_TYPED_STATE_MACHINE" && data.canary.currentIndex === 1 && <div className="reliabilityStart"><p>MP-002’s 74/100 audit, request 84 and original frame hashes remain immutable. Build one zero-spend targeted repair that removes the internal unit ID, keeps $100.00 and PROCESSING together at ENTRY, shows the card being withdrawn at EXIT and enforces a receipt safe-width gate.</p><button onClick={() => void canaryAction("PREPARE_STABILIZED_MP002_TARGETED_REPAIR")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "PREPARE_STABILIZED_MP002_TARGETED_REPAIR" ? "Building and validating targeted repair…" : "Build MP-002 targeted repair · G0/G1 · $0"}</button></div>}
+        {data.canary.status === "SEQUENCE_OR_BATCH_FAILED_PRESERVED" && data.canary.version === "STABILIZATION_RELEASE_V1_TYPED_STATE_MACHINE" && data.canary.currentIndex >= 2 && <div className="reliabilityStart"><p>The generic production-scene template failed the current unit contract. Compile contract-specific scenes for all eight remaining canonical units, verify 24 viewer-visible frames with the golden-region oracle, then resume from the failed unit without rerunning completed MP evidence.</p><button onClick={() => void canaryAction("BUILD_CANONICAL_UNIT_SCENES")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "BUILD_CANONICAL_UNIT_SCENES" ? "Compiling canonical unit scenes…" : "Build 8 canonical unit scenes · G0/G1 · $0"}</button></div>}
+        {data.canary.status === "SCENE_REBUILD_RUNNING" && data.canary.version.startsWith("CANONICAL_UNIT_SCENES_V") && <p className="stateBanner">Canonical contract scenes are being frozen and verified one unit at a time. Provider dispatch remains locked until all 24 frames pass.</p>}
+        {data.canary.status === "TARGETED_REPAIR_READY" && data.canary.version === "MP002_TARGETED_REPAIR_V1" && <div className="reliabilityStart"><p>The four P1 defects are closed in deterministic evidence and the prior 74/100 result is preserved. Release the only permitted targeted repair request; no second repair or later-unit dispatch is authorized.</p><button onClick={() => void canaryAction("RELEASE_STABILIZED_MP002_TARGETED_REPAIR")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RELEASE_STABILIZED_MP002_TARGETED_REPAIR" ? "Releasing request 85…" : "Run request 85 · MP-002 targeted repair · max $1"}</button></div>}
+        {data.canary.status === "SEQUENCE_OR_BATCH_FAILED_PRESERVED" && data.canary.version === "MP002_TARGETED_REPAIR_V1" && <div className="reliabilityStart"><p>MP-002 remains at 84/100 because the previous gate checked renderer intent instead of viewer-visible regions. Build the golden-region pixel oracle, preserve request 85, and authorize the bounded sequential run through all ten canonical MP units.</p><button onClick={() => void canaryAction("PREPARE_MP002_PIXEL_ORACLE_REPAIR")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "PREPARE_MP002_PIXEL_ORACLE_REPAIR" ? "Validating viewer-visible pixel regions…" : "Authorize and complete all 10 MP · G0/G1 first"}</button></div>}
+        {data.canary.status === "TARGETED_REPAIR_READY" && data.canary.version === "MP002_PIXEL_ORACLE_REPAIR_V2" && <p className="stateBanner">Golden-region pixel oracle PASS. Request 86 and the remaining canonical units are authorized to continue sequentially under terminal quality gates.</p>}
+        {data.canary.status === "PASS" && <p className="stateBanner">Controlled canary PASS. Sequence proof is ready but not started; scale remains blocked.</p>}
+      </>}
+    </section>}
+    <section className="materialArchitecture">
+      <header><div><p>STAGE 09 TARGET ARCHITECTURE · {data.architecture.version}</p><h2>Quality and scale are governed by separate production planes.</h2><span>{data.architecture.principle}</span></div><strong>{data.architecture.status.replaceAll("_", " ")}</strong></header>
+      <div className="materialPlanes">{data.architecture.planes.map((plane)=><article key={plane.id} className={plane.status.toLowerCase()}><small>{plane.status}</small><h3>{plane.name}</h3><p>{plane.responsibility}</p></article>)}</div>
+      <div className="materialQualityLadder"><div><p>QUALITY LADDER</p>{data.architecture.qualityLadder.map((gate)=><article key={gate.order}><b>{String(gate.order).padStart(2,"0")}</b><span><strong>{gate.name}</strong><small>{gate.exit}</small></span></article>)}</div><aside><p>SCALE GOVERNOR · {data.releasePolicy.version}</p><strong>STANDARD ≥{data.releasePolicy.standardOverall} · CONTROLLED ≥{data.releasePolicy.controlledOverall}</strong><span>Semantic Fit ≥{data.releasePolicy.controlledSemanticFit} · other dimensions ≥{data.releasePolicy.controlledOtherDimension}</span><small>P0 = 0 · semantic P1 = 0 · presentation P1 ≤{data.releasePolicy.presentationP1Max} · controlled independent QA sample {Math.round(data.releasePolicy.controlledQaSampleRate * 100)}%</small><small>{data.architecture.scalePolicy.controlledQaSampling}</small></aside></div>
     </section>
-
-    <section className="operatorPanel ledgerPanel">
-      <header><div><p>REQUEST & COST LEDGER</p><h2>Current exposure</h2></div><b>${data.requests.actualCostUsd.toFixed(4)}</b></header>
-      <div><span><small>TOTAL</small><strong>{data.requests.total}</strong></span><span><small>COMPLETE</small><strong>{data.requests.complete}</strong></span><span><small>ACTIVE</small><strong>{data.requests.active}</strong></span><span><small>MEDIA POLICY</small><strong>{human(data.controlPlane.mediaPolicy)}</strong></span></div>
+    <section className="mediaExecutionPlane">
+      <header><div><p>MEDIA EXECUTION PLANE · V1</p><h2>Actual video bytes become decoded, inspectable frame evidence.</h2><span>The executor is isolated from AI orchestration. It can only claim authorized media jobs, verify source hashes and return bounded outputs.</span></div><strong>{data.mediaExecution.executor?.status || (data.mediaExecution.configured ? "WAITING FOR EXECUTOR" : "CONFIGURATION REQUIRED")}</strong></header>
+      <div className="mediaExecutionMetrics">
+        <article><small>QUEUE</small><b>{data.mediaExecution.counts.queued}</b><span>checkpointed jobs</span></article>
+        <article><small>ACTIVE LEASE</small><b>{data.mediaExecution.counts.leased}</b><span>10-minute bounded lease</span></article>
+        <article><small>VERIFIED</small><b>{data.mediaExecution.counts.complete}</b><span>source-frame sets</span></article>
+        <article><small>NEXT GATE</small><b>{data.mediaExecution.nextGate.replaceAll("_", " ")}</b><span>scale remains locked</span></article>
+      </div>
+      <div className="mediaExecutionContract">
+        <div><b>Execution contract</b><span>Private transport auth → executor auth → bounded lease → FFPROBE → 10% / 50% / 90% frames → SHA-256/read-back → evidence registry</span><small>960×540 JPEG · exact three-frame set · source duration tolerance 250ms · no thumbnail substitution · zero AI authority</small></div>
+        {!data.mediaExecution.jobs.some((job) => ["QUEUED", "LEASED", "COMPLETE"].includes(job.status)) && <button onClick={() => void planExecution()} disabled={Boolean(working)}>{working === "PLAN_ROOT_CAUSE_EXECUTION" ? "Creating bounded job…" : "Create root-cause media job · $0"}</button>}
+        {data.mediaExecution.nextGate === "SOURCE_REPLACEMENT" && <button onClick={() => void replaceSource()} disabled={Boolean(working)}>{working === "REPLACE_SOURCE_CANDIDATE" ? "Searching, selecting and storing one replacement…" : "Run one bounded source replacement"}</button>}
+        {data.mediaExecution.nextGate === "COMPOSITE_TOURNAMENT" && <button onClick={() => void compositeTournament()} disabled={Boolean(working)}>{working === "RUN_COMPOSITE_TOURNAMENT" ? "Building and judging three composites…" : "Run 3-candidate composite tournament · 1 request"}</button>}
+        {data.mediaExecution.nextGate === "COMPOSITE_REPAIR" && <button onClick={() => void compositeTournament()} disabled={Boolean(working)}>{working === "RUN_COMPOSITE_TOURNAMENT" ? "Applying one delta and re-adjudicating…" : "Run bounded composite repair · 1 request"}</button>}
+        {data.mediaExecution.nextGate === "MOTION_PROOF_PLAN" && <button onClick={() => void motionAction("PLAN_MOTION_PROOF")} disabled={Boolean(working)}>{working === "PLAN_MOTION_PROOF" ? "Binding champion C to motion…" : "Create champion C motion job · $0"}</button>}
+        {data.mediaExecution.nextGate === "MOTION_RENDER_RUNNING" && <p className="stateBanner">Motion render is queued for the bounded media executor. No AI request has been dispatched.</p>}
+        {data.mediaExecution.nextGate === "MOTION_QA" && <button onClick={() => void motionAction("RUN_MOTION_QA")} disabled={Boolean(working)}>{working === "RUN_MOTION_QA" ? "Starting bounded motion QA…" : "Run motion proof QA · 1 request"}</button>}
+        {data.mediaExecution.nextGate === "MOTION_QA_RUNNING" && <p className="stateBanner">Independent motion QA is running against sampled frames from the stored WebM.</p>}
+        {data.mediaExecution.nextGate === "MOTION_RIGHTS_EVIDENCE_REPAIR" && <button onClick={() => void motionAction("PREPARE_MOTION_RIGHTS_REPAIR")} disabled={Boolean(working)}>{working === "PREPARE_MOTION_RIGHTS_REPAIR" ? "Verifying rights lineage…" : "Attach verified rights bundle · $0"}</button>}
+        {data.mediaExecution.nextGate === "PILOT_AUTHORIZATION" && <p className="stateBanner">Champion C motion proof passed. The bounded 10-shot pilot may now be authorized; sequence proof and scale remain locked.</p>}
+        {data.mediaExecution.nextGate === "PILOT_EXECUTION" && <p className="stateBanner">The bounded pilot is authorized or running. Sequence proof remains locked until all pilot materials and audits pass.</p>}
+        {data.mediaExecution.nextGate === "PILOT_REPAIR_BLOCKED" && <p className="stateBanner errorState">Pilot repair attempts are exhausted. Later unit audits, sequence proof and scale remain blocked pending a new shot/source contract.</p>}
+        {data.mediaExecution.nextGate === "SEQUENCE_PROOF" && <p className="stateBanner">The 10-shot pilot passed. The 30-second sequence proof is now the only open gate; scale remains locked.</p>}
+        {data.mediaExecution.nextGate === "COMPOSITE_REPAIR_BLOCKED" && <p className="stateBanner errorState">The authorized delta repair was exhausted. Root-cause review is required; no pilot or scale request can dispatch.</p>}
+      </div>
+      {!data.mediaExecution.configured && <p className="stateBanner errorState">Add MEDIA_EXECUTOR_SHARED_SECRET in Factory Connections before starting the executor. Creating the job itself makes no provider or AI request.</p>}
+      {data.mediaExecution.jobs.length > 0 && <div className="mediaExecutionJobs">{data.mediaExecution.jobs.map((job)=><article key={job.id}><span><b>{job.briefId}</b><small>{job.type.replaceAll("_", " ")}</small></span><strong>{job.status}</strong><span><b>{job.attempt}/{job.maxAttempts}</b><small>{job.error || job.leaseOwner || "Stored and resumable"}</small></span></article>)}</div>}
+      {data.mediaExecution.evidence.map((evidence)=><section className="sourceFrameEvidence" key={evidence.id}>
+        <header><div><p>ACTUAL DECODED SOURCE · {evidence.technicalStatus}</p><h3>{evidence.briefId}</h3><span>{evidence.probe.codec || "video"} · {Number(evidence.probe.width || 0)}×{Number(evidence.probe.height || 0)} · {Number(evidence.probe.durationSeconds || 0).toFixed(2)}s · SHA {evidence.hash}</span></div><strong>SEMANTIC QA · {evidence.sourceQa?.status || (data.mediaExecution.sourceQaActive ? "RUNNING" : "REQUIRED")}</strong></header>
+        <div>{evidence.frames.map((frame)=><article key={frame.fileId}><Image src={frame.previewUrl} alt={`${frame.role.toLowerCase()} decoded source frame`} width={960} height={540} unoptimized /><footer><b>{frame.role}</b><span>{frame.timestampSeconds.toFixed(2)}s</span><small>{frame.width}×{frame.height}</small></footer></article>)}</div>
+        {!evidence.sourceQa && <button onClick={() => void sourceQa()} disabled={Boolean(working) || data.mediaExecution.sourceQaActive}>{data.mediaExecution.sourceQaActive ? "AI inspecting actual pixels…" : "Run source-frame semantic QA · 1 bounded request"}</button>}
+        {evidence.sourceQa && <aside className={evidence.sourceQa.status === "PASS" ? "pass" : "fail"}><b>{evidence.sourceQa.status} · {evidence.sourceQa.score}/100</b><span>{Object.entries(evidence.sourceQa.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{evidence.sourceQa.findings.map((finding,index)=><small key={`${index}-${findingText(finding)}`}>{findingText(finding)}</small>)}{evidence.sourceQa.repair.replacementQuery && <p><b>Replacement query</b> {evidence.sourceQa.repair.replacementQuery}</p>}{evidence.sourceQa.repair.sourceLayerContract && <p><b>Source contract</b> {evidence.sourceQa.repair.sourceLayerContract}</p>}</aside>}
+      </section>)}
+      {(data.mediaExecution.composite.active || data.mediaExecution.composite.candidates.some((candidate) => candidate.frames.length > 0)) && <section className="compositeTournamentEvidence">
+        <header><div><p>ACTUAL HYBRID PIXELS · {data.mediaExecution.composite.rubric}</p><h3>Three compositions compete. One may advance.</h3><span>Every candidate uses the same accepted source lineage and stores distinct ENTRY / MIDPOINT / EXIT frames.</span></div><strong>{data.mediaExecution.composite.active ? "AI ADJUDICATION RUNNING" : `${data.mediaExecution.composite.status} · ${data.mediaExecution.composite.score}/100`}</strong></header>
+        <div>{data.mediaExecution.composite.candidates.map((candidate)=><article key={candidate.candidate} className={data.mediaExecution.composite.winner === candidate.candidate ? "winner" : ""}><h4>Candidate {candidate.candidate}{data.mediaExecution.composite.winner === candidate.candidate ? " · WINNER" : ""}</h4><div>{candidate.frames.map((frame)=><figure key={frame.fileId}><Image src={frame.previewUrl} alt={`candidate ${candidate.candidate} ${frame.state.toLowerCase()}`} width={960} height={540} unoptimized /><figcaption>{frame.state}</figcaption></figure>)}</div>{Object.keys(candidate.scores).length > 0 && <small>{Object.entries(candidate.scores).map(([key,value]) => `${key} ${value}`).join(" · ")}</small>}</article>)}</div>
+        {data.mediaExecution.composite.findings.length > 0 && <aside className={data.mediaExecution.composite.status === "PASS" ? "pass" : "fail"}><b>{data.mediaExecution.composite.status} · winner {data.mediaExecution.composite.winner}</b><span>{Object.entries(data.mediaExecution.composite.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{data.mediaExecution.composite.findings.map((finding,index)=><small key={`${index}-${findingText(finding)}`}>{findingText(finding)}</small>)}{data.mediaExecution.composite.repair.exactRepair && <p><b>Exact repair</b> {data.mediaExecution.composite.repair.exactRepair}</p>}</aside>}
+      </section>}
+      {data.mediaExecution.motionProof && <section className="motionProofEvidence">
+        <header><div><p>ACTUAL WEBM MOTION PROOF · {data.mediaExecution.motionProof.renderer}</p><h3>Champion {data.mediaExecution.motionProof.champion} · narration-bound playback</h3><span>{data.mediaExecution.motionProof.durationSeconds.toFixed(2)}s · {data.mediaExecution.motionProof.fps.toFixed(2)}fps · source hashes {data.mediaExecution.motionProof.sourceHashes.length}/3</span></div><strong>{data.mediaExecution.motionProof.status.replaceAll("_", " ")} · {data.mediaExecution.motionProof.score}/100</strong></header>
+        {data.mediaExecution.motionProof.previewUrl && <video src={data.mediaExecution.motionProof.previewUrl} controls autoPlay loop muted playsInline preload="metadata" />}
+        <div>{data.mediaExecution.motionProof.sampleFrames.map((frame)=><figure key={frame.fileId}><Image src={frame.previewUrl} alt={`motion proof ${frame.role.toLowerCase()} sample`} width={960} height={540} unoptimized /><figcaption>{frame.role} · {frame.timestampSeconds.toFixed(2)}s</figcaption></figure>)}</div>
+        {data.mediaExecution.motionProof.findings.length > 0 && <aside className={data.mediaExecution.motionProof.status === "PASS" ? "pass" : "fail"}><b>{data.mediaExecution.motionProof.status} · {data.mediaExecution.motionProof.score}/100</b><span>{Object.entries(data.mediaExecution.motionProof.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{data.mediaExecution.motionProof.findings.map((finding,index)=><small key={`${index}-${findingText(finding)}`}>{findingText(finding)}</small>)}</aside>}
+      </section>}
     </section>
-
-    <footer className="operatorFooter"><span>Historical evidence and production assets are preserved. Legacy controls are removed from the active operating path.</span><Link href="/control-plane">Architecture & governance →</Link></footer>
+    <section className="sequenceProofPlane">
+      <header><div><p>INTEGRATED SEQUENCE PRODUCTION</p><h2>Production owns the finished 30-second product.</h2><span>Specification → compose → render → measure → auto-correct happens inside one production transaction. QA is one independent audit only after PRODUCT_COMPLETE.</span></div><strong>{data.sequenceProduct?.status.replaceAll("_", " ") || (data.sequenceProof?.status === "REPAIR_REQUIRED" ? "V2 READY" : data.sequenceProof?.status.replaceAll("_", " ") || "BLOCKED")}</strong></header>
+      {!data.sequenceProof && data.canary?.passedUnits === 10 && <div className="reliabilityStart"><p>Assemble the ten immutable MP units in canonical order. Rendering costs $0 and creates no model request.</p><button onClick={() => void sequenceAction("PLAN_SEQUENCE_PROOF")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "PLAN_SEQUENCE_PROOF" ? "Binding and queueing sequence…" : "Build 30-second sequence · $0"}</button></div>}
+      {data.sequenceProof && <>
+        <div className="sequenceMetrics"><article><small>DURATION</small><b>{data.sequenceProof.durationSeconds.toFixed(2)}s</b></article><article><small>UNITS</small><b>{data.sequenceProof.unitCount}/10</b></article><article><small>SOURCE FRAMES</small><b>{data.sequenceProof.frameCount}/30</b></article><article><small>QA</small><b>{data.sequenceProof.score}/100 · {data.sequenceProof.tier}</b></article></div>
+        {data.sequenceProof.previewUrl && <video src={data.sequenceProof.previewUrl} controls playsInline preload="metadata" />}
+        {data.sequenceProof.sampleFrames.length > 0 && <div className="sequenceSamples">{data.sequenceProof.sampleFrames.map((frame)=><figure key={frame.fileId}><Image src={frame.previewUrl} alt={`${frame.logicalId} sequence sample`} width={960} height={540} unoptimized /><figcaption>{frame.logicalId} · {frame.timestampSeconds.toFixed(2)}s</figcaption></figure>)}</div>}
+        {data.sequenceProof.status === "QA_REQUIRED" && <div className="reliabilityStart"><p>Legacy V1 master is technically complete and awaits its original bounded audit.</p><button onClick={() => void sequenceAction("RUN_SEQUENCE_QA")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RUN_SEQUENCE_QA" ? "Starting sequence QA…" : "Run sequence QA · 1 request"}</button></div>}
+        {data.sequenceProof.findings.length > 0 && <aside className={data.sequenceProof.status === "PASS" ? "pass" : "fail"}><b>{data.sequenceProof.status} · {data.sequenceProof.score}/100 · {data.sequenceProof.tier}</b><span>{Object.entries(data.sequenceProof.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{data.sequenceProof.findings.map((finding,index)=><small key={`${index}-${findingText(finding)}`}>{findingText(finding)}</small>)}</aside>}
+      </>}
+      {data.sequenceProof?.status === "REPAIR_REQUIRED" && !data.sequenceProduct && <div className="productStart"><div><small>ROOT-CAUSE REBUILD · $0</small><strong>Compile Product Specification and run Composer V2</strong><p>Preserves all 10 sealed MP units, creates no model request, and does not use QA findings as repair instructions. The production engine must satisfy its own Definition of Done.</p></div><button onClick={() => void sequenceAction("PRODUCE_INTEGRATED_SEQUENCE")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "PRODUCE_INTEGRATED_SEQUENCE" ? "Compiling product specification…" : "Produce Sequence V2 · $0"}</button></div>}
+      {data.sequenceProduct && <section className="sequenceProduct">
+        <div className="productLifecycle">{["SPECIFIED","PRODUCING","PRODUCT_COMPLETE","RELEASED"].map((state, index) => { const current = data.sequenceProduct!.status === "PRODUCTION_BLOCKED" ? 1 : ["SPECIFIED","PRODUCING","PRODUCT_COMPLETE","RELEASED"].indexOf(data.sequenceProduct!.status); return <article className={index <= current ? "done" : ""} key={state}><span>{index + 1}</span><b>{state.replaceAll("_", " ")}</b></article>; })}</div>
+        <div className="sequenceMetrics"><article><small>PRODUCTION STATE</small><b>{data.sequenceProduct.status.replaceAll("_", " ")}</b></article><article><small>INTERNAL ITERATIONS</small><b>{data.sequenceProduct.iteration}/{data.sequenceProduct.maxIterations}</b></article><article><small>FULL-FRAME SCAN</small><b>{Number(data.sequenceProduct.measurements.framesScanned || 0)}/900</b></article><article><small>QA REQUESTS</small><b>0</b></article></div>
+        {data.sequenceProduct.previewUrl && <video src={data.sequenceProduct.previewUrl} controls playsInline preload="metadata" />}
+        {data.sequenceProduct.sampleFrames.length > 0 && <div className="sequenceSamples">{data.sequenceProduct.sampleFrames.map((frame)=><figure key={frame.fileId}><Image src={frame.previewUrl} alt={`${frame.logicalId} completed product sample`} width={960} height={540} unoptimized /><figcaption>{frame.logicalId} · {frame.timestampSeconds.toFixed(2)}s</figcaption></figure>)}</div>}
+        <div className={`productVerdict ${["PRODUCT_COMPLETE","RELEASED"].includes(data.sequenceProduct.status) ? "complete" : data.sequenceProduct.status === "PRODUCTION_BLOCKED" ? "blocked" : "running"}`}><strong>{data.sequenceProduct.status === "RELEASED" ? "Product released after independent audit" : data.sequenceProduct.status === "PRODUCT_COMPLETE" ? "Production Definition of Done passed" : data.sequenceProduct.status === "PRODUCTION_BLOCKED" ? "Composer stopped without declaring completion" : "Integrated production is running"}</strong><span>{data.sequenceProduct.status === "RELEASED" ? "Production completed before QA; the single independent audit passed and the production loop remains closed." : data.sequenceProduct.status === "PRODUCT_COMPLETE" ? "Source lineage, continuity graph, mobile-safe contain, full-frame scan and technical master read-back are complete. Independent audit 105 has not been started." : "QA remains outside the production loop. Scale stays locked until the product is complete."}</span></div>
+        {data.sequenceProduct.status === "PRODUCT_COMPLETE" && !data.sequenceProduct.audit && !productAuditRequest && <div className="productStart"><div><small>ONE INDEPENDENT RELEASE AUDIT</small><strong>Audit the completed product · request 105</strong><p>Production is closed. This request can release or reject Composer V2.1; it cannot start a repair loop.</p></div><button onClick={() => void sequenceAction("RUN_SEQUENCE_PRODUCT_AUDIT")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "RUN_SEQUENCE_PRODUCT_AUDIT" ? "Starting independent audit…" : "Run independent audit · request 105"}</button></div>}
+        {data.sequenceProduct.status === "PRODUCT_COMPLETE" && !data.sequenceProduct.audit && productAuditRequest && <div className="productStart"><div><small>INDEPENDENT AUDIT · {productAuditRequest.status}</small><strong>Product Complete preserved · scale locked</strong><p>Request 105 reached the provider, but its response ID was not durably bound after the audit write failed. The transaction is closed without retry.</p></div></div>}
+        {data.sequenceProduct.audit && <aside className={data.sequenceProduct.audit.status === "PASS" ? "pass" : data.sequenceProduct.audit.status === "RUNNING" ? "running" : "fail"}><b>{data.sequenceProduct.audit.status} · {data.sequenceProduct.audit.score}/100 · {data.sequenceProduct.audit.tier}</b><span>{Object.entries(data.sequenceProduct.audit.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{data.sequenceProduct.audit.findings.map((finding,index)=><small key={`${index}-${findingText(finding)}`}>{findingText(finding)}</small>)}</aside>}
+        {data.sequenceProduct.corrections.length > 0 && <details className="productCorrections"><summary>Internal production corrections · {data.sequenceProduct.corrections.length}</summary>{data.sequenceProduct.corrections.map((correction,index)=><p key={`${index}-${correction.code}`}><b>{correction.code}</b> · {correction.reason}</p>)}</details>}
+      </section>}
+    </section>
+    <section className="sequenceProofPlane">
+      <header><div><p>WAVE 09 · {data.productionBatch?.waveKey.replaceAll("_", " ") || "BATCH 1"}</p><h2>{data.productionBatch?.waveKey === "BATCH_2" ? "50-shot controlled scale must complete before independent QA." : "26 new shots must be complete before independent QA."}</h2><span>Production compiles, renders, measures and stores each shot as a complete three-state product. QA may release or reject the engine; it cannot repair outputs.</span></div><strong>{data.productionBatch?.status.replaceAll("_", " ") || "READY"}</strong></header>
+      {!data.productionBatch && data.sequenceProduct?.status === "PRODUCT_COMPLETE" && <div className="productStart"><div><small>AUTHORIZED SCOPE · 26 NEW SHOTS</small><strong>Expand the portfolio from 10 to 36 of 166</strong><p>Creates the Batch 1 specification and starts the deterministic product-completion loop. The 10 sealed canary products remain immutable; no QA or provider request is created during production.</p></div><button onClick={() => void batchAction("START_WAVE_BATCH_1")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "START_WAVE_BATCH_1" ? "Compiling Batch 1…" : "Start Batch 1 · 26 shots"}</button></div>}
+      {data.productionBatch && <>
+        <div className="sequenceMetrics"><article><small>NEW PRODUCTS</small><b>{data.productionBatch.completedUnits}/{data.productionBatch.totalUnits}</b></article><article><small>PORTFOLIO</small><b>{(data.productionBatch.waveKey === "BATCH_2" ? 36 : 10) + data.productionBatch.completedUnits}/166</b></article><article><small>BLOCKED</small><b>{data.productionBatch.blockedUnits}</b></article><article><small>QA REQUESTS</small><b>{data.productionBatch.audit ? 1 : 0}/{data.productionBatch.requestBudget}</b></article></div>
+        <div className="reliabilityControls">{data.productionBatch.scope.map((item, index) => <span key={item.briefId}>{index < data.productionBatch!.completedUnits ? "PRODUCT COMPLETE" : index === data.productionBatch!.currentIndex ? data.productionBatch!.status.replaceAll("_", " ") : "SPECIFIED"} · {item.logicalId} · {item.archetype.replaceAll("_", " ")}</span>)}</div>
+        {data.productionBatch.status === "PRODUCING" && <p className="stateBanner">Integrated production is running one durable shot transaction at a time. Every completed shot has 3/3 stored frames, distinct hashes, source-bound meaning, mobile fit and read-back evidence.</p>}
+        {data.productionBatch.status === "PRODUCTION_BLOCKED" && data.productionBatch.waveKey === "BATCH_1" && <div className="productStart"><div><small>ROOT PRODUCTION CORRECTION REQUIRED</small><strong>Reject the engine version before any output exists</strong><p>The failed production DoD remains evidence. Apply the replacement compiler only after its full 26-shot layout regression passes; no output repair or QA request is allowed.</p></div><button onClick={() => void batchAction("ADOPT_WAVE_BATCH_1_ENGINE_ROOT_CORRECTION")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "ADOPT_WAVE_BATCH_1_ENGINE_ROOT_CORRECTION" ? "Qualifying replacement engine…" : "Qualify and adopt replacement engine"}</button></div>}
+        {data.productionBatch.status === "PRODUCT_COMPLETE" && !data.productionBatch.audit && <div className="productStart"><div><small>INDEPENDENT AUDIT · {data.productionBatch.waveKey === "BATCH_2" ? "10/50 RISK-STRATIFIED SAMPLE" : "7/26 RISK-STRATIFIED SAMPLE"}</small><strong>Production is closed at {data.productionBatch.waveKey === "BATCH_2" ? "86" : "36"}/166</strong><p>One audit checks actual ENTRY/MIDPOINT/EXIT pixels across the sample. A failure rejects the production-engine version and routes to its root layer; output repair is prohibited.</p></div><button onClick={() => void batchAction(data.productionBatch!.waveKey === "BATCH_2" ? "RUN_WAVE_BATCH_2_AUDIT" : "RUN_WAVE_BATCH_1_AUDIT")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working?.includes("AUDIT") ? "Starting independent audit…" : `Audit completed ${data.productionBatch.waveKey.replace("_", " ")} · 1 request`}</button></div>}
+        {data.productionBatch.waveKey === "BATCH_1" && data.productionBatch.audit?.status === "DISPATCHING" && !data.productionBatch.audit.providerResponseId && <div className="productStart"><div><small>AUDIT TRANSPORT ROOT CORRECTION</small><strong>Reconcile the pre-provider dispatch lease</strong><p>The immutable products remain unchanged. The oversized lossless transport is rejected at zero tokens and zero cost; V2 replays the verified renderer and sends bounded JPEG audit proxies.</p></div><button onClick={() => void batchAction("RECONCILE_WAVE_BATCH_1_AUDIT_TRANSPORT")} disabled={Boolean(working)}>{working === "RECONCILE_WAVE_BATCH_1_AUDIT_TRANSPORT" ? "Qualifying audit transport V2…" : "Adopt verified audit transport V2"}</button></div>}
+        {data.productionBatch.audit && <aside className={data.productionBatch.audit.status === "PASS" ? "pass" : data.productionBatch.audit.status === "QA_RUNNING" ? "running" : "fail"}><b>{data.productionBatch.audit.status.replaceAll("_", " ")} · {data.productionBatch.audit.score}/100 · {data.productionBatch.audit.tier}</b><span>{Object.entries(data.productionBatch.audit.dimensions).map(([key,value]) => `${key} ${value}`).join(" · ")}</span>{data.productionBatch.audit.findings.map((finding,index)=><small key={`${index}-${findingText(finding)}`}>{findingText(finding)}</small>)}{data.productionBatch.audit.rootCause.rootProductionCause && <p><b>Root production cause</b> {data.productionBatch.audit.rootCause.rootProductionCause}</p>}</aside>}
+        {data.productionBatch.status === "ENGINE_ROOT_CAUSE_REQUIRED" && data.productionBatch.waveKey === "BATCH_1" && <div className="productStart"><div><small>SEMANTIC ENGINE REPLACEMENT</small><strong>Preserve failed-engine evidence and reproduce from a new engine</strong><p>The replacement compiler binds contract signatures to explicit participants, records, identifiers, connectors, barriers, uncertainty and interval motion. It must pass all 26 specifications, duplicate-pixel regression and portfolio variety before reproduction begins.</p></div><button onClick={() => void batchAction("ADOPT_WAVE_BATCH_1_SEMANTIC_ENGINE_ROOT_CORRECTION")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "ADOPT_WAVE_BATCH_1_SEMANTIC_ENGINE_ROOT_CORRECTION" ? "Qualifying replacement semantic engine…" : "Qualify replacement engine and reproduce 26"}</button></div>}
+        {data.productionBatch.status === "ENGINE_ROOT_CAUSE_REQUIRED" && <p className="stateBanner errorState">Batch output remains immutable audit evidence. Repair is disabled. The engine, compiler, manifest, layout, motion or portfolio policy named by the audit must be corrected and regression-qualified before affected shots are reproduced.</p>}
+        {data.productionBatch.status === "PASS" && data.productionBatch.waveKey === "BATCH_1" && <div className="productStart"><div><small>CONTROLLED SCALE · 50 NEW SHOTS</small><strong>Batch 1 sealed at 92/100 · expand from 36 to 86 of 166</strong><p>Runs zero-spend preflight across all 50 contracts, binds the three Batch 1 P2 findings as mandatory regressions, then starts production. Paid QA remains locked until 50/50 PRODUCT_COMPLETE.</p></div><button onClick={() => void batchAction("START_WAVE_BATCH_2")} disabled={Boolean(working) || data.requestLedger.active > 0}>{working === "START_WAVE_BATCH_2" ? "Preflighting 50 contracts…" : "Preflight and start Batch 2"}</button></div>}
+        {data.productionBatch.status === "PASS" && data.productionBatch.waveKey === "BATCH_2" && <p className="stateBanner">Batch 2 PASS · 50/50 new shots and 86/166 portfolio products are complete. Production is stopped before Batch 3.</p>}
+      </>}
+    </section>
+    <section className="shotDoctrine">
+      <header><p>MATERIAL FUNNEL · LOCKED</p><h2>Deterministic first. Expensive intelligence last.</h2><span>Pilot production stays unauthorized until this contract passes.</span></header>
+      <div className="shotMetrics">
+        {[['01','Rules','Reject impossible routes and rights failures.'],['02','Retrieval','Search every healthy provider with concrete queries.'],['03','Pixel tournament','Vision compares 6–12 real candidate thumbnails.'],['04','Family render','Eight meaning-specific authored grammars replace generic templates.'],['05','Three-state QA','Entry, midpoint, exit and 360p evidence are inspected.'],['06','Store','Bytes, checksum, provenance and rights become evidence.']].map(([n,t,d])=><article key={n}><small>{n}</small><h3>{t}</h3><p>{d}</p></article>)}
+      </div>
+    </section>
+    <section className="shotProgress">
+      <header><div><p>DRY-RUN AUDIT</p><h2>{data.run ? `${data.run.status.replaceAll("_", " ")} · ${data.run.briefCount} briefs` : "Awaiting compilation"}</h2></div><strong>{data.run?.pilotCount || 0} pilot shots</strong></header>
+      <div className="shotGates">{(data.run?.gates || []).map((gate)=><article key={gate.id} className={gate.status === "PASS" ? "pass" : "fail"}><b>{gate.status === "PASS" ? "✓" : "!"} {gate.id.replaceAll("_", " ")}</b><span>{gate.evidence}</span></article>)}</div>
+    </section>
+    <section className="shotArtifact">
+      <header><div><p>EXECUTION SAFETY CONTRACT</p><h2>Token and cost controls are bound per request</h2></div><span>{data.artifact ? `SHA-256 · ${data.artifact.contentHash.slice(0, 16)}…` : "Not stored yet"}</span></header>
+      <div className="shotMetrics">
+        <article><small>EXPECTED OUTPUT</small><h3>500–16,000</h3><p>Expected range adapts to query, vision, comparison or critical work.</p></article>
+        <article><small>SAFETY ENVELOPES</small><h3>3k · 8k · 16k · 32k</h3><p>A safety ceiling is never treated as a quality target.</p></article>
+        <article><small>INCOMPLETE</small><h3>Block gate</h3><p>One missing-field delta; then root-cause review, never degraded PASS.</p></article>
+        <article><small>PILOT</small><h3>8–12 shots</h3><p>No full production before sequence QA passes.</p></article>
+      </div>
+    </section>
+    {data.artifact && <section className="shotSamples">
+      <header><div><p>SAMPLE MATERIAL BRIEFS</p><h2>Production routes are visible before spend</h2></div><span>SOURCE {data.artifact.routeMix.SOURCE || 0} · MAKE {data.artifact.routeMix.MAKE || 0} · HYBRID {data.artifact.routeMix.HYBRID || 0}</span></header>
+      <div>{data.artifact.sampleBriefs.map((brief)=><article key={brief.briefId}><b>{brief.briefId} · {brief.route}{brief.pilot ? " · PILOT" : ""}</b><h3>{brief.primaryFamily}</h3><p>{brief.viewerMustUnderstand}</p><footer><span>{brief.startSeconds.toFixed(1)}–{brief.endSeconds.toFixed(1)}s</span><span>{brief.renderPolicy}</span><span>{brief.modelContract.lane} · expected {brief.modelContract.expectedOutputTokens.toLocaleString()} / safety {brief.modelContract.safetyCeilingTokens.toLocaleString()}</span></footer></article>)}</div>
+    </section>}
+    <section className="shotProgress">
+      <header><div><p>PILOT EXECUTION AUTHORIZATION</p><h2>{data.authorization?.status === "AUTHORIZED" ? "Authorized · dispatch not started" : "Awaiting explicit authorization"}</h2></div><strong>$0 authorization cost</strong></header>
+      <div className="shotMetrics">
+        <article><small>SCOPE</small><h3>{data.authorization?.shotCount || data.run?.pilotCount || 0} shots</h3><p>Only selected pilot briefs may enter the next wave.</p></article>
+        <article><small>REQUEST CIRCUIT</small><h3>{data.authorization?.maxRemoteRequests || 80}</h3><p>Hard stop on new remote dispatch, not a quality target.</p></article>
+        <article><small>RUNAWAY CIRCUIT</small><h3>${(data.authorization?.maxActualSpendUsd || 50).toFixed(2)}</h3><p>Emergency ceiling for this pilot; actual spend remains fully measured.</p></article>
+        <article><small>REQUEST LEDGER</small><h3>{data.requestLedger.total}</h3><p>{data.requestLedger.active} active · {data.requestLedger.complete} complete · ${data.requestLedger.actualCostUsd.toFixed(2)}</p></article>
+      </div>
+      <div className="shotGates">
+        <article className={data.run?.status === "PILOT_READY" || data.authorization?.status === "AUTHORIZED" ? "pass" : "fail"}><b>{data.run?.status === "PILOT_READY" || data.authorization?.status === "AUTHORIZED" ? "✓ Pilot contract ready" : "○ Pilot blocked"}</b><span>Authorization binds scope, model policy, request circuit and revocation before dispatch.</span></article>
+        <article className={data.authorization?.status === "AUTHORIZED" ? "pass" : "fail"}><b>{data.authorization?.status === "AUTHORIZED" ? "✓ Pilot authorized" : "○ No remote dispatch authorized"}</b><span>Creating or revoking this record does not call OpenAI or any media provider.</span></article>
+      </div>
+      {data.authorization?.status === "AUTHORIZED"
+        ? <button onClick={() => void pilotAction("REVOKE_PILOT")} disabled={Boolean(working)}>{working === "REVOKE_PILOT" ? "Revoking…" : "Revoke pilot authorization"}</button>
+        : data.mediaExecution.nextGate === "PILOT_AUTHORIZATION"
+          ? <button onClick={() => void pilotAction("AUTHORIZE_PILOT_AFTER_MOTION")} disabled={Boolean(working)}>{working === "AUTHORIZE_PILOT_AFTER_MOTION" ? "Re-authorizing preserved pilot scope…" : "Authorize preserved 10-shot pilot · $0 now"}</button>
+          : <button onClick={() => void pilotAction("AUTHORIZE_PILOT")} disabled={Boolean(working) || data.run?.status !== "PILOT_READY"}>{working === "AUTHORIZE_PILOT" ? "Authorizing pilot…" : "Authorize 10-shot pilot · $0 now"}</button>}
+    </section>
+    {data.authorization && <section className="shotProgress">
+      <header><div><p>STAGE 09.4 · MATERIAL QUALITY REBUILD</p><h2>Candidate-pixel champions, family renderers and three-state evidence</h2></div><strong>{data.pilot.percent}%</strong></header>
+      <i><span style={{ width: `${data.pilot.percent}%` }} /></i>
+      <div>
+        <span><b>01</b>{data.pilot.materialized}/{data.pilot.total} materialized</span>
+        <span><b>02</b>{data.pilot.audited}/{data.pilot.total} pixel audited</span>
+        <span><b>03</b>{data.requestLedger.active} remote active</span>
+        <span><b>04</b>${data.requestLedger.actualCostUsd.toFixed(4)} measured</span>
+      </div>
+      <div className="materialModelControl">
+        <label>Vision model<select value={modelId} onChange={(event) => setModelId(event.target.value)} disabled={Boolean(working) || data.requestLedger.active > 0}>{data.provider.modelOptions.map((option) => <option key={option.id} value={option.id}>{option.label} · {option.description}</option>)}</select></label>
+        <label>Reasoning<select value={reasoningEffort} onChange={(event) => setReasoningEffort(event.target.value)} disabled={Boolean(working) || data.requestLedger.active > 0}>{data.provider.reasoningOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+        <button onClick={() => void saveModel()} disabled={Boolean(working) || data.requestLedger.active > 0}>Save model for next request</button>
+      </div>
+      {data.run?.status === "PILOT_AUTHORIZED" && <button onClick={() => void execute("START_PILOT")} disabled={Boolean(working)}>Start authorized 10-shot pilot</button>}
+      {["PILOT_RUNNING", "PILOT_REPAIR_RUNNING"].includes(data.run?.status || "") && <button onClick={() => void execute("STOP_PILOT")} disabled={working === "STOP_PILOT"}>{working === "STOP_PILOT" ? "Confirming provider stop…" : "Emergency stop · preserve completed materials"}</button>}
+      {data.run?.status === "PILOT_PAUSED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>Resume from stored evidence</button>}
+      {data.run?.status === "PILOT_REPAIR_REVIEW" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working)}>{repairedUnitNeedsPixelQa ? `Run Pixel QA for ${repairedUnit?.briefId} · no later shots` : `Continue pilot after ${repairedUnit?.briefId || "repaired unit"} passed Pixel QA`}</button>}
+      {data.run?.status === "REPAIR_REQUIRED" && <button onClick={() => void execute("RESUME_PILOT")} disabled={Boolean(working) || !failedTournament}>{failedTournament ? `Repair ${failedTournament.briefId} only · use fresh candidates` : "Architecture rebuild required before another full-unit request"}</button>}
+      {data.run?.status === "REPAIR_REQUIRED" && failedTournament?.tournament?.repairAttempt === 1 && <button onClick={() => void upgradeFailedUnitArchitecture()} disabled={Boolean(working)}>{working === "UPGRADE_FAILED_UNIT_ARCHITECTURE" ? "Splitting source and authored evidence…" : `Upgrade ${failedTournament.briefId} SOURCE → HYBRID · preserve history`}</button>}
+      {data.run?.status === "REPAIR_REQUIRED" && repairedUnit?.audit?.status === "REPAIR_REQUIRED" && <button onClick={() => void repairFailedUnitRenderer()} disabled={Boolean(working)}>{working === "REPAIR_FAILED_UNIT_RENDERER" ? "Binding semantic entry/midpoint/exit…" : `Repair ${repairedUnit.briefId} semantic renderer · preserve source`}</button>}
+      {data.run?.status === "PILOT_PASS" && <p className="stateBanner">Pilot PASS. Full 166-shot production remains locked pending review.</p>}
+      {data.run?.status === "PILOT_REPAIR_REVIEW" && <p className="stateBanner">{repairedUnitNeedsPixelQa ? `${repairedUnit?.briefId} is stored and verified, but acceptance is incomplete. Mandatory Pixel QA must pass before MP-002 can start.` : `${repairedUnit?.briefId || "Repaired unit"} passed stored-file and Pixel QA gates. Later pilot units remain paused until you continue.`}</p>}
+      {data.run?.status === "REPAIR_REQUIRED" && <p className="stateBanner errorState">{failedTournament ? `${failedTournament.briefId} stopped at the pixel gate. Best candidate ${failedTournament.tournament?.score || 0}/100; completed work is preserved and full-scale dispatch remains locked.` : "Pilot repair required. No full-scale dispatch is authorized."}</p>}
+    </section>}
+    {data.pilot.items.length > 0 && <section className="materialPilotGrid">
+      {data.pilot.items.map((item) => <article key={item.id}>
+        <header><b>{item.briefId} · {item.route}</b><span>MATERIAL {item.materialStatus.replaceAll("_", " ")} · PIXEL QA {item.pixelQaStatus.replaceAll("_", " ")}</span></header>
+        <h3>{item.family}</h3><p>{item.meaning}</p>
+        {item.file && (item.file.mimeType.startsWith("video/") ? <video controls preload="metadata" src={item.file.previewUrl} /> : <Image unoptimized width={1920} height={1080} src={item.file.previewUrl} alt={`${item.briefId} material preview`} />)}
+        {item.tournament && <small>Pixel tournament · {item.tournament.status} · {item.tournament.candidateCount} candidates / {item.tournament.providerCoverage} providers · {item.tournament.status === "PASS" ? "champion" : "best candidate"} {item.tournament.score}/100{item.tournament.repairAttempt ? ` · repair ${item.tournament.repairAttempt}/1` : ""}</small>}
+        {item.tournament?.bestReason && item.tournament.status !== "PASS" && <small>Rejected: {item.tournament.bestReason}</small>}
+        <footer><span>{item.file ? `${item.file.provider} · ${(item.file.bytes / 1_000_000).toFixed(1)} MB · ${item.file.hash}` : "Awaiting stored bytes"}</span><b>{item.audit ? `${item.audit.status} · ${item.audit.score}/100` : "Pixel QA pending"}</b></footer>
+        {item.audit?.findings?.[0] && <small>{findingText(item.audit.findings[0])}</small>}
+      </article>)}
+    </section>}
+    {data.requestLedger.recent.length > 0 && <section className="materialLedger">
+      <header><div><p>REQUEST-LEVEL COST LEDGER</p><h2>Every provider call is inspectable</h2></div><strong>{data.requestLedger.total} requests</strong></header>
+      <div>{data.requestLedger.recent.map((request) => <article key={request.id}><span>{request.briefId}<b>{request.phase}</b></span><span>{request.provider}<b>{request.modelId}</b></span><span>{request.status}<b>{request.inputTokens.toLocaleString()} in · {request.outputTokens.toLocaleString()} out · {request.reasoningTokens.toLocaleString()} reasoning</b></span><strong>${request.actualCostUsd.toFixed(4)}</strong>{request.error && <small>{request.error}</small>}</article>)}</div>
+    </section>}
   </main>;
 }

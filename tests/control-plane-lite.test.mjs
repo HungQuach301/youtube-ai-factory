@@ -6,29 +6,23 @@ const route = await readFile(new URL("../app/api/factory/material-production/rou
 const page = await readFile(new URL("../app/material-production/page.tsx", import.meta.url), "utf8");
 const home = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 
-test("v243 restores the Factory shell while the operator remains lightweight", () => {
+test("the pre-cleanup Factory UI is restored in full", () => {
   assert.doesNotMatch(home, /export \{ default \} from "\.\/material-production\/page"/);
   assert.match(home, /Command center/);
   assert.match(home, /href="\/control-plane"/);
-  assert.match(home, /href="\/material-production"/);
-  assert.match(page, /\?view=operator/);
-  assert.match(page, /mediaPolicy/);
-  assert.doesNotMatch(page, /<video|next\/image|previewUrl|pilot\.items/);
+  assert.match(home, /Market radar/);
+  assert.match(home, /Topic backlog/);
+  assert.match(home, /Content calendar/);
+  assert.match(home, /Video projects/);
+  assert.match(page, /import Image from "next\/image"/);
+  assert.match(page, /productionBatch/);
+  assert.match(page, /previewUrl/);
+  assert.match(page, /Preflight and start Batch 2/);
 });
 
-test("active Factory navigation preserves every production module", () => {
-  for (const routeName of [
-    "control-plane",
-    "intelligence",
-    "creative-contract",
-    "story-architecture",
-    "script-development",
-    "production-design",
-    "shot-orchestration",
-    "material-production",
-    "continuity",
-    "settings",
-  ]) assert.match(home, new RegExp(`href="/${routeName}"`));
+test("the restored shell retains its original primary and settings routes", () => {
+  assert.match(home, /href="\/control-plane"/);
+  assert.match(home, /href="\/settings"/);
 });
 
 test("operator state is a bounded canonical projection", () => {
@@ -44,14 +38,14 @@ test("Batch 2 activation is fail-closed and idempotent", () => {
   assert.match(route, /batch1Passed && portfolioComplete === 36 && !batch2 && activeRequests === 0/);
   assert.match(route, /batch2Records: batch2 \? 1 : 0/);
   assert.match(route, /if \(existing\) return snapshot\(\)/);
-  assert.match(page, /Idempotency-Key/);
   assert.match(route, /START_WAVE_BATCH_2_V243/);
-  assert.match(page, /disabled=\{!data\.activation\.canStart/);
+  assert.match(page, /START_WAVE_BATCH_2/);
+  assert.match(page, /data\.requestLedger\.active > 0/);
 });
 
-test("legacy controls are absent from the active operator while production contracts remain server-side", () => {
+test("the restored production UI exposes its original operational controls", () => {
   for (const legacy of ["AUTHORIZE_CONTROLLED_CANARY_V5", "BUILD_CANARY_RECOVERY_LANE", "RELEASE_PRODUCTION_RECOVERY_PROBE"]) {
-    assert.doesNotMatch(page, new RegExp(legacy));
+    assert.match(page, new RegExp(legacy));
     assert.match(route, new RegExp(legacy));
   }
   assert.match(route, /LEGACY_ACTION_UNREACHABLE_AFTER_STABILIZATION/);
