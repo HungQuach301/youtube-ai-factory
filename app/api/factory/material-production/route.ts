@@ -21,8 +21,8 @@ const SEQUENCE_PRODUCT_AUDIT_RUBRIC = "SEQUENCE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const INTEGRATED_SEQUENCE_COMPOSER_VERSION = "INTEGRATED_SEQUENCE_COMPOSER_V2_1_TIMEBASE_SAFE";
 const SEQUENCE_SPECIFICATION_VERSION = "SEQUENCE_PRODUCT_SPECIFICATION_V2_1";
 const SEQUENCE_PRODUCTION_DOD_VERSION = "SEQUENCE_PRODUCT_DOD_V1";
-const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V3";
-const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V3_SEMANTIC_SCENE_GRAPH";
+const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V4";
+const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V4_CONTRACT_SIGNATURE_SCENES";
 const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const WAVE_BATCH_AUDIT_TRANSPORT_VERSION = "WAVE_AUDIT_TRANSPORT_V2_VERIFIED_JPEG_PROXY";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
@@ -4317,23 +4317,27 @@ function waveProductionContract(briefRow: Row) {
 }
 
 function waveProductionManifest(contract: Row) {
-  const manifest = productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V3_SEMANTIC_SCENE_GRAPH");
+  const manifest = productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V4_CONTRACT_SIGNATURE_SCENES");
   const viewerLabel = (value: unknown, fallback: string) => clean(value).toUpperCase().replace(/[^A-Z0-9$+\-.: ]/g, " ").replace(/\s+/g, " ").trim().slice(0, 24) || fallback;
   const corpus = `${clean(contract.claim)} ${arr(contract.requiredEvidence).map(clean).join(" ")}`.toUpperCase();
   const actors = ["CARDHOLDER", "MERCHANT", "PROCESSOR", "ACQUIRER", "NETWORK", "ISSUING BANK", "ISSUER"].filter((actor) => corpus.includes(actor));
   const kind = /INTERVAL|BOUNDED RANGE|RANGE LABEL|FEE PLACEHOLDER/.test(corpus) ? "BOUNDED_INTERVAL"
-    : /EVIDENCE BARRIER|CAUSAL LINK|PROPOSED CONNECTOR/.test(corpus) ? "EVIDENCE_BARRIER"
-      : /IDENTIFIER/.test(corpus) ? "IDENTIFIER_COMPARISON"
-        : /CARDHOLDER/.test(corpus) && /MERCHANT/.test(corpus) && /RECORD/.test(corpus) ? "DUAL_RECORD"
-          : actors.length >= 3 && /PURCHASE|REWARD|INCIDENCE|ORIGIN/.test(corpus) ? "PARTICIPANT_INCIDENCE"
+    : /BLANK|ABSENT/.test(corpus) && /FEE/.test(corpus) && /REWARD/.test(corpus) ? "ABSENCE_AUDIT"
+      : /SHARED IDENTIFIER|SHARED AMOUNT/.test(corpus) && /EVIDENCE BARRIER|CAUSAL LINK|PROPOSED CONNECTOR/.test(corpus) ? "EVIDENCE_BARRIER"
+        : /IDENTIFIER/.test(corpus) ? "IDENTIFIER_ISOLATION"
+          : /CARDHOLDER/.test(corpus) && /MERCHANT/.test(corpus) && /RECORD/.test(corpus) ? "DUAL_RECORD_FOCUS"
+            : /EVIDENCE BARRIER|CAUSAL LINK|PROPOSED CONNECTOR/.test(corpus) ? "EVIDENCE_BARRIER"
+            : /NETWORK/.test(corpus) && /ISSUING BANK|ISSUER/.test(corpus) ? "PARTICIPANT_SEQUENCE"
+              : (/FOUR PARTICIPANTS|PARTICIPANTS/.test(corpus) || actors.length >= 3) && /PURCHASE|REWARD|INCIDENCE|ORIGIN|QUESTION/.test(corpus) ? "PARTICIPANT_INCIDENCE"
             : clean(contract.archetype) === "PROCESS_ROUTE" ? "PROCESS_FLOW"
               : clean(contract.archetype) === "DATA_VISUALIZATION" ? "DATA_EVIDENCE"
                 : clean(contract.archetype) === "SOURCE_AUTHORED_HYBRID" ? "SOURCE_COMPARISON"
                   : "SEMANTIC_RELATION";
-  const semanticActors = kind === "PARTICIPANT_INCIDENCE" ? [...new Set([...actors, "MERCHANT", "PROCESSOR", "NETWORK", "ISSUING BANK"])].slice(0, 4) : actors.slice(0, 4);
-  const requiredElements = kind === "PARTICIPANT_INCIDENCE" ? [...semanticActors, "$100 PURCHASE", "REWARD ENTRY", "UNRESOLVED ORIGIN"]
-    : kind === "DUAL_RECORD" ? ["CARDHOLDER RECORD", "REWARD ROW", "MERCHANT RECORD", "TRANSACTION ROW", "NO LINK"]
-      : kind === "IDENTIFIER_COMPARISON" ? ["RECORD A", "RECORD B", "IDENTICAL IDENTIFIER", "COMPARISON RAIL", "UNRELATED FIELDS ISOLATED"]
+  const semanticActors = ["PARTICIPANT_INCIDENCE", "PARTICIPANT_SEQUENCE"].includes(kind) ? [...new Set([...actors, "MERCHANT", "PROCESSOR", "NETWORK", "ISSUING BANK"])].slice(0, 4) : actors.slice(0, 4);
+  const requiredElements = ["PARTICIPANT_INCIDENCE", "PARTICIPANT_SEQUENCE"].includes(kind) ? [...semanticActors, "$100 PURCHASE", "REWARD ENTRY", "UNRESOLVED INCIDENCE"]
+    : kind === "DUAL_RECORD_FOCUS" ? ["CARDHOLDER RECORD", "REWARD ROW", "MERCHANT RECORD", "TRANSACTION FIELDS", "FOCUS TRANSFER", "NO LINK"]
+      : kind === "IDENTIFIER_ISOLATION" ? ["DOMINANT MERCHANT RECORD", "CROPPED CARDHOLDER RECORD", "IDENTICAL IDENTIFIER", "EQUAL PANELS", "UNRELATED FIELDS ISOLATED"]
+        : kind === "ABSENCE_AUDIT" ? ["SHARED AMOUNT", "BLANK EXPLANATORY ZONES", "ABSENCE LOCK", "NO FEE TO REWARD PATH"]
         : kind === "EVIDENCE_BARRIER" ? ["SHARED IDENTIFIER", "SHARED AMOUNT", "PROPOSED CONNECTOR", "EVIDENCE BARRIER", "NO CAUSAL LINK"]
           : kind === "BOUNDED_INTERVAL" ? ["$100 PURCHASE", "WARNING RAIL", "FEE PLACEHOLDER", "BOUNDED INTERVAL", "ILLUSTRATIVE RANGE"]
             : ["CONTEXT", "MECHANISM", "OUTCOME", ...semanticActors];
@@ -4352,10 +4356,10 @@ function waveProductionManifest(contract: Row) {
     ...manifest,
     states,
     sceneType: `WAVE_${kind}`,
-    semanticModel: { version: "SEMANTIC_SCENE_GRAPH_V1", kind, actors: semanticActors, requiredElements, corpusHashInput: corpus, relationPolicy: "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE" },
+    semanticModel: { version: "CONTRACT_SIGNATURE_SCENE_GRAPH_V2", kind, actors: semanticActors, requiredElements, corpusHashInput: corpus, relationPolicy: "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE" },
     batchVersion: WAVE_BATCH_1_VERSION,
     productionRoute: contract.productionRoute,
-    specificationCompiler: "SEMANTIC_SCENE_GRAPH_COMPILER_V3",
+    specificationCompiler: "CONTRACT_SIGNATURE_SCENE_COMPILER_V4",
     layoutPolicy: { ...rec(manifest.layoutPolicy), maximumViewerLabelGlyphs: 24, labelFitEnforcedAtCompileTime: true, reservedRegions: true, minimumLabelScale: 2, noGenericTemplateFallback: true },
   };
 }
@@ -4370,23 +4374,41 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
   const center=(value:unknown,cx:number,y:number,scale:number,hex:string,max=28)=>{const label=safe(value,max);text(label,Math.max(28,Math.round(cx-label.length*3*scale)),y,scale,hex);};
   const line=(x1:number,y1:number,x2:number,y2:number,t:number,hex:string)=>{const steps=Math.max(Math.abs(x2-x1),Math.abs(y2-y1));for(let i=0;i<=steps;i++){const p=steps?i/steps:0;fill(Math.round(x1+(x2-x1)*p)-Math.floor(t/2),Math.round(y1+(y2-y1)*p)-Math.floor(t/2),t,t,hex);}};
   const labelBox=(x:number,y:number,w:number,h:number,label:unknown,active=true)=>{fill(x,y,w,h,active?"#eef5f1":"#173d35");fill(x,y,w,8,active?"#72c8a3":"#31594e");const words=safe(label,30).split(" "),split=Math.ceil(words.length/2),a=words.slice(0,split).join(" "),b=words.slice(split).join(" ");center(a,x+w/2,y+Math.max(22,Math.round(h/2)-20),2,active?"#173d35":"#9abbb0",18);if(b)center(b,x+w/2,y+Math.max(48,Math.round(h/2)+8),2,active?"#173d35":"#9abbb0",18);};
-  const semantic=rec(manifest.semanticModel),kind=clean(semantic.kind),actors=arr(semantic.actors).map(clean),accent=["#e8b65d","#72c8a3","#7fe2b5"][state];
-  fill(0,0,width,height,"#061b18");fill(0,0,width,12,accent);fill(28,30,904,474,"#0b3029");center(kind.replaceAll("_"," "),480,52,3,"#d7eee5",30);center(["CONTEXT","MECHANISM","OUTCOME"][state],480,84,2,accent,18);
-  if(kind==="PARTICIPANT_INCIDENCE"){
+  const semantic=rec(manifest.semanticModel),kind=clean(semantic.kind),actors=arr(semantic.actors).map(clean),signatureSeed=[...clean(semantic.corpusHashInput)].reduce((total,char)=>total+char.charCodeAt(0),0),palette=[["#e8b65d","#72c8a3","#7fe2b5"],["#d6a6ff","#83c5ff","#8ee3cf"],["#ffb27a","#ffd166","#8bd3c7"]][signatureSeed%3],accent=palette[state];
+  fill(0,0,width,height,"#061b18");fill(0,0,width,12,accent);fill(28,30,904,474,"#0b3029");for(let index=0;index<5;index++)fill(842+index*14,82-(signatureSeed>>index)%12,9,10+(signatureSeed>>(index+2))%18,index<=state?accent:"#31594e");center(kind.replaceAll("_"," "),480,52,3,"#d7eee5",30);center(["CONTEXT","MECHANISM","OUTCOME"][state],480,84,2,accent,18);
+  if(kind==="PARTICIPANT_SEQUENCE"){
     const names=[actors[0]||"MERCHANT",actors[1]||"PROCESSOR",actors[2]||"NETWORK",actors[3]||"ISSUING BANK"];
-    names.forEach((name,index)=>labelBox(46+index*224,132,196,82,name,true));
-    labelBox(324,258,312,128,state===0?"$100 PURCHASE":state===1?"REWARD ENTRY":"UNRESOLVED ORIGIN",true);
-    names.forEach((_,index)=>{const x=144+index*224;if(state>=1){line(x,214,480,258,4,state===2?"#e8b65d":"#72c8a3");circle(Math.round((x+480)/2),236,10,"#e8b65d");center("?",Math.round((x+480)/2),228,2,"#173d35",1);}});
-    if(state===2)center("WHO ULTIMATELY PAYS?",480,420,3,"#e8b65d",24);
-  } else if(["DUAL_RECORD","IDENTIFIER_COMPARISON","EVIDENCE_BARRIER"].includes(kind)){
-    const left=kind==="DUAL_RECORD"?"CARDHOLDER RECORD":kind==="IDENTIFIER_COMPARISON"?"RECORD A":"RECORD LEFT",right=kind==="DUAL_RECORD"?"MERCHANT RECORD":kind==="IDENTIFIER_COMPARISON"?"RECORD B":"RECORD RIGHT";
-    labelBox(62,138,334,260,left,true);labelBox(564,138,334,260,right,true);
-    fill(86,230,286,54,"#ffffff");fill(588,230,286,54,"#ffffff");center(kind==="DUAL_RECORD"?"REWARD ROW":kind==="IDENTIFIER_COMPARISON"?"ID 7A3F":"SHARED IDENTIFIER",229,247,2,"#173d35",20);center(kind==="DUAL_RECORD"?"TRANSACTION ROW":kind==="IDENTIFIER_COMPARISON"?"ID 7A3F":"SHARED AMOUNT",731,247,2,"#173d35",20);
-    if(state>=1){line(396,265,564,265,6,kind==="EVIDENCE_BARRIER"?"#e8b65d":"#72c8a3");center(kind==="IDENTIFIER_COMPARISON"?"COMPARISON RAIL":"PROPOSED CONNECTOR",480,294,2,"#d7eee5",22);}
-    if(state===2){fill(466,190,28,214,"#e8b65d");center(kind==="DUAL_RECORD"?"NO LINK":kind==="IDENTIFIER_COMPARISON"?"UNRELATED FIELDS ISOLATED":"EVIDENCE BARRIER",480,420,2,"#e8b65d",28);if(kind==="EVIDENCE_BARRIER")center("NO CAUSAL LINK",480,452,2,"#d7eee5",20);}
+    names.forEach((name,index)=>labelBox(46+index*224,138,196,82,name,index<=state+1));
+    labelBox(302,254,356,72,"$100 PURCHASE",true);labelBox(302,344,356,58,"REWARD ENTRY",true);
+    if(state>=1)line(144,230,816,230,6,"#72c8a3");if(state===2){center("INCIDENCE UNRESOLVED",480,430,3,"#e8b65d",24);center("?",816,342,5,"#e8b65d",1);}
+  } else if(kind==="PARTICIPANT_INCIDENCE"){
+    const names=[actors[0]||"MERCHANT",actors[1]||"PROCESSOR",actors[2]||"NETWORK",actors[3]||"ISSUING BANK"];
+    const pos=[[108,160],[686,160],[108,342],[686,342]];names.forEach((name,index)=>labelBox(pos[index][0],pos[index][1],166,64,name,true));
+    circle(480,276,state===0?82:state===1?58:32,state===0?"#e8b65d":state===1?"#72c8a3":"#31594e");center("$100 PURCHASE",480,244,2,"#173d35",18);center("REWARD ENTRY",480,284,2,"#173d35",18);
+    if(state>=1)names.forEach((_,index)=>{const x=pos[index][0]+83,y=pos[index][1]+32;line(480,276,x,y,4,"#72c8a3");center("?",Math.round((480+x)/2),Math.round((276+y)/2)-8,2,"#e8b65d",1);});
+    if(state===2)center("UNRESOLVED ORIGIN",480,430,3,"#e8b65d",22);
+  } else if(kind==="DUAL_RECORD_FOCUS"){
+    const leftX=state===0?52:state===2?86:62,leftW=state===0?420:state===2?300:334,rightX=state===0?610:state===2?480:564,rightW=state===0?286:state===2?416:334;
+    labelBox(leftX,142,leftW,252,"CARDHOLDER RECORD",true);labelBox(rightX,142,rightW,252,"MERCHANT RECORD",true);
+    fill(leftX+24,236,leftW-48,54,"#ffffff");center("REWARD ROW",leftX+leftW/2,253,2,"#173d35",18);
+    if(state>=1){fill(rightX+24,220,rightW-48,48,"#ffffff");fill(rightX+24,286,rightW-48,48,"#ffffff");center("TRANSACTION ID",rightX+rightW/2,235,2,"#173d35",18);center("AMOUNT FIELD",rightX+rightW/2,301,2,"#173d35",18);}
+    fill(466,182,28,212,"#e8b65d");center(state===0?"CARDHOLDER FOCUS":state===1?"FOCUS TRANSFER":"MERCHANT FOCUS",480,418,2,"#d7eee5",22);if(state===2)center("NO LINK",480,450,2,"#e8b65d",12);
+  } else if(kind==="IDENTIFIER_ISOLATION"){
+    const lx=state===0?44:70,lw=state===0?250:360,rx=state===0?338:530,rw=state===0?576:360;labelBox(lx,144,lw,244,"CARDHOLDER RECORD",true);labelBox(rx,144,rw,244,"MERCHANT RECORD",true);
+    for(const [x,w] of [[lx,lw],[rx,rw]]){fill(x+22,226,w-44,52,"#ffffff");center("ID 7A3F",x+w/2,243,3,"#173d35",12);if(state<2){fill(x+22,304,w-44,40,"#d7e3dd");center("UNRELATED FIELDS",x+w/2,315,2,"#52766b",20);}}
+    if(state===2)center("ONLY SHARED IDENTIFIER",480,422,3,"#72c8a3",26);else center(state===0?"DOMINANT MERCHANT RECORD":"EQUAL PANELS",480,422,2,"#d7eee5",28);
+  } else if(kind==="ABSENCE_AUDIT"){
+    labelBox(62,142,350,250,"CARDHOLDER RECORD",true);labelBox(548,142,350,250,"MERCHANT RECORD",true);
+    for(const x of [88,574]){fill(x,218,298,48,"#ffffff");center("AMOUNT $100",x+149,233,2,"#173d35",16);fill(x,292,298,62,"#102d29");center(state===0?"BLANK ZONE":state===1?"ABSENCE LOCKED":"STILL BLANK",x+149,312,2,"#d7eee5",18);}
+    if(state===2){line(412,270,548,270,5,"#8fa69d");line(452,236,508,304,8,"#e8b65d");line(508,236,452,304,8,"#e8b65d");center("NO FEE TO REWARD PATH",480,426,2,"#e8b65d",26);}else center("EXPLANATORY ZONES ABSENT",480,426,2,"#d7eee5",28);
+  } else if(kind==="EVIDENCE_BARRIER"){
+    labelBox(62,142,350,250,"RECORD LEFT",true);labelBox(548,142,350,250,"RECORD RIGHT",true);
+    for(const x of [88,574]){fill(x,214,298,48,"#ffffff");center("SHARED ID 7A3F",x+149,229,2,"#173d35",18);fill(x,286,298,48,"#ffffff");center("SHARED AMOUNT $100",x+149,301,2,"#173d35",22);}
+    if(state>=1){line(412,270,548,270,6,"#72c8a3");fill(402,404,156,34,"#061b18");center("PROPOSED CONNECTOR",480,414,2,"#d7eee5",20);}if(state===2){fill(466,184,28,204,"#e8b65d");fill(376,442,208,34,"#061b18");center("NO CAUSAL LINK",480,452,2,"#e8b65d",18);}
   } else if(kind==="BOUNDED_INTERVAL"){
-    labelBox(62,154,250,220,"$100 PURCHASE",true);labelBox(354,154,250,220,state===0?"FEE PLACEHOLDER":state===1?"WARNING RAIL":"ILLUSTRATIVE RANGE",true);labelBox(646,154,250,220,"BOUNDED INTERVAL",state>=1);
-    if(state>=1){line(686,330,856,330,5,"#72c8a3");line(686,310,686,350,5,"#72c8a3");line(856,310,856,350,5,"#72c8a3");center("LOW",686,364,2,"#a8cdbd",6);center("HIGH",856,364,2,"#a8cdbd",6);}if(state===2)center("NOT A POINT ESTIMATE",480,424,2,"#e8b65d",24);
+    labelBox(52,154,236,220,"BLANK $100 PURCHASE CARD",true);fill(318,146,34,244,"#e8b65d");center("WARNING",335,402,2,"#e8b65d",10);
+    const intervalW=[180,330,500][state];fill(392,206,intervalW,112,"#eef5f1");center(state===0?"FEE PLACEHOLDER":"BOUNDED INTERVAL",392+intervalW/2,238,2,"#173d35",20);line(412,292,372+intervalW,292,5,"#72c8a3");line(412,276,412,308,5,"#72c8a3");line(372+intervalW,276,372+intervalW,308,5,"#72c8a3");
+    fill(392,350,500,42,"#061b18");center("ILLUSTRATIVE RANGE",642,362,2,"#d7eee5",22);if(state===2)center("NOT A POINT ESTIMATE",642,420,2,"#e8b65d",24);
   } else if(kind==="PROCESS_FLOW"){
     const labels=(actors.length?actors:["INPUT","PROCESS","NETWORK","OUTCOME"]).slice(0,4);labels.forEach((label,index)=>{labelBox(54+index*224,198,184,118,label,index<=state+1);if(index<3&&index<=state)line(238+index*224,257,278+index*224,257,7,accent);});center(state===2?"ROUTE RESOLVED":"ORDERED PROCESS",480,390,3,accent,22);
   } else if(kind==="DATA_EVIDENCE"){
@@ -4401,14 +4423,14 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
 function waveProductOracle(manifest: Row) {
   const frames=([0,1,2] as const).map((state)=>renderWaveSemanticScene(manifest,state)),states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean);
   const checks=[
-    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="SEMANTIC_SCENE_GRAPH_V1"&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
+    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V2"&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
     {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL",evidence:"three states preserve full source clauses"},
     {id:"MOBILE_TEXT_FIT",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL",evidence:"reserved regions and two-pixel minimum glyph scale"},
     {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&clean(semantic.kind)!==""?"PASS":"FAIL",evidence:clean(semantic.kind)},
     {id:"NO_INTERNAL_IDS",status:states.every((item)=>!`${clean(item.sceneLabel)} ${clean(item.primary)} ${clean(item.secondary)}`.includes(clean(manifest.logicalId)))?"PASS":"FAIL",evidence:"audience labels exclude logical IDs"},
     {id:"TEMPORAL_DELTA",status:new Set(frames.map((frame)=>base64(frame.bytes).slice(-180))).size===3?"PASS":"FAIL",evidence:"semantic state pixels differ"},
   ];
-  return{version:"WAVE_SEMANTIC_PRODUCT_ORACLE_V3",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
+  return{version:"WAVE_CONTRACT_SIGNATURE_PRODUCT_ORACLE_V4",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
 }
 
 function selectBatchAuditSample(scope: Row[]) {
@@ -4490,7 +4512,7 @@ async function produceNextWaveBatch1Shot() {
   const specification = { version: "SHOT_PRODUCT_SPECIFICATION_V1", batchVersion: WAVE_BATCH_1_VERSION, engineVersion: WAVE_PRODUCTION_ENGINE_VERSION, contract, manifest }, specificationJson = JSON.stringify(specification), specificationHash = await sha(specificationJson), frameIds: string[] = [], frameHashes: string[] = [];
   const superseded = await db.prepare("SELECT id FROM v7_shot_products WHERE batch_id=? AND brief_id=? AND engine_version<>? ORDER BY created_at DESC LIMIT 1").bind(batch.id, briefRow.id, WAVE_PRODUCTION_ENGINE_VERSION).first<Row>();
   for (const [role, frame] of [["CERT_ENTRY", oracle.frames[0]], ["CERT_MIDPOINT", oracle.frames[1]], ["CERT_EXIT", oracle.frames[2]]] as const) {
-    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH1-${clean(contract.briefId)}-${role}-E3`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: WAVE_PRODUCTION_ENGINE_VERSION, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: "wave-09-batch-1-engine-v3", archiveFolder: "Wave 09 Batch 1 Engine V3" });
+    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH1-${clean(contract.briefId)}-${role}-E4`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: WAVE_PRODUCTION_ENGINE_VERSION, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: "wave-09-batch-1-engine-v4", archiveFolder: "Wave 09 Batch 1 Engine V4" });
     const stored = await db.prepare("SELECT content_hash,status FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
     if (!stored || clean(stored.status) !== "STORED_VERIFIED") throw new Error(`BATCH_1_FRAME_READ_BACK_FAILED · ${clean(contract.briefId)} · ${role}`);
     frameIds.push(fileId); frameHashes.push(clean(stored.content_hash));
@@ -4544,23 +4566,25 @@ async function adoptWaveBatch1SemanticEngineRootCorrection() {
   if (Number(active?.total || 0) !== 0) throw new Error("BATCH_1_SEMANTIC_ROOT_CORRECTION_ACTIVE_REQUEST");
   const rejectedEngine = clean(batch.engine_version), products = await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE' ORDER BY created_at", batch.id, rejectedEngine);
   if (products.length !== 26) throw new Error(`BATCH_1_REJECTED_PRODUCT_SET_INCOMPLETE · ${products.length}/26`);
-  const scope = arr(JSON.parse(String(batch.scope_json || "[]"))).map(rec), failures: Row[] = [], kinds = new Set<string>();
+  const scope = arr(JSON.parse(String(batch.scope_json || "[]"))).map(rec), failures: Row[] = [], kinds = new Set<string>(), renderSignatures = new Map<string, string>();
   for (const target of scope) {
     const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
     if (!briefRow) { failures.push({ logicalId: target.logicalId, checks: ["BRIEF_MISSING"] }); continue; }
     const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract), oracle = waveProductOracle(manifest), semantic = rec(manifest.semanticModel);
     kinds.add(clean(semantic.kind));
+    const renderSignature = await sha(JSON.stringify(await Promise.all(oracle.frames.map((frame) => shaBytes(frame.bytes))))), duplicateOf = renderSignatures.get(renderSignature);
+    if (duplicateOf) failures.push({ logicalId: contract.briefId, checks: ["DUPLICATE_PRODUCT_PIXELS"], duplicateOf }); else renderSignatures.set(renderSignature, clean(contract.briefId));
     if (!oracle.passed || arr(semantic.requiredElements).length < 3) failures.push({ logicalId: contract.briefId, kind: semantic.kind, checks: oracle.checks.filter((item) => clean(rec(item).status) !== "PASS").map((item) => clean(rec(item).id)) });
   }
   if (scope.length !== 26 || failures.length || kinds.size < 5) throw new Error(`BATCH_1_ENGINE_V3_REGRESSION_FAILED · kinds ${kinds.size} · ${JSON.stringify(failures).slice(0, 1200)}`);
-  const priorRoot = rec(JSON.parse(String(audit.root_cause_json || "{}"))), now = new Date().toISOString(), rootCausePolicy = { ...rec(JSON.parse(String(batch.root_cause_policy_json || "{}"))), incident: "V2_SEMANTIC_MANIFEST_ESCAPE", rejectedEngineVersion: rejectedEngine, rejectedAuditId: audit.id, rejectedAuditScore: Number(audit.score), observedRootCause: priorRoot.rootProductionCause, correctedLayers: ["SEMANTIC_MANIFEST", "LAYOUT_ENGINE", "PORTFOLIO_POLICY", "MOTION_POLICY"], correction: "STRUCTURED_VIEWER_VISIBLE_SCENE_GRAPH_WITH_RESERVED_LAYOUT_REGIONS", replacementEngineVersion: WAVE_PRODUCTION_ENGINE_VERSION, fullScopeRegression: "26_OF_26_PASS", semanticKindsQualified: [...kinds].sort(), reproduceScope: "ALL_26_PRODUCTS", outputRepair: false, priorProductsPreservedAsEvidence: true };
+  const priorRoot = rec(JSON.parse(String(audit.root_cause_json || "{}"))), now = new Date().toISOString(), rootCausePolicy = { ...rec(JSON.parse(String(batch.root_cause_policy_json || "{}"))), incident: "PRIOR_ENGINE_SEMANTIC_MANIFEST_ESCAPE", rejectedEngineVersion: rejectedEngine, rejectedAuditId: audit.id, rejectedAuditScore: Number(audit.score), observedRootCause: priorRoot.rootProductionCause, correctedLayers: ["SEMANTIC_MANIFEST", "LAYOUT_ENGINE", "PORTFOLIO_POLICY", "MOTION_POLICY"], correction: "CONTRACT_SIGNATURE_SCENES_WITH_EXPLICIT_STATE_TRANSITIONS_AND_RESERVED_LABEL_REGIONS", replacementEngineVersion: WAVE_PRODUCTION_ENGINE_VERSION, fullScopeRegression: "26_OF_26_PASS", semanticKindsQualified: [...kinds].sort(), reproduceScope: "ALL_26_PRODUCTS", outputRepair: false, priorProductsPreservedAsEvidence: true };
   const specificationHash = await sha(JSON.stringify({ version: WAVE_BATCH_1_VERSION, engine: WAVE_PRODUCTION_ENGINE_VERSION, scope, rootCausePolicy })), modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: WAVE_BATCH_1_VERSION, productionEngine: WAVE_PRODUCTION_ENGINE_VERSION, semanticRootCorrection: rootCausePolicy };
   await db.batch([
     db.prepare("UPDATE v7_shot_products SET status='PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE',updated_at=? WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(now, batch.id, rejectedEngine),
     db.prepare("UPDATE v7_batch_product_audits SET status='ENGINE_ROOT_CAUSE_PRESERVED',updated_at=? WHERE id=?").bind(now, audit.id),
     db.prepare("UPDATE v7_production_batches SET version=?,engine_version=?,status='PRODUCING',specification_hash=?,completed_units=0,blocked_units=0,current_index=0,root_cause_policy_json=?,request_budget=request_budget+1,completed_at=NULL,updated_at=? WHERE id=?").bind(WAVE_BATCH_1_VERSION, WAVE_PRODUCTION_ENGINE_VERSION, specificationHash, JSON.stringify(rootCausePolicy), now, batch.id),
     db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',max_remote_requests=max_remote_requests+1,model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(modelPolicy), now, authorization.id),
-    db.prepare("UPDATE v7_material_runs SET status='BATCH_1_REPRODUCING',mode='SEMANTIC_SCENE_GRAPH_ENGINE_V3' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_material_runs SET status='BATCH_1_REPRODUCING',mode='CONTRACT_SIGNATURE_SCENES_ENGINE_V4' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='BATCH_1_REPRODUCING',blocker='ENGINE_V3_PRODUCT_COMPLETION',evidence_summary=?,updated_at=? WHERE id=?").bind(`V2 audit ${Number(audit.score)}/100 preserved · 26 V2 products retained as rejected-engine evidence · semantic scene-graph V3 qualified 26/26 across ${kinds.size} scene kinds · reproducing all 26 · no output repair`, now, STAGE_ID),
   ]);
   return snapshot();
