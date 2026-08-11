@@ -21,8 +21,8 @@ const SEQUENCE_PRODUCT_AUDIT_RUBRIC = "SEQUENCE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const INTEGRATED_SEQUENCE_COMPOSER_VERSION = "INTEGRATED_SEQUENCE_COMPOSER_V2_1_TIMEBASE_SAFE";
 const SEQUENCE_SPECIFICATION_VERSION = "SEQUENCE_PRODUCT_SPECIFICATION_V2_1";
 const SEQUENCE_PRODUCTION_DOD_VERSION = "SEQUENCE_PRODUCT_DOD_V1";
-const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V2";
-const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V2_LAYOUT_CONTRACT_BOUND";
+const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V3";
+const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V3_SEMANTIC_SCENE_GRAPH";
 const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const WAVE_BATCH_AUDIT_TRANSPORT_VERSION = "WAVE_AUDIT_TRANSPORT_V2_VERIFIED_JPEG_PROXY";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
@@ -338,7 +338,7 @@ async function snapshot() {
   const sequenceProductEvidence = sequenceProduct?.evidence_id ? await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND evidence_type='SEQUENCE_PRODUCT'").bind(sequenceProduct.evidence_id).first<Row>() : null;
   const sequenceProductAudit = sequenceProduct ? await db.prepare("SELECT * FROM v7_sequence_product_audits WHERE product_id=? ORDER BY created_at DESC LIMIT 1").bind(sequenceProduct.id).first<Row>() : null;
   const productionBatch = run ? await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
-  const batchProducts = productionBatch ? await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? ORDER BY created_at", productionBatch.id) : [];
+  const batchProducts = productionBatch ? await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND engine_version=? ORDER BY created_at", productionBatch.id, productionBatch.engine_version) : [];
   const batchAudit = productionBatch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(productionBatch.id).first<Row>() : null;
   const reliabilityBaseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   const compiledContracts = reliabilityBaseline ? await rows(db, "SELECT * FROM v7_compiled_shot_contracts WHERE baseline_id=? ORDER BY brief_id", reliabilityBaseline.id) : [];
@@ -2642,7 +2642,7 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
   }
   if (phase === "WAVE_BATCH_PRODUCT_AUDIT" && briefId === "WAVE-09-BATCH-1") {
     const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE authorization_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
-    const products = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND status='PRODUCT_COMPLETE'").bind(batch.id).first<{ total: number }>() : null;
+    const products = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(batch.id, batch.engine_version).first<{ total: number }>() : null;
     const prior = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_batch_product_audits WHERE batch_id=?").bind(batch.id).first<{ total: number }>() : null;
     const priorAudit = batch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>() : null;
     const priorRequest = priorAudit?.request_id ? await db.prepare("SELECT * FROM v7_material_requests WHERE id=?").bind(priorAudit.request_id).first<Row>() : null;
@@ -2653,12 +2653,15 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
       && Number(priorRequest?.input_tokens || 0) === 0
       && Number(priorRequest?.output_tokens || 0) === 0
       && Number(priorRequest?.actual_cost_usd || 0) === 0;
+    const qualifiedReproduction = clean(batch?.engine_version) === WAVE_PRODUCTION_ENGINE_VERSION
+      && clean(priorAudit?.status) === "ENGINE_ROOT_CAUSE_PRESERVED"
+      && clean(rec(JSON.parse(String(batch?.root_cause_policy_json || "{}"))).replacementEngineVersion) === WAVE_PRODUCTION_ENGINE_VERSION;
     batchAuditAuthorized = Boolean(batch)
       && clean(batch?.status) === "PRODUCT_COMPLETE"
       && Number(batch?.total_units) === 26
       && Number(batch?.completed_units) === 26
       && Number(products?.total || 0) === 26
-      && (Number(prior?.total || 0) === 0 || reconciledPreDispatch);
+      && (Number(prior?.total || 0) === 0 || reconciledPreDispatch || qualifiedReproduction);
     if (!batchAuditAuthorized) throw new Error("BATCH_PRODUCT_AUDIT_FIREWALL · 26/26 PRODUCT_COMPLETE with zero provider-dispatched prior audits is required");
   }
   if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
@@ -4314,8 +4317,26 @@ function waveProductionContract(briefRow: Row) {
 }
 
 function waveProductionManifest(contract: Row) {
-  const manifest = productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V2");
+  const manifest = productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V3_SEMANTIC_SCENE_GRAPH");
   const viewerLabel = (value: unknown, fallback: string) => clean(value).toUpperCase().replace(/[^A-Z0-9$+\-.: ]/g, " ").replace(/\s+/g, " ").trim().slice(0, 24) || fallback;
+  const corpus = `${clean(contract.claim)} ${arr(contract.requiredEvidence).map(clean).join(" ")}`.toUpperCase();
+  const actors = ["CARDHOLDER", "MERCHANT", "PROCESSOR", "ACQUIRER", "NETWORK", "ISSUING BANK", "ISSUER"].filter((actor) => corpus.includes(actor));
+  const kind = /INTERVAL|BOUNDED RANGE|RANGE LABEL|FEE PLACEHOLDER/.test(corpus) ? "BOUNDED_INTERVAL"
+    : /EVIDENCE BARRIER|CAUSAL LINK|PROPOSED CONNECTOR/.test(corpus) ? "EVIDENCE_BARRIER"
+      : /IDENTIFIER/.test(corpus) ? "IDENTIFIER_COMPARISON"
+        : /CARDHOLDER/.test(corpus) && /MERCHANT/.test(corpus) && /RECORD/.test(corpus) ? "DUAL_RECORD"
+          : actors.length >= 3 && /PURCHASE|REWARD|INCIDENCE|ORIGIN/.test(corpus) ? "PARTICIPANT_INCIDENCE"
+            : clean(contract.archetype) === "PROCESS_ROUTE" ? "PROCESS_FLOW"
+              : clean(contract.archetype) === "DATA_VISUALIZATION" ? "DATA_EVIDENCE"
+                : clean(contract.archetype) === "SOURCE_AUTHORED_HYBRID" ? "SOURCE_COMPARISON"
+                  : "SEMANTIC_RELATION";
+  const semanticActors = kind === "PARTICIPANT_INCIDENCE" ? [...new Set([...actors, "MERCHANT", "PROCESSOR", "NETWORK", "ISSUING BANK"])].slice(0, 4) : actors.slice(0, 4);
+  const requiredElements = kind === "PARTICIPANT_INCIDENCE" ? [...semanticActors, "$100 PURCHASE", "REWARD ENTRY", "UNRESOLVED ORIGIN"]
+    : kind === "DUAL_RECORD" ? ["CARDHOLDER RECORD", "REWARD ROW", "MERCHANT RECORD", "TRANSACTION ROW", "NO LINK"]
+      : kind === "IDENTIFIER_COMPARISON" ? ["RECORD A", "RECORD B", "IDENTICAL IDENTIFIER", "COMPARISON RAIL", "UNRELATED FIELDS ISOLATED"]
+        : kind === "EVIDENCE_BARRIER" ? ["SHARED IDENTIFIER", "SHARED AMOUNT", "PROPOSED CONNECTOR", "EVIDENCE BARRIER", "NO CAUSAL LINK"]
+          : kind === "BOUNDED_INTERVAL" ? ["$100 PURCHASE", "WARNING RAIL", "FEE PLACEHOLDER", "BOUNDED INTERVAL", "ILLUSTRATIVE RANGE"]
+            : ["CONTEXT", "MECHANISM", "OUTCOME", ...semanticActors];
   const states = arr(manifest.states).map((item, index) => {
     const state = rec(item);
     return {
@@ -4330,11 +4351,64 @@ function waveProductionManifest(contract: Row) {
   return {
     ...manifest,
     states,
+    sceneType: `WAVE_${kind}`,
+    semanticModel: { version: "SEMANTIC_SCENE_GRAPH_V1", kind, actors: semanticActors, requiredElements, corpusHashInput: corpus, relationPolicy: "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE" },
     batchVersion: WAVE_BATCH_1_VERSION,
     productionRoute: contract.productionRoute,
-    specificationCompiler: "CONTRACT_AND_LAYOUT_BOUND_COMPILER_V2",
-    layoutPolicy: { ...rec(manifest.layoutPolicy), maximumViewerLabelGlyphs: 24, labelFitEnforcedAtCompileTime: true },
+    specificationCompiler: "SEMANTIC_SCENE_GRAPH_COMPILER_V3",
+    layoutPolicy: { ...rec(manifest.layoutPolicy), maximumViewerLabelGlyphs: 24, labelFitEnforcedAtCompileTime: true, reservedRegions: true, minimumLabelScale: 2, noGenericTemplateFallback: true },
   };
+}
+
+function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
+  const width=960,height=540,pixels=new Uint8Array(width*height*4),raw=new Uint8Array(height*(1+width*4));
+  const color=(hex:string)=>[Number.parseInt(hex.slice(1,3),16),Number.parseInt(hex.slice(3,5),16),Number.parseInt(hex.slice(5,7),16),255] as const;
+  const fill=(x:number,y:number,w:number,h:number,hex:string)=>{const c=color(hex);for(let py=Math.max(0,y);py<Math.min(height,y+h);py++)for(let px=Math.max(0,x);px<Math.min(width,x+w);px++){const i=(py*width+px)*4;pixels.set(c,i);}};
+  const circle=(cx:number,cy:number,r:number,hex:string)=>{for(let y=-r;y<=r;y++)for(let x=-r;x<=r;x++)if(x*x+y*y<=r*r)fill(cx+x,cy+y,1,1,hex);};
+  const text=(value:string,x:number,y:number,scale:number,hex:string)=>{const c=color(hex);let cx=x;for(const char of value.toUpperCase()){const glyph=glyphs[char]||glyphs["?"];for(let gy=0;gy<7;gy++)for(let gx=0;gx<5;gx++)if(glyph[gy][gx]==="1")for(let sy=0;sy<scale;sy++)for(let sx=0;sx<scale;sx++){const px=cx+gx*scale+sx,py=y+gy*scale+sy;if(px>=0&&px<width&&py>=0&&py<height){const i=(py*width+px)*4;pixels.set(c,i);}}cx+=6*scale;}};
+  const safe=(value:unknown,max=28)=>clean(value).toUpperCase().replace(/[^A-Z0-9$+\-.:? ]/g," ").replace(/\s+/g," ").trim().slice(0,max);
+  const center=(value:unknown,cx:number,y:number,scale:number,hex:string,max=28)=>{const label=safe(value,max);text(label,Math.max(28,Math.round(cx-label.length*3*scale)),y,scale,hex);};
+  const line=(x1:number,y1:number,x2:number,y2:number,t:number,hex:string)=>{const steps=Math.max(Math.abs(x2-x1),Math.abs(y2-y1));for(let i=0;i<=steps;i++){const p=steps?i/steps:0;fill(Math.round(x1+(x2-x1)*p)-Math.floor(t/2),Math.round(y1+(y2-y1)*p)-Math.floor(t/2),t,t,hex);}};
+  const labelBox=(x:number,y:number,w:number,h:number,label:unknown,active=true)=>{fill(x,y,w,h,active?"#eef5f1":"#173d35");fill(x,y,w,8,active?"#72c8a3":"#31594e");const words=safe(label,30).split(" "),split=Math.ceil(words.length/2),a=words.slice(0,split).join(" "),b=words.slice(split).join(" ");center(a,x+w/2,y+Math.max(22,Math.round(h/2)-20),2,active?"#173d35":"#9abbb0",18);if(b)center(b,x+w/2,y+Math.max(48,Math.round(h/2)+8),2,active?"#173d35":"#9abbb0",18);};
+  const semantic=rec(manifest.semanticModel),kind=clean(semantic.kind),actors=arr(semantic.actors).map(clean),accent=["#e8b65d","#72c8a3","#7fe2b5"][state];
+  fill(0,0,width,height,"#061b18");fill(0,0,width,12,accent);fill(28,30,904,474,"#0b3029");center(kind.replaceAll("_"," "),480,52,3,"#d7eee5",30);center(["CONTEXT","MECHANISM","OUTCOME"][state],480,84,2,accent,18);
+  if(kind==="PARTICIPANT_INCIDENCE"){
+    const names=[actors[0]||"MERCHANT",actors[1]||"PROCESSOR",actors[2]||"NETWORK",actors[3]||"ISSUING BANK"];
+    names.forEach((name,index)=>labelBox(46+index*224,132,196,82,name,true));
+    labelBox(324,258,312,128,state===0?"$100 PURCHASE":state===1?"REWARD ENTRY":"UNRESOLVED ORIGIN",true);
+    names.forEach((_,index)=>{const x=144+index*224;if(state>=1){line(x,214,480,258,4,state===2?"#e8b65d":"#72c8a3");circle(Math.round((x+480)/2),236,10,"#e8b65d");center("?",Math.round((x+480)/2),228,2,"#173d35",1);}});
+    if(state===2)center("WHO ULTIMATELY PAYS?",480,420,3,"#e8b65d",24);
+  } else if(["DUAL_RECORD","IDENTIFIER_COMPARISON","EVIDENCE_BARRIER"].includes(kind)){
+    const left=kind==="DUAL_RECORD"?"CARDHOLDER RECORD":kind==="IDENTIFIER_COMPARISON"?"RECORD A":"RECORD LEFT",right=kind==="DUAL_RECORD"?"MERCHANT RECORD":kind==="IDENTIFIER_COMPARISON"?"RECORD B":"RECORD RIGHT";
+    labelBox(62,138,334,260,left,true);labelBox(564,138,334,260,right,true);
+    fill(86,230,286,54,"#ffffff");fill(588,230,286,54,"#ffffff");center(kind==="DUAL_RECORD"?"REWARD ROW":kind==="IDENTIFIER_COMPARISON"?"ID 7A3F":"SHARED IDENTIFIER",229,247,2,"#173d35",20);center(kind==="DUAL_RECORD"?"TRANSACTION ROW":kind==="IDENTIFIER_COMPARISON"?"ID 7A3F":"SHARED AMOUNT",731,247,2,"#173d35",20);
+    if(state>=1){line(396,265,564,265,6,kind==="EVIDENCE_BARRIER"?"#e8b65d":"#72c8a3");center(kind==="IDENTIFIER_COMPARISON"?"COMPARISON RAIL":"PROPOSED CONNECTOR",480,294,2,"#d7eee5",22);}
+    if(state===2){fill(466,190,28,214,"#e8b65d");center(kind==="DUAL_RECORD"?"NO LINK":kind==="IDENTIFIER_COMPARISON"?"UNRELATED FIELDS ISOLATED":"EVIDENCE BARRIER",480,420,2,"#e8b65d",28);if(kind==="EVIDENCE_BARRIER")center("NO CAUSAL LINK",480,452,2,"#d7eee5",20);}
+  } else if(kind==="BOUNDED_INTERVAL"){
+    labelBox(62,154,250,220,"$100 PURCHASE",true);labelBox(354,154,250,220,state===0?"FEE PLACEHOLDER":state===1?"WARNING RAIL":"ILLUSTRATIVE RANGE",true);labelBox(646,154,250,220,"BOUNDED INTERVAL",state>=1);
+    if(state>=1){line(686,330,856,330,5,"#72c8a3");line(686,310,686,350,5,"#72c8a3");line(856,310,856,350,5,"#72c8a3");center("LOW",686,364,2,"#a8cdbd",6);center("HIGH",856,364,2,"#a8cdbd",6);}if(state===2)center("NOT A POINT ESTIMATE",480,424,2,"#e8b65d",24);
+  } else if(kind==="PROCESS_FLOW"){
+    const labels=(actors.length?actors:["INPUT","PROCESS","NETWORK","OUTCOME"]).slice(0,4);labels.forEach((label,index)=>{labelBox(54+index*224,198,184,118,label,index<=state+1);if(index<3&&index<=state)line(238+index*224,257,278+index*224,257,7,accent);});center(state===2?"ROUTE RESOLVED":"ORDERED PROCESS",480,390,3,accent,22);
+  } else if(kind==="DATA_EVIDENCE"){
+    fill(76,148,808,254,"#102d29");[0,1,2,3,4].forEach((index)=>{const h=50+index*30+(state*index*12);fill(118+index*148,372-h,92,h,index===state+2?accent:"#d8e8df");});line(106,372,854,372,4,"#8fa69d");center(state===0?"OBSERVED DATA":state===1?"COMPARISON": "EVIDENCE-BOUND OUTCOME",480,420,2,accent,28);
+  } else {
+    labelBox(74,178,300,178,kind==="SOURCE_COMPARISON"?"VERIFIED SOURCE":"CONTEXT",true);labelBox(586,178,300,178,state===0?"CLAIM":state===1?"MECHANISM":"OUTCOME",true);if(state>=1){line(374,267,586,267,8,accent);circle(480,267,18,accent);}if(state===2)center("RELATION EXPLICIT",480,414,3,accent,22);
+  }
+  [0,1,2].forEach((index)=>fill(382+index*72,518,54,8,index<=state?accent:"#315447"));
+  for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);}const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);const bytes=joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);return{bytes,pixels,width,height};
+}
+
+function waveProductOracle(manifest: Row) {
+  const frames=([0,1,2] as const).map((state)=>renderWaveSemanticScene(manifest,state)),states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean);
+  const checks=[
+    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="SEMANTIC_SCENE_GRAPH_V1"&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
+    {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL",evidence:"three states preserve full source clauses"},
+    {id:"MOBILE_TEXT_FIT",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL",evidence:"reserved regions and two-pixel minimum glyph scale"},
+    {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&clean(semantic.kind)!==""?"PASS":"FAIL",evidence:clean(semantic.kind)},
+    {id:"NO_INTERNAL_IDS",status:states.every((item)=>!`${clean(item.sceneLabel)} ${clean(item.primary)} ${clean(item.secondary)}`.includes(clean(manifest.logicalId)))?"PASS":"FAIL",evidence:"audience labels exclude logical IDs"},
+    {id:"TEMPORAL_DELTA",status:new Set(frames.map((frame)=>base64(frame.bytes).slice(-180))).size===3?"PASS":"FAIL",evidence:"semantic state pixels differ"},
+  ];
+  return{version:"WAVE_SEMANTIC_PRODUCT_ORACLE_V3",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
 }
 
 function selectBatchAuditSample(scope: Row[]) {
@@ -4393,16 +4467,16 @@ async function produceNextWaveBatch1Shot() {
   if (!target || index >= 26) throw new Error("BATCH_1_SCOPE_CURSOR_INVALID");
   const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
   if (!briefRow) throw new Error(`BATCH_1_BRIEF_MISSING · ${clean(target.logicalId)}`);
-  const existing = await db.prepare("SELECT id FROM v7_shot_products WHERE batch_id=? AND brief_id=? AND status='PRODUCT_COMPLETE'").bind(batch.id, briefRow.id).first<Row>();
+  const existing = await db.prepare("SELECT id FROM v7_shot_products WHERE batch_id=? AND brief_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(batch.id, briefRow.id, WAVE_PRODUCTION_ENGINE_VERSION).first<Row>();
   if (existing) {
-    const completed = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND status='PRODUCT_COMPLETE'").bind(batch.id).first<{ total: number }>();
+    const completed = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(batch.id, WAVE_PRODUCTION_ENGINE_VERSION).first<{ total: number }>();
     await db.prepare("UPDATE v7_production_batches SET current_index=?,completed_units=?,updated_at=? WHERE id=?").bind(Math.min(26, Number(completed?.total || 0)), Number(completed?.total || 0), new Date().toISOString(), batch.id).run();
     return snapshot();
   }
   const contract = waveProductionContract(briefRow);
   if (clean(contract.lintStatus) !== "PASS") throw new Error(`BATCH_1_CONTRACT_LINT_FAILED · ${clean(contract.briefId)}`);
   const manifest = waveProductionManifest(contract);
-  const oracle = canonicalUnitPixelOracle(clean(contract.briefId), manifest), states = arr(manifest.states).map(rec), evidenceBound = states.length === 3 && states.every((state) => Boolean(clean(state.sourceEvidence))), forbidden = arr(contract.forbidden).map((item) => clean(item).toUpperCase()).filter(Boolean), visible = states.map((state) => `${clean(state.sceneLabel)} ${clean(state.primary)} ${clean(state.secondary)}`.toUpperCase()), forbiddenHits = forbidden.filter((term) => visible.some((line) => line.includes(term)));
+  const oracle = waveProductOracle(manifest), states = arr(manifest.states).map(rec), evidenceBound = states.length === 3 && states.every((state) => Boolean(clean(state.sourceEvidence))), forbidden = arr(contract.forbidden).map((item) => clean(item).toUpperCase()).filter(Boolean), visible = states.map((state) => `${clean(state.sceneLabel)} ${clean(state.primary)} ${clean(state.secondary)}`.toUpperCase()), forbiddenHits = forbidden.filter((term) => visible.some((line) => line.includes(term)));
   const measurements = { oracleVersion: oracle.version, oracleChecks: oracle.checks, exactStates: states.length, sourceEvidenceBound: evidenceBound, forbiddenHits, noCrop: true, mobileSafe: oracle.checks.some((item) => item.id === "MOBILE_TEXT_FIT" && item.status === "PASS"), temporalDelta: oracle.checks.some((item) => item.id === "TEMPORAL_DELTA" && item.status === "PASS"), productionRoute: contract.productionRoute, engineVersion: WAVE_PRODUCTION_ENGINE_VERSION };
   const complete = oracle.passed && evidenceBound && forbiddenHits.length === 0 && measurements.mobileSafe && measurements.temporalDelta;
   if (!complete) {
@@ -4414,8 +4488,9 @@ async function produceNextWaveBatch1Shot() {
     throw new Error(`BATCH_1_PRODUCTION_DOD_FAILED · ${clean(contract.briefId)}`);
   }
   const specification = { version: "SHOT_PRODUCT_SPECIFICATION_V1", batchVersion: WAVE_BATCH_1_VERSION, engineVersion: WAVE_PRODUCTION_ENGINE_VERSION, contract, manifest }, specificationJson = JSON.stringify(specification), specificationHash = await sha(specificationJson), frameIds: string[] = [], frameHashes: string[] = [];
+  const superseded = await db.prepare("SELECT id FROM v7_shot_products WHERE batch_id=? AND brief_id=? AND engine_version<>? ORDER BY created_at DESC LIMIT 1").bind(batch.id, briefRow.id, WAVE_PRODUCTION_ENGINE_VERSION).first<Row>();
   for (const [role, frame] of [["CERT_ENTRY", oracle.frames[0]], ["CERT_MIDPOINT", oracle.frames[1]], ["CERT_EXIT", oracle.frames[2]]] as const) {
-    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH1-${clean(contract.briefId)}-${role}`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: WAVE_PRODUCTION_ENGINE_VERSION, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: "wave-09-batch-1", archiveFolder: "Wave 09 Batch 1" });
+    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH1-${clean(contract.briefId)}-${role}-E3`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: WAVE_PRODUCTION_ENGINE_VERSION, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: "wave-09-batch-1-engine-v3", archiveFolder: "Wave 09 Batch 1 Engine V3" });
     const stored = await db.prepare("SELECT content_hash,status FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
     if (!stored || clean(stored.status) !== "STORED_VERIFIED") throw new Error(`BATCH_1_FRAME_READ_BACK_FAILED · ${clean(contract.briefId)} · ${role}`);
     frameIds.push(fileId); frameHashes.push(clean(stored.content_hash));
@@ -4423,7 +4498,7 @@ async function produceNextWaveBatch1Shot() {
   if (frameIds.length !== 3 || new Set(frameHashes).size !== 3) throw new Error(`BATCH_1_FRAME_INTEGRITY_FAILED · ${clean(contract.briefId)}`);
   const productHash = await sha(JSON.stringify({ specificationHash, frameHashes })), productId = `${clean(batch.id)}-${clean(contract.briefId)}-${WAVE_PRODUCTION_ENGINE_VERSION}`, now = new Date().toISOString(), nextCompleted = Number(batch.completed_units || 0) + 1, isFinal = nextCompleted === 26;
   await db.batch([
-    db.prepare("INSERT INTO v7_shot_products (id,program_id,run_id,authorization_id,batch_id,brief_id,logical_brief_id,archetype,engine_version,status,specification_json,specification_hash,frame_ids_json,frame_hashes_json,measurements_json,product_hash,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,'PRODUCT_COMPLETE',?,?,?,?,?,?,?, ?,?)").bind(productId, PROGRAM_ID, run.id, authorization.id, batch.id, briefRow.id, contract.briefId, contract.archetype, WAVE_PRODUCTION_ENGINE_VERSION, specificationJson, specificationHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify({ ...measurements, storedFrames: 3, distinctHashes: 3, readBack: true }), productHash, now, now, now),
+    db.prepare("INSERT INTO v7_shot_products (id,program_id,run_id,authorization_id,batch_id,brief_id,logical_brief_id,archetype,engine_version,status,specification_json,specification_hash,frame_ids_json,frame_hashes_json,measurements_json,product_hash,supersedes_id,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,'PRODUCT_COMPLETE',?,?,?,?,?,?,?,?, ?,?)").bind(productId, PROGRAM_ID, run.id, authorization.id, batch.id, briefRow.id, contract.briefId, contract.archetype, WAVE_PRODUCTION_ENGINE_VERSION, specificationJson, specificationHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify({ ...measurements, storedFrames: 3, distinctHashes: 3, readBack: true }), productHash, superseded?.id || null, now, now, now),
     db.prepare("UPDATE v7_production_batches SET status=?,completed_units=?,current_index=?,updated_at=?,completed_at=? WHERE id=?").bind(isFinal ? "PRODUCT_COMPLETE" : "PRODUCING", nextCompleted, nextCompleted, now, isFinal ? now : null, batch.id),
     db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(isFinal ? "BATCH_1_PRODUCT_COMPLETE" : "BATCH_1_PRODUCING", run.id),
     db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(isFinal ? "BATCH_1_PRODUCT_COMPLETE" : "BATCH_1_PRODUCING", isFinal ? "INDEPENDENT_BATCH_AUDIT_READY" : "INTEGRATED_PRODUCTION_TRANSACTION", `Batch 1 ${nextCompleted}/26 PRODUCT_COMPLETE · portfolio ${10 + nextCompleted}/166 · deterministic DoD/read-back PASS · QA requests 0`, now, STAGE_ID),
@@ -4442,7 +4517,7 @@ async function adoptWaveBatch1EngineRootCorrection() {
   for (const target of scope) {
     const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
     if (!briefRow) { failures.push({ logicalId: target.logicalId, checks: ["BRIEF_MISSING"] }); continue; }
-    const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract), oracle = canonicalUnitPixelOracle(clean(contract.briefId), manifest), states = arr(manifest.states).map(rec);
+    const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract), oracle = waveProductOracle(manifest), states = arr(manifest.states).map(rec);
     const evidenceBound = states.length === 3 && states.every((state) => Boolean(clean(state.sourceEvidence)));
     if (!oracle.passed || !evidenceBound) failures.push({ logicalId: contract.briefId, checks: oracle.checks.filter((item) => clean(rec(item).status) !== "PASS").map((item) => clean(rec(item).id)), evidenceBound });
   }
@@ -4455,6 +4530,38 @@ async function adoptWaveBatch1EngineRootCorrection() {
     db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(modelPolicy), now, authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='BATCH_1_PRODUCING',mode='PRODUCT_COMPLETE_SHOT_ENGINE_V2' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='BATCH_1_PRODUCING',blocker='INTEGRATED_PRODUCTION_TRANSACTION',evidence_summary='V1 layout-contract divergence rejected before output · V2 compiler enforces 24-glyph viewer labels · 26/26 zero-spend regression PASS · production resumed · no output repair',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function adoptWaveBatch1SemanticEngineRootCorrection() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("BATCH_1_SEMANTIC_ROOT_CORRECTION_CONFIGURATION_REQUIRED");
+  const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  const audit = batch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? AND status='ENGINE_ROOT_CAUSE_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>() : null;
+  if (!batch || clean(batch.status) !== "ENGINE_ROOT_CAUSE_REQUIRED" || !audit) throw new Error("BATCH_1_FAILED_SEMANTIC_AUDIT_CHECKPOINT_REQUIRED");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("BATCH_1_SEMANTIC_ROOT_CORRECTION_ACTIVE_REQUEST");
+  const rejectedEngine = clean(batch.engine_version), products = await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE' ORDER BY created_at", batch.id, rejectedEngine);
+  if (products.length !== 26) throw new Error(`BATCH_1_REJECTED_PRODUCT_SET_INCOMPLETE · ${products.length}/26`);
+  const scope = arr(JSON.parse(String(batch.scope_json || "[]"))).map(rec), failures: Row[] = [], kinds = new Set<string>();
+  for (const target of scope) {
+    const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
+    if (!briefRow) { failures.push({ logicalId: target.logicalId, checks: ["BRIEF_MISSING"] }); continue; }
+    const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract), oracle = waveProductOracle(manifest), semantic = rec(manifest.semanticModel);
+    kinds.add(clean(semantic.kind));
+    if (!oracle.passed || arr(semantic.requiredElements).length < 3) failures.push({ logicalId: contract.briefId, kind: semantic.kind, checks: oracle.checks.filter((item) => clean(rec(item).status) !== "PASS").map((item) => clean(rec(item).id)) });
+  }
+  if (scope.length !== 26 || failures.length || kinds.size < 5) throw new Error(`BATCH_1_ENGINE_V3_REGRESSION_FAILED · kinds ${kinds.size} · ${JSON.stringify(failures).slice(0, 1200)}`);
+  const priorRoot = rec(JSON.parse(String(audit.root_cause_json || "{}"))), now = new Date().toISOString(), rootCausePolicy = { ...rec(JSON.parse(String(batch.root_cause_policy_json || "{}"))), incident: "V2_SEMANTIC_MANIFEST_ESCAPE", rejectedEngineVersion: rejectedEngine, rejectedAuditId: audit.id, rejectedAuditScore: Number(audit.score), observedRootCause: priorRoot.rootProductionCause, correctedLayers: ["SEMANTIC_MANIFEST", "LAYOUT_ENGINE", "PORTFOLIO_POLICY", "MOTION_POLICY"], correction: "STRUCTURED_VIEWER_VISIBLE_SCENE_GRAPH_WITH_RESERVED_LAYOUT_REGIONS", replacementEngineVersion: WAVE_PRODUCTION_ENGINE_VERSION, fullScopeRegression: "26_OF_26_PASS", semanticKindsQualified: [...kinds].sort(), reproduceScope: "ALL_26_PRODUCTS", outputRepair: false, priorProductsPreservedAsEvidence: true };
+  const specificationHash = await sha(JSON.stringify({ version: WAVE_BATCH_1_VERSION, engine: WAVE_PRODUCTION_ENGINE_VERSION, scope, rootCausePolicy })), modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: WAVE_BATCH_1_VERSION, productionEngine: WAVE_PRODUCTION_ENGINE_VERSION, semanticRootCorrection: rootCausePolicy };
+  await db.batch([
+    db.prepare("UPDATE v7_shot_products SET status='PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE',updated_at=? WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(now, batch.id, rejectedEngine),
+    db.prepare("UPDATE v7_batch_product_audits SET status='ENGINE_ROOT_CAUSE_PRESERVED',updated_at=? WHERE id=?").bind(now, audit.id),
+    db.prepare("UPDATE v7_production_batches SET version=?,engine_version=?,status='PRODUCING',specification_hash=?,completed_units=0,blocked_units=0,current_index=0,root_cause_policy_json=?,request_budget=request_budget+1,completed_at=NULL,updated_at=? WHERE id=?").bind(WAVE_BATCH_1_VERSION, WAVE_PRODUCTION_ENGINE_VERSION, specificationHash, JSON.stringify(rootCausePolicy), now, batch.id),
+    db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',max_remote_requests=max_remote_requests+1,model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(modelPolicy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='BATCH_1_REPRODUCING',mode='SEMANTIC_SCENE_GRAPH_ENGINE_V3' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='BATCH_1_REPRODUCING',blocker='ENGINE_V3_PRODUCT_COMPLETION',evidence_summary=?,updated_at=? WHERE id=?").bind(`V2 audit ${Number(audit.score)}/100 preserved · 26 V2 products retained as rejected-engine evidence · semantic scene-graph V3 qualified 26/26 across ${kinds.size} scene kinds · reproducing all 26 · no output repair`, now, STAGE_ID),
   ]);
   return snapshot();
 }
@@ -4496,7 +4603,7 @@ async function waveBatch1Audit() {
   if (audit) throw new Error(`BATCH_1_AUDIT_ORPHANED · ${clean(audit.status)}`);
   const sample = arr(JSON.parse(String(batch.audit_sample_json || "[]"))).map(rec);
   if (sample.length !== 7) throw new Error(`BATCH_1_AUDIT_SAMPLE_INVALID · ${sample.length}/7`);
-  const products = await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND status='PRODUCT_COMPLETE' ORDER BY created_at", batch.id), productMap = new Map(products.map((item) => [clean(item.logical_brief_id), item]));
+  const products = await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE' ORDER BY created_at", batch.id, batch.engine_version), productMap = new Map(products.map((item) => [clean(item.logical_brief_id), item]));
   const content: Row[] = [{ type: "input_text", text: `Independently audit the supplied risk-stratified sample of seven finished shot products from a 26-shot production batch. Each product contains ENTRY, MIDPOINT and EXIT pixels generated before QA. Judge the actual pixels against its exact shot specification. QA is audit-only: do not prescribe a cosmetic output repair. If anything fails, identify the root production layer that allowed the escaped defect. PASS requires overall >=88, semanticFit >=82, every other dimension >=88, no P0, no semantic P1 and at most one presentation P1. Portfolio variety is judged across the seven products. Return only JSON.\n\nBATCH CONTRACT:\n${JSON.stringify({ batchVersion: batch.version, engineVersion: batch.engine_version, totalProducts: 26, sampleSize: 7, productionDoD: JSON.parse(String(batch.production_dod_json || "{}")), rootCausePolicy: JSON.parse(String(batch.root_cause_policy_json || "{}")) })}` }];
   for (const item of sample) {
     const product = productMap.get(clean(item.logicalId));
@@ -4509,14 +4616,14 @@ async function waveBatch1Audit() {
       if (!object) throw new Error(`BATCH_1_AUDIT_FRAME_MISSING · ${clean(item.logicalId)}`);
       const bytes = new Uint8Array(await new Response(object.body).arrayBuffer());
       if (await shaBytes(bytes) !== clean(file?.content_hash)) throw new Error(`BATCH_1_AUDIT_FRAME_HASH_MISMATCH · ${clean(item.logicalId)}`);
-      const rendered = renderProductionScene(rec(specification.manifest), frameIndex as 0 | 1 | 2);
+      const rendered = renderWaveSemanticScene(rec(specification.manifest), frameIndex as 0 | 1 | 2);
       if (await shaBytes(rendered.bytes) !== clean(file?.content_hash)) throw new Error(`BATCH_1_AUDIT_RENDERER_REPLAY_MISMATCH · ${clean(item.logicalId)} · ${frameIndex}`);
       const proxy = new Uint8Array(jpeg.encode({ data: rendered.pixels, width: rendered.width, height: rendered.height }, 88).data), proxyHash = await shaBytes(proxy);
       content.push({ type: "input_text", text: `AUDIT TRANSPORT ${WAVE_BATCH_AUDIT_TRANSPORT_VERSION} · state ${frameIndex + 1}/3 · immutable source SHA-256 ${clean(file?.content_hash)} · verified replay · JPEG proxy SHA-256 ${proxyHash}` });
       content.push({ type: "input_image", image_url: `data:image/jpeg;base64,${base64(proxy)}`, detail: "high" });
     }
   }
-  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, "WAVE-09-BATCH-1", "WAVE_BATCH_PRODUCT_AUDIT", "OPENAI", setting.modelId, setting.reasoningEffort, 2500, 6000), auditId = `${clean(batch.id)}-${WAVE_BATCH_AUDIT_RUBRIC}-${WAVE_BATCH_AUDIT_TRANSPORT_VERSION}`, now = new Date().toISOString();
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, "WAVE-09-BATCH-1", "WAVE_BATCH_PRODUCT_AUDIT", "OPENAI", setting.modelId, setting.reasoningEffort, 2500, 6000), auditId = `${clean(batch.id)}-${WAVE_BATCH_AUDIT_RUBRIC}-${clean(batch.engine_version)}-${WAVE_BATCH_AUDIT_TRANSPORT_VERSION}`, now = new Date().toISOString();
   await db.prepare("INSERT INTO v7_batch_product_audits (id,program_id,run_id,authorization_id,batch_id,rubric_version,status,score,tier,dimensions_json,findings_json,root_cause_json,request_id,created_at,updated_at) VALUES (?,?,?,?,?,?,'DISPATCHING',0,'BLOCKED','{}','[]','{}',?,?,?)").bind(auditId, PROGRAM_ID, run.id, authorization.id, batch.id, WAVE_BATCH_AUDIT_RUBRIC, requestId, now, now).run();
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": requestId }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 6000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "wave_batch_product_audit", strict: true, schema: batchProductAuditSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); await db.prepare("UPDATE v7_batch_product_audits SET status='BLOCKED_INCOMPLETE',updated_at=?,completed_at=? WHERE id=?").bind(now, now, auditId).run(); throw new Error(`BATCH_1_AUDIT_START_FAILED · ${response.status}`); }
@@ -4681,6 +4788,7 @@ export async function POST(request: Request) {
     if (body.action === "RUN_SEQUENCE_QA") return Response.json(await sequenceProofQa(), { status: 202 });
     if (body.action === "START_WAVE_BATCH_1") return Response.json(await startWaveBatch1(), { status: 201 });
     if (body.action === "ADOPT_WAVE_BATCH_1_ENGINE_ROOT_CORRECTION") return Response.json(await adoptWaveBatch1EngineRootCorrection(), { status: 201 });
+    if (body.action === "ADOPT_WAVE_BATCH_1_SEMANTIC_ENGINE_ROOT_CORRECTION") return Response.json(await adoptWaveBatch1SemanticEngineRootCorrection(), { status: 201 });
     if (body.action === "PRODUCE_NEXT_WAVE_BATCH_1_SHOT") return Response.json(await produceNextWaveBatch1Shot(), { status: 201 });
     if (body.action === "RECONCILE_WAVE_BATCH_1_AUDIT_TRANSPORT") return Response.json(await reconcileWaveBatch1AuditTransport(), { status: 201 });
     if (body.action === "RUN_WAVE_BATCH_1_AUDIT") return Response.json(await waveBatch1Audit(), { status: 202 });

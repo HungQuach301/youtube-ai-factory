@@ -38,15 +38,15 @@ test("Batch audit is one bounded risk-stratified request after 26 products", () 
   assert.match(page, /7\/26 RISK-STRATIFIED SAMPLE/);
 });
 
-test("production DoD failure rejects V1 and qualifies the replacement compiler across all 26 shots", () => {
-  assert.match(route, /SHOT_PRODUCT_ENGINE_V2_LAYOUT_CONTRACT_BOUND/);
-  assert.match(route, /CONTRACT_AND_LAYOUT_BOUND_COMPILER_V2/);
+test("production DoD failure rejects the prior engine and qualifies the replacement compiler across all 26 shots", () => {
+  assert.match(route, /SHOT_PRODUCT_ENGINE_V3_SEMANTIC_SCENE_GRAPH/);
+  assert.match(route, /SEMANTIC_SCENE_GRAPH_COMPILER_V3/);
   assert.match(route, /maximumViewerLabelGlyphs: 24/);
   assert.match(route, /BATCH_1_ROOT_CORRECTION_REQUIRES_ZERO_EMITTED_PRODUCTS/);
   assert.match(route, /scope\.length !== 26 \|\| failures\.length/);
   assert.match(route, /V1_LAYOUT_CONTRACT_DIVERGENCE/);
   assert.match(route, /emittedProductsBeforeCorrection: 0/);
-  assert.match(page, /Qualify and adopt Engine V2/);
+  assert.match(page, /Qualify and adopt replacement engine/);
 });
 
 test("audit transport failure is reconciled before provider dispatch without touching products", () => {
@@ -59,4 +59,16 @@ test("audit transport failure is reconciled before provider dispatch without tou
   assert.match(route, /zero provider-dispatched prior audits is required/);
   assert.match(route, /Number\(priorRequest\?\.actual_cost_usd \|\| 0\) === 0/);
   assert.match(page, /Adopt verified audit transport V2/);
+});
+
+test("failed independent QA replaces the semantic production system and reproduces all 26 products", () => {
+  assert.match(route, /SEMANTIC_SCENE_GRAPH_V1/);
+  for (const kind of ["PARTICIPANT_INCIDENCE", "DUAL_RECORD", "IDENTIFIER_COMPARISON", "EVIDENCE_BARRIER", "BOUNDED_INTERVAL"]) assert.match(route, new RegExp(kind));
+  assert.match(route, /PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE/);
+  assert.match(route, /ENGINE_ROOT_CAUSE_PRESERVED/);
+  assert.match(route, /reproduceScope: "ALL_26_PRODUCTS"/);
+  assert.match(route, /priorProductsPreservedAsEvidence: true/);
+  assert.match(route, /supersedes_id/);
+  assert.match(route, /wave-09-batch-1-engine-v3/);
+  assert.match(page, /Qualify Engine V3 and reproduce 26/);
 });
