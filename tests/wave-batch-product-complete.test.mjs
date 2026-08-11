@@ -56,5 +56,7 @@ test("audit transport failure is reconciled before provider dispatch without tou
   assert.match(route, /BLOCKED_TRANSPORT_PRE_DISPATCH/);
   assert.match(route, /providerRequestsCreated: 0, tokenUsage: 0, costUsd: 0, outputRepair: false, qaRetry: false/);
   assert.match(route, /max_remote_requests=max_remote_requests\+1/);
+  assert.match(route, /zero provider-dispatched prior audits is required/);
+  assert.match(route, /Number\(priorRequest\?\.actual_cost_usd \|\| 0\) === 0/);
   assert.match(page, /Adopt verified audit transport V2/);
 });

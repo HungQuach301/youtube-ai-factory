@@ -2644,13 +2644,22 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
     const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE authorization_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
     const products = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND status='PRODUCT_COMPLETE'").bind(batch.id).first<{ total: number }>() : null;
     const prior = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_batch_product_audits WHERE batch_id=?").bind(batch.id).first<{ total: number }>() : null;
+    const priorAudit = batch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>() : null;
+    const priorRequest = priorAudit?.request_id ? await db.prepare("SELECT * FROM v7_material_requests WHERE id=?").bind(priorAudit.request_id).first<Row>() : null;
+    const reconciledPreDispatch = Number(prior?.total || 0) === 1
+      && clean(priorAudit?.status) === "BLOCKED_TRANSPORT_PRE_DISPATCH"
+      && !clean(priorAudit?.provider_response_id)
+      && clean(priorRequest?.status) === "FAILED"
+      && Number(priorRequest?.input_tokens || 0) === 0
+      && Number(priorRequest?.output_tokens || 0) === 0
+      && Number(priorRequest?.actual_cost_usd || 0) === 0;
     batchAuditAuthorized = Boolean(batch)
       && clean(batch?.status) === "PRODUCT_COMPLETE"
       && Number(batch?.total_units) === 26
       && Number(batch?.completed_units) === 26
       && Number(products?.total || 0) === 26
-      && Number(prior?.total || 0) === 0;
-    if (!batchAuditAuthorized) throw new Error("BATCH_PRODUCT_AUDIT_FIREWALL · 26/26 PRODUCT_COMPLETE with zero prior audits is required");
+      && (Number(prior?.total || 0) === 0 || reconciledPreDispatch);
+    if (!batchAuditAuthorized) throw new Error("BATCH_PRODUCT_AUDIT_FIREWALL · 26/26 PRODUCT_COMPLETE with zero provider-dispatched prior audits is required");
   }
   if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
   if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) {
