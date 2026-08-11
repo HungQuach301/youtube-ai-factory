@@ -43,7 +43,7 @@ button { font: inherit; }
 @media(max-width:520px){.operatorTopbar{height:66px}.operatorLive{font-size:8px}.operatorMetrics{grid-template-columns:1fr 1fr}.operatorMetrics article{min-height:105px;padding:13px}.operatorMetrics strong{font-size:24px}.operatorPanel{padding:16px}.batchRows>div{grid-template-columns:30px 1fr}.batchRows>div>b{grid-column:2}.ledgerPanel>div{grid-template-columns:1fr 1fr}.operatorNotice time{display:none}}
 
 .appShell { min-height: 100vh; display: grid; grid-template-columns: 246px minmax(0, 1fr); }
-.sidebar { position: sticky; top: 0; height: 100vh; padding: 28px 20px 22px; background: #102e29; color: #edf7f3; display: flex; flex-direction: column; }
+.sidebar { position: sticky; top: 0; height: 100vh; padding: 28px 20px 22px; background: #102e29; color: #edf7f3; display: flex; flex-direction: column; overflow-y: auto; }
 .brand { display: flex; gap: 12px; align-items: center; padding: 0 8px 28px; color: inherit; text-decoration: none; }
 .brand strong { display: block; font-size: 17px; letter-spacing: -.02em; }
 .brand span:not(.logoMark) { display: block; color: #93afa7; font-size: 11px; margin-top: 2px; }

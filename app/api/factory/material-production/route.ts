@@ -4899,15 +4899,15 @@ async function operatorSnapshot() {
   const batch1Passed = clean(batch1?.status) === "PASS" && batch1Completed === 26 && clean(batch1Audit?.status) === "PASS";
   const canStartBatch2 = batch1Passed && portfolioComplete === 36 && !batch2 && activeRequests === 0;
   return {
-    controlPlane: { version: "v242", mode: "CONTROL_PLANE_LITE", mediaPolicy: "ON_DEMAND_ONLY", generatedAt: new Date().toISOString() },
-    checkpoint: { deployment: "v242", sourceCheckpoint: "v241", status: "LIVE_CANDIDATE" },
+    controlPlane: { version: "v243", mode: "CONTROL_PLANE_LITE", mediaPolicy: "ON_DEMAND_ONLY", generatedAt: new Date().toISOString() },
+    checkpoint: { deployment: "v243", sourceCheckpoint: "v242", status: "LIVE" },
     stage: { status: clean(stage?.status || "UNKNOWN"), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary), updatedAt: stage?.updated_at || null },
     portfolio: { complete: portfolioComplete, total: 166, baseline: 10 },
     batches: {
       batch1: batch1 ? { status: clean(batch1.status), completed: batch1Completed, total: Number(batch1.total_units || 26), auditStatus: clean(batch1Audit?.status || "NOT_STARTED"), auditScore: Number(batch1Audit?.score || 0) } : null,
       batch2: batch2 ? { status: clean(batch2.status), completed: batch2Completed, total: Number(batch2.total_units || 50), auditStatus: clean(batch2Audit?.status || "NOT_STARTED"), auditScore: Number(batch2Audit?.score || 0), activatedAt: batch2.created_at } : null,
     },
-    activation: { batch2Records: batch2 ? 1 : 0, idempotencyKey: "START_WAVE_BATCH_2_V242", canStart: canStartBatch2 },
+    activation: { batch2Records: batch2 ? 1 : 0, idempotencyKey: "START_WAVE_BATCH_2_V243", canStart: canStartBatch2 },
     requests: { total: Number(ledger?.total || 0), active: activeRequests, complete: Number(ledger?.complete || 0), actualCostUsd: Number(ledger?.cost || 0) },
     safeguards: { batch1Seal: batch1Passed, portfolioBaseline: portfolioComplete === 36, noBatch2Activation: !batch2, activeRequestsZero: activeRequests === 0, noOutputRepair: true, rootCauseOnly: true },
   };
