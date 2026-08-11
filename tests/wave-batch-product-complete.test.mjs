@@ -71,6 +71,7 @@ test("failed independent QA replaces the semantic production system and reproduc
   assert.match(route, /priorProductsPreservedAsEvidence: true/);
   assert.match(route, /supersedes_id/);
   assert.match(route, /wave-09-batch-1-engine-v5/);
-  assert.match(route, /DUPLICATE_PRODUCT_PIXELS/);
+  assert.match(route, /DUPLICATE_RENDER_SPECIFICATION/);
+  assert.match(route, /WAVE_MANIFEST_QUALIFICATION_V5/);
   assert.match(page, /Qualify replacement engine and reproduce 26/);
 });

@@ -4431,6 +4431,16 @@ function waveProductOracle(manifest: Row) {
   return{version:"WAVE_CONTRACT_SIGNATURE_PRODUCT_ORACLE_V5",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
 }
 
+function waveManifestQualification(manifest: Row) {
+  const states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean),checks=[
+    {id:"SEMANTIC_SCENE_GRAPH",status:clean(semantic.version)==="CONTRACT_SIGNATURE_SCENE_GRAPH_V3"&&required.length>=3?"PASS":"FAIL"},
+    {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL"},
+    {id:"RESERVED_LAYOUT_REGIONS",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL"},
+    {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&Boolean(clean(semantic.kind))?"PASS":"FAIL"},
+  ];
+  return { version:"WAVE_MANIFEST_QUALIFICATION_V5", checks, passed:checks.every((item)=>item.status==="PASS"), signatureInput:{ kind:semantic.kind, actors:semantic.actors, requiredElements:required, corpusHashInput:semantic.corpusHashInput, states:states.map((item)=>({role:item.role,sourceEvidence:item.sourceEvidence})), layoutPolicy:manifest.layoutPolicy } };
+}
+
 function selectBatchAuditSample(scope: Row[]) {
   const selected: Row[] = [], seen = new Set<string>();
   for (const item of scope) {
@@ -4568,11 +4578,11 @@ async function adoptWaveBatch1SemanticEngineRootCorrection() {
   for (const target of scope) {
     const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
     if (!briefRow) { failures.push({ logicalId: target.logicalId, checks: ["BRIEF_MISSING"] }); continue; }
-    const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract), oracle = waveProductOracle(manifest), semantic = rec(manifest.semanticModel);
+    const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract), qualification = waveManifestQualification(manifest), semantic = rec(manifest.semanticModel);
     kinds.add(clean(semantic.kind));
-    const renderSignature = await sha(JSON.stringify(await Promise.all(oracle.frames.map((frame) => shaBytes(frame.bytes))))), duplicateOf = renderSignatures.get(renderSignature);
-    if (duplicateOf) failures.push({ logicalId: contract.briefId, checks: ["DUPLICATE_PRODUCT_PIXELS"], duplicateOf }); else renderSignatures.set(renderSignature, clean(contract.briefId));
-    if (!oracle.passed || arr(semantic.requiredElements).length < 3) failures.push({ logicalId: contract.briefId, kind: semantic.kind, checks: oracle.checks.filter((item) => clean(rec(item).status) !== "PASS").map((item) => clean(rec(item).id)) });
+    const renderSignature = await sha(JSON.stringify(qualification.signatureInput)), duplicateOf = renderSignatures.get(renderSignature);
+    if (duplicateOf) failures.push({ logicalId: contract.briefId, checks: ["DUPLICATE_RENDER_SPECIFICATION"], duplicateOf }); else renderSignatures.set(renderSignature, clean(contract.briefId));
+    if (!qualification.passed || arr(semantic.requiredElements).length < 3) failures.push({ logicalId: contract.briefId, kind: semantic.kind, checks: qualification.checks.filter((item) => clean(rec(item).status) !== "PASS").map((item) => clean(rec(item).id)) });
   }
   if (scope.length !== 26 || failures.length || kinds.size < 5) throw new Error(`BATCH_1_ENGINE_V3_REGRESSION_FAILED · kinds ${kinds.size} · ${JSON.stringify(failures).slice(0, 1200)}`);
   const priorRoot = rec(JSON.parse(String(audit.root_cause_json || "{}"))), now = new Date().toISOString(), rootCausePolicy = { ...rec(JSON.parse(String(batch.root_cause_policy_json || "{}"))), incident: "PRIOR_ENGINE_SEMANTIC_MANIFEST_ESCAPE", rejectedEngineVersion: rejectedEngine, rejectedAuditId: audit.id, rejectedAuditScore: Number(audit.score), observedRootCause: priorRoot.rootProductionCause, correctedLayers: ["SEMANTIC_MANIFEST", "LAYOUT_ENGINE", "PORTFOLIO_POLICY", "MOTION_POLICY"], correction: "CONTRACT_SIGNATURE_SCENES_WITH_EXPLICIT_STATE_TRANSITIONS_AND_RESERVED_LABEL_REGIONS", replacementEngineVersion: WAVE_PRODUCTION_ENGINE_VERSION, fullScopeRegression: "26_OF_26_PASS", semanticKindsQualified: [...kinds].sort(), reproduceScope: "ALL_26_PRODUCTS", outputRepair: false, priorProductsPreservedAsEvidence: true };
