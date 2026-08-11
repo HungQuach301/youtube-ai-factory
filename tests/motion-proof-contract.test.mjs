@@ -524,6 +524,11 @@ test("integrated sequence production creates PRODUCT_COMPLETE before independent
   assert.match(route, /SEQUENCE_PRODUCT_AUDIT_FIREWALL/);
   assert.match(route, /COMPOSER_VERSION_REJECTED_BY_INDEPENDENT_AUDIT/);
   assert.match(route, /production loop closed/);
+  assert.match(route, /INDEPENDENT_AUDIT_ORPHANED_NO_RETRY/);
+  assert.match(route, /PROVIDER_RESPONSE_NOT_DURABLY_BOUND_NO_RETRY/);
+  assert.match(route, /"idempotency-key": requestId/);
+  assert.match(route, /VALUES \(\?,\?,\?,\?,\?,\?,'RUNNING',\?,\?,\?,\?\)/);
+  assert.doesNotMatch(route, /VALUES \(\?,\?,\?,\?,\?,\?,'RUNNING',\?,\?,\?,\?,\?\)/);
   assert.match(page, /Run independent audit · request 105/);
   assert.match(page, /item\.audit\?\.findings\?\.\[0\].*findingText\(item\.audit\.findings\[0\]\)/);
 });
