@@ -4573,7 +4573,7 @@ async function waveBatch1Audit() {
   if (!batch || clean(batch.status) !== "PRODUCT_COMPLETE" || Number(batch.completed_units) !== 26) throw new Error("BATCH_1_PRODUCT_COMPLETE_REQUIRED");
   let audit = await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>();
   if (audit && ["PASS", "ENGINE_ROOT_CAUSE_REQUIRED", "BLOCKED_INCOMPLETE"].includes(clean(audit.status))) return snapshot();
-  if (clean(audit?.status) === "BLOCKED_TRANSPORT_PRE_DISPATCH") audit = null;
+  if (["BLOCKED_TRANSPORT_PRE_DISPATCH", "ENGINE_ROOT_CAUSE_PRESERVED"].includes(clean(audit?.status))) audit = null;
   if (audit?.provider_response_id) {
     const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(audit.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
     if (!response.ok) throw new Error(`BATCH_1_AUDIT_STATUS_FAILED · ${response.status}`);

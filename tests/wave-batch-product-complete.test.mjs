@@ -66,6 +66,7 @@ test("failed independent QA replaces the semantic production system and reproduc
   for (const kind of ["PARTICIPANT_INCIDENCE", "DUAL_RECORD", "IDENTIFIER_COMPARISON", "EVIDENCE_BARRIER", "BOUNDED_INTERVAL"]) assert.match(route, new RegExp(kind));
   assert.match(route, /PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE/);
   assert.match(route, /ENGINE_ROOT_CAUSE_PRESERVED/);
+  assert.match(route, /\["BLOCKED_TRANSPORT_PRE_DISPATCH", "ENGINE_ROOT_CAUSE_PRESERVED"\]\.includes/);
   assert.match(route, /reproduceScope: "ALL_26_PRODUCTS"/);
   assert.match(route, /priorProductsPreservedAsEvidence: true/);
   assert.match(route, /supersedes_id/);
