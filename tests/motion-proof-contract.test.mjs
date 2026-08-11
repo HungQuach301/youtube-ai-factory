@@ -525,4 +525,5 @@ test("integrated sequence production creates PRODUCT_COMPLETE before independent
   assert.match(route, /COMPOSER_VERSION_REJECTED_BY_INDEPENDENT_AUDIT/);
   assert.match(route, /production loop closed/);
   assert.match(page, /Run independent audit · request 105/);
+  assert.match(page, /item\.audit\?\.findings\?\.\[0\].*findingText\(item\.audit\.findings\[0\]\)/);
 });
