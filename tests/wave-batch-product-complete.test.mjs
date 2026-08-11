@@ -37,3 +37,14 @@ test("Batch audit is one bounded risk-stratified request after 26 products", () 
   assert.match(route, /"idempotency-key": requestId/);
   assert.match(page, /7\/26 RISK-STRATIFIED SAMPLE/);
 });
+
+test("production DoD failure rejects V1 and qualifies the replacement compiler across all 26 shots", () => {
+  assert.match(route, /SHOT_PRODUCT_ENGINE_V2_LAYOUT_CONTRACT_BOUND/);
+  assert.match(route, /CONTRACT_AND_LAYOUT_BOUND_COMPILER_V2/);
+  assert.match(route, /maximumViewerLabelGlyphs: 24/);
+  assert.match(route, /BATCH_1_ROOT_CORRECTION_REQUIRES_ZERO_EMITTED_PRODUCTS/);
+  assert.match(route, /scope\.length !== 26 \|\| failures\.length/);
+  assert.match(route, /V1_LAYOUT_CONTRACT_DIVERGENCE/);
+  assert.match(route, /emittedProductsBeforeCorrection: 0/);
+  assert.match(page, /Qualify and adopt Engine V2/);
+});

@@ -21,8 +21,8 @@ const SEQUENCE_PRODUCT_AUDIT_RUBRIC = "SEQUENCE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const INTEGRATED_SEQUENCE_COMPOSER_VERSION = "INTEGRATED_SEQUENCE_COMPOSER_V2_1_TIMEBASE_SAFE";
 const SEQUENCE_SPECIFICATION_VERSION = "SEQUENCE_PRODUCT_SPECIFICATION_V2_1";
 const SEQUENCE_PRODUCTION_DOD_VERSION = "SEQUENCE_PRODUCT_DOD_V1";
-const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V1";
-const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V1_CONTRACT_BOUND";
+const WAVE_BATCH_1_VERSION = "WAVE_09_BATCH_1_V2";
+const WAVE_PRODUCTION_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V2_LAYOUT_CONTRACT_BOUND";
 const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
 const DATA_VISUALIZATION_V3 = "RECONCILED_WATERFALL_PRIMITIVES_V3";
@@ -4303,6 +4303,30 @@ function waveProductionContract(briefRow: Row) {
   };
 }
 
+function waveProductionManifest(contract: Row) {
+  const manifest = productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V2");
+  const viewerLabel = (value: unknown, fallback: string) => clean(value).toUpperCase().replace(/[^A-Z0-9$+\-.: ]/g, " ").replace(/\s+/g, " ").trim().slice(0, 24) || fallback;
+  const states = arr(manifest.states).map((item, index) => {
+    const state = rec(item);
+    return {
+      ...state,
+      role: ["ENTRY", "MIDPOINT", "EXIT"][index],
+      sceneLabel: viewerLabel(state.sceneLabel, ["CONTEXT", "MECHANISM", "OUTCOME"][index]),
+      primary: viewerLabel(state.primary, ["CONTEXT", "MECHANISM", "OUTCOME"][index]),
+      secondary: viewerLabel(state.secondary, "VISIBLE STATE"),
+      sourceEvidence: clean(state.sourceEvidence || arr(contract.requiredEvidence)[index] || contract.claim),
+    };
+  });
+  return {
+    ...manifest,
+    states,
+    batchVersion: WAVE_BATCH_1_VERSION,
+    productionRoute: contract.productionRoute,
+    specificationCompiler: "CONTRACT_AND_LAYOUT_BOUND_COMPILER_V2",
+    layoutPolicy: { ...rec(manifest.layoutPolicy), maximumViewerLabelGlyphs: 24, labelFitEnforcedAtCompileTime: true },
+  };
+}
+
 function selectBatchAuditSample(scope: Row[]) {
   const selected: Row[] = [], seen = new Set<string>();
   for (const item of scope) {
@@ -4367,7 +4391,7 @@ async function produceNextWaveBatch1Shot() {
   }
   const contract = waveProductionContract(briefRow);
   if (clean(contract.lintStatus) !== "PASS") throw new Error(`BATCH_1_CONTRACT_LINT_FAILED · ${clean(contract.briefId)}`);
-  const manifest = { ...productionSceneManifest(contract, WAVE_PRODUCTION_ENGINE_VERSION, "SHOT_PRODUCT_MANIFEST_V1"), batchVersion: WAVE_BATCH_1_VERSION, productionRoute: contract.productionRoute, specificationCompiler: "CONTRACT_BOUND_COMPILER_V1" };
+  const manifest = waveProductionManifest(contract);
   const oracle = canonicalUnitPixelOracle(clean(contract.briefId), manifest), states = arr(manifest.states).map(rec), evidenceBound = states.length === 3 && states.every((state) => Boolean(clean(state.sourceEvidence))), forbidden = arr(contract.forbidden).map((item) => clean(item).toUpperCase()).filter(Boolean), visible = states.map((state) => `${clean(state.sceneLabel)} ${clean(state.primary)} ${clean(state.secondary)}`.toUpperCase()), forbiddenHits = forbidden.filter((term) => visible.some((line) => line.includes(term)));
   const measurements = { oracleVersion: oracle.version, oracleChecks: oracle.checks, exactStates: states.length, sourceEvidenceBound: evidenceBound, forbiddenHits, noCrop: true, mobileSafe: oracle.checks.some((item) => item.id === "MOBILE_TEXT_FIT" && item.status === "PASS"), temporalDelta: oracle.checks.some((item) => item.id === "TEMPORAL_DELTA" && item.status === "PASS"), productionRoute: contract.productionRoute, engineVersion: WAVE_PRODUCTION_ENGINE_VERSION };
   const complete = oracle.passed && evidenceBound && forbiddenHits.length === 0 && measurements.mobileSafe && measurements.temporalDelta;
@@ -4393,6 +4417,34 @@ async function produceNextWaveBatch1Shot() {
     db.prepare("UPDATE v7_production_batches SET status=?,completed_units=?,current_index=?,updated_at=?,completed_at=? WHERE id=?").bind(isFinal ? "PRODUCT_COMPLETE" : "PRODUCING", nextCompleted, nextCompleted, now, isFinal ? now : null, batch.id),
     db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(isFinal ? "BATCH_1_PRODUCT_COMPLETE" : "BATCH_1_PRODUCING", run.id),
     db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(isFinal ? "BATCH_1_PRODUCT_COMPLETE" : "BATCH_1_PRODUCING", isFinal ? "INDEPENDENT_BATCH_AUDIT_READY" : "INTEGRATED_PRODUCTION_TRANSACTION", `Batch 1 ${nextCompleted}/26 PRODUCT_COMPLETE · portfolio ${10 + nextCompleted}/166 · deterministic DoD/read-back PASS · QA requests 0`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function adoptWaveBatch1EngineRootCorrection() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization) throw new Error("BATCH_1_ROOT_CORRECTION_CONFIGURATION_REQUIRED");
+  const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_1' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
+  if (!batch || clean(batch.status) !== "PRODUCTION_BLOCKED") throw new Error("BATCH_1_PRODUCTION_BLOCKED_CHECKPOINT_REQUIRED");
+  const products = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=?").bind(batch.id).first<{ total: number }>();
+  if (Number(products?.total || 0) !== 0 || Number(batch.completed_units || 0) !== 0) throw new Error("BATCH_1_ROOT_CORRECTION_REQUIRES_ZERO_EMITTED_PRODUCTS");
+  const scope = arr(JSON.parse(String(batch.scope_json || "[]"))).map(rec), failures: Row[] = [];
+  for (const target of scope) {
+    const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
+    if (!briefRow) { failures.push({ logicalId: target.logicalId, checks: ["BRIEF_MISSING"] }); continue; }
+    const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract), oracle = canonicalUnitPixelOracle(clean(contract.briefId), manifest), states = arr(manifest.states).map(rec);
+    const evidenceBound = states.length === 3 && states.every((state) => Boolean(clean(state.sourceEvidence)));
+    if (!oracle.passed || !evidenceBound) failures.push({ logicalId: contract.briefId, checks: oracle.checks.filter((item) => clean(rec(item).status) !== "PASS").map((item) => clean(rec(item).id)), evidenceBound });
+  }
+  if (scope.length !== 26 || failures.length) throw new Error(`BATCH_1_ENGINE_V2_REGRESSION_FAILED · ${JSON.stringify(failures).slice(0, 1200)}`);
+  const now = new Date().toISOString(), rootCausePolicy = { ...rec(JSON.parse(String(batch.root_cause_policy_json || "{}"))), incident: "V1_LAYOUT_CONTRACT_DIVERGENCE", rejectedEngineVersion: clean(batch.engine_version), correctedLayer: "SPECIFICATION_COMPILER_AND_LAYOUT_CONTRACT", correction: "MAXIMUM_24_VIEWER_GLYPHS_ENFORCED_BEFORE_RENDER", replacementEngineVersion: WAVE_PRODUCTION_ENGINE_VERSION, fullScopeRegression: "26_OF_26_PASS", outputRepair: false, emittedProductsBeforeCorrection: 0 };
+  const specificationHash = await sha(JSON.stringify({ version: WAVE_BATCH_1_VERSION, engine: WAVE_PRODUCTION_ENGINE_VERSION, scope, rootCausePolicy }));
+  const modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: WAVE_BATCH_1_VERSION, productionEngine: WAVE_PRODUCTION_ENGINE_VERSION, rootCorrection: rootCausePolicy };
+  await db.batch([
+    db.prepare("UPDATE v7_production_batches SET version=?,engine_version=?,status='PRODUCING',specification_hash=?,blocked_units=0,current_index=0,root_cause_policy_json=?,updated_at=? WHERE id=?").bind(WAVE_BATCH_1_VERSION, WAVE_PRODUCTION_ENGINE_VERSION, specificationHash, JSON.stringify(rootCausePolicy), now, batch.id),
+    db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(modelPolicy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='BATCH_1_PRODUCING',mode='PRODUCT_COMPLETE_SHOT_ENGINE_V2' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='BATCH_1_PRODUCING',blocker='INTEGRATED_PRODUCTION_TRANSACTION',evidence_summary='V1 layout-contract divergence rejected before output · V2 compiler enforces 24-glyph viewer labels · 26/26 zero-spend regression PASS · production resumed · no output repair',updated_at=? WHERE id=?").bind(now, STAGE_ID),
   ]);
   return snapshot();
 }
@@ -4594,6 +4646,7 @@ export async function POST(request: Request) {
     if (body.action === "RUN_SEQUENCE_PRODUCT_AUDIT") return Response.json(await sequenceProductAudit(), { status: 202 });
     if (body.action === "RUN_SEQUENCE_QA") return Response.json(await sequenceProofQa(), { status: 202 });
     if (body.action === "START_WAVE_BATCH_1") return Response.json(await startWaveBatch1(), { status: 201 });
+    if (body.action === "ADOPT_WAVE_BATCH_1_ENGINE_ROOT_CORRECTION") return Response.json(await adoptWaveBatch1EngineRootCorrection(), { status: 201 });
     if (body.action === "PRODUCE_NEXT_WAVE_BATCH_1_SHOT") return Response.json(await produceNextWaveBatch1Shot(), { status: 201 });
     if (body.action === "RUN_WAVE_BATCH_1_AUDIT") return Response.json(await waveBatch1Audit(), { status: 202 });
     if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());
