@@ -246,6 +246,33 @@ test("V19 independent audit firewall is capability and committed-lineage bound",
   assert.match(route, /currentDurableIntent/);
 });
 
+test("V19 audit rejection produces a full-scope V20 executable semantic process", () => {
+  for (const control of [
+    "SHOT_PRODUCT_ENGINE_V20_EXECUTABLE_SEMANTIC_OBLIGATION_COMPILER",
+    "V20_1_CLAUSE_ROLE_STATE_CONTAINMENT_COMPILER",
+    "EXECUTABLE_SEMANTIC_SCENE_SPECIFICATION_V20",
+    "CLAUSE_ROLE_STATE_CONTAINMENT_COMPILER",
+    "EXPLICIT_MOVING_SUBJECT_ORIGIN_DESTINATION_AND_FORBIDDEN_DESTINATION",
+    "AUDIENCE_VISIBLE_STATE_ASSERTIONS",
+    "INTENDED_TARGET_CONTAINMENT_MEASUREMENT",
+    "FORBIDDEN_DESTINATION_OCCUPANCY_MEASUREMENT",
+    "keywordCardFallbackForbidden",
+    "semanticAssertionsAudienceVisible",
+    "semanticContainmentFailures",
+    "forbiddenDestinationViolations",
+    "PREFLIGHT_WAVE_BATCH_2_V20_SEMANTIC_ACTIVATION",
+    "ADOPT_WAVE_BATCH_2_V20_SEMANTIC_PROCESS_CORRECTION",
+    "50_PRODUCTS_150_FRAMES_EXECUTABLE_SEMANTIC_OBLIGATIONS_MEASURED",
+    "v8ThroughV19ProductsPreservedAsEvidence: true",
+  ]) assert.match(route, new RegExp(control));
+  assert.match(route, /sceneMotionProof\.originVisible===true/);
+  assert.match(route, /sceneMotionProof\.destinationContainmentVisible===true/);
+  assert.match(route, /sceneMotionProof\.forbiddenDestinationNeverOccupied===true/);
+  assert.match(route, /adversarial\.pass === 10/);
+  assert.match(route, /semanticObligationCoverage === 50/);
+  assert.doesNotMatch(route.match(/function contractNativeSceneSpecificationV20[\s\S]*?function waveProductionManifest/)?.[0] || "", /MP-\d{3}|auditSample\[|auditedCompositions|auditedBlueprint/);
+});
+
 test("V13 through V18 preserve strengths, rejection causes, and inherited capabilities", () => {
   for (const version of ["V13", "V14", "V15", "V16", "V17", "V18"]) assert.match(route, new RegExp(`version: "${version}"`));
   for (const score of [27, 28, 46, 59, 74, 76]) assert.match(route, new RegExp(`auditScore: ${score}`));
