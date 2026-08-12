@@ -336,6 +336,7 @@ async function snapshot() {
   const stage = await db.prepare("SELECT * FROM v7_stage_states WHERE id=?").bind(STAGE_ID).first<Row>();
   const artifact = run ? await db.prepare("SELECT content_json,content_hash,runtime_key,drive_file_id FROM v7_material_artifacts WHERE run_id=?").bind(run.id).first<Row>() : null;
   const requestRows = authorization ? await rows(db, "SELECT * FROM v7_material_requests WHERE authorization_id=? ORDER BY created_at DESC", authorization.id) : [];
+  const usageRows = run ? await rows(db, "SELECT * FROM v7_ai_usage_events WHERE run_id=? ORDER BY measured_at DESC", run.id) : [];
   const files = authorization ? await rows(db, "SELECT * FROM v7_material_files WHERE authorization_id=? ORDER BY created_at ASC", authorization.id) : [];
   const audits = authorization ? await rows(db, "SELECT * FROM v7_material_audits WHERE authorization_id=? ORDER BY created_at ASC", authorization.id) : [];
   const tournaments = authorization ? await rows(db, "SELECT * FROM v7_material_tournaments WHERE authorization_id=? ORDER BY created_at ASC", authorization.id) : [];
@@ -401,6 +402,10 @@ async function snapshot() {
   let sequenceProductContent: Row = {}; try { sequenceProductContent = sequenceProductEvidence ? rec(JSON.parse(String(sequenceProductEvidence.content_json || "{}"))) : {}; } catch { sequenceProductContent = {}; }
   const motionJob = mediaJobs.find((job) => job.job_type === "MOTION_PROOF_RENDER");
   const productionQuarantined = reliabilityBaseline?.execution_state === "FROZEN";
+  const responseIds = new Set(requestRows.map((row) => clean(row.provider_response_id)).filter(Boolean));
+  const matchedUsageRows = usageRows.filter((row) => responseIds.has(clean(row.provider_response_id)));
+  const costGovernancePolicy = rec(JSON.parse(String(authorization?.model_policy_json || "{}")).costGovernance || {});
+  const estimatedCostUsd = requestRows.reduce((sum, row) => sum + Number(row.actual_cost_usd || 0), 0);
   const nextGate = productionQuarantined ? "ARCHETYPE_CERTIFICATION_REQUIRED" : sourceEvidenceReady
     ? compositeActive ? "COMPOSITE_TOURNAMENT_RUNNING"
       : compositeRepairAvailable ? "COMPOSITE_REPAIR"
@@ -446,7 +451,8 @@ async function snapshot() {
     canary: controlledCanary ? { id: controlledCanary.id, version: controlledCanary.version, status: controlledCanary.status, queue: JSON.parse(String(controlledCanary.queue_json || "[]")), currentIndex: Number(controlledCanary.current_index), currentBriefId: controlledCanary.current_brief_id || null, releasedUnits: Number(controlledCanary.released_units), passedUnits: Number(controlledCanary.passed_units), failedUnits: Number(controlledCanary.failed_units), requestsBefore: Number(controlledCanary.requests_before), costBefore: Number(controlledCanary.cost_before), requestBudget: Number(controlledCanary.request_budget), costBudget: Number(controlledCanary.cost_budget), activeRequestPeak: Number(controlledCanary.active_request_peak), gates: JSON.parse(String(controlledCanary.gate_json || "[]")), currentAudit: controlledCanaryAudit ? { status: controlledCanaryAudit.status, score: Number(controlledCanaryAudit.score), dimensions: JSON.parse(String(controlledCanaryAudit.dimensions_json || "{}")), findings: JSON.parse(String(controlledCanaryAudit.findings_json || "[]")), providerResponseId: controlledCanaryAudit.provider_response_id } : null, createdAt: controlledCanary.created_at, updatedAt: controlledCanary.updated_at } : null,
     recovery: recovery ? { id: recovery.id, version: recovery.version, status: recovery.status, snapshotHash: recovery.snapshot_hash, rootCause: JSON.parse(String(recovery.root_cause_json || "{}")), e2e: JSON.parse(String(recovery.e2e_json || "{}")), faultMatrix: JSON.parse(String(recovery.fault_matrix_json || "[]")), requestsBefore: Number(recovery.requests_before), requestsAfter: Number(recovery.requests_after), costBefore: Number(recovery.cost_before), costAfter: Number(recovery.cost_after), simulatedRequestSequence: Number(recovery.simulated_request_sequence), requestIntent: recoveryIntent ? { id: recoveryIntent.id, status: recoveryIntent.status, sequence: Number(recoveryIntent.simulated_sequence), idempotencyKey: recoveryIntent.idempotency_key, payloadHash: recoveryIntent.payload_hash } : null, outbox: recoveryOutbox ? { id: recoveryOutbox.id, status: recoveryOutbox.status, eventType: recoveryOutbox.event_type } : null, events: recoveryEvents.map((event) => ({ status: event.status, failureCode: event.failure_code || null, failedTransition: event.failed_transition || null, failedGate: event.failed_gate || null, expectedState: event.expected_state || null, actualState: event.actual_state || null, ledgerStatus: event.ledger_status || null, providerDispatchStatus: event.provider_dispatch_status || null, createdAt: event.created_at })), createdAt: recovery.created_at, updatedAt: recovery.updated_at } : null,
     pilot: { materialized: uniqueMaterialized, audited: audits.filter((item) => ["PASS", "REPAIR_REQUIRED"].includes(String(item.status))).length, total: pilotBriefs.length, percent: pilotBriefs.length ? Math.round((uniqueMaterialized + audits.length) / (pilotBriefs.length * 2) * 100) : 0, items },
-    requestLedger: { total: requestRows.length, planned: requestRows.filter((row) => row.status === "PLANNED").length, active: requestRows.filter((row) => ["QUEUED", "IN_PROGRESS"].includes(String(row.status))).length, complete: requestRows.filter((row) => row.status === "COMPLETE").length, incomplete: requestRows.filter((row) => row.status === "BLOCKED_INCOMPLETE").length, actualCostUsd: requestRows.reduce((sum, row) => sum + Number(row.actual_cost_usd || 0), 0), recent: requestRows.slice(0, 20).map((row) => ({ id: row.id, briefId: row.brief_id, phase: row.phase, provider: row.provider, modelId: row.model_id, status: row.status, inputTokens: Number(row.input_tokens), outputTokens: Number(row.output_tokens), reasoningTokens: Number(row.reasoning_tokens), actualCostUsd: Number(row.actual_cost_usd), error: row.error, createdAt: row.created_at })) },
+    requestLedger: { total: requestRows.length, planned: requestRows.filter((row) => row.status === "PLANNED").length, active: requestRows.filter((row) => ["QUEUED", "IN_PROGRESS"].includes(String(row.status))).length, complete: requestRows.filter((row) => row.status === "COMPLETE").length, incomplete: requestRows.filter((row) => row.status === "BLOCKED_INCOMPLETE").length, actualCostUsd: estimatedCostUsd, recent: requestRows.slice(0, 20).map((row) => ({ id: row.id, briefId: row.brief_id, phase: row.phase, provider: row.provider, modelId: row.model_id, status: row.status, providerResponseId: row.provider_response_id || null, inputTokens: Number(row.input_tokens), outputTokens: Number(row.output_tokens), reasoningTokens: Number(row.reasoning_tokens), actualCostUsd: Number(row.actual_cost_usd), error: row.error, createdAt: row.created_at })) },
+    costGovernance: { version: "COST_GOVERNANCE_V2", estimatedCostUsd, estimationBasis: "PROVIDER_REPORTED_USAGE_X_CONFIGURED_RATE", providerReportedUsage: { status: responseIds.size > 0 && matchedUsageRows.length === responseIds.size ? "VERIFIED_FROM_RESPONSE_PAYLOADS" : responseIds.size > 0 ? "PARTIALLY_RECONCILED" : "NO_PROVIDER_RESPONSES", responseIds: responseIds.size, usageRecords: usageRows.length, matchedResponses: matchedUsageRows.length, inputTokens: matchedUsageRows.reduce((sum, row) => sum + Number(row.input_tokens || 0), 0), outputTokens: matchedUsageRows.reduce((sum, row) => sum + Number(row.output_tokens || 0), 0), reasoningTokens: matchedUsageRows.reduce((sum, row) => sum + Number(row.reasoning_tokens || 0), 0) }, billingVerifiedCostUsd: null, billingVerificationStatus: "OPENAI_ORGANIZATION_COSTS_NOT_CONNECTED", reconciliationStatus: clean(costGovernancePolicy.reconciliationStatus) || "PROVIDER_USAGE_RECORDED_BILLING_PENDING", lastReconciledAt: costGovernancePolicy.lastReconciledAt || null, actualBilledCostClaimProhibited: true },
     sequenceProof: sequenceProof ? { id: sequenceProof.id, status: sequenceProof.status, version: sequenceProof.version, durationSeconds: Number(sequenceProof.duration_seconds), fps: Number(sequenceProof.fps), unitCount: Number(sequenceProof.unit_count), frameCount: Number(sequenceProof.frame_count), score: Number(sequenceProof.score), tier: clean(sequenceProof.tier) || "BLOCKED", dimensions: rec(JSON.parse(String(sequenceProof.dimensions_json || "{}"))), findings: arr(JSON.parse(String(sequenceProof.findings_json || "[]"))), previewUrl: sequenceProof.sequence_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(sequenceProof.sequence_file_id))}` : null, sampleFrames: arr(sequenceContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), logicalId: clean(frame.logicalId), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })), providerResponseId: sequenceProof.provider_response_id || null, createdAt: sequenceProof.created_at, updatedAt: sequenceProof.updated_at } : null,
     sequenceProduct: sequenceProduct ? { id: sequenceProduct.id, status: sequenceProduct.status, composerVersion: sequenceProduct.composer_version, iteration: Number(sequenceProduct.iteration), maxIterations: Number(sequenceProduct.max_iterations), specification: rec(JSON.parse(String(sequenceProduct.specification_json || "{}"))), specificationHash: clean(sequenceProduct.specification_hash), sourceManifestHash: clean(sequenceProduct.source_manifest_hash), measurements: rec(JSON.parse(String(sequenceProduct.measurements_json || "{}"))), corrections: arr(JSON.parse(String(sequenceProduct.corrections_json || "[]"))), contentHash: sequenceProduct.content_hash || null, previewUrl: sequenceProduct.product_file_id ? `/api/factory/material-production?file=${encodeURIComponent(String(sequenceProduct.product_file_id))}` : null, sampleFrames: arr(sequenceProductContent.frames).map(rec).map((frame) => ({ role: clean(frame.role), logicalId: clean(frame.logicalId), timestampSeconds: Number(frame.timestampSeconds), fileId: clean(frame.fileId), previewUrl: `/api/factory/material-production?file=${encodeURIComponent(clean(frame.fileId))}` })), audit: sequenceProductAudit ? { id: sequenceProductAudit.id, rubric: sequenceProductAudit.rubric_version, status: sequenceProductAudit.status, score: Number(sequenceProductAudit.score), tier: clean(sequenceProductAudit.tier), dimensions: rec(JSON.parse(String(sequenceProductAudit.dimensions_json || "{}"))), findings: arr(JSON.parse(String(sequenceProductAudit.findings_json || "[]"))), requestId: sequenceProductAudit.request_id || null, providerResponseId: sequenceProductAudit.provider_response_id || null, createdAt: sequenceProductAudit.created_at, completedAt: sequenceProductAudit.completed_at || null } : null, completedAt: sequenceProduct.completed_at || null, createdAt: sequenceProduct.created_at, updatedAt: sequenceProduct.updated_at } : null,
     productionBatch: productionBatch ? {
@@ -5320,6 +5326,51 @@ async function waveBatch2Audit() {
   return snapshot();
 }
 
+async function reconcileCostGovernance() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.OPENAI_API_KEY) throw new Error("COST_GOVERNANCE_CONFIGURATION_REQUIRED");
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("COST_GOVERNANCE_ACTIVE_REQUESTS_MUST_BE_ZERO");
+  const audits = await rows(db, "SELECT provider_response_id FROM v7_batch_product_audits WHERE authorization_id=? AND provider_response_id IS NOT NULL ORDER BY completed_at DESC LIMIT 3", authorization.id);
+  const providerResponseIds = [...new Set(audits.map((item) => clean(item.provider_response_id)).filter(Boolean))];
+  if (providerResponseIds.length === 0) throw new Error("COST_GOVERNANCE_PROVIDER_EVIDENCE_REQUIRED");
+  let inputTokens = 0, outputTokens = 0, reasoningTokens = 0, estimatedCostUsd = 0;
+  for (const providerResponseId of providerResponseIds) {
+    const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(providerResponseId)}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error(`COST_GOVERNANCE_PROVIDER_READBACK_FAILED · ${response.status} · ${providerResponseId.slice(0, 14)}`);
+    const payload = await response.json() as Row;
+    if (clean(payload.id) !== providerResponseId || clean(payload.status) !== "completed") throw new Error(`COST_GOVERNANCE_PROVIDER_EVIDENCE_MISMATCH · ${providerResponseId.slice(0, 14)}`);
+    const usage = await recordOpenAIUsage({ db, programId: PROGRAM_ID, runId: clean(run.id), stageKey: STAGE, costType: "BILLING_LINEAGE_RECONCILIATION", payload, fallbackModel: DEFAULT_MODEL });
+    inputTokens += usage.inputTokens;
+    outputTokens += usage.outputTokens;
+    reasoningTokens += usage.reasoningTokens;
+    estimatedCostUsd += usage.actualUsd;
+  }
+  const now = new Date().toISOString(), modelPolicy = rec(JSON.parse(String(authorization.model_policy_json || "{}")));
+  modelPolicy.costGovernance = {
+    version: "COST_GOVERNANCE_V2",
+    reconciliationStatus: "PROVIDER_RESPONSE_READBACK_PASS_BILLING_PENDING",
+    provider: "OPENAI",
+    responseReadback: "PASS",
+    responsesChecked: providerResponseIds.length,
+    inputTokens,
+    outputTokens,
+    reasoningTokens,
+    estimatedCostUsd,
+    estimationBasis: "PROVIDER_REPORTED_USAGE_X_CONFIGURED_RATE",
+    billingVerificationStatus: "OPENAI_ORGANIZATION_COSTS_NOT_CONNECTED",
+    billingVerifiedCostUsd: null,
+    actualBilledCostClaimProhibited: true,
+    providerRequestsCreated: 0,
+    lastReconciledAt: now,
+  };
+  await db.batch([
+    db.prepare("UPDATE v7_material_authorizations SET model_policy_json=?,updated_at=? WHERE id=?").bind(JSON.stringify(modelPolicy), now, authorization.id),
+    db.prepare("UPDATE v7_stage_states SET evidence_summary=?,updated_at=? WHERE id=?").bind(`Cost governance V2 · ${providerResponseIds.length} OpenAI response IDs read back PASS · provider usage reconciled · estimated cost only · Organization Costs not connected · no provider generation request`, now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
 async function waveBatch1Audit() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("BATCH_1_AUDIT_CONFIGURATION_REQUIRED");
@@ -5587,6 +5638,7 @@ export async function POST(request: Request) {
     if (body.action === "ADOPT_WAVE_BATCH_2_V12_ENGINE_ROOT_CORRECTION") return Response.json(await adoptWaveBatch2V12EngineRootCorrection(), { status: 201 });
     if (body.action === "PRODUCE_NEXT_WAVE_BATCH_2_SHOT") return Response.json(await produceNextWaveBatch2Shot(), { status: 201 });
     if (body.action === "RUN_WAVE_BATCH_2_AUDIT") return Response.json(await waveBatch2Audit(), { status: 202 });
+    if (body.action === "RECONCILE_COST_GOVERNANCE") return Response.json(await reconcileCostGovernance(), { status: 200 });
     if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
     if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const route = await readFile(new URL("../app/api/factory/material-production/route.ts", import.meta.url), "utf8");
+const usage = await readFile(new URL("../lib/ai-usage.ts", import.meta.url), "utf8");
 const migration = await readFile(new URL("../drizzle/0029_wave_batch_product_complete.sql", import.meta.url), "utf8");
 
 test("Batch 1 expands exactly 26 new shots to a 36-of-166 portfolio", () => {
@@ -68,4 +69,15 @@ test("failed independent QA replaces the semantic production system and reproduc
   assert.match(route, /wave-09-batch-1-engine-v7/);
   assert.match(route, /DUPLICATE_RENDER_SPECIFICATION/);
   assert.match(route, /WAVE_MANIFEST_QUALIFICATION_V7/);
+});
+
+test("cost governance separates provider usage estimates from billing verification", () => {
+  assert.match(usage, /ESTIMATED_FROM_PROVIDER_USAGE/);
+  assert.doesNotMatch(usage, /pricingStatus: rates\.known \? "MEASURED"/);
+  assert.match(route, /COST_GOVERNANCE_V2/);
+  assert.match(route, /PROVIDER_REPORTED_USAGE_X_CONFIGURED_RATE/);
+  assert.match(route, /OPENAI_ORGANIZATION_COSTS_NOT_CONNECTED/);
+  assert.match(route, /actualBilledCostClaimProhibited: true/);
+  assert.match(route, /RECONCILE_COST_GOVERNANCE/);
+  assert.match(route, /providerRequestsCreated: 0/);
 });

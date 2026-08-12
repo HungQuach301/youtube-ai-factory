@@ -100,7 +100,9 @@ export function measureOpenAIUsage(payload: UsageRecord, fallbackModel = "gpt-5.
     tokenCostUsd,
     toolCostUsd,
     actualUsd: tokenCostUsd + toolCostUsd,
-    pricingStatus: rates.known ? "MEASURED" : "MODEL_RATE_REQUIRED",
+    // The Responses API reports usage, not the amount posted to an invoice.
+    // USD here is therefore an estimate until Organization Costs is reconciled.
+    pricingStatus: rates.known ? "ESTIMATED_FROM_PROVIDER_USAGE" : "MODEL_RATE_REQUIRED",
     pricingSource: PRICING_SOURCE,
     usageJson: JSON.stringify({
       usage,
@@ -126,7 +128,7 @@ export async function recordOpenAIUsage(args: {
   // One immutable cost event per provider response. A run-level key would
   // overwrite earlier requests and make the Cost Center under-report spend.
   const costEventId = `${usage.providerResponseId}-COST`;
-  const note = usage.pricingStatus === "MEASURED"
+  const note = usage.pricingStatus === "ESTIMATED_FROM_PROVIDER_USAGE"
     ? `${usage.model} · ${usage.inputTokens.toLocaleString()} input (${usage.cachedInputTokens.toLocaleString()} cached) · ${usage.outputTokens.toLocaleString()} output (${usage.reasoningTokens.toLocaleString()} reasoning) · ${usage.webSearchCalls} web searches`
     : `${usage.model} usage captured; add a verified model rate to calculate USD`;
   await args.db.batch([
