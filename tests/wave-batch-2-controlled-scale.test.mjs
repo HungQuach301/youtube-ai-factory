@@ -63,6 +63,7 @@ test("Batch 2 V9 audit is lineage-qualified and exactly-once across reconnects",
   for (const control of [
     "WAVE_AUDIT_CONTROL_V3_DURABLE_IDEMPOTENT_INTENT",
     "50_OF_50_CONTRACTS_AND_150_OF_150_UNIQUE_FRAMES_PASS",
+    "rejectedBatch\\?\\.status",
     "ENGINE_ROOT_CAUSE_PRESERVED",
     "REQUEST_IDEMPOTENCY_CONFLICT",
     "BATCH_2_AUDIT_INTENT_CONFLICT",

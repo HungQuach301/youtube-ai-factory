@@ -2690,7 +2690,8 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
       && clean(rootPolicy.fullScopeRegression) === "50_OF_50_CONTRACTS_AND_150_OF_150_UNIQUE_FRAMES_PASS"
       && rootPolicy.priorProductsPreservedAsEvidence === true
       && rootPolicy.retryPriorAudit === false
-      && clean(rejectedAudit?.status) === "ENGINE_ROOT_CAUSE_PRESERVED"
+      && clean(rejectedBatch?.status) === "ENGINE_ROOT_CAUSE_PRESERVED"
+      && clean(rejectedAudit?.status) === "ENGINE_ROOT_CAUSE_REQUIRED"
       && currentDurableIntent;
     batchAuditAuthorized = Boolean(batch)
       && clean(batch?.status) === "PRODUCT_COMPLETE"
