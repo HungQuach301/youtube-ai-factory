@@ -165,30 +165,30 @@ test("failed V11 is replaced by V12 structured visual ontology with physical mot
   assert.match(route, /verifyCommittedWaveBatch2V12Activation/);
 });
 
-test("failed V15 is replaced by V16 evidence-native visual languages with pixel trace gates", () => {
+test("failed V16 is replaced by V17 exact-clause frames with pixel trace gates", () => {
   for (const control of [
-    "SHOT_PRODUCT_ENGINE_V15_CONTRACT_NATIVE_COMPOSITION_COMPILER",
     "SHOT_PRODUCT_ENGINE_V16_EVIDENCE_NATIVE_VISUAL_LANGUAGE_COMPILER",
-    "EVIDENCE_NATIVE_VISUAL_LANGUAGE_SPECIFICATION_V16",
-    "EVIDENCE_NATIVE_VISUAL_LANGUAGE_COMPILER_V16",
+    "SHOT_PRODUCT_ENGINE_V17_EXACT_CLAUSE_FRAME_COMPILER",
+    "EXACT_CLAUSE_FRAME_SPECIFICATION_V17",
+    "EXACT_CLAUSE_FRAME_COMPILER_V17",
     "ISSUER_LEDGER_CONTAINMENT",
     "RESPONSE_FOUR_BOUNDARIES",
     "CONTROLLED_SCENARIO_TABLE",
     "SCENE_SPEC_TO_PIXEL_TRACE",
     "SCENE_SPEC_LAYOUT_SAFETY",
     "SCENE_SPEC_PHYSICAL_TRANSITION",
-    "PREFLIGHT_WAVE_BATCH_2_V16_ACTIVATION",
-    "ADOPT_WAVE_BATCH_2_V16_ENGINE_ROOT_CORRECTION",
+    "PREFLIGHT_WAVE_BATCH_2_V17_ACTIVATION",
+    "ADOPT_WAVE_BATCH_2_V17_ENGINE_ROOT_CORRECTION",
     "50_SCENE_SPECS_50_PIXEL_TRACES_150_FRAMES_LAYOUT_SAFE",
   ]) assert.match(route, new RegExp(control));
   assert.match(route, /sceneSpecCoverage === 50/);
   assert.match(route, /pixelTraceCoverage === 50/);
   assert.match(route, /familyCounts\.size === 10/);
   assert.match(route, /maximumFamilyShare <= 0\.2/);
-  assert.match(route, /v8V9V10V11V12V13V14V15ProductsPreservedAsEvidence: true/);
+  assert.match(route, /v8V9V10V11V12V13V14V15V16ProductsPreservedAsEvidence: true/);
   assert.match(route, /BATCH_2_V13_ATOMIC_COMMIT_FAILED/);
   assert.match(route, /verifyCommittedWaveBatch2V13Activation/);
   assert.match(route, /WAVE_BATCH_2_V13_REJECTED_ENGINE_VERSION/);
-  assert.match(route, /rendererContract\.input === "EVIDENCE_NATIVE_VISUAL_LANGUAGE_ONLY"/);
+  assert.match(route, /rendererContract\.input === "EXACT_CLAUSE_FRAME_ONLY"/);
   assert.match(route, /tokenFallbackForbidden === true/);
 });
