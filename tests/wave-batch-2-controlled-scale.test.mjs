@@ -224,6 +224,28 @@ test("failed V18 is replaced by V19 systemic process correction rather than samp
   assert.doesNotMatch(route, /const path = \[objects\[0\], objects\[Math\.floor\(objects\.length \/ 2\)\], objects\[objects\.length - 1\]\]/);
 });
 
+test("V19 independent audit firewall is capability and committed-lineage bound", () => {
+  for (const control of [
+    "const v19SystemicCapability",
+    "const v19CommittedLineage",
+    "const v19QualifiedAudit",
+    "ADOPT_WAVE_BATCH_2_V19_SYSTEMIC_PROCESS_CORRECTION",
+    "PREFLIGHT_WAVE_BATCH_2_V19_SYSTEMIC_ACTIVATION",
+    "status='COMMITTED'",
+    "SHOT_PRODUCT_DOD_V19_SYSTEMIC",
+    "V19_3_PORT_EGRESS_COMPLETE_LAYOUT_SOLVER",
+    "50_PRODUCTS_150_FRAMES_10_ADVERSARIAL_FIXTURES_MEASURED",
+    "capability-bound committed systemic audit intent",
+  ]) assert.match(route, new RegExp(control));
+  assert.match(route, /clean\(v19Activation\?\.input_hash\) === clean\(v19Preflight\?\.input_hash\)/);
+  assert.match(route, /clean\(v19Preflight\?\.source_batch_id\) === clean\(rejectedBatch\?\.id\)/);
+  assert.match(route, /Number\(v19PreflightResult\.adversarialPass\) === 10/);
+  assert.match(route, /Number\(v19PreflightResult\.layoutSafeCoverage\) === 50/);
+  assert.match(route, /Number\(v19PreflightResult\.requestsDelta\) === 0/);
+  assert.match(route, /v13QualifiedAudit \|\| v19QualifiedAudit/);
+  assert.match(route, /currentDurableIntent/);
+});
+
 test("V13 through V18 preserve strengths, rejection causes, and inherited capabilities", () => {
   for (const version of ["V13", "V14", "V15", "V16", "V17", "V18"]) assert.match(route, new RegExp(`version: "${version}"`));
   for (const score of [27, 28, 46, 59, 74, 76]) assert.match(route, new RegExp(`auditScore: ${score}`));

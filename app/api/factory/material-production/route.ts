@@ -2728,6 +2728,14 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
       ? await db.prepare("SELECT * FROM v7_production_batches WHERE authorization_id=? AND wave_key='BATCH_2' AND engine_version=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, rejectedEngineForCurrent).first<Row>()
       : null;
     const rejectedAudit = rejectedBatch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(rejectedBatch.id).first<Row>() : null;
+    const productionDoD = rec(JSON.parse(String(batch?.production_dod_json || "{}")));
+    const v19Activation = batch && clean(batch.engine_version) === WAVE_BATCH_2_V13_ENGINE_VERSION
+      ? await db.prepare("SELECT * FROM v7_batch_activations WHERE target_batch_id=? AND action='ADOPT_WAVE_BATCH_2_V19_SYSTEMIC_PROCESS_CORRECTION' AND status='COMMITTED' ORDER BY committed_at DESC LIMIT 1").bind(batch.id).first<Row>()
+      : null;
+    const v19Preflight = batch && clean(batch.engine_version) === WAVE_BATCH_2_V13_ENGINE_VERSION
+      ? await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE target_batch_id=? AND action='PREFLIGHT_WAVE_BATCH_2_V19_SYSTEMIC_ACTIVATION' AND status='PASS' ORDER BY updated_at DESC LIMIT 1").bind(batch.id).first<Row>()
+      : null;
+    const v19PreflightResult = rec(JSON.parse(String(v19Preflight?.result_json || "{}")));
     const currentDurableIntent = Number(prior?.total || 0) === 1
       && Boolean(currentAudit)
       && ["PREPARING", "DISPATCHING"].includes(clean(currentAudit?.status))
@@ -2774,13 +2782,65 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
       && clean(rejectedBatch?.status) === "ENGINE_ROOT_CAUSE_PRESERVED"
       && clean(rejectedAudit?.status) === "ENGINE_ROOT_CAUSE_REQUIRED"
       && currentDurableIntent;
+    const v19SystemicCapability = clean(batch?.engine_version) === WAVE_BATCH_2_V13_ENGINE_VERSION
+      && clean(rootPolicy.processRevision) === WAVE_BATCH_2_V19_PROCESS_REVISION
+      && clean(rootPolicy.replacementEngineVersion) === clean(batch?.engine_version)
+      && clean(rootPolicy.fullScopeRegression) === "50_PRODUCTS_150_FRAMES_10_ADVERSARIAL_FIXTURES_MEASURED"
+      && rootPolicy.v8V9V10V11V12V13V14V15V16V17V18ProductsPreservedAsEvidence === true
+      && rootPolicy.retryPriorAudits === false
+      && clean(productionDoD.version) === "SHOT_PRODUCT_DOD_V19_SYSTEMIC"
+      && clean(productionDoD.processRevision) === WAVE_BATCH_2_V19_PROCESS_REVISION
+      && productionDoD.rootCauseVerifiedBeforeDesign === true
+      && productionDoD.semanticTopologyClassification === true
+      && productionDoD.constraintSolvedGeometry === true
+      && productionDoD.capacitySafeSlots === true
+      && productionDoD.everyPrimitiveHasEgressPort === true
+      && productionDoD.topologyDirectedMotionPath === true
+      && productionDoD.obstacleAvoidingConnectorSolver === true
+      && productionDoD.primitiveOnlyRenderer === true
+      && productionDoD.logicalIdBranchingForbidden === true
+      && productionDoD.auditSampleBranchingForbidden === true
+      && productionDoD.measuredLayoutProof === true
+      && productionDoD.mobileLegibilityMeasured === true
+      && productionDoD.fullConnectorSegmentIntersectionMeasured === true
+      && productionDoD.primitiveEgressMeasured === true
+      && productionDoD.motionPathObjectIntersectionMeasured === true
+      && productionDoD.motionPathSafeAreaMeasured === true
+      && clean(productionDoD.adversarialFixtures) === "10_OF_10_PASS"
+      && productionDoD.sharedDiagramShellForbidden === true
+      && productionDoD.clippingConnectorTextAndObjectOverlapZero === true
+      && clean(productionDoD.fullScopeRegression) === "50_OF_50_PASS";
+    const v19CommittedLineage = Boolean(v19Activation && v19Preflight)
+      && clean(v19Activation?.target_batch_id) === clean(batch?.id)
+      && clean(v19Preflight?.target_batch_id) === clean(batch?.id)
+      && clean(v19Preflight?.source_batch_id) === clean(rejectedBatch?.id)
+      && clean(v19Activation?.input_hash) === clean(v19Preflight?.input_hash)
+      && clean(v19PreflightResult.status) === "PASS"
+      && v19PreflightResult.rootCauseGate === true
+      && Number(v19PreflightResult.adversarialPass) === 10
+      && Number(v19PreflightResult.products) === 50
+      && Number(v19PreflightResult.frames) === 150
+      && Number(v19PreflightResult.grammars) === 50
+      && Number(v19PreflightResult.sceneSpecCoverage) === 50
+      && Number(v19PreflightResult.pixelTraceCoverage) === 50
+      && Number(v19PreflightResult.motionCoverage) === 50
+      && Number(v19PreflightResult.layoutSafeCoverage) === 50
+      && Number(v19PreflightResult.families) === 10
+      && Number(v19PreflightResult.maximumFamilyShare) <= 0.2
+      && Number(v19PreflightResult.requestsDelta) === 0
+      && Number(v19PreflightResult.costDelta) === 0;
+    const v19QualifiedAudit = v19SystemicCapability
+      && v19CommittedLineage
+      && clean(rejectedBatch?.status) === "ENGINE_ROOT_CAUSE_PRESERVED"
+      && clean(rejectedAudit?.status) === "ENGINE_ROOT_CAUSE_REQUIRED"
+      && currentDurableIntent;
     batchAuditAuthorized = Boolean(batch)
       && clean(batch?.status) === "PRODUCT_COMPLETE"
       && Number(batch?.total_units) === 50
       && Number(batch?.completed_units) === 50
       && Number(products?.total || 0) === 50
-      && (v8InitialAudit || v9QualifiedAudit || v10QualifiedAudit || v11QualifiedAudit || v12QualifiedAudit || v13QualifiedAudit);
-    if (!batchAuditAuthorized) throw new Error("BATCH_2_PRODUCT_AUDIT_FIREWALL · qualified V8 initial audit or lineage-bound V9/V10/V11/V12/V13/V14 durable audit intent is required");
+      && (v8InitialAudit || v9QualifiedAudit || v10QualifiedAudit || v11QualifiedAudit || v12QualifiedAudit || v13QualifiedAudit || v19QualifiedAudit);
+    if (!batchAuditAuthorized) throw new Error("BATCH_2_PRODUCT_AUDIT_FIREWALL · qualified initial, legacy lineage, or capability-bound committed systemic audit intent is required");
   }
   if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
   if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) {
