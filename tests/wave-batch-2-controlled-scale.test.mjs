@@ -179,6 +179,9 @@ test("failed V18 is replaced by V19 systemic process correction rather than samp
     "PRIMITIVE_ONLY_RENDERER",
     "RECOMPUTED_LAYOUT_AND_MOBILE_MEASUREMENTS",
     "ADVERSARIAL_FIXTURE_QUALIFICATION",
+    "V19_1_CAPACITY_SAFE_MOTION_PATH_SOLVER",
+    "CAPACITY_SAFE_SLOTS_AND_TOPOLOGY_DIRECTED_MOTION_PATH",
+    "TOPOLOGY_DIRECTED_DISTINCT_ANCHORS",
     "LOGICAL_ID_BRANCH",
     "AUDIT_SAMPLE_BRANCH",
     "FRAME_COORDINATE_PATCH",
@@ -205,6 +208,13 @@ test("failed V18 is replaced by V19 systemic process correction rather than samp
   assert.match(route, /rendererContract\.auditSampleBranchingForbidden === true/);
   assert.doesNotMatch(route.match(/function contractNativeSceneSpecification[\s\S]*?function waveProductionManifest/)?.[0] || "", /MP-\d{3}|auditedCompositions|auditedBlueprint/);
   assert.match(route, /tokenFallbackForbidden === true/);
+  assert.match(route, /function systemicMotionPath/);
+  assert.match(route, /motionPathObjectIntersectionCount/);
+  assert.match(route, /motionPathSafeAreaFailures/);
+  assert.match(route, /motionRailReserved/);
+  assert.match(route, /ZERO-SPEND-PREFLIGHT-V19-1/);
+  assert.match(route, /failedV19InitialPreflightPreservedAsEvidence: true/);
+  assert.doesNotMatch(route, /const path = \[objects\[0\], objects\[Math\.floor\(objects\.length \/ 2\)\], objects\[objects\.length - 1\]\]/);
 });
 
 test("V13 through V18 preserve strengths, rejection causes, and inherited capabilities", () => {
