@@ -29,6 +29,7 @@ const WAVE_BATCH_2_REPRODUCTION_VERSION = "WAVE_09_BATCH_2_V2_ENGINE_REPRODUCTIO
 const WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V9_CONTRACT_BOUND_SCENE_GRAPH";
 const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const WAVE_BATCH_AUDIT_TRANSPORT_VERSION = "WAVE_AUDIT_TRANSPORT_V2_VERIFIED_JPEG_PROXY";
+const WAVE_BATCH_AUDIT_CONTROL_VERSION = "WAVE_AUDIT_CONTROL_V3_DURABLE_IDEMPOTENT_INTENT";
 const RELIABILITY_BASELINE_VERSION = "STAGE09_RELIABILITY_BASELINE_V2";
 const DATA_VISUALIZATION_V3 = "RECONCILED_WATERFALL_PRIMITIVES_V3";
 const ARCHETYPE_REGRESSION_VERSION = "ARCHETYPE_REGRESSION_V2";
@@ -2612,7 +2613,7 @@ async function setModel(modelId: string, reasoningEffort: string) {
   return snapshot();
 }
 
-async function newRequest(db: DB, authorization: Row, briefId: string, phase: string, provider: string, modelId = "none", reasoning = "none", expected = 0, maximum = 0) {
+async function newRequest(db: DB, authorization: Row, briefId: string, phase: string, provider: string, modelId = "none", reasoning = "none", expected = 0, maximum = 0, stableRequestId?: string) {
   const baseline = await db.prepare("SELECT execution_state FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
   let sequenceQaAuthorized = false;
   let productAuditAuthorized = false;
@@ -2672,14 +2673,32 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
     const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE authorization_id=? AND wave_key='BATCH_2' ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
     const products = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(batch.id, batch.engine_version).first<{ total: number }>() : null;
     const prior = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_batch_product_audits WHERE batch_id=?").bind(batch.id).first<{ total: number }>() : null;
+    const currentAudit = batch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>() : null;
+    const rootPolicy = rec(JSON.parse(String(batch?.root_cause_policy_json || "{}")));
+    const rejectedBatch = clean(batch?.engine_version) === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION
+      ? await db.prepare("SELECT * FROM v7_production_batches WHERE authorization_id=? AND wave_key='BATCH_2' AND engine_version=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, WAVE_BATCH_2_ENGINE_VERSION).first<Row>()
+      : null;
+    const rejectedAudit = rejectedBatch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(rejectedBatch.id).first<Row>() : null;
+    const currentDurableIntent = Number(prior?.total || 0) === 1
+      && Boolean(currentAudit)
+      && ["PREPARING", "DISPATCHING"].includes(clean(currentAudit?.status))
+      && clean(currentAudit?.id) === clean(stableRequestId).replace(/-REQUEST$/, "")
+      && !clean(currentAudit?.provider_response_id);
+    const v8InitialAudit = clean(batch?.engine_version) === WAVE_BATCH_2_ENGINE_VERSION && currentDurableIntent;
+    const v9QualifiedAudit = clean(batch?.engine_version) === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION
+      && clean(rootPolicy.replacementEngineVersion) === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION
+      && clean(rootPolicy.fullScopeRegression) === "50_OF_50_CONTRACTS_AND_150_OF_150_UNIQUE_FRAMES_PASS"
+      && rootPolicy.priorProductsPreservedAsEvidence === true
+      && rootPolicy.retryPriorAudit === false
+      && clean(rejectedAudit?.status) === "ENGINE_ROOT_CAUSE_PRESERVED"
+      && currentDurableIntent;
     batchAuditAuthorized = Boolean(batch)
       && clean(batch?.status) === "PRODUCT_COMPLETE"
-      && clean(batch?.engine_version) === WAVE_BATCH_2_ENGINE_VERSION
       && Number(batch?.total_units) === 50
       && Number(batch?.completed_units) === 50
       && Number(products?.total || 0) === 50
-      && Number(prior?.total || 0) === 0;
-    if (!batchAuditAuthorized) throw new Error("BATCH_2_PRODUCT_AUDIT_FIREWALL · 50/50 PRODUCT_COMPLETE with zero prior audits is required");
+      && (v8InitialAudit || v9QualifiedAudit);
+    if (!batchAuditAuthorized) throw new Error("BATCH_2_PRODUCT_AUDIT_FIREWALL · qualified V8 initial audit or lineage-bound V9 durable audit intent is required");
   }
   if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
   if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) {
@@ -2692,14 +2711,16 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
   const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>();
   if (Number(usage?.total || 0) >= Number(authorization.max_remote_requests)) throw new Error("PILOT_REQUEST_CIRCUIT_OPEN");
   if (Number(usage?.cost || 0) >= Number(authorization.max_actual_spend_usd)) throw new Error("PILOT_SPEND_CIRCUIT_OPEN");
-  const id = `${authorization.run_id}-${briefId}-${phase}-${Date.now()}-${crypto.randomUUID()}`;
+  const id = stableRequestId || `${authorization.run_id}-${briefId}-${phase}-${Date.now()}-${crypto.randomUUID()}`;
   // Before v138 this field stored only the logical operation family, so a
   // bounded retry could legitimately reuse the same value. Keep those rows
   // immutable, but make every new dispatch identity request-scoped. The stable
   // operation family is still recoverable from authorization/brief/phase.
   const operationKey = `${authorization.id}:${briefId}:${phase}`;
   const idempotencyKey = `${operationKey}:request:${id}`;
-  await db.prepare("INSERT INTO v7_material_requests (id,program_id,run_id,authorization_id,brief_id,phase,provider,model_id,reasoning,status,idempotency_key,expected_output_tokens,max_output_tokens,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?,?)").bind(id, PROGRAM_ID, authorization.run_id, authorization.id, briefId, phase, provider, modelId, reasoning, idempotencyKey, expected, maximum, new Date().toISOString(), new Date().toISOString()).run();
+  await db.prepare("INSERT INTO v7_material_requests (id,program_id,run_id,authorization_id,brief_id,phase,provider,model_id,reasoning,status,idempotency_key,expected_output_tokens,max_output_tokens,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,'IN_PROGRESS',?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(id, PROGRAM_ID, authorization.run_id, authorization.id, briefId, phase, provider, modelId, reasoning, idempotencyKey, expected, maximum, new Date().toISOString(), new Date().toISOString()).run();
+  const persisted = await db.prepare("SELECT authorization_id,brief_id,phase,provider,status FROM v7_material_requests WHERE id=?").bind(id).first<Row>();
+  if (!persisted || clean(persisted.authorization_id) !== clean(authorization.id) || clean(persisted.brief_id) !== briefId || clean(persisted.phase) !== phase || clean(persisted.provider) !== provider || !["IN_PROGRESS", "QUEUED"].includes(clean(persisted.status))) throw new Error("REQUEST_IDEMPOTENCY_CONFLICT");
   return id;
 }
 
@@ -4810,7 +4831,8 @@ async function waveBatch2Audit() {
   if (!run || !authorization || !env.BUCKET || !env.OPENAI_API_KEY) throw new Error("BATCH_2_AUDIT_CONFIGURATION_REQUIRED");
   const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_2' ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>();
   if (!batch || clean(batch.status) !== "PRODUCT_COMPLETE" || Number(batch.completed_units) !== 50) throw new Error("BATCH_2_PRODUCT_COMPLETE_REQUIRED");
-  const audit = await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>();
+  const auditId = `${clean(batch.id)}-${WAVE_BATCH_AUDIT_RUBRIC}-${clean(batch.engine_version)}-${WAVE_BATCH_AUDIT_TRANSPORT_VERSION}-${WAVE_BATCH_AUDIT_CONTROL_VERSION}`;
+  let audit = await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>();
   if (audit && ["PASS", "ENGINE_ROOT_CAUSE_REQUIRED", "BLOCKED_INCOMPLETE"].includes(clean(audit.status))) return snapshot();
   if (audit?.provider_response_id) {
     const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(audit.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
@@ -4834,7 +4856,13 @@ async function waveBatch2Audit() {
     ]);
     return snapshot();
   }
-  if (audit) throw new Error(`BATCH_2_AUDIT_ORPHANED · ${clean(audit.status)}`);
+  if (audit && !["PREPARING", "DISPATCHING"].includes(clean(audit.status))) throw new Error(`BATCH_2_AUDIT_ORPHANED · ${clean(audit.status)}`);
+  if (!audit) {
+    const now = new Date().toISOString();
+    await db.prepare("INSERT INTO v7_batch_product_audits (id,program_id,run_id,authorization_id,batch_id,rubric_version,status,score,tier,dimensions_json,findings_json,root_cause_json,created_at,updated_at) VALUES (?,?,?,?,?,?,'PREPARING',0,'BLOCKED','{}','[]',?,?,?) ON CONFLICT(id) DO NOTHING").bind(auditId, PROGRAM_ID, run.id, authorization.id, batch.id, WAVE_BATCH_AUDIT_RUBRIC, JSON.stringify({ controlVersion: WAVE_BATCH_AUDIT_CONTROL_VERSION, transportVersion: WAVE_BATCH_AUDIT_TRANSPORT_VERSION, providerDispatches: 0, outputRepair: false }), now, now).run();
+    audit = await db.prepare("SELECT * FROM v7_batch_product_audits WHERE id=?").bind(auditId).first<Row>();
+  }
+  if (!audit || clean(audit.id) !== auditId || clean(audit.batch_id) !== clean(batch.id) || clean(audit.provider_response_id)) throw new Error("BATCH_2_AUDIT_INTENT_CONFLICT");
   const sample = arr(JSON.parse(String(batch.audit_sample_json || "[]"))).map(rec);
   if (sample.length !== 10) throw new Error(`BATCH_2_AUDIT_SAMPLE_INVALID · ${sample.length}/10`);
   const products = await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE' ORDER BY created_at", batch.id, batch.engine_version), productMap = new Map(products.map((item) => [clean(item.logical_brief_id), item]));
@@ -4845,7 +4873,7 @@ async function waveBatch2Audit() {
     const specification = rec(JSON.parse(String(product.specification_json || "{}"))), frameIds = arr(JSON.parse(String(product.frame_ids_json || "[]"))).map(clean);
     if (frameIds.length !== 3) throw new Error(`BATCH_2_AUDIT_FRAME_SET_INCOMPLETE · ${clean(item.logicalId)}`);
     content.push({ type: "input_text", text: `PRODUCT ${clean(item.logicalId)} · ${clean(item.archetype)} · ${clean(item.sceneKind)}\n${JSON.stringify({ contract: rec(specification.contract), manifest: { sceneType: rec(specification.manifest).sceneType, states: rec(specification.manifest).states }, measurements: JSON.parse(String(product.measurements_json || "{}")), productHash: product.product_hash })}` });
-    for (const [frameIndex, frameId] of frameIds.entries()) {
+    const frameContent = await Promise.all(frameIds.map(async (frameId, frameIndex) => {
       const file = await db.prepare("SELECT runtime_key,content_hash FROM v7_material_files WHERE id=? AND status='STORED_VERIFIED'").bind(frameId).first<Row>(), object = file ? await env.BUCKET.get(clean(file.runtime_key)) : null;
       if (!object) throw new Error(`BATCH_2_AUDIT_FRAME_MISSING · ${clean(item.logicalId)}`);
       const bytes = new Uint8Array(await new Response(object.body).arrayBuffer());
@@ -4853,12 +4881,12 @@ async function waveBatch2Audit() {
       const rendered = renderWaveSemanticScene(rec(specification.manifest), frameIndex as 0 | 1 | 2);
       if (await shaBytes(rendered.bytes) !== clean(file?.content_hash)) throw new Error(`BATCH_2_AUDIT_RENDERER_REPLAY_MISMATCH · ${clean(item.logicalId)} · ${frameIndex}`);
       const proxy = new Uint8Array(jpeg.encode({ data: rendered.pixels, width: rendered.width, height: rendered.height }, 84).data), proxyHash = await shaBytes(proxy);
-      content.push({ type: "input_text", text: `AUDIT TRANSPORT ${WAVE_BATCH_AUDIT_TRANSPORT_VERSION} · state ${frameIndex + 1}/3 · immutable source SHA-256 ${clean(file?.content_hash)} · verified replay · JPEG proxy SHA-256 ${proxyHash}` });
-      content.push({ type: "input_image", image_url: `data:image/jpeg;base64,${base64(proxy)}`, detail: "high" });
-    }
+      return [{ type: "input_text", text: `AUDIT TRANSPORT ${WAVE_BATCH_AUDIT_TRANSPORT_VERSION} · state ${frameIndex + 1}/3 · immutable source SHA-256 ${clean(file?.content_hash)} · verified replay · JPEG proxy SHA-256 ${proxyHash}` }, { type: "input_image", image_url: `data:image/jpeg;base64,${base64(proxy)}`, detail: "high" }];
+    }));
+    content.push(...frameContent.flat());
   }
-  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, "WAVE-09-BATCH-2", "WAVE_BATCH_2_PRODUCT_AUDIT", "OPENAI", setting.modelId, setting.reasoningEffort, 4000, 8000), auditId = `${clean(batch.id)}-${WAVE_BATCH_AUDIT_RUBRIC}-${clean(batch.engine_version)}-${WAVE_BATCH_AUDIT_TRANSPORT_VERSION}`, now = new Date().toISOString();
-  await db.prepare("INSERT INTO v7_batch_product_audits (id,program_id,run_id,authorization_id,batch_id,rubric_version,status,score,tier,dimensions_json,findings_json,root_cause_json,request_id,created_at,updated_at) VALUES (?,?,?,?,?,?,'DISPATCHING',0,'BLOCKED','{}','[]','{}',?,?,?)").bind(auditId, PROGRAM_ID, run.id, authorization.id, batch.id, WAVE_BATCH_AUDIT_RUBRIC, requestId, now, now).run();
+  const setting = await modelSetting(db), requestId = await newRequest(db, authorization, "WAVE-09-BATCH-2", "WAVE_BATCH_2_PRODUCT_AUDIT", "OPENAI", setting.modelId, setting.reasoningEffort, 4000, 8000, `${auditId}-REQUEST`), now = new Date().toISOString();
+  await db.prepare("UPDATE v7_batch_product_audits SET status='DISPATCHING',request_id=?,updated_at=? WHERE id=? AND status IN ('PREPARING','DISPATCHING') AND provider_response_id IS NULL").bind(requestId, now, auditId).run();
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": requestId }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 8000, input: [{ role: "user", content }], text: { format: { type: "json_schema", name: "wave_batch_2_product_audit", strict: true, schema: batchProductAuditSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); await db.prepare("UPDATE v7_batch_product_audits SET status='BLOCKED_INCOMPLETE',updated_at=?,completed_at=? WHERE id=?").bind(now, now, auditId).run(); throw new Error(`BATCH_2_AUDIT_START_FAILED · ${response.status}`); }
   const payload = await response.json() as Row;

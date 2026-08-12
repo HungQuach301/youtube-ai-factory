@@ -118,7 +118,7 @@ export default function MaterialProductionPage() {
     return () => window.clearTimeout(timer);
   }, [data?.productionBatch?.status, data?.productionBatch?.waveKey, data?.productionBatch?.completedUnits, data?.productionBatch?.totalUnits, data?.requestLedger.active, working]);
   useEffect(() => {
-    if (data?.productionBatch?.audit?.status !== "QA_RUNNING" || working) return;
+    if (!["PREPARING", "DISPATCHING", "QA_RUNNING"].includes(data?.productionBatch?.audit?.status || "") || working) return;
     const timer = window.setTimeout(() => void batchAction(data.productionBatch?.waveKey === "BATCH_2" ? "RUN_WAVE_BATCH_2_AUDIT" : "RUN_WAVE_BATCH_1_AUDIT", true), 2500);
     return () => window.clearTimeout(timer);
   }, [data?.productionBatch?.audit?.status, data?.productionBatch?.waveKey, data?.requestLedger.active, working]);

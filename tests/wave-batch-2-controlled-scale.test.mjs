@@ -58,3 +58,18 @@ test("Batch 2 V9 production uses the batch-bound engine and never falls back to 
   assert.match(route, /wave-09-batch-2-engine-v9/);
   assert.match(route, /150_OF_150/);
 });
+
+test("Batch 2 V9 audit is lineage-qualified and exactly-once across reconnects", () => {
+  for (const control of [
+    "WAVE_AUDIT_CONTROL_V3_DURABLE_IDEMPOTENT_INTENT",
+    "50_OF_50_CONTRACTS_AND_150_OF_150_UNIQUE_FRAMES_PASS",
+    "ENGINE_ROOT_CAUSE_PRESERVED",
+    "REQUEST_IDEMPOTENCY_CONFLICT",
+    "BATCH_2_AUDIT_INTENT_CONFLICT",
+  ]) assert.match(route, new RegExp(control));
+  assert.match(route, /stableRequestId \|\|/);
+  assert.match(route, /ON CONFLICT\(id\) DO NOTHING/);
+  assert.match(route, /'PREPARING',0,'BLOCKED'/);
+  assert.match(route, /providerDispatches: 0/);
+  assert.match(route, /const frameContent = await Promise\.all/);
+});
