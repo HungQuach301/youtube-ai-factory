@@ -100,7 +100,7 @@ test("failed V9 is replaced by V10 archetype-native semantic compilation", () =>
   assert.match(route, /retryPriorAudits: false/);
   assert.match(route, /ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION/);
   assert.match(route, /claim: clean\(contract\.claim\)/);
-  assert.match(route, /if\(archetypeBound\).*currentBinding\.clause/);
+  assert.match(route, /if\(archetypeBound&&!contractNativeScene\).*currentBinding\.clause/);
 });
 
 test("V10 activation is preflighted at zero spend and committed exactly once", () => {
@@ -165,12 +165,14 @@ test("failed V11 is replaced by V12 structured visual ontology with physical mot
   assert.match(route, /verifyCommittedWaveBatch2V12Activation/);
 });
 
-test("failed V12 is replaced by V13 contract-native scene specifications with pixel trace gates", () => {
+test("failed V13 is replaced by V14 executable storyboards with pixel trace gates", () => {
   for (const control of [
     "SHOT_PRODUCT_ENGINE_V13_CONTRACT_NATIVE_SCENE_SPECIFICATION",
-    "CONTRACT_NATIVE_SCENE_SPECIFICATION_V13",
-    "CONTRACT_NATIVE_SCENE_COMPILER_V13",
-    "CONTRACT_NATIVE_SCENE_SPECIFICATION",
+    "SHOT_PRODUCT_ENGINE_V14_EXECUTABLE_STORYBOARD_COMPILER",
+    "EXECUTABLE_STORYBOARD_SPECIFICATION_V14",
+    "EXECUTABLE_STORYBOARD_COMPILER_V14",
+    "DOMAIN_PRIMITIVE_REGISTRY",
+    "ACTION_TIMELINE",
     "SCENE_SPEC_TO_PIXEL_TRACE",
     "SCENE_SPEC_LAYOUT_SAFETY",
     "SCENE_SPEC_PHYSICAL_TRANSITION",
@@ -182,10 +184,10 @@ test("failed V12 is replaced by V13 contract-native scene specifications with pi
   assert.match(route, /pixelTraceCoverage === 50/);
   assert.match(route, /familyCounts\.size === 10/);
   assert.match(route, /maximumFamilyShare <= 0\.2/);
-  assert.match(route, /v8V9V10V11V12ProductsPreservedAsEvidence: true/);
+  assert.match(route, /v8V9V10V11V12V13ProductsPreservedAsEvidence: true/);
   assert.match(route, /BATCH_2_V13_ATOMIC_COMMIT_FAILED/);
   assert.match(route, /verifyCommittedWaveBatch2V13Activation/);
-  assert.match(route, /\[WAVE_BATCH_2_V12_ENGINE_VERSION, WAVE_BATCH_2_V13_ENGINE_VERSION\]\.includes\(engine\)/);
-  assert.match(route, /rendererContract\.input === "SCENE_SPECIFICATION_ONLY"/);
+  assert.match(route, /WAVE_BATCH_2_V13_REJECTED_ENGINE_VERSION/);
+  assert.match(route, /rendererContract\.input === "EXECUTABLE_STORYBOARD_ONLY"/);
   assert.match(route, /tokenFallbackForbidden === true/);
 });
