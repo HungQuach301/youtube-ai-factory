@@ -299,5 +299,13 @@ test("V20 audit rejection requires one authored semantic-plan request and an ind
   assert.match(route, /Number\(planResult\.providerDispatches\) !== 1/);
   assert.match(route, /Number\(result\.providerRequestsDelta\) !== 0/);
   assert.match(route, /clean\(rec\(semanticPlan\.validation\)\.sourceCitationGate\) !== "PASS"/);
+  assert.match(route, /SEMANTIC_PLAN_EXPLICIT_ONE_REQUEST_GRANT/);
+  assert.match(route, /oneRequestCeiling = intentRequestsBefore \+ 1/);
+  assert.match(route, /max_remote_requests=CASE WHEN max_remote_requests<\? THEN \? ELSE max_remote_requests END/);
+  assert.match(route, /BATCH_2_V21_ONE_REQUEST_GRANT_READBACK_REQUIRED/);
+  assert.match(route, /semanticPlanStableRequestId: stableRequestId/);
+  assert.match(route, /stableTransportResume: true/);
+  assert.match(route, /BATCH_2_V21_ACTIVE_REQUESTS_MUST_BE_ZERO_OR_THE_BOUND_STABLE_REQUEST/);
+  assert.match(route, /"idempotency-key": requestId/);
   assert.doesNotMatch(route.match(/function contractNativeSceneSpecificationV21[\s\S]*?function waveProductionManifest/)?.[0] || "", /MP-\d{3}|auditSample\[|auditedCompositions|auditedBlueprint/);
 });
