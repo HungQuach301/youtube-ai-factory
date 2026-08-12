@@ -50,3 +50,11 @@ test("the restored production UI exposes its original operational controls", () 
   }
   assert.match(route, /LEGACY_ACTION_UNREACHABLE_AFTER_STABILIZATION/);
 });
+
+test("V21 preparing intent resumes automatically and reports transport truthfully", () => {
+  assert.match(page, /\["PREPARING", "DISPATCHING", "AUTHORING"\]\.includes\(data\.semanticPlanControl\.status\)/);
+  assert.match(page, /SEMANTIC PLAN INTENT · one approved request reserved · awaiting stable dispatch/);
+  assert.match(page, /SEMANTIC PLAN DISPATCH · stable request recorded · awaiting provider response binding/);
+  assert.match(page, /SEMANTIC PLAN AUTHORING · one provider response bound/);
+  assert.match(page, /Resuming approved V21 intent/);
+});
