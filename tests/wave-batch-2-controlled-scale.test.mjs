@@ -86,8 +86,8 @@ test("failed V9 is replaced by V10 archetype-native semantic compilation", () =>
     "CROSS_PRODUCT_GRAMMAR_REUSE",
     "50_CONTRACTS_50_GRAMMARS_150_FRAMES_PASS",
   ]) assert.match(route, new RegExp(control));
-  assert.match(route, /familyCounts\.size < 5/);
-  assert.match(route, /maximumFamilyShare > 0\.6/);
+  assert.match(route, /familyCounts\.size >= 5/);
+  assert.match(route, /maximumFamilyShare <= 0\.6/);
   assert.match(route, /v8AndV9ProductsPreservedAsEvidence: true/);
   assert.match(route, /retryPriorAudits: false/);
   assert.match(route, /ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION/);
@@ -108,4 +108,7 @@ test("V10 activation is preflighted at zero spend and committed exactly once", (
   assert.match(route, /providerDispatches: 0/);
   assert.match(route, /requestsDelta: 0, costDelta: 0/);
   assert.match(route, /verifyCommittedWaveBatch2V10Activation/);
+  assert.match(route, /startIndex \+ 5/);
+  assert.match(route, /status: complete \? passed \? "PASS" : "FAIL" : "RUNNING"/);
+  assert.match(route, /result\.nextIndex/);
 });

@@ -4810,10 +4810,11 @@ async function waveBatch2V10ActivationContext() {
   return { env, db, run, authorization, replacementId, rejected, audit, scope, inputHash, requestsBefore: Number(usage?.total || 0), costBefore: Number(usage?.cost || 0) };
 }
 
-async function qualifyWaveBatch2V10Activation(context: Awaited<ReturnType<typeof waveBatch2V10ActivationContext>>) {
+async function qualifyWaveBatch2V10Activation(context: Awaited<ReturnType<typeof waveBatch2V10ActivationContext>>, progress: Row = {}) {
   const { db, run, scope } = context;
-  const failures: Row[] = [], productSignatures = new Map<string, string>(), frameSignatures = new Map<string, string>(), grammarSignatures = new Map<string, string>(), familyCounts = new Map<string, number>();
-  for (const target of scope) {
+  const failures = arr(progress.failures).map(rec), productSignatures = new Map(arr(progress.productSignatures).map((item) => arr(item).map(clean) as [string, string])), frameSignatures = new Map(arr(progress.frameSignatures).map((item) => arr(item).map(clean) as [string, string])), grammarSignatures = new Map(arr(progress.grammarSignatures).map((item) => arr(item).map(clean) as [string, string])), familyCounts = new Map(arr(progress.familyCounts).map((item) => [clean(arr(item)[0]), Number(arr(item)[1])] as [string, number]));
+  const startIndex = Math.max(0, Math.min(scope.length, Number(progress.nextIndex || 0))), endIndex = Math.min(scope.length, startIndex + 5);
+  for (const target of scope.slice(startIndex, endIndex)) {
     const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
     if (!briefRow) { failures.push({ logicalId: target.logicalId, checks: ["BRIEF_MISSING"] }); continue; }
     const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract, WAVE_BATCH_2_V10_ENGINE_VERSION, WAVE_BATCH_2_V10_REPRODUCTION_VERSION), qualification = waveManifestQualification(manifest), oracle = waveProductOracle(manifest), semantic = rec(manifest.semanticModel);
@@ -4825,17 +4826,21 @@ async function qualifyWaveBatch2V10Activation(context: Awaited<ReturnType<typeof
     for (const frameHash of frameHashes) { const duplicateFrame = frameSignatures.get(frameHash); if (duplicateFrame) failures.push({ logicalId: contract.briefId, checks: ["CROSS_PRODUCT_FRAME_REUSE"], duplicateOf: duplicateFrame }); else frameSignatures.set(frameHash, clean(contract.briefId)); }
     if (!qualification.passed || !oracle.passed) failures.push({ logicalId: contract.briefId, checks: [...qualification.checks, ...oracle.checks].filter((item) => clean(rec(item).status) !== "PASS").map((item) => clean(rec(item).id)) });
   }
-  const maximumFamilyShare = Math.max(...familyCounts.values()) / Math.max(1, scope.length);
-  if (scope.length !== 50 || failures.length || productSignatures.size !== 50 || frameSignatures.size !== 150 || grammarSignatures.size !== 50 || familyCounts.size < 5 || maximumFamilyShare > 0.6) throw new Error(`BATCH_2_ENGINE_V10_REGRESSION_FAILED · products ${productSignatures.size}/50 · frames ${frameSignatures.size}/150 · grammars ${grammarSignatures.size}/50 · families ${familyCounts.size} · maxShare ${maximumFamilyShare.toFixed(2)} · ${JSON.stringify(failures).slice(0, 1600)}`);
-  return { products: productSignatures.size, frames: frameSignatures.size, grammars: grammarSignatures.size, families: familyCounts.size, maximumFamilyShare, requestsDelta: 0, costDelta: 0 };
+  const maximumFamilyShare = Math.max(0, ...familyCounts.values()) / Math.max(1, endIndex), complete = endIndex === scope.length;
+  const passed = complete && scope.length === 50 && failures.length === 0 && productSignatures.size === 50 && frameSignatures.size === 150 && grammarSignatures.size === 50 && familyCounts.size >= 5 && maximumFamilyShare <= 0.6;
+  return { status: complete ? passed ? "PASS" : "FAIL" : "RUNNING", nextIndex: endIndex, total: scope.length, products: productSignatures.size, frames: frameSignatures.size, grammars: grammarSignatures.size, families: familyCounts.size, maximumFamilyShare, failures, productSignatures: [...productSignatures], frameSignatures: [...frameSignatures], grammarSignatures: [...grammarSignatures], familyCounts: [...familyCounts], requestsDelta: 0, costDelta: 0 };
 }
 
 async function preflightWaveBatch2V10Activation() {
-  const context = await waveBatch2V10ActivationContext(), result = await qualifyWaveBatch2V10Activation(context), now = new Date().toISOString();
-  const preflightId = `${context.replacementId}-ZERO-SPEND-PREFLIGHT-V1`;
-  await context.db.prepare("INSERT INTO v7_batch_activation_preflights (id,program_id,run_id,authorization_id,action,source_batch_id,source_audit_id,target_batch_id,input_hash,status,result_json,requests_before,cost_before,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,'PASS',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET source_batch_id=excluded.source_batch_id,source_audit_id=excluded.source_audit_id,input_hash=excluded.input_hash,status='PASS',result_json=excluded.result_json,requests_before=excluded.requests_before,cost_before=excluded.cost_before,updated_at=excluded.updated_at").bind(preflightId, PROGRAM_ID, context.run.id, context.authorization.id, "PREFLIGHT_WAVE_BATCH_2_V10_ACTIVATION", context.rejected.id, context.audit.id, context.replacementId, context.inputHash, JSON.stringify(result), context.requestsBefore, context.costBefore, now, now).run();
-  const readBack = await context.db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE id=? AND input_hash=? AND status='PASS'").bind(preflightId, context.inputHash).first<Row>();
-  if (!readBack) throw new Error("BATCH_2_V10_PREFLIGHT_READBACK_REQUIRED");
+  const context = await waveBatch2V10ActivationContext(), now = new Date().toISOString(), preflightId = `${context.replacementId}-ZERO-SPEND-PREFLIGHT-V1`;
+  const existing = await context.db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE id=?").bind(preflightId).first<Row>();
+  if (existing && clean(existing.input_hash) === context.inputHash && clean(existing.status) === "PASS") return snapshot();
+  const prior = existing && clean(existing.input_hash) === context.inputHash && clean(existing.status) === "RUNNING" ? rec(JSON.parse(String(existing.result_json || "{}"))) : {};
+  const result = await qualifyWaveBatch2V10Activation(context, prior);
+  await context.db.prepare("INSERT INTO v7_batch_activation_preflights (id,program_id,run_id,authorization_id,action,source_batch_id,source_audit_id,target_batch_id,input_hash,status,result_json,requests_before,cost_before,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET source_batch_id=excluded.source_batch_id,source_audit_id=excluded.source_audit_id,input_hash=excluded.input_hash,status=excluded.status,result_json=excluded.result_json,requests_before=excluded.requests_before,cost_before=excluded.cost_before,updated_at=excluded.updated_at").bind(preflightId, PROGRAM_ID, context.run.id, context.authorization.id, "PREFLIGHT_WAVE_BATCH_2_V10_ACTIVATION", context.rejected.id, context.audit.id, context.replacementId, context.inputHash, result.status, JSON.stringify(result), context.requestsBefore, context.costBefore, now, now).run();
+  const readBack = await context.db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE id=? AND input_hash=?").bind(preflightId, context.inputHash).first<Row>();
+  if (!readBack || clean(readBack.status) !== clean(result.status) || Number(rec(JSON.parse(String(readBack.result_json || "{}"))).nextIndex) !== Number(result.nextIndex)) throw new Error("BATCH_2_V10_PREFLIGHT_READBACK_REQUIRED");
+  if (clean(result.status) === "FAIL") throw new Error(`BATCH_2_ENGINE_V10_REGRESSION_FAILED · products ${result.products}/50 · frames ${result.frames}/150 · grammars ${result.grammars}/50 · families ${result.families} · maxShare ${Number(result.maximumFamilyShare).toFixed(2)} · ${JSON.stringify(result.failures).slice(0, 1600)}`);
   return snapshot();
 }
 
