@@ -273,8 +273,31 @@ test("V19 audit rejection produces a full-scope V20 executable semantic process"
   assert.doesNotMatch(route.match(/function contractNativeSceneSpecificationV20[\s\S]*?function waveProductionManifest/)?.[0] || "", /MP-\d{3}|auditSample\[|auditedCompositions|auditedBlueprint/);
 });
 
-test("V13 through V18 preserve strengths, rejection causes, and inherited capabilities", () => {
-  for (const version of ["V13", "V14", "V15", "V16", "V17", "V18"]) assert.match(route, new RegExp(`version: "${version}"`));
-  for (const score of [27, 28, 46, 59, 74, 76]) assert.match(route, new RegExp(`auditScore: ${score}`));
-  for (const control of ["WAVE_ENGINE_EVOLUTION", "proven", "rejectedBecause", "inherited", "Semantic fit reached 86", "Factual safety held at 94", "V19 root-cause fixtures and measured layout gates"]) assert.match(route, new RegExp(control));
+test("V13 through V20 preserve strengths, rejection causes, and inherited capabilities", () => {
+  for (const version of ["V13", "V14", "V15", "V16", "V17", "V18", "V19", "V20"]) assert.match(route, new RegExp(`version: "${version}"`));
+  for (const score of [27, 28, 46, 59, 74, 76, 45, 48]) assert.match(route, new RegExp(`auditScore: ${score}`));
+  for (const control of ["WAVE_ENGINE_EVOLUTION", "proven", "rejectedBecause", "inherited", "Semantic fit reached 86", "Factual safety held at 94", "V19 root-cause fixtures and measured layout gates", "150 unique deterministic frames", "V21 semantic-plan gate requirement"]) assert.match(route, new RegExp(control));
+});
+
+test("V20 audit rejection requires one authored semantic-plan request and an independent deterministic gate before V21", () => {
+  for (const control of [
+    "SHOT_PRODUCT_ENGINE_V21_AUTHORED_SEMANTIC_PLAN_COMPILER",
+    "V21_1_SOURCE_CITED_PLAN_AUTHORING_AND_INDEPENDENT_VALIDATION",
+    "AUTHOR_WAVE_BATCH_2_V21_SEMANTIC_PLANS",
+    "WAVE_BATCH_2_V21_SEMANTIC_PLAN_AUTHORING",
+    "AUTHORED_SEMANTIC_PLAN_SCENE_SPECIFICATION_V21",
+    "AUTHORED_SOURCE_CITED_SEMANTIC_PLAN",
+    "VALIDATED_AUTHORED_SEMANTIC_PLAN_AND_SOLVED_PRIMITIVES_ONLY",
+    "heuristicParserFallbackForbidden",
+    "SOURCE_CITATION_CARDINALITY_COVERAGE_AND_AMBIGUITY_GATE_V1",
+    "PREFLIGHT_WAVE_BATCH_2_V21_PLAN_ACTIVATION",
+    "ADOPT_WAVE_BATCH_2_V21_SEMANTIC_PROCESS_CORRECTION",
+    "50_VALIDATED_PLANS_50_CITATION_TRACES_150_FRAMES_MEASURED",
+    "v8ThroughV20ProductsPreservedAsEvidence: true",
+  ]) assert.match(route, new RegExp(control));
+  assert.match(route, /Number\(audit\.score\) !== 48/);
+  assert.match(route, /Number\(planResult\.providerDispatches\) !== 1/);
+  assert.match(route, /Number\(result\.providerRequestsDelta\) !== 0/);
+  assert.match(route, /clean\(rec\(semanticPlan\.validation\)\.sourceCitationGate\) !== "PASS"/);
+  assert.doesNotMatch(route.match(/function contractNativeSceneSpecificationV21[\s\S]*?function waveProductionManifest/)?.[0] || "", /MP-\d{3}|auditSample\[|auditedCompositions|auditedBlueprint/);
 });
