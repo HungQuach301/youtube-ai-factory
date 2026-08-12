@@ -206,3 +206,9 @@ test("failed V18 is replaced by V19 systemic process correction rather than samp
   assert.doesNotMatch(route.match(/function contractNativeSceneSpecification[\s\S]*?function waveProductionManifest/)?.[0] || "", /MP-\d{3}|auditedCompositions|auditedBlueprint/);
   assert.match(route, /tokenFallbackForbidden === true/);
 });
+
+test("V13 through V18 preserve strengths, rejection causes, and inherited capabilities", () => {
+  for (const version of ["V13", "V14", "V15", "V16", "V17", "V18"]) assert.match(route, new RegExp(`version: "${version}"`));
+  for (const score of [27, 28, 46, 59, 74, 76]) assert.match(route, new RegExp(`auditScore: ${score}`));
+  for (const control of ["WAVE_ENGINE_EVOLUTION", "proven", "rejectedBecause", "inherited", "Semantic fit reached 86", "Factual safety held at 94", "V19 root-cause fixtures and measured layout gates"]) assert.match(route, new RegExp(control));
+});

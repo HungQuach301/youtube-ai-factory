@@ -36,6 +36,14 @@ const WAVE_BATCH_2_V12_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V12_STRUCTURED_VISU
 const WAVE_BATCH_2_V13_REJECTED_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V18_PIXEL_LAYOUT_COMPILER";
 const WAVE_BATCH_2_V13_REPRODUCTION_VERSION = "WAVE_09_BATCH_2_V12_SYSTEMIC_CONSTRAINT_REPRODUCTION";
 const WAVE_BATCH_2_V13_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V19_SYSTEMIC_CONSTRAINT_COMPILER";
+const WAVE_ENGINE_EVOLUTION = [
+  { version: "V13", auditScore: 27, outcome: "REJECTED_ENGINE_EVIDENCE", proven: ["Contract-native scene specification", "50/50 scene-spec and semantic-to-pixel trace coverage", "Exactly-once 50-shot reproduction"], rejectedBecause: "The schema carried contract meaning, but the rendered pixels still collapsed into token boxes with text overlap.", inherited: ["Authoritative scene specification", "Semantic-to-pixel lineage", "Immutable full-batch evidence"] },
+  { version: "V14", auditScore: 28, outcome: "REJECTED_ENGINE_EVIDENCE", proven: ["Executable storyboard with domain primitives", "Hard text limits and reserved connector corridors", "Action timeline separated from audit"], rejectedBecause: "The compiler still mapped object origin, containment and destination incorrectly for contract-specific spatial relationships.", inherited: ["Domain primitives", "Bounded viewer text", "Explicit action timeline"] },
+  { version: "V15", auditScore: 46, outcome: "REJECTED_ENGINE_EVIDENCE", proven: ["Contract-native compositions replaced the shared node-box-line grammar", "Factual safety reached 78", "Ten composition families were exercised"], rejectedBecause: "Physical movement, conditional gates, exception scope and source-bound values were not yet reliably executable.", inherited: ["Composition topology", "Containment and boundary semantics", "Source-bound value requirement"] },
+  { version: "V16", auditScore: 59, outcome: "REJECTED_ENGINE_EVIDENCE", proven: ["Factual safety reached 82", "Composition reached 70", "Temporal clarity reached 66 with physically explicit request/response motion"], rejectedBecause: "Frame timing, label fit, controlled-scenario layout and shared portfolio chrome still escaped production QA.", inherited: ["Evidence-native visual objects", "Physical position delta", "Gate and exception semantics"] },
+  { version: "V17", auditScore: 74, outcome: "REJECTED_ENGINE_EVIDENCE", proven: ["Factual safety reached 94", "Semantic fit reached 77", "Shared status header was removed from critical samples"], rejectedBecause: "Two semantic-presentation defects plus mobile overlap and portfolio shell repetition remained.", inherited: ["Exact-clause frame timing", "Full-label constraints", "Reduced shared chrome"] },
+  { version: "V18", auditScore: 76, outcome: "REJECTED_ENGINE_EVIDENCE", proven: ["Semantic fit reached 86", "Factual safety held at 94", "Temporal clarity reached 83 with no remaining P1 semantic finding"], rejectedBecause: "Layout/mobile and portfolio variety remained systemic because sample branches and self-attested layout proof were still part of the production process.", inherited: ["Pixel-level failure taxonomy", "Full-canvas composition intent", "V19 root-cause fixtures and measured layout gates"] },
+] as const;
 const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const WAVE_BATCH_AUDIT_TRANSPORT_VERSION = "WAVE_AUDIT_TRANSPORT_V2_VERIFIED_JPEG_PROXY";
 const WAVE_BATCH_AUDIT_CONTROL_VERSION = "WAVE_AUDIT_CONTROL_V3_DURABLE_IDEMPOTENT_INTENT";
@@ -429,6 +437,7 @@ async function snapshot() {
     provider: { model: setting.modelId, reasoningEffort: setting.reasoningEffort, modelOptions: MODEL_OPTIONS, reasoningOptions: REASONING_OPTIONS },
     architecture: architectureSnapshot(Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET), executorOnline, sourceEvidenceReady),
     releasePolicy: CONTROLLED_RELEASE_POLICY,
+    versionEvolution: WAVE_ENGINE_EVOLUTION,
     reliability: reliabilityBaseline ? {
       version: reliabilityBaseline.version,
       status: reliabilityBaseline.status,
