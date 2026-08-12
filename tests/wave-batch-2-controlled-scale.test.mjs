@@ -114,3 +114,23 @@ test("V10 activation is preflighted at zero spend and committed exactly once", (
   assert.match(route, /status: complete \? passed \? "PASS" : "FAIL" : "RUNNING"/);
   assert.match(route, /result\.nextIndex/);
 });
+
+test("failed V10 is replaced by V11 contract semantic projection", () => {
+  for (const control of [
+    "SHOT_PRODUCT_ENGINE_V11_CONTRACT_SEMANTIC_PROJECTION",
+    "CONTRACT_SEMANTIC_PROJECTION_V11",
+    "CONTRACT_SEMANTIC_PROJECTION_COMPILER_V11",
+    "VISIBLE_ENTITY_ACTION_CONSTRAINT_PROJECTION",
+    "PREFLIGHT_WAVE_BATCH_2_V11_ACTIVATION",
+    "ADOPT_WAVE_BATCH_2_V11_ENGINE_ROOT_CORRECTION",
+    "BATCH_2_V10_METADATA_RENDERER_DISCONNECT",
+    "50_CONTRACTS_50_PROJECTIONS_50_GRAMMARS_150_FRAMES_PASS",
+  ]) assert.match(route, new RegExp(control));
+  assert.match(route, /stateProjection: semanticProjection \? stateProjection/);
+  assert.match(route, /semanticProjection=clean\(semantic\.version\)==="CONTRACT_SEMANTIC_PROJECTION_V11"/);
+  assert.match(route, /contractBoundGraph=.*\|\|semanticProjection/);
+  assert.match(route, /semanticProjectionCoverage.*50/);
+  assert.match(route, /v8V9V10ProductsPreservedAsEvidence: true/);
+  assert.match(route, /BATCH_2_V11_ATOMIC_COMMIT_FAILED/);
+  assert.match(route, /verifyCommittedWaveBatch2V11Activation/);
+});
