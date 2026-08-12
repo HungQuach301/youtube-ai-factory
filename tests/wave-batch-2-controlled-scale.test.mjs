@@ -176,8 +176,8 @@ test("failed V13 is replaced by V14 executable storyboards with pixel trace gate
     "SCENE_SPEC_TO_PIXEL_TRACE",
     "SCENE_SPEC_LAYOUT_SAFETY",
     "SCENE_SPEC_PHYSICAL_TRANSITION",
-    "PREFLIGHT_WAVE_BATCH_2_V13_ACTIVATION",
-    "ADOPT_WAVE_BATCH_2_V13_ENGINE_ROOT_CORRECTION",
+    "PREFLIGHT_WAVE_BATCH_2_V14_ACTIVATION",
+    "ADOPT_WAVE_BATCH_2_V14_ENGINE_ROOT_CORRECTION",
     "50_SCENE_SPECS_50_PIXEL_TRACES_150_FRAMES_LAYOUT_SAFE",
   ]) assert.match(route, new RegExp(control));
   assert.match(route, /sceneSpecCoverage === 50/);
