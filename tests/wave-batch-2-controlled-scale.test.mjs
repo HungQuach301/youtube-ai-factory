@@ -165,30 +165,44 @@ test("failed V11 is replaced by V12 structured visual ontology with physical mot
   assert.match(route, /verifyCommittedWaveBatch2V12Activation/);
 });
 
-test("failed V17 is replaced by V18 pixel layouts with pixel trace gates", () => {
+test("failed V18 is replaced by V19 systemic process correction rather than sample patches", () => {
   for (const control of [
-    "SHOT_PRODUCT_ENGINE_V17_EXACT_CLAUSE_FRAME_COMPILER",
     "SHOT_PRODUCT_ENGINE_V18_PIXEL_LAYOUT_COMPILER",
-    "PIXEL_LAYOUT_SPECIFICATION_V18",
-    "PIXEL_LAYOUT_COMPILER_V18",
-    "ISSUER_LEDGER_CONTAINMENT",
-    "RESPONSE_FOUR_BOUNDARIES",
-    "CONTROLLED_SCENARIO_TABLE",
+    "SHOT_PRODUCT_ENGINE_V19_SYSTEMIC_CONSTRAINT_COMPILER",
+    "CONSTRAINT_SCENE_SPECIFICATION_V19",
+    "SYSTEMIC_CONSTRAINT_COMPILER_V19",
+    "ROOT_CAUSE_TO_PROCESS_V1",
+    "ROOT_CAUSE_VERIFIED",
+    "MONOLITHIC_SAMPLE_BRANCH_RENDERER_PLUS_SELF_ATTESTED_LAYOUT_PROOF",
+    "SEMANTIC_TOPOLOGY_CLASSIFICATION",
+    "CONSTRAINT_SOLVED_GEOMETRY",
+    "PRIMITIVE_ONLY_RENDERER",
+    "RECOMPUTED_LAYOUT_AND_MOBILE_MEASUREMENTS",
+    "ADVERSARIAL_FIXTURE_QUALIFICATION",
+    "LOGICAL_ID_BRANCH",
+    "AUDIT_SAMPLE_BRANCH",
+    "FRAME_COORDINATE_PATCH",
+    "CONSTRAINT_SOLVED_PRIMITIVES_ONLY",
     "SCENE_SPEC_TO_PIXEL_TRACE",
     "SCENE_SPEC_LAYOUT_SAFETY",
     "SCENE_SPEC_PHYSICAL_TRANSITION",
-    "PREFLIGHT_WAVE_BATCH_2_V18_ACTIVATION",
-    "ADOPT_WAVE_BATCH_2_V18_ENGINE_ROOT_CORRECTION",
-    "50_SCENE_SPECS_50_PIXEL_TRACES_150_FRAMES_LAYOUT_SAFE",
+    "PREFLIGHT_WAVE_BATCH_2_V19_SYSTEMIC_ACTIVATION",
+    "ADOPT_WAVE_BATCH_2_V19_SYSTEMIC_PROCESS_CORRECTION",
+    "50_PRODUCTS_150_FRAMES_10_ADVERSARIAL_FIXTURES_MEASURED",
   ]) assert.match(route, new RegExp(control));
   assert.match(route, /sceneSpecCoverage === 50/);
   assert.match(route, /pixelTraceCoverage === 50/);
+  assert.match(route, /adversarial\.pass === 10/);
+  assert.match(route, /rootCauseGate/);
   assert.match(route, /familyCounts\.size === 10/);
   assert.match(route, /maximumFamilyShare <= 0\.2/);
-  assert.match(route, /v8V9V10V11V12V13V14V15V16V17ProductsPreservedAsEvidence: true/);
+  assert.match(route, /v8V9V10V11V12V13V14V15V16V17V18ProductsPreservedAsEvidence: true/);
   assert.match(route, /BATCH_2_V13_ATOMIC_COMMIT_FAILED/);
   assert.match(route, /verifyCommittedWaveBatch2V13Activation/);
   assert.match(route, /WAVE_BATCH_2_V13_REJECTED_ENGINE_VERSION/);
-  assert.match(route, /rendererContract\.input === "PIXEL_LAYOUT_ONLY"/);
+  assert.match(route, /rendererContract\.input === "CONSTRAINT_SOLVED_PRIMITIVES_ONLY"/);
+  assert.match(route, /rendererContract\.logicalIdBranchingForbidden === true/);
+  assert.match(route, /rendererContract\.auditSampleBranchingForbidden === true/);
+  assert.doesNotMatch(route.match(/function contractNativeSceneSpecification[\s\S]*?function waveProductionManifest/)?.[0] || "", /MP-\d{3}|auditedCompositions|auditedBlueprint/);
   assert.match(route, /tokenFallbackForbidden === true/);
 });
