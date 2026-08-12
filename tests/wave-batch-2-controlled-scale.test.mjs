@@ -92,3 +92,20 @@ test("failed V9 is replaced by V10 archetype-native semantic compilation", () =>
   assert.match(route, /retryPriorAudits: false/);
   assert.match(route, /ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION/);
 });
+
+test("V10 activation is preflighted at zero spend and committed exactly once", () => {
+  for (const control of [
+    "v7_batch_activation_preflights",
+    "v7_batch_activations",
+    "PREFLIGHT_WAVE_BATCH_2_V10_ACTIVATION",
+    "ZERO-SPEND-PREFLIGHT-V1",
+    "ACTIVATION-V1",
+    "BATCH_2_V10_ZERO_SPEND_PREFLIGHT_REQUIRED",
+    "BATCH_2_V10_ATOMIC_COMMIT_FAILED",
+    "BATCH_2_V10_ACTIVATION_READBACK_INCONSISTENT",
+  ]) assert.match(route, new RegExp(control));
+  assert.match(route, /idempotency_key=\?/);
+  assert.match(route, /providerDispatches: 0/);
+  assert.match(route, /requestsDelta: 0, costDelta: 0/);
+  assert.match(route, /verifyCommittedWaveBatch2V10Activation/);
+});

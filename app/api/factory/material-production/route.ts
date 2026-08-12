@@ -165,6 +165,8 @@ const schema = [
   `CREATE TABLE IF NOT EXISTS v7_sequence_products (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,canary_id text NOT NULL,source_proof_id text NOT NULL,composer_version text NOT NULL,status text NOT NULL,specification_json text NOT NULL,specification_hash text NOT NULL,source_manifest_hash text NOT NULL,iteration integer DEFAULT 0 NOT NULL,max_iterations integer DEFAULT 3 NOT NULL,product_file_id text,evidence_id text,measurements_json text DEFAULT '{}' NOT NULL,corrections_json text DEFAULT '[]' NOT NULL,content_hash text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_sequence_product_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,product_id text NOT NULL,rubric_version text NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,tier text DEFAULT 'BLOCKED' NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,request_id text,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_production_batches (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,wave_key text NOT NULL,version text NOT NULL,engine_version text NOT NULL,status text NOT NULL,scope_json text NOT NULL,specification_hash text NOT NULL,total_units integer NOT NULL,completed_units integer DEFAULT 0 NOT NULL,blocked_units integer DEFAULT 0 NOT NULL,current_index integer DEFAULT 0 NOT NULL,audit_sample_json text DEFAULT '[]' NOT NULL,production_dod_json text NOT NULL,root_cause_policy_json text NOT NULL,requests_before integer NOT NULL,cost_before real NOT NULL,request_budget integer NOT NULL,cost_budget real NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
+  `CREATE TABLE IF NOT EXISTS v7_batch_activation_preflights (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,action text NOT NULL,source_batch_id text NOT NULL,source_audit_id text NOT NULL,target_batch_id text NOT NULL,input_hash text NOT NULL,status text NOT NULL,result_json text NOT NULL,requests_before integer NOT NULL,cost_before real NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_batch_activations (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,action text NOT NULL,idempotency_key text NOT NULL,target_batch_id text NOT NULL,input_hash text NOT NULL,status text NOT NULL,result_json text NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,committed_at text,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_shot_products (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,batch_id text NOT NULL,brief_id text NOT NULL,logical_brief_id text NOT NULL,archetype text NOT NULL,engine_version text NOT NULL,status text NOT NULL,specification_json text NOT NULL,specification_hash text NOT NULL,frame_ids_json text NOT NULL,frame_hashes_json text NOT NULL,measurements_json text NOT NULL,product_hash text NOT NULL,supersedes_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_batch_product_audits (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,authorization_id text NOT NULL,batch_id text NOT NULL,rubric_version text NOT NULL,status text NOT NULL,score integer DEFAULT 0 NOT NULL,tier text DEFAULT 'BLOCKED' NOT NULL,dimensions_json text DEFAULT '{}' NOT NULL,findings_json text DEFAULT '[]' NOT NULL,root_cause_json text DEFAULT '{}' NOT NULL,request_id text,provider_response_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_model_settings (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,stage_key text NOT NULL,model_id text NOT NULL,reasoning_effort text NOT NULL,updated_at text NOT NULL)`,
@@ -345,6 +347,8 @@ async function snapshot() {
   const sequenceProductEvidence = sequenceProduct?.evidence_id ? await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND evidence_type='SEQUENCE_PRODUCT'").bind(sequenceProduct.evidence_id).first<Row>() : null;
   const sequenceProductAudit = sequenceProduct ? await db.prepare("SELECT * FROM v7_sequence_product_audits WHERE product_id=? ORDER BY created_at DESC LIMIT 1").bind(sequenceProduct.id).first<Row>() : null;
   const productionBatch = run ? await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
+  const batchActivationPreflight = run ? await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action='PREFLIGHT_WAVE_BATCH_2_V10_ACTIVATION' ORDER BY updated_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
+  const batchActivation = run ? await db.prepare("SELECT * FROM v7_batch_activations WHERE run_id=? AND action='ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION' ORDER BY updated_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
   const batchProducts = productionBatch ? await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND engine_version=? ORDER BY created_at", productionBatch.id, productionBatch.engine_version) : [];
   const batchAudit = productionBatch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(productionBatch.id).first<Row>() : null;
   const reliabilityBaseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
@@ -428,6 +432,10 @@ async function snapshot() {
     run: run ? { id: run.id, status: run.status, score: Number(run.score), briefCount: Number(run.brief_count), pilotCount: Number(run.pilot_count), remoteRequests: Number(run.remote_requests), actualCostUsd: Number(run.actual_cost_usd), gates: JSON.parse(String(run.gate_json || "[]")) } : null,
     artifact: content ? { contentHash: artifact?.content_hash, runtimeKey: artifact?.runtime_key, driveFileId: artifact?.drive_file_id, pilotIds: content.pilotIds, routeMix: content.routeMix, modelMix: content.modelMix, sampleBriefs: arr(content.briefs).slice(0, 8) } : null,
     authorization: authorization ? { id: authorization.id, runId: authorization.run_id, scope: authorization.scope, status: authorization.status, shotCount: Number(authorization.shot_count), maxRemoteRequests: Number(authorization.max_remote_requests), maxActualSpendUsd: Number(authorization.max_actual_spend_usd), modelPolicy: JSON.parse(String(authorization.model_policy_json || "{}")), authorizedAt: authorization.authorized_at, revokedAt: authorization.revoked_at } : null,
+    batchActivationControl: {
+      preflight: batchActivationPreflight ? { id: batchActivationPreflight.id, status: batchActivationPreflight.status, inputHash: clean(batchActivationPreflight.input_hash), result: rec(JSON.parse(String(batchActivationPreflight.result_json || "{}"))), requestsBefore: Number(batchActivationPreflight.requests_before), costBefore: Number(batchActivationPreflight.cost_before), updatedAt: batchActivationPreflight.updated_at } : null,
+      activation: batchActivation ? { id: batchActivation.id, status: batchActivation.status, idempotencyKey: clean(batchActivation.idempotency_key), targetBatchId: clean(batchActivation.target_batch_id), inputHash: clean(batchActivation.input_hash), result: rec(JSON.parse(String(batchActivation.result_json || "{}"))), committedAt: batchActivation.committed_at || null } : null,
+    },
     canary: controlledCanary ? { id: controlledCanary.id, version: controlledCanary.version, status: controlledCanary.status, queue: JSON.parse(String(controlledCanary.queue_json || "[]")), currentIndex: Number(controlledCanary.current_index), currentBriefId: controlledCanary.current_brief_id || null, releasedUnits: Number(controlledCanary.released_units), passedUnits: Number(controlledCanary.passed_units), failedUnits: Number(controlledCanary.failed_units), requestsBefore: Number(controlledCanary.requests_before), costBefore: Number(controlledCanary.cost_before), requestBudget: Number(controlledCanary.request_budget), costBudget: Number(controlledCanary.cost_budget), activeRequestPeak: Number(controlledCanary.active_request_peak), gates: JSON.parse(String(controlledCanary.gate_json || "[]")), currentAudit: controlledCanaryAudit ? { status: controlledCanaryAudit.status, score: Number(controlledCanaryAudit.score), dimensions: JSON.parse(String(controlledCanaryAudit.dimensions_json || "{}")), findings: JSON.parse(String(controlledCanaryAudit.findings_json || "[]")), providerResponseId: controlledCanaryAudit.provider_response_id } : null, createdAt: controlledCanary.created_at, updatedAt: controlledCanary.updated_at } : null,
     recovery: recovery ? { id: recovery.id, version: recovery.version, status: recovery.status, snapshotHash: recovery.snapshot_hash, rootCause: JSON.parse(String(recovery.root_cause_json || "{}")), e2e: JSON.parse(String(recovery.e2e_json || "{}")), faultMatrix: JSON.parse(String(recovery.fault_matrix_json || "[]")), requestsBefore: Number(recovery.requests_before), requestsAfter: Number(recovery.requests_after), costBefore: Number(recovery.cost_before), costAfter: Number(recovery.cost_after), simulatedRequestSequence: Number(recovery.simulated_request_sequence), requestIntent: recoveryIntent ? { id: recoveryIntent.id, status: recoveryIntent.status, sequence: Number(recoveryIntent.simulated_sequence), idempotencyKey: recoveryIntent.idempotency_key, payloadHash: recoveryIntent.payload_hash } : null, outbox: recoveryOutbox ? { id: recoveryOutbox.id, status: recoveryOutbox.status, eventType: recoveryOutbox.event_type } : null, events: recoveryEvents.map((event) => ({ status: event.status, failureCode: event.failure_code || null, failedTransition: event.failed_transition || null, failedGate: event.failed_gate || null, expectedState: event.expected_state || null, actualState: event.actual_state || null, ledgerStatus: event.ledger_status || null, providerDispatchStatus: event.provider_dispatch_status || null, createdAt: event.created_at })), createdAt: recovery.created_at, updatedAt: recovery.updated_at } : null,
     pilot: { materialized: uniqueMaterialized, audited: audits.filter((item) => ["PASS", "REPAIR_REQUIRED"].includes(String(item.status))).length, total: pilotBriefs.length, percent: pilotBriefs.length ? Math.round((uniqueMaterialized + audits.length) / (pilotBriefs.length * 2) * 100) : 0, items },
@@ -4783,12 +4791,10 @@ async function adoptWaveBatch2EngineRootCorrection() {
   return snapshot();
 }
 
-async function adoptWaveBatch2V10EngineRootCorrection() {
+async function waveBatch2V10ActivationContext() {
   const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
   if (!run || !authorization || !env.BUCKET) throw new Error("BATCH_2_V10_CONFIGURATION_REQUIRED");
   const replacementId = `${clean(run.id)}-${WAVE_BATCH_2_V10_REPRODUCTION_VERSION}`;
-  const existingReplacement = await db.prepare("SELECT id FROM v7_production_batches WHERE id=?").bind(replacementId).first<Row>();
-  if (existingReplacement) return snapshot();
   const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
   if (Number(active?.total || 0) !== 0) throw new Error("BATCH_2_V10_ACTIVE_REQUESTS_MUST_BE_ZERO");
   const rejected = await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_2' AND engine_version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION).first<Row>();
@@ -4797,7 +4803,16 @@ async function adoptWaveBatch2V10EngineRootCorrection() {
   const v9Products = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(rejected.id, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION).first<{ total: number }>();
   const v8Evidence = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE run_id=? AND engine_version=? AND status='PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE'").bind(run.id, WAVE_BATCH_2_ENGINE_VERSION).first<{ total: number }>();
   if (Number(v9Products?.total || 0) !== 50 || Number(v8Evidence?.total || 0) !== 50) throw new Error("BATCH_2_V8_V9_EVIDENCE_INCOMPLETE");
-  const scope = arr(JSON.parse(String(rejected.scope_json || "[]"))).map(rec), failures: Row[] = [], productSignatures = new Map<string, string>(), frameSignatures = new Map<string, string>(), grammarSignatures = new Map<string, string>(), familyCounts = new Map<string, number>();
+  const scope = arr(JSON.parse(String(rejected.scope_json || "[]"))).map(rec);
+  if (scope.length !== 50) throw new Error(`BATCH_2_V10_SCOPE_INCOMPLETE · ${scope.length}/50`);
+  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>();
+  const inputHash = await sha(JSON.stringify({ action: "ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION", runId: run.id, authorizationId: authorization.id, sourceBatchId: rejected.id, sourceBatchUpdatedAt: rejected.updated_at, sourceAuditId: audit.id, sourceAuditUpdatedAt: audit.updated_at, scope, targetVersion: WAVE_BATCH_2_V10_REPRODUCTION_VERSION, targetEngine: WAVE_BATCH_2_V10_ENGINE_VERSION }));
+  return { env, db, run, authorization, replacementId, rejected, audit, scope, inputHash, requestsBefore: Number(usage?.total || 0), costBefore: Number(usage?.cost || 0) };
+}
+
+async function qualifyWaveBatch2V10Activation(context: Awaited<ReturnType<typeof waveBatch2V10ActivationContext>>) {
+  const { db, run, scope } = context;
+  const failures: Row[] = [], productSignatures = new Map<string, string>(), frameSignatures = new Map<string, string>(), grammarSignatures = new Map<string, string>(), familyCounts = new Map<string, number>();
   for (const target of scope) {
     const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
     if (!briefRow) { failures.push({ logicalId: target.logicalId, checks: ["BRIEF_MISSING"] }); continue; }
@@ -4812,19 +4827,75 @@ async function adoptWaveBatch2V10EngineRootCorrection() {
   }
   const maximumFamilyShare = Math.max(...familyCounts.values()) / Math.max(1, scope.length);
   if (scope.length !== 50 || failures.length || productSignatures.size !== 50 || frameSignatures.size !== 150 || grammarSignatures.size !== 50 || familyCounts.size < 5 || maximumFamilyShare > 0.6) throw new Error(`BATCH_2_ENGINE_V10_REGRESSION_FAILED · products ${productSignatures.size}/50 · frames ${frameSignatures.size}/150 · grammars ${grammarSignatures.size}/50 · families ${familyCounts.size} · maxShare ${maximumFamilyShare.toFixed(2)} · ${JSON.stringify(failures).slice(0, 1600)}`);
-  const now = new Date().toISOString(), usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>(), requestsBefore = Number(usage?.total || 0), costBefore = Number(usage?.cost || 0), priorRoot = rec(JSON.parse(String(audit.root_cause_json || "{}")));
+  return { products: productSignatures.size, frames: frameSignatures.size, grammars: grammarSignatures.size, families: familyCounts.size, maximumFamilyShare, requestsDelta: 0, costDelta: 0 };
+}
+
+async function preflightWaveBatch2V10Activation() {
+  const context = await waveBatch2V10ActivationContext(), result = await qualifyWaveBatch2V10Activation(context), now = new Date().toISOString();
+  const preflightId = `${context.replacementId}-ZERO-SPEND-PREFLIGHT-V1`;
+  await context.db.prepare("INSERT INTO v7_batch_activation_preflights (id,program_id,run_id,authorization_id,action,source_batch_id,source_audit_id,target_batch_id,input_hash,status,result_json,requests_before,cost_before,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,'PASS',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET source_batch_id=excluded.source_batch_id,source_audit_id=excluded.source_audit_id,input_hash=excluded.input_hash,status='PASS',result_json=excluded.result_json,requests_before=excluded.requests_before,cost_before=excluded.cost_before,updated_at=excluded.updated_at").bind(preflightId, PROGRAM_ID, context.run.id, context.authorization.id, "PREFLIGHT_WAVE_BATCH_2_V10_ACTIVATION", context.rejected.id, context.audit.id, context.replacementId, context.inputHash, JSON.stringify(result), context.requestsBefore, context.costBefore, now, now).run();
+  const readBack = await context.db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE id=? AND input_hash=? AND status='PASS'").bind(preflightId, context.inputHash).first<Row>();
+  if (!readBack) throw new Error("BATCH_2_V10_PREFLIGHT_READBACK_REQUIRED");
+  return snapshot();
+}
+
+async function verifyCommittedWaveBatch2V10Activation(db: DB, runId: string, authorizationId: string, replacementId: string, rejectedId: string, activationId: string) {
+  const [activation, targetBatch, sourceBatch, sourceProducts, active] = await Promise.all([
+    db.prepare("SELECT * FROM v7_batch_activations WHERE id=? AND idempotency_key=? AND status='COMMITTED'").bind(activationId, activationId).first<Row>(),
+    db.prepare("SELECT * FROM v7_production_batches WHERE id=? AND run_id=? AND authorization_id=? AND engine_version=?").bind(replacementId, runId, authorizationId, WAVE_BATCH_2_V10_ENGINE_VERSION).first<Row>(),
+    db.prepare("SELECT * FROM v7_production_batches WHERE id=? AND run_id=?").bind(rejectedId, runId).first<Row>(),
+    db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE'").bind(rejectedId, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION).first<{ total: number }>(),
+    db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorizationId).first<{ total: number }>(),
+  ]);
+  const targetStatus = clean(targetBatch?.status), committedTarget = ["PRODUCING", "PRODUCT_COMPLETE", "PREPARING", "DISPATCHING", "QA_RUNNING", "PASS", "ENGINE_ROOT_CAUSE_REQUIRED", "AUDIT_INCOMPLETE", "PRODUCTION_BLOCKED"].includes(targetStatus);
+  const immediateReadBack = targetStatus !== "PRODUCING" || Number(active?.total || 0) === 0;
+  return Boolean(activation && targetBatch && committedTarget && immediateReadBack && clean(sourceBatch?.status) === "ENGINE_ROOT_CAUSE_PRESERVED" && Number(sourceProducts?.total || 0) === 50);
+}
+
+async function verifyWaveBatch2V10Activation(context: Awaited<ReturnType<typeof waveBatch2V10ActivationContext>>, activationId: string) {
+  return verifyCommittedWaveBatch2V10Activation(context.db, clean(context.run.id), clean(context.authorization.id), context.replacementId, clean(context.rejected.id), activationId);
+}
+
+async function adoptWaveBatch2V10EngineRootCorrection() {
+  const initialEnv = await runtime(), initialDb = initialEnv.DB!, initialCurrent = await current(initialDb);
+  if (!initialCurrent.run || !initialCurrent.authorization) throw new Error("BATCH_2_V10_CONFIGURATION_REQUIRED");
+  const initialReplacementId = `${clean(initialCurrent.run.id)}-${WAVE_BATCH_2_V10_REPRODUCTION_VERSION}`, initialActivationId = `${initialReplacementId}-ACTIVATION-V1`;
+  const initialActivation = await initialDb.prepare("SELECT * FROM v7_batch_activations WHERE id=?").bind(initialActivationId).first<Row>();
+  if (initialActivation) {
+    const result = rec(JSON.parse(String(initialActivation.result_json || "{}"))), rejectedId = clean(result.sourceBatchId);
+    if (clean(initialActivation.status) === "COMMITTED" && rejectedId && await verifyCommittedWaveBatch2V10Activation(initialDb, clean(initialCurrent.run.id), clean(initialCurrent.authorization.id), initialReplacementId, rejectedId, initialActivationId)) return snapshot();
+    throw new Error("BATCH_2_V10_ACTIVATION_RECOVERY_REQUIRED");
+  }
+  const context = await waveBatch2V10ActivationContext(), activationId = `${context.replacementId}-ACTIVATION-V1`;
+  const legacyTarget = await context.db.prepare("SELECT id FROM v7_production_batches WHERE id=?").bind(context.replacementId).first<Row>();
+  if (legacyTarget) throw new Error("BATCH_2_V10_LEGACY_PARTIAL_ACTIVATION_RECOVERY_REQUIRED");
+  const preflightId = `${context.replacementId}-ZERO-SPEND-PREFLIGHT-V1`;
+  const preflight = await context.db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE id=? AND input_hash=? AND status='PASS'").bind(preflightId, context.inputHash).first<Row>();
+  if (!preflight) throw new Error("BATCH_2_V10_ZERO_SPEND_PREFLIGHT_REQUIRED");
+  const preflightResult = rec(JSON.parse(String(preflight.result_json || "{}")));
+  if (Number(preflightResult.products) !== 50 || Number(preflightResult.frames) !== 150 || Number(preflightResult.grammars) !== 50 || Number(preflightResult.families) < 5 || Number(preflightResult.maximumFamilyShare) > 0.6 || Number(preflightResult.requestsDelta) !== 0 || Number(preflightResult.costDelta) !== 0) throw new Error("BATCH_2_V10_PREFLIGHT_EVIDENCE_INCOMPLETE");
+  const { db, run, authorization, replacementId, rejected, audit, scope, requestsBefore, costBefore } = context;
+  const now = new Date().toISOString(), priorRoot = rec(JSON.parse(String(audit.root_cause_json || "{}")));
   const portfolioPolicy = { minimumSceneFamilies: 5, maximumFamilyShare: 0.6, uniqueGrammarSignatures: "50_OF_50", uniqueFrameHashes: "150_OF_150", cosmeticSeedDoesNotCountAsVariety: true };
   const rootCausePolicy = { ...rec(JSON.parse(String(rejected.root_cause_policy_json || "{}"))), incident: "BATCH_2_V9_TOKEN_GRAPH_WITHOUT_ARCHETYPE_VISUAL_GRAMMAR", rejectedEngineVersion: WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION, rejectedAuditId: audit.id, rejectedAuditScore: Number(audit.score), observedRootCause: priorRoot.rootProductionCause, correctedLayers: ["SEMANTIC_MANIFEST", "LAYOUT_ENGINE", "PORTFOLIO_POLICY"], correction: "ARCHETYPE_NATIVE_VISUAL_GRAMMAR_WITH_CONTRACT_PROVENANCE_AND_DIRECTED_STATE_TRANSITIONS", replacementEngineVersion: WAVE_BATCH_2_V10_ENGINE_VERSION, fullScopeRegression: "50_CONTRACTS_50_GRAMMARS_150_FRAMES_PASS", portfolioPolicy, reproduceScope: "ALL_50_PRODUCTS", outputRepair: false, v8AndV9ProductsPreservedAsEvidence: true, retryPriorAudits: false };
   const productionDoD = { ...rec(JSON.parse(String(rejected.production_dod_json || "{}"))), version: "SHOT_PRODUCT_DOD_V10", archetypeNativeVisualGrammar: true, elementProvenanceComplete: true, directedStateTransitions: true, unsupportedGenericInjectionBlocked: true, portfolioPolicy, fullScopeRegression: "50_OF_50_PASS" };
   const modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: WAVE_BATCH_2_V10_REPRODUCTION_VERSION, productionEngine: WAVE_BATCH_2_V10_ENGINE_VERSION, scope: "REPRODUCE_ALL_50_AFTER_V9_ENGINE_REJECTION", deterministicProductionRequests: 0, independentAuditRequests: 1, autoRepair: false, priorAuditRetry: false, qaFailureRoute: "ROOT_PRODUCTION_PROCESS" };
-  await db.batch([
+  const activationResult = { preflightId, sourceBatchId: rejected.id, targetBatchId: replacementId, products: 50, frames: 150, grammars: 50, requestsBefore, costBefore, providerDispatches: 0 };
+  const statements = [
     db.prepare("UPDATE v7_shot_products SET status='PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE',updated_at=? WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(now, rejected.id, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION),
-    db.prepare("UPDATE v7_production_batches SET status='ENGINE_ROOT_CAUSE_PRESERVED',updated_at=? WHERE id=?").bind(now, rejected.id),
+    db.prepare("UPDATE v7_production_batches SET status='ENGINE_ROOT_CAUSE_PRESERVED',updated_at=? WHERE id=? AND status='ENGINE_ROOT_CAUSE_REQUIRED'").bind(now, rejected.id),
     db.prepare("INSERT INTO v7_production_batches (id,program_id,run_id,authorization_id,wave_key,version,engine_version,status,scope_json,specification_hash,total_units,completed_units,blocked_units,current_index,audit_sample_json,production_dod_json,root_cause_policy_json,requests_before,cost_before,request_budget,cost_budget,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'PRODUCING',?,?,50,0,0,0,?,?,?,?,?,1,10,?,?)").bind(replacementId, PROGRAM_ID, run.id, authorization.id, "BATCH_2", WAVE_BATCH_2_V10_REPRODUCTION_VERSION, WAVE_BATCH_2_V10_ENGINE_VERSION, JSON.stringify(scope), await sha(JSON.stringify({ scope, productionDoD, rootCausePolicy, engine: WAVE_BATCH_2_V10_ENGINE_VERSION })), rejected.audit_sample_json, JSON.stringify(productionDoD), JSON.stringify(rootCausePolicy), requestsBefore, costBefore, now, now),
     db.prepare("UPDATE v7_material_authorizations SET scope='WAVE_09_BATCH_2_ENGINE_V10_REPRODUCTION',status='PAUSED',shot_count=50,max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,completed_at=NULL,updated_at=? WHERE id=?").bind(requestsBefore + 1, costBefore + 10, JSON.stringify(modelPolicy), now, authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='BATCH_2_V10_REPRODUCING',mode='ARCHETYPE_SEMANTIC_COMPILER_REPRODUCTION' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='BATCH_2_V10_REPRODUCING',blocker='INTEGRATED_PRODUCTION_TRANSACTION',evidence_summary='V8 32/100 and V9 39/100 preserved · V10 50/50 semantic manifests, 50/50 grammar signatures, 150/150 frames and portfolio family quota PASS · no output repair · prior audits not retried',updated_at=? WHERE id=?").bind(now, STAGE_ID),
-  ]);
+    db.prepare("INSERT INTO v7_batch_activations (id,program_id,run_id,authorization_id,action,idempotency_key,target_batch_id,input_hash,status,result_json,created_at,committed_at,updated_at) VALUES (?,?,?,?,?,?,?,?, 'COMMITTED',?,?,?,?)").bind(activationId, PROGRAM_ID, run.id, authorization.id, "ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION", activationId, replacementId, context.inputHash, JSON.stringify(activationResult), now, now, now),
+  ];
+  try { await db.batch(statements); }
+  catch (error) {
+    if (await verifyWaveBatch2V10Activation(context, activationId)) return snapshot();
+    throw new Error(`BATCH_2_V10_ATOMIC_COMMIT_FAILED · ${error instanceof Error ? error.message : "unknown"}`);
+  }
+  if (!await verifyWaveBatch2V10Activation(context, activationId)) throw new Error("BATCH_2_V10_ACTIVATION_READBACK_INCONSISTENT");
   return snapshot();
 }
 
@@ -5138,9 +5209,11 @@ async function persistStabilizationTerminalFailure(message: string) {
   ]);
 }
 export async function POST(request: Request) {
+  let action = "UNKNOWN";
   try {
     const body = await request.json() as Row;
-    await assertLegacyIsolation(clean(body.action));
+    action = clean(body.action);
+    await assertLegacyIsolation(action);
     if (body.action === "QUALIFY_RELIABILITY_BASELINE") return Response.json(await qualifyReliabilityBaseline(), { status: 201 });
     if (body.action === "BUILD_HARDEST_ARCHETYPE_CERTIFICATION") return Response.json(await buildHardestArchetypeCertification(), { status: 201 });
     if (body.action === "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION") return Response.json(await repairHardestArchetypeCertification(), { status: 201 });
@@ -5216,6 +5289,7 @@ export async function POST(request: Request) {
     if (body.action === "RUN_WAVE_BATCH_1_AUDIT") return Response.json(await waveBatch1Audit(), { status: 202 });
     if (body.action === "START_WAVE_BATCH_2") return Response.json(await startWaveBatch2(), { status: 201 });
     if (body.action === "ADOPT_WAVE_BATCH_2_ENGINE_ROOT_CORRECTION") return Response.json(await adoptWaveBatch2EngineRootCorrection(), { status: 201 });
+    if (body.action === "PREFLIGHT_WAVE_BATCH_2_V10_ACTIVATION") return Response.json(await preflightWaveBatch2V10Activation(), { status: 200 });
     if (body.action === "ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION") return Response.json(await adoptWaveBatch2V10EngineRootCorrection(), { status: 201 });
     if (body.action === "PRODUCE_NEXT_WAVE_BATCH_2_SHOT") return Response.json(await produceNextWaveBatch2Shot(), { status: 201 });
     if (body.action === "RUN_WAVE_BATCH_2_AUDIT") return Response.json(await waveBatch2Audit(), { status: 202 });
@@ -5232,6 +5306,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unsupported Stage 09 action" }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Stage 09 failed";
+    console.error(JSON.stringify({ event: "STAGE_09_ACTION_FAILED", action, message, at: new Date().toISOString() }));
     const status = /UNAUTHORIZED/.test(message)
       ? 401
       : /NOT_FROZEN|INCOMPLETE|REQUIRED|BLOCKED|CIRCUIT|ACTIVE|MISSING|NOT_FOUND|PIXEL|CANDIDATE|LEASE_INVALID/.test(message)
