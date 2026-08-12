@@ -179,9 +179,11 @@ test("failed V18 is replaced by V19 systemic process correction rather than samp
     "PRIMITIVE_ONLY_RENDERER",
     "RECOMPUTED_LAYOUT_AND_MOBILE_MEASUREMENTS",
     "ADVERSARIAL_FIXTURE_QUALIFICATION",
-    "V19_1_CAPACITY_SAFE_MOTION_PATH_SOLVER",
+    "V19_2_OBSTACLE_AVOIDING_CONNECTOR_SOLVER",
     "CAPACITY_SAFE_SLOTS_AND_TOPOLOGY_DIRECTED_MOTION_PATH",
     "TOPOLOGY_DIRECTED_DISTINCT_ANCHORS",
+    "OBSTACLE_AVOIDING_CONNECTOR_PORT_AND_PERIMETER_SOLVER",
+    "OBSTACLE_AVOIDING_PERIMETER_PORTS",
     "LOGICAL_ID_BRANCH",
     "AUDIT_SAMPLE_BRANCH",
     "FRAME_COORDINATE_PATCH",
@@ -212,8 +214,9 @@ test("failed V18 is replaced by V19 systemic process correction rather than samp
   assert.match(route, /motionPathObjectIntersectionCount/);
   assert.match(route, /motionPathSafeAreaFailures/);
   assert.match(route, /motionRailReserved/);
-  assert.match(route, /ZERO-SPEND-PREFLIGHT-V19-1/);
+  assert.match(route, /ZERO-SPEND-PREFLIGHT-V19-2/);
   assert.match(route, /failedV19InitialPreflightPreservedAsEvidence: true/);
+  assert.match(route, /failedV19_1PreflightPreservedAsEvidence: true/);
   assert.doesNotMatch(route, /const path = \[objects\[0\], objects\[Math\.floor\(objects\.length \/ 2\)\], objects\[objects\.length - 1\]\]/);
 });
 
