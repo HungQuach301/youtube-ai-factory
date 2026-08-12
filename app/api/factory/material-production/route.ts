@@ -5083,8 +5083,8 @@ async function operatorSnapshot() {
   const batch1Passed = clean(batch1?.status) === "PASS" && batch1Completed === 26 && clean(batch1Audit?.status) === "PASS";
   const canStartBatch2 = batch1Passed && portfolioComplete === 36 && !batch2 && activeRequests === 0;
   return {
-    controlPlane: { version: "v243", mode: "CONTROL_PLANE_LITE", mediaPolicy: "ON_DEMAND_ONLY", generatedAt: new Date().toISOString() },
-    checkpoint: { deployment: "v243", sourceCheckpoint: "v242", status: "LIVE" },
+    controlPlane: { version: "v249", mode: "CONTROL_PLANE_LITE", mediaPolicy: "ON_DEMAND_ONLY", generatedAt: new Date().toISOString() },
+    checkpoint: { deployment: "v249", sourceCheckpoint: "v248", status: "LIVE" },
     stage: { status: clean(stage?.status || "UNKNOWN"), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary), updatedAt: stage?.updated_at || null },
     portfolio: { complete: portfolioComplete, total: 166, baseline: 10 },
     batches: {
