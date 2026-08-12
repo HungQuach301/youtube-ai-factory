@@ -279,10 +279,12 @@ test("V13 through V20 preserve strengths, rejection causes, and inherited capabi
   for (const control of ["WAVE_ENGINE_EVOLUTION", "proven", "rejectedBecause", "inherited", "Semantic fit reached 86", "Factual safety held at 94", "V19 root-cause fixtures and measured layout gates", "150 unique deterministic frames", "V21 semantic-plan gate requirement"]) assert.match(route, new RegExp(control));
 });
 
-test("V20, V21 and V21.2 rejection evidence require one Factory-token-ID-bound request before V21.3", () => {
+test("V20 through V21.3 rejection evidence require one Factory-candidate-span-bound request before V21.4", () => {
   for (const control of [
     "SHOT_PRODUCT_ENGINE_V21_AUTHORED_SEMANTIC_PLAN_COMPILER",
-    "V21_3_FACTORY_ISSUED_TOKEN_ID_SOURCE_BINDING_AND_INDEPENDENT_VALIDATION",
+    "V21_4_FACTORY_ISSUED_OPAQUE_CANDIDATE_SPAN_BINDING_AND_INDEPENDENT_VALIDATION",
+    "AUTHOR_WAVE_BATCH_2_V21_4_SEMANTIC_PLANS",
+    "WAVE_BATCH_2_V21_4_SEMANTIC_PLAN_AUTHORING",
     "AUTHOR_WAVE_BATCH_2_V21_3_SEMANTIC_PLANS",
     "WAVE_BATCH_2_V21_3_SEMANTIC_PLAN_AUTHORING",
     "AUTHORED_SEMANTIC_PLAN_SCENE_SPECIFICATION_V21",
@@ -290,8 +292,9 @@ test("V20, V21 and V21.2 rejection evidence require one Factory-token-ID-bound r
     "VALIDATED_AUTHORED_SEMANTIC_PLAN_AND_SOLVED_PRIMITIVES_ONLY",
     "heuristicParserFallbackForbidden",
     "FACTORY_ISSUED_TOKEN_ID_EXISTENCE_CONTIGUITY_COVERAGE_AND_AMBIGUITY_GATE_V3",
-    "FACTORY_RECONSTRUCTED_FROM_FACTORY_ISSUED_TOKEN_IDS",
-    "FACTORY_ISSUED_TOKEN_IDS_V1",
+    "FACTORY_ISSUED_CANDIDATE_SPAN_EXISTENCE_CLAUSE_COVERAGE_AND_AMBIGUITY_GATE_V4",
+    "FACTORY_RECONSTRUCTED_FROM_FACTORY_ISSUED_CANDIDATE_SPAN",
+    "FACTORY_ISSUED_OPAQUE_CANDIDATE_SPANS_V1",
     "PREFLIGHT_WAVE_BATCH_2_V21_PLAN_ACTIVATION",
     "ADOPT_WAVE_BATCH_2_V21_SEMANTIC_PROCESS_CORRECTION",
     "50_VALIDATED_PLANS_50_CITATION_TRACES_150_FRAMES_MEASURED",
@@ -302,6 +305,8 @@ test("V20, V21 and V21.2 rejection evidence require one Factory-token-ID-bound r
   assert.match(route, /Number\(legacyResult\.providerDispatches\) !== 1/);
   assert.match(route, /Number\(v21_2Result\.plansValidated\) !== 25/);
   assert.match(route, /Number\(v21_2Result\.providerDispatches\) !== 1/);
+  assert.match(route, /Number\(v21_3Result\.plansValidated\) !== 44/);
+  assert.match(route, /Number\(v21_3Result\.providerDispatches\) !== 1/);
   assert.match(route, /Number\(planResult\.providerDispatches\) !== 1/);
   assert.match(route, /Number\(result\.providerRequestsDelta\) !== 0/);
   assert.match(route, /clean\(rec\(semanticPlan\.validation\)\.sourceCitationGate\) !== "PASS"/);
@@ -313,13 +318,14 @@ test("V20, V21 and V21.2 rejection evidence require one Factory-token-ID-bound r
   assert.match(route, /stableTransportResume: true/);
   assert.match(route, /BATCH_2_V21_ACTIVE_REQUESTS_MUST_BE_ZERO_OR_THE_BOUND_STABLE_REQUEST/);
   assert.match(route, /"idempotency-key": requestId/);
-  assert.match(route, /tokenIds/);
-  assert.match(route, /expectedIds/);
-  assert.match(route, /position > 0 && index !== indexes\[position - 1\] \+ 1/);
+  assert.match(route, /candidateSpanId/);
+  assert.match(route, /candidateSpansForContract/);
+  assert.match(route, /spanId/);
   assert.match(route, /sourceTextReconstructedByFactory: true/);
   assert.match(route, /numericTokenOffsetsAccepted: false/);
+  assert.match(route, /modelComposedTokenIdsAccepted: false/);
   assert.match(route, /aiVerbatimCopyAccepted: false/);
-  assert.doesNotMatch(route.match(/const semanticCitationSchema[^;]+;/)?.[0] || "", /quote/);
-  assert.doesNotMatch(route.match(/const semanticCitationSchema[^;]+;/)?.[0] || "", /startToken|endToken/);
+  assert.doesNotMatch(route.match(/const semanticCitationSchema[^;]+;/)?.[0] || "", /quote|tokenIds/);
+  assert.doesNotMatch(route.match(/const semanticCitationSchema[^;]+;/)?.[0] || "", /startToken|endToken|ref/);
   assert.doesNotMatch(route.match(/function contractNativeSceneSpecificationV21[\s\S]*?function waveProductionManifest/)?.[0] || "", /MP-\d{3}|auditSample\[|auditedCompositions|auditedBlueprint/);
 });

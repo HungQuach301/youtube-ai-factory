@@ -42,9 +42,11 @@ const WAVE_BATCH_2_V20_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V20_EXECUTABLE_SEMA
 const WAVE_BATCH_2_V20_PROCESS_REVISION = "V20_2_GRAMMATICAL_SUBJECT_DISTINCT_STATE_SEMANTIC_QUALIFIER_COMPILER";
 const WAVE_BATCH_2_V21_REPRODUCTION_VERSION = "WAVE_09_BATCH_2_V14_AUTHORED_SEMANTIC_PLAN_REPRODUCTION";
 const WAVE_BATCH_2_V21_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V21_AUTHORED_SEMANTIC_PLAN_COMPILER";
-const WAVE_BATCH_2_V21_PROCESS_REVISION = "V21_3_FACTORY_ISSUED_TOKEN_ID_SOURCE_BINDING_AND_INDEPENDENT_VALIDATION";
-const WAVE_BATCH_2_V21_PLAN_ACTION = "AUTHOR_WAVE_BATCH_2_V21_3_SEMANTIC_PLANS";
-const WAVE_BATCH_2_V21_PLAN_PHASE = "WAVE_BATCH_2_V21_3_SEMANTIC_PLAN_AUTHORING";
+const WAVE_BATCH_2_V21_PROCESS_REVISION = "V21_4_FACTORY_ISSUED_OPAQUE_CANDIDATE_SPAN_BINDING_AND_INDEPENDENT_VALIDATION";
+const WAVE_BATCH_2_V21_PLAN_ACTION = "AUTHOR_WAVE_BATCH_2_V21_4_SEMANTIC_PLANS";
+const WAVE_BATCH_2_V21_PLAN_PHASE = "WAVE_BATCH_2_V21_4_SEMANTIC_PLAN_AUTHORING";
+const WAVE_BATCH_2_V21_3_PLAN_ACTION = "AUTHOR_WAVE_BATCH_2_V21_3_SEMANTIC_PLANS";
+const WAVE_BATCH_2_V21_3_PLAN_PHASE = "WAVE_BATCH_2_V21_3_SEMANTIC_PLAN_AUTHORING";
 const WAVE_BATCH_2_V21_2_PLAN_ACTION = "AUTHOR_WAVE_BATCH_2_V21_2_SEMANTIC_PLANS";
 const WAVE_BATCH_2_V21_2_PLAN_PHASE = "WAVE_BATCH_2_V21_2_SEMANTIC_PLAN_AUTHORING";
 const WAVE_BATCH_2_V21_LEGACY_PLAN_ACTION = "AUTHOR_WAVE_BATCH_2_V21_SEMANTIC_PLANS";
@@ -2672,7 +2674,7 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
   let batchAuditAuthorized = false;
   let semanticPlanAuthorized = false;
   let sequenceQaDiagnostic = "not-evaluated";
-  if (phase === WAVE_BATCH_2_V21_PLAN_PHASE && briefId === "WAVE-09-BATCH-2-V21-3-SEMANTIC-PLANS") {
+  if (phase === WAVE_BATCH_2_V21_PLAN_PHASE && briefId === "WAVE-09-BATCH-2-V21-4-SEMANTIC-PLANS") {
     const batch = await db.prepare("SELECT * FROM v7_production_batches WHERE authorization_id=? AND wave_key='BATCH_2' AND engine_version=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, WAVE_BATCH_2_V20_ENGINE_VERSION).first<Row>();
     const products = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(batch.id, WAVE_BATCH_2_V20_ENGINE_VERSION).first<{ total: number }>() : null;
     const audit = batch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? AND status='ENGINE_ROOT_CAUSE_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>() : null;
@@ -2680,8 +2682,10 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
     const legacyDispatch = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND phase=? AND provider_response_id IS NOT NULL").bind(authorization.id, WAVE_BATCH_2_V21_LEGACY_PLAN_PHASE).first<{ total: number }>();
     const v21_2Plan = await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? AND status='REJECTED' ORDER BY updated_at DESC LIMIT 1").bind(authorization.run_id, WAVE_BATCH_2_V21_2_PLAN_ACTION).first<Row>(), v21_2Result = rec(JSON.parse(String(v21_2Plan?.result_json || "{}")));
     const v21_2Dispatch = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND phase=? AND provider_response_id IS NOT NULL").bind(authorization.id, WAVE_BATCH_2_V21_2_PLAN_PHASE).first<{ total: number }>();
+    const v21_3Plan = await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? AND status='REJECTED' ORDER BY updated_at DESC LIMIT 1").bind(authorization.run_id, WAVE_BATCH_2_V21_3_PLAN_ACTION).first<Row>(), v21_3Result = rec(JSON.parse(String(v21_3Plan?.result_json || "{}")));
+    const v21_3Dispatch = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND phase=? AND provider_response_id IS NOT NULL").bind(authorization.id, WAVE_BATCH_2_V21_3_PLAN_PHASE).first<{ total: number }>();
     const dispatched = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND phase=? AND provider_response_id IS NOT NULL").bind(authorization.id, WAVE_BATCH_2_V21_PLAN_PHASE).first<{ total: number }>();
-    semanticPlanAuthorized = Boolean(batch && audit && legacyPlan && v21_2Plan)
+    semanticPlanAuthorized = Boolean(batch && audit && legacyPlan && v21_2Plan && v21_3Plan)
       && clean(batch?.status) === "ENGINE_ROOT_CAUSE_REQUIRED"
       && Number(batch?.completed_units) === 50
       && Number(products?.total || 0) === 50
@@ -2693,8 +2697,12 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
       && Number(v21_2Result.providerDispatches) === 1
       && clean(v21_2Result.independentValidator) === "CLAUSE_TOKEN_RANGE_CARDINALITY_COVERAGE_AND_AMBIGUITY_GATE_V2"
       && Number(v21_2Dispatch?.total || 0) === 1
+      && Number(v21_3Result.plansValidated) === 44
+      && Number(v21_3Result.providerDispatches) === 1
+      && clean(v21_3Result.independentValidator) === "FACTORY_ISSUED_TOKEN_ID_EXISTENCE_CONTIGUITY_COVERAGE_AND_AMBIGUITY_GATE_V3"
+      && Number(v21_3Dispatch?.total || 0) === 1
       && Number(dispatched?.total || 0) === 0;
-    if (!semanticPlanAuthorized) throw new Error("BATCH_2_V21_3_SEMANTIC_PLAN_FIREWALL · V20 50/50, audit 48/100, V21 47/50 and V21.2 25/50 rejections, exactly one prior dispatch each and zero V21.3 dispatch are required");
+    if (!semanticPlanAuthorized) throw new Error("BATCH_2_V21_4_SEMANTIC_PLAN_FIREWALL · V20 50/50, audit 48/100, V21 47/50, V21.2 25/50 and V21.3 44/50 rejections, exactly one prior dispatch each and zero V21.4 dispatch are required");
   }
   if (phase === "SEQUENCE_PROOF_QA" && briefId === "SEQUENCE-10MP") {
     const proof = await db.prepare("SELECT canary_id,status,unit_count,frame_count FROM v7_sequence_proofs WHERE authorization_id=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id).first<Row>();
@@ -3383,7 +3391,7 @@ const motionQaSchema = { type: "object", additionalProperties: false, properties
 const sequenceQaSchema = { type: "object", additionalProperties: false, properties: { semanticContinuity: { type: "integer", minimum: 0, maximum: 100 }, visualVariety: { type: "integer", minimum: 0, maximum: 100 }, rhythm: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "REPAIR"] }, findings: { type: "array", maxItems: 6, items: visionDefectSchema }, exactRepair: { type: "string", minLength: 6, maxLength: 260 } }, required: ["semanticContinuity", "visualVariety", "rhythm", "mobileLegibility", "factualSafety", "overall", "decision", "findings", "exactRepair"] };
 const batchFindingSchema = { type: "object", additionalProperties: false, properties: { logicalId: { type: "string", minLength: 3, maxLength: 16 }, severity: { type: "string", enum: ["P0", "P1", "P2"] }, category: { type: "string", enum: ["SEMANTIC", "PRESENTATION", "TEMPORAL", "VARIETY", "OTHER"] }, productionLayer: { type: "string", enum: ["SPECIFICATION_COMPILER", "SEMANTIC_MANIFEST", "LAYOUT_ENGINE", "MOTION_POLICY", "PORTFOLIO_POLICY", "NONE"] }, summary: { type: "string", minLength: 8, maxLength: 220 } }, required: ["logicalId", "severity", "category", "productionLayer", "summary"] };
 const batchProductAuditSchema = { type: "object", additionalProperties: false, properties: { semanticFit: { type: "integer", minimum: 0, maximum: 100 }, factualSafety: { type: "integer", minimum: 0, maximum: 100 }, composition: { type: "integer", minimum: 0, maximum: 100 }, mobileLegibility: { type: "integer", minimum: 0, maximum: 100 }, temporalClarity: { type: "integer", minimum: 0, maximum: 100 }, portfolioVariety: { type: "integer", minimum: 0, maximum: 100 }, overall: { type: "integer", minimum: 0, maximum: 100 }, decision: { type: "string", enum: ["PASS", "FAIL"] }, findings: { type: "array", maxItems: 12, items: batchFindingSchema }, rootProductionCause: { type: "string", minLength: 8, maxLength: 320 } }, required: ["semanticFit", "factualSafety", "composition", "mobileLegibility", "temporalClarity", "portfolioVariety", "overall", "decision", "findings", "rootProductionCause"] };
-const semanticCitationSchema = { type: "object", additionalProperties: false, properties: { ref: { type: "string", pattern: "^[CEF][0-9]+$" }, tokenIds: { type: "array", minItems: 1, maxItems: 24, items: { type: "string", pattern: "^[CEF][0-9]+:T[0-9]{3}$" } } }, required: ["ref", "tokenIds"] };
+const semanticCitationSchema = { type: "object", additionalProperties: false, properties: { spanId: { type: "string", pattern: "^S[A-F0-9]{8}$" } }, required: ["spanId"] };
 const semanticPlanStateSchema = { type: "object", additionalProperties: false, properties: { role: { type: "string", enum: ["ENTRY", "MIDPOINT", "EXIT"] }, subject: semanticCitationSchema, action: semanticCitationSchema, target: semanticCitationSchema, relation: { type: "string", enum: ["ORIGIN_AT", "MOVES_TO", "PASSES_THROUGH", "CONTAINED_IN", "REMAINS_OUTSIDE", "COMPARES_WITH", "STATE_CHANGES_TO", "PRESENTS", "EXCLUDES"] }, polarity: { type: "string", enum: ["POSITIVE_ASSERTION", "NEGATIVE_CONSTRAINT", "UNRESOLVED"] } }, required: ["role", "subject", "action", "target", "relation", "polarity"] };
 const semanticPlanSchema = { type: "object", additionalProperties: false, properties: { logicalId: { type: "string", pattern: "^MP-[0-9]{3}$" }, semanticClass: { type: "string", enum: ["FLOW", "CONTAINMENT", "BOUNDARY", "COMPARISON", "STATE_CHANGE", "CONTROL_TABLE", "ROLE_SYSTEM", "NEGATIVE_CONSTRAINT"] }, states: { type: "array", minItems: 3, maxItems: 3, items: semanticPlanStateSchema }, forbidden: { type: "array", maxItems: 8, items: semanticCitationSchema }, uncertainty: { type: "string", enum: ["NONE", "AMBIGUOUS"] } }, required: ["logicalId", "semanticClass", "states", "forbidden", "uncertainty"] };
 const semanticPlanBatchSchema = { type: "object", additionalProperties: false, properties: { plans: { type: "array", minItems: 50, maxItems: 50, items: semanticPlanSchema } }, required: ["plans"] };
@@ -6052,15 +6060,33 @@ function sourceClauseTokens(source: string) {
   return tokens;
 }
 
-function bindSemanticCitation(citation: Row, clauses: Map<string, string>) {
-  const ref = clean(citation.ref), source = clean(clauses.get(ref)), tokens = sourceClauseTokens(source), tokenIds = arr(citation.tokenIds).map(clean);
-  if (!ref || !source || !tokenIds.length || new Set(tokenIds).size !== tokenIds.length) return null;
-  const expectedIds = tokens.map((token) => `${ref}:T${String(token.index).padStart(3, "0")}`), indexes = tokenIds.map((id) => expectedIds.indexOf(id));
-  if (indexes.some((index) => index < 0) || indexes.some((index, position) => position > 0 && index !== indexes[position - 1] + 1)) return null;
-  const startToken = indexes[0], endToken = indexes[indexes.length - 1] + 1;
-  const quote = source.slice(tokens[startToken].start, tokens[endToken - 1].end);
-  if (!quote || quote.length > 46) return null;
-  return { ref, tokenIds, startToken, endToken, quote, sourceBinding: "FACTORY_RECONSTRUCTED_FROM_FACTORY_ISSUED_TOKEN_IDS" };
+function candidateSpanId(logicalId: string, ref: string, startToken: number, endToken: number) {
+  let hash = 2166136261;
+  for (const char of `${logicalId}|${ref}|${startToken}|${endToken}`) { hash ^= char.charCodeAt(0); hash = Math.imul(hash, 16777619); }
+  return `S${(hash >>> 0).toString(16).toUpperCase().padStart(8, "0")}`;
+}
+
+function candidateSpansForContract(contract: Row) {
+  const logicalId = clean(contract.briefId), spans: Row[] = [], seen = new Set<string>();
+  for (const clause of semanticPlanClauses(contract)) {
+    const ref = clean(clause.ref), source = clean(clause.text), tokens = sourceClauseTokens(source), ranges: Array<[number, number]> = [];
+    for (let index = 0; index < tokens.length; index += 1) ranges.push([index, index + 1]);
+    for (let length = 2; length <= Math.min(6, tokens.length); length += 1) { ranges.push([0, length]); ranges.push([tokens.length - length, tokens.length]); }
+    if (tokens.length) ranges.push([0, tokens.length]);
+    for (const [startToken, endToken] of ranges) {
+      const quote = source.slice(tokens[startToken]?.start || 0, tokens[endToken - 1]?.end || 0).trim();
+      if (!quote || quote.length > 46) continue;
+      const spanId = candidateSpanId(logicalId, ref, startToken, endToken); if (seen.has(spanId)) continue; seen.add(spanId);
+      spans.push({ spanId, ref, quote, startToken, endToken, sourceBinding: "FACTORY_RECONSTRUCTED_FROM_FACTORY_ISSUED_CANDIDATE_SPAN" });
+    }
+  }
+  return spans;
+}
+
+function bindSemanticCitation(citation: Row, candidates: Map<string, Row>) {
+  const spanId = clean(citation.spanId), candidate = candidates.get(spanId);
+  if (!spanId || !candidate) return null;
+  return { ...candidate, spanId, sourceBinding: "FACTORY_RECONSTRUCTED_FROM_FACTORY_ISSUED_CANDIDATE_SPAN" };
 }
 
 async function validateAuthoredSemanticPlans(plansInput: unknown[], contracts: Map<string, Row>) {
@@ -6071,7 +6097,7 @@ async function validateAuthoredSemanticPlans(plansInput: unknown[], contracts: M
     const logicalId = clean(plan.logicalId), contract = contracts.get(logicalId);
     if (seen.has(logicalId)) failures.push({ logicalId, checks: ["DUPLICATE_PLAN"] }); else seen.add(logicalId);
     if (!contract) { failures.push({ logicalId, checks: ["UNKNOWN_LOGICAL_ID"] }); continue; }
-    const clauseList = semanticPlanClauses(contract), clauses = new Map(clauseList.map((item) => [item.ref, item.text])), states = arr(plan.states).map(rec), forbidden = arr(plan.forbidden).map(rec), checks: string[] = [], cited = new Set<string>();
+    const clauseList = semanticPlanClauses(contract), candidateList = candidateSpansForContract(contract), candidates = new Map(candidateList.map((item) => [clean(item.spanId), item])), states = arr(plan.states).map(rec), forbidden = arr(plan.forbidden).map(rec), checks: string[] = [], cited = new Set<string>();
     if (states.length !== 3 || states.some((state, index) => clean(state.role) !== ["ENTRY", "MIDPOINT", "EXIT"][index])) checks.push("ENTRY_MIDPOINT_EXIT_ORDER_REQUIRED");
     if (clean(plan.uncertainty) !== "NONE") checks.push("AMBIGUITY_BLOCKS_ACTIVATION");
     const allowedClasses = ["FLOW", "CONTAINMENT", "BOUNDARY", "COMPARISON", "STATE_CHANGE", "CONTROL_TABLE", "ROLE_SYSTEM", "NEGATIVE_CONSTRAINT"], allowedRelations = ["ORIGIN_AT", "MOVES_TO", "PASSES_THROUGH", "CONTAINED_IN", "REMAINS_OUTSIDE", "COMPARES_WITH", "STATE_CHANGES_TO", "PRESENTS", "EXCLUDES"], allowedPolarities = ["POSITIVE_ASSERTION", "NEGATIVE_CONSTRAINT", "UNRESOLVED"];
@@ -6081,16 +6107,16 @@ async function validateAuthoredSemanticPlans(plansInput: unknown[], contracts: M
       if (!allowedRelations.includes(clean(state.relation))) checks.push("RELATION_ENUM_INVALID");
       if (!allowedPolarities.includes(clean(state.polarity))) checks.push("POLARITY_ENUM_INVALID");
       const boundState: Row = { ...state };
-      for (const field of ["subject", "action", "target"]) { const citation = rec(state[field]), bound = bindSemanticCitation(citation, clauses); if (!bound) checks.push(`${field.toUpperCase()}_TOKEN_IDS_NOT_SOURCE_BOUND`); else { cited.add(clean(bound.ref)); boundState[field] = bound; } }
+      for (const field of ["subject", "action", "target"]) { const citation = rec(state[field]), bound = bindSemanticCitation(citation, candidates); if (!bound) checks.push(`${field.toUpperCase()}_CANDIDATE_SPAN_NOT_SOURCE_BOUND`); else { cited.add(clean(bound.ref)); boundState[field] = bound; } }
       boundStates.push(boundState);
     }
-    const boundForbidden = forbidden.map((citation) => bindSemanticCitation(citation, clauses));
-    for (const citation of boundForbidden) { if (!citation || !clean(citation.ref).startsWith("F")) checks.push("FORBIDDEN_TOKEN_IDS_INVALID"); else cited.add(clean(citation.ref)); }
+    const boundForbidden = forbidden.map((citation) => bindSemanticCitation(citation, candidates));
+    for (const citation of boundForbidden) { if (!citation || !clean(citation.ref).startsWith("F")) checks.push("FORBIDDEN_CANDIDATE_SPAN_INVALID"); else cited.add(clean(citation.ref)); }
     const requiredPositiveRefs = clauseList.filter((item) => item.kind !== "FORBIDDEN").map((item) => item.ref), requiredForbiddenRefs = clauseList.filter((item) => item.kind === "FORBIDDEN").map((item) => item.ref);
     if (requiredPositiveRefs.some((ref) => !cited.has(ref))) checks.push("CLAIM_AND_EVIDENCE_COVERAGE_INCOMPLETE");
     if (requiredForbiddenRefs.some((ref) => !cited.has(ref))) checks.push("FORBIDDEN_COVERAGE_INCOMPLETE");
     if (checks.length) failures.push({ logicalId, checks: [...new Set(checks)] });
-    const sourceBoundPlan = { ...plan, states: boundStates, forbidden: boundForbidden.filter(Boolean), sourceBindingVersion: "FACTORY_ISSUED_TOKEN_IDS_V1" };
+    const sourceBoundPlan = { ...plan, states: boundStates, forbidden: boundForbidden.filter(Boolean), sourceBindingVersion: "FACTORY_ISSUED_OPAQUE_CANDIDATE_SPANS_V1" };
     enriched.push({ ...sourceBoundPlan, planHash: await sha(JSON.stringify(sourceBoundPlan)), validation: { sourceCitationGate: checks.length === 0 ? "PASS" : "FAIL", citedRefs: [...cited].sort(), requiredRefs: clauseList.map((item) => item.ref), sourceTextReconstructedByFactory: true, aiVerbatimCopyAccepted: false, heuristicParserUsed: false } });
   }
   return { status: failures.length === 0 && enriched.length === contracts.size ? "PASS" : "FAIL", plans: enriched, failures, plansValidated: enriched.length - new Set(failures.map((item) => clean(item.logicalId)).filter((id) => id !== "BATCH")).size };
@@ -6112,8 +6138,10 @@ async function waveBatch2V21SemanticPlanContext() {
   if (!legacyPlan || Number(legacyResult.plansValidated) !== 47 || Number(legacyResult.providerDispatches) !== 1) throw new Error("BATCH_2_V21_REJECTED_47_OF_50_EVIDENCE_REQUIRED");
   const v21_2Plan = await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? AND status='REJECTED' ORDER BY updated_at DESC LIMIT 1").bind(run.id, WAVE_BATCH_2_V21_2_PLAN_ACTION).first<Row>(), v21_2Result = rec(JSON.parse(String(v21_2Plan?.result_json || "{}")));
   if (!v21_2Plan || Number(v21_2Result.plansValidated) !== 25 || Number(v21_2Result.providerDispatches) !== 1 || clean(v21_2Result.independentValidator) !== "CLAUSE_TOKEN_RANGE_CARDINALITY_COVERAGE_AND_AMBIGUITY_GATE_V2") throw new Error("BATCH_2_V21_2_REJECTED_25_OF_50_EVIDENCE_REQUIRED");
-  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>(), inputHash = await sha(JSON.stringify({ action: WAVE_BATCH_2_V21_PLAN_ACTION, processRevision: WAVE_BATCH_2_V21_PROCESS_REVISION, sourceBatchId: rejected.id, sourceBatchUpdatedAt: rejected.updated_at, sourceAuditId: audit.id, sourceAuditUpdatedAt: audit.updated_at, rejectedV21PlanId: legacyPlan.id, rejectedV21PlanHash: legacyResult.planSetHash, rejectedV21_2PlanId: v21_2Plan.id, rejectedV21_2PlanHash: v21_2Result.planSetHash, contracts: contractRows.map((item) => ({ logicalId: item.contract.briefId, clauses: item.clauses.map((clause) => ({ ...clause, tokens: sourceClauseTokens(clean(clause.text)).map((token) => ({ id: `${clean(clause.ref)}:T${String(token.index).padStart(3, "0")}`, text: token.text })) })) })) }));
-  return { env, db, run, authorization, rejected, audit, scope, contractRows, inputHash, requestsBefore: Number(usage?.total || 0), costBefore: Number(usage?.cost || 0), planId: `${clean(rejected.id)}-V21-3-SEMANTIC-PLANS` };
+  const v21_3Plan = await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? AND status='REJECTED' ORDER BY updated_at DESC LIMIT 1").bind(run.id, WAVE_BATCH_2_V21_3_PLAN_ACTION).first<Row>(), v21_3Result = rec(JSON.parse(String(v21_3Plan?.result_json || "{}")));
+  if (!v21_3Plan || Number(v21_3Result.plansValidated) !== 44 || Number(v21_3Result.providerDispatches) !== 1 || clean(v21_3Result.independentValidator) !== "FACTORY_ISSUED_TOKEN_ID_EXISTENCE_CONTIGUITY_COVERAGE_AND_AMBIGUITY_GATE_V3") throw new Error("BATCH_2_V21_3_REJECTED_44_OF_50_EVIDENCE_REQUIRED");
+  const usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>(), inputHash = await sha(JSON.stringify({ action: WAVE_BATCH_2_V21_PLAN_ACTION, processRevision: WAVE_BATCH_2_V21_PROCESS_REVISION, sourceBatchId: rejected.id, sourceBatchUpdatedAt: rejected.updated_at, sourceAuditId: audit.id, sourceAuditUpdatedAt: audit.updated_at, rejectedV21PlanId: legacyPlan.id, rejectedV21PlanHash: legacyResult.planSetHash, rejectedV21_2PlanId: v21_2Plan.id, rejectedV21_2PlanHash: v21_2Result.planSetHash, rejectedV21_3PlanId: v21_3Plan.id, rejectedV21_3PlanHash: v21_3Result.planSetHash, contracts: contractRows.map((item) => ({ logicalId: item.contract.briefId, candidates: candidateSpansForContract(item.contract).map((span) => ({ spanId: span.spanId, ref: span.ref, quote: span.quote })) })) }));
+  return { env, db, run, authorization, rejected, audit, scope, contractRows, inputHash, requestsBefore: Number(usage?.total || 0), costBefore: Number(usage?.cost || 0), planId: `${clean(rejected.id)}-V21-4-SEMANTIC-PLANS` };
 }
 
 async function authorWaveBatch2V21SemanticPlans() {
@@ -6133,7 +6161,7 @@ async function authorWaveBatch2V21SemanticPlans() {
     await syncRunTotals(db, run.id);
     if (providerStatus !== "completed") { await db.batch([db.prepare("UPDATE v7_batch_activation_preflights SET status='BLOCKED_INCOMPLETE',result_json=?,updated_at=? WHERE id=?").bind(JSON.stringify({ ...existingResult, requestId, providerResponseId, providerStatus, retryAuthorized: false }), now, planId), db.prepare("UPDATE v7_stage_states SET status='BATCH_2_V21_SEMANTIC_PLAN_BLOCKED',blocker='NO_AUTOMATIC_RETRY',evidence_summary='V20 evidence preserved · V21 semantic-plan request incomplete · no retry or production activation',updated_at=? WHERE id=?").bind(now, STAGE_ID)]); return snapshot(); }
     const parsed = JSON.parse(output(payload)) as Row, contracts = new Map(contractRows.map((item) => [clean(item.contract.briefId), item.contract])), validation = await validateAuthoredSemanticPlans(arr(parsed.plans), contracts), planSetHash = await sha(JSON.stringify(validation.plans)), status = validation.status === "PASS" ? "VALIDATED" : "REJECTED";
-    await db.batch([db.prepare("UPDATE v7_batch_activation_preflights SET status=?,result_json=?,updated_at=? WHERE id=?").bind(status, JSON.stringify({ requestId, providerResponseId, providerStatus, plans: validation.plans, planSetHash, plansAuthored: arr(parsed.plans).length, plansValidated: validation.plansValidated, validationFailures: validation.failures, independentValidator: "FACTORY_ISSUED_TOKEN_ID_EXISTENCE_CONTIGUITY_COVERAGE_AND_AMBIGUITY_GATE_V3", sourceTextReconstructedByFactory: true, numericTokenOffsetsAccepted: false, heuristicParserUsed: false, providerDispatches: 1, retryAuthorized: false }), now, planId), db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(status === "VALIDATED" ? "BATCH_2_V21_3_SEMANTIC_PLANS_VALIDATED" : "BATCH_2_V21_3_SEMANTIC_PLANS_REJECTED", status === "VALIDATED" ? "ZERO_SPEND_FULL_SCOPE_PREFLIGHT_REQUIRED" : "SEMANTIC_PLAN_VALIDATION_FAILED", status === "VALIDATED" ? `V21.3 one-request semantic authoring complete · ${validation.plansValidated}/50 factory-token-ID plans independently validated · production not activated` : `V21.3 semantic plans rejected by independent validator · ${validation.failures.length} failure records · no output repair or retry`, now, STAGE_ID)]);
+    await db.batch([db.prepare("UPDATE v7_batch_activation_preflights SET status=?,result_json=?,updated_at=? WHERE id=?").bind(status, JSON.stringify({ requestId, providerResponseId, providerStatus, plans: validation.plans, planSetHash, plansAuthored: arr(parsed.plans).length, plansValidated: validation.plansValidated, validationFailures: validation.failures, independentValidator: "FACTORY_ISSUED_CANDIDATE_SPAN_EXISTENCE_CLAUSE_COVERAGE_AND_AMBIGUITY_GATE_V4", sourceTextReconstructedByFactory: true, numericTokenOffsetsAccepted: false, modelComposedTokenIdsAccepted: false, heuristicParserUsed: false, providerDispatches: 1, retryAuthorized: false }), now, planId), db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(status === "VALIDATED" ? "BATCH_2_V21_4_SEMANTIC_PLANS_VALIDATED" : "BATCH_2_V21_4_SEMANTIC_PLANS_REJECTED", status === "VALIDATED" ? "ZERO_SPEND_FULL_SCOPE_PREFLIGHT_REQUIRED" : "SEMANTIC_PLAN_VALIDATION_FAILED", status === "VALIDATED" ? `V21.4 one-request semantic authoring complete · ${validation.plansValidated}/50 Factory-candidate-span plans independently validated · production not activated` : `V21.4 semantic plans rejected by independent validator · ${validation.failures.length} failure records · no output repair or retry`, now, STAGE_ID)]);
     return snapshot();
   }
   const active = await db.prepare("SELECT COUNT(*) AS total,SUM(CASE WHEN id=? THEN 1 ELSE 0 END) AS stable_request_active FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(stableRequestId, authorization.id).first<{ total: number; stable_request_active: number }>();
@@ -6153,16 +6181,16 @@ async function authorWaveBatch2V21SemanticPlans() {
     await db.prepare("UPDATE v7_material_authorizations SET max_remote_requests=CASE WHEN max_remote_requests<? THEN ? ELSE max_remote_requests END,model_policy_json=?,updated_at=? WHERE id=?").bind(oneRequestCeiling, oneRequestCeiling, JSON.stringify(modelPolicy), now, authorization.id).run();
     const grantedAuthorization = await db.prepare("SELECT * FROM v7_material_authorizations WHERE id=?").bind(authorization.id).first<Row>();
     if (!grantedAuthorization || Number(grantedAuthorization.max_remote_requests) < oneRequestCeiling) throw new Error("BATCH_2_V21_ONE_REQUEST_GRANT_READBACK_REQUIRED");
-    requestId = await newRequest(db, grantedAuthorization, "WAVE-09-BATCH-2-V21-3-SEMANTIC-PLANS", WAVE_BATCH_2_V21_PLAN_PHASE, "OPENAI", setting.modelId, setting.reasoningEffort, 12000, 32000, stableRequestId);
+    requestId = await newRequest(db, grantedAuthorization, "WAVE-09-BATCH-2-V21-4-SEMANTIC-PLANS", WAVE_BATCH_2_V21_PLAN_PHASE, "OPENAI", setting.modelId, setting.reasoningEffort, 12000, 32000, stableRequestId);
     requestRow = await db.prepare("SELECT * FROM v7_material_requests WHERE id=?").bind(requestId).first<Row>();
   }
   await db.prepare("UPDATE v7_batch_activation_preflights SET status='DISPATCHING',result_json=?,updated_at=? WHERE id=?").bind(JSON.stringify({ ...existingResult, requestId, plansAuthored: 0, plansValidated: 0, providerDispatches: 0, retryAuthorized: false, requestGrant: "SEMANTIC_PLAN_EXPLICIT_ONE_REQUEST_GRANT", oneRequestCeiling, stableTransportResume: true }), now, planId).run();
-  const contractsPayload = contractRows.map((item) => ({ logicalId: clean(item.contract.briefId), semanticClassHint: clean(item.contract.archetype), clauses: item.clauses.map((clause) => ({ ref: clean(clause.ref), kind: clean(clause.kind), tokens: sourceClauseTokens(clean(clause.text)).map((token) => ({ id: `${clean(clause.ref)}:T${String(token.index).padStart(3, "0")}`, text: token.text })) })) })), prompt = `Author exactly one compact semantic execution plan for every one of the 50 contracts below. This is plan authoring, not QA and not visual styling. Never copy source text and never calculate numeric token offsets. Bind every subject/action/target/forbidden citation only by clause ref plus one or more contiguous tokenIds copied exactly from the Factory-issued IDs below. Every selected token ID must exist in that same clause; keep IDs in source order with no gaps. The Factory—not the model—will validate ID existence and contiguity, then reconstruct exact source text. Do not invent participants or reuse IDs across contracts. ENTRY, MIDPOINT and EXIT must describe an ordered meaning progression. Cite C0 and every E clause at least once across the three states; cite every F clause in forbidden. Use uncertainty AMBIGUOUS if a grounded plan is impossible; the downstream validator will block the full batch. Return only schema-valid JSON.\n\nFACTORY-ID-TOKENIZED CONTRACTS:\n${JSON.stringify(contractsPayload)}`;
-  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": requestId }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 32000, input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }], text: { format: { type: "json_schema", name: "wave_batch_2_v21_semantic_plans", strict: true, schema: semanticPlanBatchSchema } } }), signal: AbortSignal.timeout(30000) });
+  const contractsPayload = contractRows.map((item) => ({ logicalId: clean(item.contract.briefId), semanticClassHint: clean(item.contract.archetype), candidates: candidateSpansForContract(item.contract).map((span) => ({ spanId: span.spanId, ref: span.ref, text: span.quote })) })), prompt = `Author exactly one compact semantic execution plan for every one of the 50 contracts below. This is plan authoring, not QA and not visual styling. For every subject, action, target and forbidden citation, select exactly one opaque spanId copied from the candidate list of that same contract. Never invent a spanId, copy source text, calculate offsets, compose token IDs, or reuse a spanId from another contract. The Factory created every candidate from one contiguous source span and will independently map the opaque ID back to its clause and exact text. ENTRY, MIDPOINT and EXIT must describe an ordered meaning progression. Across the three states cite C0 and every E clause at least once; cite every F clause in forbidden. Use uncertainty AMBIGUOUS if a grounded plan is impossible; the downstream validator will block the full batch. Return only schema-valid JSON.\n\nFACTORY-ISSUED OPAQUE CANDIDATE SPANS:\n${JSON.stringify(contractsPayload)}`;
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": requestId }, body: JSON.stringify({ model: setting.modelId, reasoning: { effort: setting.reasoningEffort }, background: true, store: true, max_output_tokens: 32000, input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }], text: { format: { type: "json_schema", name: "wave_batch_2_v21_4_semantic_plans", strict: true, schema: semanticPlanBatchSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) { const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 300); await finishRequest(db, requestId, "FAILED", `OPENAI_${response.status} · ${detail}`); await db.prepare("UPDATE v7_batch_activation_preflights SET status='BLOCKED_INCOMPLETE',result_json=?,updated_at=? WHERE id=?").bind(JSON.stringify({ requestId, providerDispatches: 0, transportError: `OPENAI_${response.status}`, retryAuthorized: false }), now, planId).run(); throw new Error(`BATCH_2_V21_SEMANTIC_PLAN_START_FAILED · ${response.status}`); }
   const payload = await response.json() as Row;
   if (!payload.id) { await finishRequest(db, requestId, "FAILED", "Provider response ID missing"); throw new Error("BATCH_2_V21_SEMANTIC_PLAN_PROVIDER_ID_MISSING"); }
-  await db.batch([db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, now, requestId), db.prepare("UPDATE v7_batch_activation_preflights SET status='AUTHORING',result_json=?,updated_at=? WHERE id=?").bind(JSON.stringify({ requestId, providerResponseId: payload.id, plansAuthored: 0, plansValidated: 0, providerDispatches: 1, retryAuthorized: false }), now, planId), db.prepare("UPDATE v7_stage_states SET status='BATCH_2_V21_3_SEMANTIC_PLAN_AUTHORING',blocker='ONE_BOUND_PROVIDER_RESPONSE',evidence_summary='V20, V21 and V21.2 evidence preserved · exactly one V21.3 semantic-plan request bound · production activation remains blocked',updated_at=? WHERE id=?").bind(now, STAGE_ID)]);
+  await db.batch([db.prepare("UPDATE v7_material_requests SET status=?,provider_response_id=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", payload.id, now, requestId), db.prepare("UPDATE v7_batch_activation_preflights SET status='AUTHORING',result_json=?,updated_at=? WHERE id=?").bind(JSON.stringify({ requestId, providerResponseId: payload.id, plansAuthored: 0, plansValidated: 0, providerDispatches: 1, retryAuthorized: false }), now, planId), db.prepare("UPDATE v7_stage_states SET status='BATCH_2_V21_4_SEMANTIC_PLAN_AUTHORING',blocker='ONE_BOUND_PROVIDER_RESPONSE',evidence_summary='V20, V21, V21.2 and V21.3 evidence preserved · exactly one V21.4 semantic-plan request bound · production activation remains blocked',updated_at=? WHERE id=?").bind(now, STAGE_ID)]);
   return snapshot();
 }
 
@@ -6663,7 +6691,7 @@ export async function POST(request: Request) {
     if (body.action === "ADOPT_WAVE_BATCH_2_V19_SYSTEMIC_PROCESS_CORRECTION") return Response.json(await adoptWaveBatch2V13EngineRootCorrection(), { status: 201 });
     if (body.action === "PREFLIGHT_WAVE_BATCH_2_V20_SEMANTIC_ACTIVATION") return Response.json(await preflightWaveBatch2V20Activation(), { status: 200 });
     if (body.action === "ADOPT_WAVE_BATCH_2_V20_SEMANTIC_PROCESS_CORRECTION") return Response.json(await adoptWaveBatch2V20SemanticProcessCorrection(), { status: 201 });
-    if (body.action === "AUTHOR_WAVE_BATCH_2_V21_3_SEMANTIC_PLANS") return Response.json(await authorWaveBatch2V21SemanticPlans(), { status: 202 });
+    if (body.action === "AUTHOR_WAVE_BATCH_2_V21_4_SEMANTIC_PLANS") return Response.json(await authorWaveBatch2V21SemanticPlans(), { status: 202 });
     if (body.action === "PREFLIGHT_WAVE_BATCH_2_V21_PLAN_ACTIVATION") return Response.json(await preflightWaveBatch2V21Activation(), { status: 200 });
     if (body.action === "ADOPT_WAVE_BATCH_2_V21_SEMANTIC_PROCESS_CORRECTION") return Response.json(await adoptWaveBatch2V21SemanticProcessCorrection(), { status: 201 });
     if (body.action === "PRODUCE_NEXT_WAVE_BATCH_2_SHOT") return Response.json(await produceNextWaveBatch2Shot(), { status: 201 });
