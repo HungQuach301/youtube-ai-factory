@@ -74,3 +74,21 @@ test("Batch 2 V9 audit is lineage-qualified and exactly-once across reconnects",
   assert.match(route, /providerDispatches: 0/);
   assert.match(route, /const frameContent = await Promise\.all/);
 });
+
+test("failed V9 is replaced by V10 archetype-native semantic compilation", () => {
+  for (const control of [
+    "SHOT_PRODUCT_ENGINE_V10_ARCHETYPE_SEMANTIC_COMPILER",
+    "ARCHETYPE_SEMANTIC_MANIFEST_V10",
+    "ARCHETYPE_SEMANTIC_COMPILER_V10",
+    "ARCHETYPE_NATIVE_VISUAL_GRAMMAR",
+    "ELEMENT_PROVENANCE_COMPLETE",
+    "DIRECTED_STATE_TRANSITIONS",
+    "CROSS_PRODUCT_GRAMMAR_REUSE",
+    "50_CONTRACTS_50_GRAMMARS_150_FRAMES_PASS",
+  ]) assert.match(route, new RegExp(control));
+  assert.match(route, /familyCounts\.size < 5/);
+  assert.match(route, /maximumFamilyShare > 0\.6/);
+  assert.match(route, /v8AndV9ProductsPreservedAsEvidence: true/);
+  assert.match(route, /retryPriorAudits: false/);
+  assert.match(route, /ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION/);
+});

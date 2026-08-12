@@ -27,6 +27,8 @@ const WAVE_BATCH_2_VERSION = "WAVE_09_BATCH_2_V1_CONTROLLED_SCALE";
 const WAVE_BATCH_2_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V8_SCALE_BASELINE";
 const WAVE_BATCH_2_REPRODUCTION_VERSION = "WAVE_09_BATCH_2_V2_ENGINE_REPRODUCTION";
 const WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V9_CONTRACT_BOUND_SCENE_GRAPH";
+const WAVE_BATCH_2_V10_REPRODUCTION_VERSION = "WAVE_09_BATCH_2_V3_ARCHETYPE_REPRODUCTION";
+const WAVE_BATCH_2_V10_ENGINE_VERSION = "SHOT_PRODUCT_ENGINE_V10_ARCHETYPE_SEMANTIC_COMPILER";
 const WAVE_BATCH_AUDIT_RUBRIC = "WAVE_PRODUCT_INDEPENDENT_AUDIT_V1";
 const WAVE_BATCH_AUDIT_TRANSPORT_VERSION = "WAVE_AUDIT_TRANSPORT_V2_VERIFIED_JPEG_PROXY";
 const WAVE_BATCH_AUDIT_CONTROL_VERSION = "WAVE_AUDIT_CONTROL_V3_DURABLE_IDEMPOTENT_INTENT";
@@ -2675,8 +2677,9 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
     const prior = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_batch_product_audits WHERE batch_id=?").bind(batch.id).first<{ total: number }>() : null;
     const currentAudit = batch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>() : null;
     const rootPolicy = rec(JSON.parse(String(batch?.root_cause_policy_json || "{}")));
-    const rejectedBatch = clean(batch?.engine_version) === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION
-      ? await db.prepare("SELECT * FROM v7_production_batches WHERE authorization_id=? AND wave_key='BATCH_2' AND engine_version=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, WAVE_BATCH_2_ENGINE_VERSION).first<Row>()
+    const rejectedEngineForCurrent = clean(batch?.engine_version) === WAVE_BATCH_2_V10_ENGINE_VERSION ? WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION : clean(batch?.engine_version) === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION ? WAVE_BATCH_2_ENGINE_VERSION : "";
+    const rejectedBatch = rejectedEngineForCurrent
+      ? await db.prepare("SELECT * FROM v7_production_batches WHERE authorization_id=? AND wave_key='BATCH_2' AND engine_version=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, rejectedEngineForCurrent).first<Row>()
       : null;
     const rejectedAudit = rejectedBatch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(rejectedBatch.id).first<Row>() : null;
     const currentDurableIntent = Number(prior?.total || 0) === 1
@@ -2693,13 +2696,21 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
       && clean(rejectedBatch?.status) === "ENGINE_ROOT_CAUSE_PRESERVED"
       && clean(rejectedAudit?.status) === "ENGINE_ROOT_CAUSE_REQUIRED"
       && currentDurableIntent;
+    const v10QualifiedAudit = clean(batch?.engine_version) === WAVE_BATCH_2_V10_ENGINE_VERSION
+      && clean(rootPolicy.replacementEngineVersion) === WAVE_BATCH_2_V10_ENGINE_VERSION
+      && clean(rootPolicy.fullScopeRegression) === "50_CONTRACTS_50_GRAMMARS_150_FRAMES_PASS"
+      && rootPolicy.v8AndV9ProductsPreservedAsEvidence === true
+      && rootPolicy.retryPriorAudits === false
+      && clean(rejectedBatch?.status) === "ENGINE_ROOT_CAUSE_PRESERVED"
+      && clean(rejectedAudit?.status) === "ENGINE_ROOT_CAUSE_REQUIRED"
+      && currentDurableIntent;
     batchAuditAuthorized = Boolean(batch)
       && clean(batch?.status) === "PRODUCT_COMPLETE"
       && Number(batch?.total_units) === 50
       && Number(batch?.completed_units) === 50
       && Number(products?.total || 0) === 50
-      && (v8InitialAudit || v9QualifiedAudit);
-    if (!batchAuditAuthorized) throw new Error("BATCH_2_PRODUCT_AUDIT_FIREWALL · qualified V8 initial audit or lineage-bound V9 durable audit intent is required");
+      && (v8InitialAudit || v9QualifiedAudit || v10QualifiedAudit);
+    if (!batchAuditAuthorized) throw new Error("BATCH_2_PRODUCT_AUDIT_FIREWALL · qualified V8 initial audit or lineage-bound V9/V10 durable audit intent is required");
   }
   if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
   if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) {
@@ -4384,7 +4395,8 @@ function contractStateBinding(source: unknown, role: string, claim: unknown) {
 }
 
 function waveProductionManifest(contract: Row, engineVersion = WAVE_PRODUCTION_ENGINE_VERSION, batchVersion = WAVE_BATCH_1_VERSION) {
-  const contractBound = engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION;
+  const archetypeBound = engineVersion === WAVE_BATCH_2_V10_ENGINE_VERSION;
+  const contractBound = engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION || archetypeBound;
   const scaleBaseline = engineVersion === WAVE_BATCH_2_ENGINE_VERSION || contractBound;
   const manifest = productionSceneManifest(contract, engineVersion, scaleBaseline ? "SHOT_PRODUCT_MANIFEST_V8_CONTROLLED_SCALE" : "SHOT_PRODUCT_MANIFEST_V7_SPATIAL_RELATION_BOUND");
   const viewerLabel = (value: unknown, fallback: string) => clean(value).toUpperCase().replace(/[^A-Z0-9$+\-.: ]/g, " ").replace(/\s+/g, " ").trim().slice(0, 24) || fallback;
@@ -4427,12 +4439,12 @@ function waveProductionManifest(contract: Row, engineVersion = WAVE_PRODUCTION_E
   return {
     ...manifest,
     states,
-    sceneType: contractBound ? "WAVE_CONTRACT_BOUND_GRAPH" : `WAVE_${kind}`,
-    semanticModel: { version: contractBound ? "CONTRACT_BOUND_SCENE_GRAPH_V9" : "CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND", kind, actors: contractBound ? contractElements.slice(0, 6) : semanticActors, requiredElements: contractBound ? contractElements : requiredElements, stateBindings: contractBindings, corpusHashInput: `${clean(contract.briefId)} ${corpus}`, contractSignature: `${clean(contract.briefId)}:${corpus}`, relationPolicy: "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE" },
+    sceneType: archetypeBound ? `WAVE_ARCHETYPE_${kind}` : contractBound ? "WAVE_CONTRACT_BOUND_GRAPH" : `WAVE_${kind}`,
+    semanticModel: { version: archetypeBound ? "ARCHETYPE_SEMANTIC_MANIFEST_V10" : contractBound ? "CONTRACT_BOUND_SCENE_GRAPH_V9" : "CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND", kind, actors: archetypeBound ? semanticActors : contractBound ? contractElements.slice(0, 6) : semanticActors, requiredElements: contractBound ? contractElements : requiredElements, stateBindings: contractBindings, corpusHashInput: `${clean(contract.briefId)} ${corpus}`, contractSignature: `${clean(contract.briefId)}:${corpus}`, relationPolicy: archetypeBound ? "ARCHETYPE_NATIVE_TOPOLOGY_WITH_DIRECTION_BOUNDARY_AND_STATE_DELTA" : "EXPLICIT_VIEWER_VISIBLE_NODES_AND_EDGES", uncertaintyPolicy: "UNRESOLVED_MUST_REMAIN_VISIBLE", elementProvenance: archetypeBound ? contractElements.map((element) => ({ element, source: "CONTRACT_CLAUSE" })) : undefined, transitionModel: archetypeBound ? contractBindings.map((binding, index) => ({ from: index === 0 ? "PRE_SCENE" : ["ENTRY", "MIDPOINT"][index - 1], to: ["ENTRY", "MIDPOINT", "EXIT"][index], relation: binding.relation, polarity: binding.polarity })) : undefined },
     batchVersion,
     productionRoute: contract.productionRoute,
-    specificationCompiler: contractBound ? "CONTRACT_BOUND_SCENE_GRAPH_COMPILER_V9" : scaleBaseline ? "CONTROLLED_SCALE_COMPILER_V8" : "SPATIAL_RELATION_BOUND_COMPILER_V7",
-    layoutPolicy: { ...rec(manifest.layoutPolicy), ...(scaleBaseline ? { maximumViewerLabelGlyphs: 22 } : { maximumViewerLabelGlyphs: 24 }), labelFitEnforcedAtCompileTime: true, reservedRegions: true, minimumLabelScale: 2, noGenericTemplateFallback: true, inactiveParticipantMasking: scaleBaseline, minimumExitContrast: scaleBaseline ? 4.5 : 3, portfolioStyleSeed: scaleBaseline ? `${clean(contract.briefId)}:${clean(kind)}:${corpus}` : undefined, contractBoundStateBands: contractBound, contractTokenCoverageRequired: contractBound ? 1 : undefined, unsupportedGenericInjectionBlocked: contractBound, crossProductPixelUniquenessRequired: contractBound, p2Regressions: scaleBaseline ? ["NO_INACTIVE_PARTICIPANT_NAME", "EXIT_CONTRAST_4_5", "BARRIER_PRECEDENCE_BEFORE_ABSENCE", "ART_DIRECTION_SEPARATION"] : [] },
+    specificationCompiler: archetypeBound ? "ARCHETYPE_SEMANTIC_COMPILER_V10" : contractBound ? "CONTRACT_BOUND_SCENE_GRAPH_COMPILER_V9" : scaleBaseline ? "CONTROLLED_SCALE_COMPILER_V8" : "SPATIAL_RELATION_BOUND_COMPILER_V7",
+    layoutPolicy: { ...rec(manifest.layoutPolicy), ...(scaleBaseline ? { maximumViewerLabelGlyphs: 22 } : { maximumViewerLabelGlyphs: 24 }), labelFitEnforcedAtCompileTime: true, reservedRegions: true, minimumLabelScale: 2, noGenericTemplateFallback: true, inactiveParticipantMasking: scaleBaseline, minimumExitContrast: scaleBaseline ? 4.5 : 3, portfolioStyleSeed: scaleBaseline ? `${clean(contract.briefId)}:${clean(kind)}:${corpus}` : undefined, contractBoundStateBands: contractBound, contractTokenCoverageRequired: contractBound ? 1 : undefined, unsupportedGenericInjectionBlocked: contractBound, crossProductPixelUniquenessRequired: contractBound, archetypeGrammarRequired: archetypeBound, elementProvenanceRequired: archetypeBound, directedTransitionRequired: archetypeBound, portfolioFamilyQuotaRequired: archetypeBound, p2Regressions: scaleBaseline ? ["NO_INACTIVE_PARTICIPANT_NAME", "EXIT_CONTRAST_4_5", "BARRIER_PRECEDENCE_BEFORE_ABSENCE", "ART_DIRECTION_SEPARATION"] : [] },
   };
 }
 
@@ -4501,32 +4513,38 @@ function renderWaveSemanticScene(manifest: Row, state: 0 | 1 | 2) {
 
 function waveProductOracle(manifest: Row) {
   const frames=([0,1,2] as const).map((state)=>renderWaveSemanticScene(manifest,state)),states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean);
-  const contractBound=clean(semantic.version)==="CONTRACT_BOUND_SCENE_GRAPH_V9",bindings=arr(semantic.stateBindings).map(rec),corpus=clean(semantic.corpusHashInput).toUpperCase(),generic=["$100 PURCHASE","REWARD ENTRY"],genericEscape=contractBound&&generic.some((term)=>required.includes(term)&&!corpus.includes(term));
+  const archetypeBound=clean(semantic.version)==="ARCHETYPE_SEMANTIC_MANIFEST_V10",contractBound=clean(semantic.version)==="CONTRACT_BOUND_SCENE_GRAPH_V9"||archetypeBound,bindings=arr(semantic.stateBindings).map(rec),corpus=clean(semantic.corpusHashInput).toUpperCase(),generic=["$100 PURCHASE","REWARD ENTRY"],genericEscape=contractBound&&generic.some((term)=>required.includes(term)&&!corpus.includes(term)),provenance=arr(semantic.elementProvenance).map(rec),transitions=arr(semantic.transitionModel).map(rec),layout=rec(manifest.layoutPolicy);
   const checks=[
-    {id:"SEMANTIC_SCENE_GRAPH",status:["CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND","CONTRACT_BOUND_SCENE_GRAPH_V9"].includes(clean(semantic.version))&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
+    {id:"SEMANTIC_SCENE_GRAPH",status:["CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND","CONTRACT_BOUND_SCENE_GRAPH_V9","ARCHETYPE_SEMANTIC_MANIFEST_V10"].includes(clean(semantic.version))&&required.length>=3?"PASS":"FAIL",evidence:`${clean(semantic.kind)} · ${required.join(" · ")}`},
     {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL",evidence:"three states preserve full source clauses"},
     {id:"CONTRACT_STATE_BINDING",status:!contractBound||bindings.length===3&&bindings.every((item)=>arr(item.nodes).length>=2&&Boolean(clean(item.relation))&&Boolean(clean(item.clause)))?"PASS":"FAIL",evidence:"every state exposes contract-derived nodes, relation and source clause"},
     {id:"UNSUPPORTED_GENERIC_INJECTION",status:genericEscape?"FAIL":"PASS",evidence:genericEscape?"generic economic labels escaped their contract":"all visible economic labels are contract-derived"},
     {id:"CONTRACT_PIXEL_SIGNATURE",status:!contractBound||Boolean(clean(semantic.contractSignature))&&rec(manifest.layoutPolicy).crossProductPixelUniquenessRequired===true?"PASS":"FAIL",evidence:clean(semantic.contractSignature)},
+    {id:"ARCHETYPE_NATIVE_VISUAL_GRAMMAR",status:!archetypeBound||clean(manifest.sceneType)===`WAVE_ARCHETYPE_${clean(semantic.kind)}`&&layout.archetypeGrammarRequired===true?"PASS":"FAIL",evidence:clean(manifest.sceneType)},
+    {id:"ELEMENT_PROVENANCE_COMPLETE",status:!archetypeBound||provenance.length===required.length&&provenance.every((item)=>clean(item.source)==="CONTRACT_CLAUSE"&&required.includes(clean(item.element)))?"PASS":"FAIL",evidence:`${provenance.length}/${required.length} contract-derived elements`},
+    {id:"DIRECTED_STATE_TRANSITIONS",status:!archetypeBound||transitions.length===3&&transitions.every((item,index)=>clean(item.to)===["ENTRY","MIDPOINT","EXIT"][index]&&Boolean(clean(item.relation))&&["POSITIVE_ASSERTION","NEGATIVE_CONSTRAINT"].includes(clean(item.polarity)))?"PASS":"FAIL",evidence:`${transitions.length}/3 explicit transitions`},
     {id:"MOBILE_TEXT_FIT",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL",evidence:"reserved regions and two-pixel minimum glyph scale"},
     {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&clean(semantic.kind)!==""?"PASS":"FAIL",evidence:clean(semantic.kind)},
     {id:"NO_INTERNAL_IDS",status:states.every((item)=>!`${clean(item.sceneLabel)} ${clean(item.primary)} ${clean(item.secondary)}`.includes(clean(manifest.logicalId)))?"PASS":"FAIL",evidence:"audience labels exclude logical IDs"},
     {id:"TEMPORAL_DELTA",status:new Set(frames.map((frame)=>base64(frame.bytes).slice(-180))).size===3?"PASS":"FAIL",evidence:"semantic state pixels differ"},
   ];
-  return{version:contractBound?"WAVE_CONTRACT_BOUND_PRODUCT_ORACLE_V9":"WAVE_SPATIAL_RELATION_PRODUCT_ORACLE_V7",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
+  return{version:archetypeBound?"WAVE_ARCHETYPE_SEMANTIC_PRODUCT_ORACLE_V10":contractBound?"WAVE_CONTRACT_BOUND_PRODUCT_ORACLE_V9":"WAVE_SPATIAL_RELATION_PRODUCT_ORACLE_V7",logicalId:clean(manifest.logicalId),frames,checks,passed:checks.every((item)=>item.status==="PASS")};
 }
 
 function waveManifestQualification(manifest: Row) {
-  const states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean),contractBound=clean(semantic.version)==="CONTRACT_BOUND_SCENE_GRAPH_V9",bindings=arr(semantic.stateBindings).map(rec),corpus=clean(semantic.corpusHashInput).toUpperCase(),genericEscape=contractBound&&["$100 PURCHASE","REWARD ENTRY"].some((term)=>required.includes(term)&&!corpus.includes(term)),checks=[
-    {id:"SEMANTIC_SCENE_GRAPH",status:["CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND","CONTRACT_BOUND_SCENE_GRAPH_V9"].includes(clean(semantic.version))&&required.length>=3?"PASS":"FAIL"},
+  const states=arr(manifest.states).map(rec),semantic=rec(manifest.semanticModel),required=arr(semantic.requiredElements).map(clean).filter(Boolean),archetypeBound=clean(semantic.version)==="ARCHETYPE_SEMANTIC_MANIFEST_V10",contractBound=clean(semantic.version)==="CONTRACT_BOUND_SCENE_GRAPH_V9"||archetypeBound,bindings=arr(semantic.stateBindings).map(rec),corpus=clean(semantic.corpusHashInput).toUpperCase(),genericEscape=contractBound&&["$100 PURCHASE","REWARD ENTRY"].some((term)=>required.includes(term)&&!corpus.includes(term)),provenance=arr(semantic.elementProvenance).map(rec),transitions=arr(semantic.transitionModel).map(rec),layout=rec(manifest.layoutPolicy),checks=[
+    {id:"SEMANTIC_SCENE_GRAPH",status:["CONTRACT_SIGNATURE_SCENE_GRAPH_V5_SPATIAL_BOUND","CONTRACT_BOUND_SCENE_GRAPH_V9","ARCHETYPE_SEMANTIC_MANIFEST_V10"].includes(clean(semantic.version))&&required.length>=3?"PASS":"FAIL"},
     {id:"SOURCE_EVIDENCE_BINDING",status:states.length===3&&states.every((item)=>Boolean(clean(item.sourceEvidence)))?"PASS":"FAIL"},
     {id:"CONTRACT_STATE_BINDING",status:!contractBound||bindings.length===3&&bindings.every((item)=>arr(item.nodes).length>=2&&Boolean(clean(item.relation))&&Boolean(clean(item.clause)))?"PASS":"FAIL"},
     {id:"UNSUPPORTED_GENERIC_INJECTION",status:genericEscape?"FAIL":"PASS"},
     {id:"CONTRACT_PIXEL_SIGNATURE",status:!contractBound||Boolean(clean(semantic.contractSignature))&&rec(manifest.layoutPolicy).crossProductPixelUniquenessRequired===true?"PASS":"FAIL"},
+    {id:"ARCHETYPE_NATIVE_VISUAL_GRAMMAR",status:!archetypeBound||clean(manifest.sceneType)===`WAVE_ARCHETYPE_${clean(semantic.kind)}`&&layout.archetypeGrammarRequired===true?"PASS":"FAIL"},
+    {id:"ELEMENT_PROVENANCE_COMPLETE",status:!archetypeBound||provenance.length===required.length&&provenance.every((item)=>clean(item.source)==="CONTRACT_CLAUSE"&&required.includes(clean(item.element)))?"PASS":"FAIL"},
+    {id:"DIRECTED_STATE_TRANSITIONS",status:!archetypeBound||transitions.length===3&&transitions.every((item,index)=>clean(item.to)===["ENTRY","MIDPOINT","EXIT"][index]&&Boolean(clean(item.relation)))?"PASS":"FAIL"},
     {id:"RESERVED_LAYOUT_REGIONS",status:rec(manifest.layoutPolicy).reservedRegions===true&&Number(rec(manifest.layoutPolicy).minimumLabelScale)>=2?"PASS":"FAIL"},
     {id:"NO_GENERIC_TEMPLATE_FALLBACK",status:rec(manifest.layoutPolicy).noGenericTemplateFallback===true&&Boolean(clean(semantic.kind))?"PASS":"FAIL"},
   ];
-  return { version:"WAVE_MANIFEST_QUALIFICATION_V7", checks, passed:checks.every((item)=>item.status==="PASS"), signatureInput:{ kind:semantic.kind, actors:semantic.actors, requiredElements:required, corpusHashInput:semantic.corpusHashInput, states:states.map((item)=>({role:item.role,sourceEvidence:item.sourceEvidence})), layoutPolicy:manifest.layoutPolicy } };
+  return { version:archetypeBound?"WAVE_MANIFEST_QUALIFICATION_V10":"WAVE_MANIFEST_QUALIFICATION_V7", checks, passed:checks.every((item)=>item.status==="PASS"), signatureInput:{ kind:semantic.kind, actors:semantic.actors, requiredElements:required, corpusHashInput:semantic.corpusHashInput, states:states.map((item)=>({role:item.role,sourceEvidence:item.sourceEvidence})), transitions:semantic.transitionModel, layoutPolicy:manifest.layoutPolicy } };
 }
 
 function selectBatchAuditSample(scope: Row[]) {
@@ -4686,7 +4704,7 @@ async function produceNextWaveBatch2Shot() {
   if (["PRODUCT_COMPLETE", "PASS", "CLOSED"].includes(clean(batch.status))) return snapshot();
   if (clean(batch.status) !== "PRODUCING") throw new Error(`BATCH_2_NOT_PRODUCING · ${clean(batch.status)}`);
   const engineVersion = clean(batch.engine_version);
-  if (![WAVE_BATCH_2_ENGINE_VERSION, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION].includes(engineVersion)) throw new Error(`BATCH_2_ENGINE_NOT_QUALIFIED · ${engineVersion}`);
+  if (![WAVE_BATCH_2_ENGINE_VERSION, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION, WAVE_BATCH_2_V10_ENGINE_VERSION].includes(engineVersion)) throw new Error(`BATCH_2_ENGINE_NOT_QUALIFIED · ${engineVersion}`);
   const scope = arr(JSON.parse(String(batch.scope_json || "[]"))).map(rec), index = Number(batch.current_index || 0), target = scope[index];
   if (!target || index >= 50) throw new Error("BATCH_2_SCOPE_CURSOR_INVALID");
   const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
@@ -4699,17 +4717,17 @@ async function produceNextWaveBatch2Shot() {
   }
   const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract, engineVersion, clean(batch.version)), oracle = waveProductOracle(manifest), states = arr(manifest.states).map(rec), evidenceBound = states.length === 3 && states.every((state) => Boolean(clean(state.sourceEvidence))), forbidden = arr(contract.forbidden).map((item) => clean(item).toUpperCase()).filter(Boolean), visible = states.map((state) => `${clean(state.sceneLabel)} ${clean(state.primary)} ${clean(state.secondary)}`.toUpperCase()), forbiddenHits = forbidden.filter((term) => visible.some((line) => line.includes(term))), layout = rec(manifest.layoutPolicy);
   const measurements = { oracleVersion: oracle.version, oracleChecks: oracle.checks, exactStates: states.length, sourceEvidenceBound: evidenceBound, forbiddenHits, noCrop: true, mobileSafe: oracle.checks.some((item) => item.id === "MOBILE_TEXT_FIT" && item.status === "PASS"), temporalDelta: oracle.checks.some((item) => item.id === "TEMPORAL_DELTA" && item.status === "PASS"), contractStateBinding: oracle.checks.some((item) => item.id === "CONTRACT_STATE_BINDING" && item.status === "PASS"), unsupportedGenericInjection: oracle.checks.some((item) => item.id === "UNSUPPORTED_GENERIC_INJECTION" && item.status === "PASS"), p2RegressionsBound: arr(layout.p2Regressions).length === 4, minimumExitContrast: Number(layout.minimumExitContrast), productionRoute: contract.productionRoute, engineVersion };
-  const complete = clean(contract.lintStatus) === "PASS" && oracle.passed && evidenceBound && forbiddenHits.length === 0 && measurements.mobileSafe && measurements.temporalDelta && measurements.p2RegressionsBound && measurements.minimumExitContrast >= 4.5 && (engineVersion !== WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION || measurements.contractStateBinding && measurements.unsupportedGenericInjection);
+  const complete = clean(contract.lintStatus) === "PASS" && oracle.passed && evidenceBound && forbiddenHits.length === 0 && measurements.mobileSafe && measurements.temporalDelta && measurements.p2RegressionsBound && measurements.minimumExitContrast >= 4.5 && (![WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION, WAVE_BATCH_2_V10_ENGINE_VERSION].includes(engineVersion) || measurements.contractStateBinding && measurements.unsupportedGenericInjection);
   if (!complete) {
     const now = new Date().toISOString();
     await db.batch([db.prepare("UPDATE v7_production_batches SET status='PRODUCTION_BLOCKED',blocked_units=blocked_units+1,updated_at=? WHERE id=?").bind(now, batch.id), db.prepare("UPDATE v7_stage_states SET status='BATCH_2_PRODUCTION_BLOCKED',blocker='ROOT_PRODUCTION_PROCESS_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${clean(contract.briefId)} failed production Definition of Done · output not sent to QA · engine root correction required`, now, STAGE_ID)]);
     throw new Error(`BATCH_2_PRODUCTION_DOD_FAILED · ${clean(contract.briefId)}`);
   }
-  const specification = { version: engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION ? "SHOT_PRODUCT_SPECIFICATION_V3_CONTRACT_BOUND" : "SHOT_PRODUCT_SPECIFICATION_V2_CONTROLLED_SCALE", batchVersion: clean(batch.version), engineVersion, contract, manifest }, specificationJson = JSON.stringify(specification), specificationHash = await sha(specificationJson), frameIds: string[] = [], frameHashes: string[] = [];
+  const specification = { version: engineVersion === WAVE_BATCH_2_V10_ENGINE_VERSION ? "SHOT_PRODUCT_SPECIFICATION_V4_ARCHETYPE_SEMANTIC" : engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION ? "SHOT_PRODUCT_SPECIFICATION_V3_CONTRACT_BOUND" : "SHOT_PRODUCT_SPECIFICATION_V2_CONTROLLED_SCALE", batchVersion: clean(batch.version), engineVersion, contract, manifest }, specificationJson = JSON.stringify(specification), specificationHash = await sha(specificationJson), frameIds: string[] = [], frameHashes: string[] = [];
   const superseded = await db.prepare("SELECT id FROM v7_shot_products WHERE logical_brief_id=? AND engine_version<>? ORDER BY created_at DESC LIMIT 1").bind(contract.briefId, engineVersion).first<Row>();
   for (const [role, frame] of [["CERT_ENTRY", oracle.frames[0]], ["CERT_MIDPOINT", oracle.frames[1]], ["CERT_EXIT", oracle.frames[2]]] as const) {
-    const replacement = engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION;
-    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH2-${clean(contract.briefId)}-${role}-${replacement ? "E9" : "E8"}`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: engineVersion, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: replacement ? "wave-09-batch-2-engine-v9" : "wave-09-batch-2-engine-v8", archiveFolder: replacement ? "Wave 09 Batch 2 Engine V9" : "Wave 09 Batch 2 Engine V8" });
+    const replacement = engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION, v10 = engineVersion === WAVE_BATCH_2_V10_ENGINE_VERSION;
+    const fileId = await storeMaterial(env, db, authorization, briefRow, { role, identity: `BATCH2-${clean(contract.briefId)}-${role}-${v10 ? "E10" : replacement ? "E9" : "E8"}`, bytes: frame.bytes, mimeType: "image/png", extension: "png", sourceType: engineVersion, provider: "FRAMEFLOW_OWNED", providerAssetId: specificationHash, sourceUrl: specificationHash, landingUrl: specificationHash, licenseCode: "CHANNEL_OWNED", width: frame.width, height: frame.height, runtimeScope: v10 ? "wave-09-batch-2-engine-v10" : replacement ? "wave-09-batch-2-engine-v9" : "wave-09-batch-2-engine-v8", archiveFolder: v10 ? "Wave 09 Batch 2 Engine V10" : replacement ? "Wave 09 Batch 2 Engine V9" : "Wave 09 Batch 2 Engine V8" });
     const stored = await db.prepare("SELECT content_hash,status FROM v7_material_files WHERE id=?").bind(fileId).first<Row>();
     if (!stored || clean(stored.status) !== "STORED_VERIFIED") throw new Error(`BATCH_2_FRAME_READ_BACK_FAILED · ${clean(contract.briefId)} · ${role}`);
     frameIds.push(fileId); frameHashes.push(clean(stored.content_hash));
@@ -4719,7 +4737,7 @@ async function produceNextWaveBatch2Shot() {
   await db.batch([
     db.prepare("INSERT INTO v7_shot_products (id,program_id,run_id,authorization_id,batch_id,brief_id,logical_brief_id,archetype,engine_version,status,specification_json,specification_hash,frame_ids_json,frame_hashes_json,measurements_json,product_hash,supersedes_id,created_at,updated_at,completed_at) VALUES (?,?,?,?,?,?,?,?,?,'PRODUCT_COMPLETE',?,?,?,?,?,?,?,?,?,?)").bind(productId, PROGRAM_ID, run.id, authorization.id, batch.id, briefRow.id, contract.briefId, contract.archetype, engineVersion, specificationJson, specificationHash, JSON.stringify(frameIds), JSON.stringify(frameHashes), JSON.stringify({ ...measurements, storedFrames: 3, distinctHashes: 3, readBack: true }), productHash, superseded?.id || null, now, now, now),
     db.prepare("UPDATE v7_production_batches SET status=?,completed_units=?,current_index=?,updated_at=?,completed_at=? WHERE id=?").bind(isFinal ? "PRODUCT_COMPLETE" : "PRODUCING", nextCompleted, nextCompleted, now, isFinal ? now : null, batch.id),
-    db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(isFinal ? "BATCH_2_PRODUCT_COMPLETE" : engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION ? "BATCH_2_V9_REPRODUCING" : "BATCH_2_PRODUCING", run.id),
+    db.prepare("UPDATE v7_material_runs SET status=? WHERE id=?").bind(isFinal ? "BATCH_2_PRODUCT_COMPLETE" : engineVersion === WAVE_BATCH_2_V10_ENGINE_VERSION ? "BATCH_2_V10_REPRODUCING" : engineVersion === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION ? "BATCH_2_V9_REPRODUCING" : "BATCH_2_PRODUCING", run.id),
     db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(isFinal ? "BATCH_2_PRODUCT_COMPLETE" : "BATCH_2_PRODUCING", isFinal ? "INDEPENDENT_BATCH_AUDIT_READY" : "INTEGRATED_PRODUCTION_TRANSACTION", `Batch 2 ${nextCompleted}/50 PRODUCT_COMPLETE · portfolio ${36 + nextCompleted}/166 · deterministic DoD/read-back/P2 regression PASS · QA requests 0`, now, STAGE_ID),
   ]);
   return snapshot();
@@ -4761,6 +4779,51 @@ async function adoptWaveBatch2EngineRootCorrection() {
     db.prepare("UPDATE v7_material_authorizations SET scope='WAVE_09_BATCH_2_ENGINE_V9_REPRODUCTION',status='PAUSED',shot_count=50,max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,completed_at=NULL,updated_at=? WHERE id=?").bind(requestsBefore + 1, costBefore + 10, JSON.stringify(modelPolicy), now, authorization.id),
     db.prepare("UPDATE v7_material_runs SET status='BATCH_2_V9_REPRODUCING',mode='CONTRACT_BOUND_SCENE_GRAPH_REPRODUCTION' WHERE id=?").bind(run.id),
     db.prepare("UPDATE v7_stage_states SET status='BATCH_2_V9_REPRODUCING',blocker='INTEGRATED_PRODUCTION_TRANSACTION',evidence_summary='V8 audit 32/100 preserved · V9 full-scope regression 50/50 and unique frames 150/150 PASS · reproducing all 50 products · no output repair · prior audit not retried',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+  ]);
+  return snapshot();
+}
+
+async function adoptWaveBatch2V10EngineRootCorrection() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.BUCKET) throw new Error("BATCH_2_V10_CONFIGURATION_REQUIRED");
+  const replacementId = `${clean(run.id)}-${WAVE_BATCH_2_V10_REPRODUCTION_VERSION}`;
+  const existingReplacement = await db.prepare("SELECT id FROM v7_production_batches WHERE id=?").bind(replacementId).first<Row>();
+  if (existingReplacement) return snapshot();
+  const active = await db.prepare("SELECT COUNT(*) AS total FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS')").bind(authorization.id).first<{ total: number }>();
+  if (Number(active?.total || 0) !== 0) throw new Error("BATCH_2_V10_ACTIVE_REQUESTS_MUST_BE_ZERO");
+  const rejected = await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_2' AND engine_version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION).first<Row>();
+  const audit = rejected ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? AND status='ENGINE_ROOT_CAUSE_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(rejected.id).first<Row>() : null;
+  if (!rejected || clean(rejected.status) !== "ENGINE_ROOT_CAUSE_REQUIRED" || Number(rejected.completed_units) !== 50 || !audit) throw new Error("BATCH_2_V9_ROOT_CAUSE_CHECKPOINT_REQUIRED");
+  const v9Products = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(rejected.id, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION).first<{ total: number }>();
+  const v8Evidence = await db.prepare("SELECT COUNT(*) AS total FROM v7_shot_products WHERE run_id=? AND engine_version=? AND status='PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE'").bind(run.id, WAVE_BATCH_2_ENGINE_VERSION).first<{ total: number }>();
+  if (Number(v9Products?.total || 0) !== 50 || Number(v8Evidence?.total || 0) !== 50) throw new Error("BATCH_2_V8_V9_EVIDENCE_INCOMPLETE");
+  const scope = arr(JSON.parse(String(rejected.scope_json || "[]"))).map(rec), failures: Row[] = [], productSignatures = new Map<string, string>(), frameSignatures = new Map<string, string>(), grammarSignatures = new Map<string, string>(), familyCounts = new Map<string, number>();
+  for (const target of scope) {
+    const briefRow = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=? AND run_id=?").bind(target.briefId, run.id).first<Row>();
+    if (!briefRow) { failures.push({ logicalId: target.logicalId, checks: ["BRIEF_MISSING"] }); continue; }
+    const contract = waveProductionContract(briefRow), manifest = waveProductionManifest(contract, WAVE_BATCH_2_V10_ENGINE_VERSION, WAVE_BATCH_2_V10_REPRODUCTION_VERSION), qualification = waveManifestQualification(manifest), oracle = waveProductOracle(manifest), semantic = rec(manifest.semanticModel);
+    const family = clean(semantic.kind), grammarSignature = await sha(JSON.stringify(qualification.signatureInput)), frameHashes = await Promise.all(oracle.frames.map((frame) => shaBytes(frame.bytes))), productSignature = await sha(JSON.stringify(frameHashes));
+    familyCounts.set(family, Number(familyCounts.get(family) || 0) + 1);
+    const duplicateGrammar = grammarSignatures.get(grammarSignature), duplicateProduct = productSignatures.get(productSignature);
+    if (duplicateGrammar) failures.push({ logicalId: contract.briefId, checks: ["CROSS_PRODUCT_GRAMMAR_REUSE"], duplicateOf: duplicateGrammar }); else grammarSignatures.set(grammarSignature, clean(contract.briefId));
+    if (duplicateProduct) failures.push({ logicalId: contract.briefId, checks: ["CROSS_PRODUCT_PIXEL_REUSE"], duplicateOf: duplicateProduct }); else productSignatures.set(productSignature, clean(contract.briefId));
+    for (const frameHash of frameHashes) { const duplicateFrame = frameSignatures.get(frameHash); if (duplicateFrame) failures.push({ logicalId: contract.briefId, checks: ["CROSS_PRODUCT_FRAME_REUSE"], duplicateOf: duplicateFrame }); else frameSignatures.set(frameHash, clean(contract.briefId)); }
+    if (!qualification.passed || !oracle.passed) failures.push({ logicalId: contract.briefId, checks: [...qualification.checks, ...oracle.checks].filter((item) => clean(rec(item).status) !== "PASS").map((item) => clean(rec(item).id)) });
+  }
+  const maximumFamilyShare = Math.max(...familyCounts.values()) / Math.max(1, scope.length);
+  if (scope.length !== 50 || failures.length || productSignatures.size !== 50 || frameSignatures.size !== 150 || grammarSignatures.size !== 50 || familyCounts.size < 5 || maximumFamilyShare > 0.6) throw new Error(`BATCH_2_ENGINE_V10_REGRESSION_FAILED · products ${productSignatures.size}/50 · frames ${frameSignatures.size}/150 · grammars ${grammarSignatures.size}/50 · families ${familyCounts.size} · maxShare ${maximumFamilyShare.toFixed(2)} · ${JSON.stringify(failures).slice(0, 1600)}`);
+  const now = new Date().toISOString(), usage = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<{ total: number; cost: number }>(), requestsBefore = Number(usage?.total || 0), costBefore = Number(usage?.cost || 0), priorRoot = rec(JSON.parse(String(audit.root_cause_json || "{}")));
+  const portfolioPolicy = { minimumSceneFamilies: 5, maximumFamilyShare: 0.6, uniqueGrammarSignatures: "50_OF_50", uniqueFrameHashes: "150_OF_150", cosmeticSeedDoesNotCountAsVariety: true };
+  const rootCausePolicy = { ...rec(JSON.parse(String(rejected.root_cause_policy_json || "{}"))), incident: "BATCH_2_V9_TOKEN_GRAPH_WITHOUT_ARCHETYPE_VISUAL_GRAMMAR", rejectedEngineVersion: WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION, rejectedAuditId: audit.id, rejectedAuditScore: Number(audit.score), observedRootCause: priorRoot.rootProductionCause, correctedLayers: ["SEMANTIC_MANIFEST", "LAYOUT_ENGINE", "PORTFOLIO_POLICY"], correction: "ARCHETYPE_NATIVE_VISUAL_GRAMMAR_WITH_CONTRACT_PROVENANCE_AND_DIRECTED_STATE_TRANSITIONS", replacementEngineVersion: WAVE_BATCH_2_V10_ENGINE_VERSION, fullScopeRegression: "50_CONTRACTS_50_GRAMMARS_150_FRAMES_PASS", portfolioPolicy, reproduceScope: "ALL_50_PRODUCTS", outputRepair: false, v8AndV9ProductsPreservedAsEvidence: true, retryPriorAudits: false };
+  const productionDoD = { ...rec(JSON.parse(String(rejected.production_dod_json || "{}"))), version: "SHOT_PRODUCT_DOD_V10", archetypeNativeVisualGrammar: true, elementProvenanceComplete: true, directedStateTransitions: true, unsupportedGenericInjectionBlocked: true, portfolioPolicy, fullScopeRegression: "50_OF_50_PASS" };
+  const modelPolicy = { ...rec(JSON.parse(String(authorization.model_policy_json || "{}"))), version: WAVE_BATCH_2_V10_REPRODUCTION_VERSION, productionEngine: WAVE_BATCH_2_V10_ENGINE_VERSION, scope: "REPRODUCE_ALL_50_AFTER_V9_ENGINE_REJECTION", deterministicProductionRequests: 0, independentAuditRequests: 1, autoRepair: false, priorAuditRetry: false, qaFailureRoute: "ROOT_PRODUCTION_PROCESS" };
+  await db.batch([
+    db.prepare("UPDATE v7_shot_products SET status='PRODUCT_COMPLETE_REJECTED_ENGINE_EVIDENCE',updated_at=? WHERE batch_id=? AND engine_version=? AND status='PRODUCT_COMPLETE'").bind(now, rejected.id, WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION),
+    db.prepare("UPDATE v7_production_batches SET status='ENGINE_ROOT_CAUSE_PRESERVED',updated_at=? WHERE id=?").bind(now, rejected.id),
+    db.prepare("INSERT INTO v7_production_batches (id,program_id,run_id,authorization_id,wave_key,version,engine_version,status,scope_json,specification_hash,total_units,completed_units,blocked_units,current_index,audit_sample_json,production_dod_json,root_cause_policy_json,requests_before,cost_before,request_budget,cost_budget,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'PRODUCING',?,?,50,0,0,0,?,?,?,?,?,1,10,?,?)").bind(replacementId, PROGRAM_ID, run.id, authorization.id, "BATCH_2", WAVE_BATCH_2_V10_REPRODUCTION_VERSION, WAVE_BATCH_2_V10_ENGINE_VERSION, JSON.stringify(scope), await sha(JSON.stringify({ scope, productionDoD, rootCausePolicy, engine: WAVE_BATCH_2_V10_ENGINE_VERSION })), rejected.audit_sample_json, JSON.stringify(productionDoD), JSON.stringify(rootCausePolicy), requestsBefore, costBefore, now, now),
+    db.prepare("UPDATE v7_material_authorizations SET scope='WAVE_09_BATCH_2_ENGINE_V10_REPRODUCTION',status='PAUSED',shot_count=50,max_remote_requests=?,max_actual_spend_usd=?,model_policy_json=?,completed_at=NULL,updated_at=? WHERE id=?").bind(requestsBefore + 1, costBefore + 10, JSON.stringify(modelPolicy), now, authorization.id),
+    db.prepare("UPDATE v7_material_runs SET status='BATCH_2_V10_REPRODUCING',mode='ARCHETYPE_SEMANTIC_COMPILER_REPRODUCTION' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_stage_states SET status='BATCH_2_V10_REPRODUCING',blocker='INTEGRATED_PRODUCTION_TRANSACTION',evidence_summary='V8 32/100 and V9 39/100 preserved · V10 50/50 semantic manifests, 50/50 grammar signatures, 150/150 frames and portfolio family quota PASS · no output repair · prior audits not retried',updated_at=? WHERE id=?").bind(now, STAGE_ID),
   ]);
   return snapshot();
 }
@@ -5153,6 +5216,7 @@ export async function POST(request: Request) {
     if (body.action === "RUN_WAVE_BATCH_1_AUDIT") return Response.json(await waveBatch1Audit(), { status: 202 });
     if (body.action === "START_WAVE_BATCH_2") return Response.json(await startWaveBatch2(), { status: 201 });
     if (body.action === "ADOPT_WAVE_BATCH_2_ENGINE_ROOT_CORRECTION") return Response.json(await adoptWaveBatch2EngineRootCorrection(), { status: 201 });
+    if (body.action === "ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION") return Response.json(await adoptWaveBatch2V10EngineRootCorrection(), { status: 201 });
     if (body.action === "PRODUCE_NEXT_WAVE_BATCH_2_SHOT") return Response.json(await produceNextWaveBatch2Shot(), { status: 201 });
     if (body.action === "RUN_WAVE_BATCH_2_AUDIT") return Response.json(await waveBatch2Audit(), { status: 202 });
     if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());
