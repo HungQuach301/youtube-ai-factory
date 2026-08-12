@@ -332,3 +332,35 @@ test("V20 through V21.3 rejection evidence require one Factory-candidate-span-bo
   assert.doesNotMatch(route.match(/const semanticCitationSchema[^;]+;/)?.[0] || "", /startToken|endToken|ref/);
   assert.doesNotMatch(route.match(/function contractNativeSceneSpecificationV21[\s\S]*?function waveProductionManifest/)?.[0] || "", /MP-\d{3}|auditSample\[|auditedCompositions|auditedBlueprint/);
 });
+
+test("V21.4 audit rejection advances only through V22 typed programs, independent entailment and domain primitives", () => {
+  for (const control of [
+    "SHOT_PRODUCT_ENGINE_V22_TYPED_SEMANTIC_SCENE_PROGRAM_COMPILER",
+    "V22_1_TYPED_ENTITY_RELATION_BOUNDARY_CONTAINMENT_STATE_PROGRAM",
+    "AUTHOR_WAVE_BATCH_2_V22_TYPED_SCENE_PROGRAMS",
+    "WAVE_BATCH_2_V22_TYPED_SCENE_PROGRAM_AUTHORING",
+    "TYPED_SEMANTIC_SCENE_PROGRAM_V22",
+    "TYPED_ENTITY_RELATION_BOUNDARY_CONTAINMENT_STATE_PROGRAM",
+    "VALIDATED_TYPED_SCENE_PROGRAM_AND_SOLVED_DOMAIN_PRIMITIVES_ONLY",
+    "TYPED_ENTITY_RELATION_REFERENCE_CLAUSE_COVERAGE_AND_SEMANTIC_ENTAILMENT_GATE_V5",
+    "PREFLIGHT_WAVE_BATCH_2_V22_TYPED_SCENE_ACTIVATION",
+    "ADOPT_WAVE_BATCH_2_V22_TYPED_SCENE_PROCESS_CORRECTION",
+    "50_TYPED_PROGRAMS_50_ENTAILMENT_50_DOMAIN_PRIMITIVE_TRACES_150_FRAMES_MEASURED",
+    "v21_4ProductsAndAuditPreservedAsEvidence: true",
+    "genericCardFallbackForbidden: true",
+    "parallelRelationsVisible: true",
+    "domainPrimitiveRendererRequired: true",
+  ]) assert.match(route, new RegExp(control));
+  assert.match(route, /Number\(audit\.score\) !== 27/);
+  assert.match(route, /Number\(sourcePlanResult\.plansValidated\) !== 50/);
+  assert.match(route, /Number\(sourcePlanResult\.providerDispatches\) !== 1/);
+  assert.match(route, /independentSemanticEntailmentGate: validation\.status/);
+  assert.match(route, /entailmentCoverage === 50/);
+  assert.match(route, /typedPrimitiveCoverage === 50/);
+  assert.match(route, /relationCoverage === 50/);
+  assert.match(route, /providerRequestsDelta\) !== 0/);
+  assert.match(route, /BATCH_2_V22_ACTIVE_REQUESTS_MUST_BE_ZERO/);
+  assert.match(route, /BATCH_2_V22_EXACTLY_ONCE_CONFLICT/);
+  assert.match(route, /"idempotency-key": requestId/);
+  assert.doesNotMatch(route.match(/function contractNativeSceneSpecificationV22[\s\S]*?function waveProductionManifest/)?.[0] || "", /MP-\d{3}|auditSample\[|auditedCompositions|auditedBlueprint/);
+});
