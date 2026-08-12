@@ -142,3 +142,25 @@ test("failed V10 is replaced by V11 contract semantic projection", () => {
   assert.match(route, /BATCH_2_V11_ATOMIC_COMMIT_FAILED/);
   assert.match(route, /verifyCommittedWaveBatch2V11Activation/);
 });
+
+test("failed V11 is replaced by V12 structured visual ontology with physical motion and collision gates", () => {
+  for (const control of [
+    "SHOT_PRODUCT_ENGINE_V12_STRUCTURED_VISUAL_ONTOLOGY",
+    "STRUCTURED_VISUAL_ONTOLOGY_V12",
+    "STRUCTURED_VISUAL_ONTOLOGY_COMPILER_V12",
+    "ACTOR_LANE_CONTAINER_BOUNDARY_MOVING_ENTITY_STATE",
+    "PHYSICAL_MOTION_NOT_LABEL_SWAP",
+    "CLIPPING_AND_CONNECTOR_INTERSECTION",
+    "PREFLIGHT_WAVE_BATCH_2_V12_ACTIVATION",
+    "ADOPT_WAVE_BATCH_2_V12_ENGINE_ROOT_CORRECTION",
+    "50_ONTOLOGIES_50_MOTION_PATHS_150_FRAMES_LAYOUT_SAFE",
+  ]) assert.match(route, new RegExp(control));
+  assert.match(route, /ontologyCoverage === 50/);
+  assert.match(route, /motionCoverage === 50/);
+  assert.match(route, /layoutSafeCoverage === 50/);
+  assert.match(route, /familyCounts\.size === 8/);
+  assert.match(route, /maximumFamilyShare <= 0\.25/);
+  assert.match(route, /v8V9V10V11ProductsPreservedAsEvidence: true/);
+  assert.match(route, /BATCH_2_V12_ATOMIC_COMMIT_FAILED/);
+  assert.match(route, /verifyCommittedWaveBatch2V12Activation/);
+});
