@@ -185,6 +185,7 @@ test("failed V12 is replaced by V13 contract-native scene specifications with pi
   assert.match(route, /v8V9V10V11V12ProductsPreservedAsEvidence: true/);
   assert.match(route, /BATCH_2_V13_ATOMIC_COMMIT_FAILED/);
   assert.match(route, /verifyCommittedWaveBatch2V13Activation/);
+  assert.match(route, /\[WAVE_BATCH_2_V12_ENGINE_VERSION, WAVE_BATCH_2_V13_ENGINE_VERSION\]\.includes\(engine\)/);
   assert.match(route, /rendererContract\.input === "SCENE_SPECIFICATION_ONLY"/);
   assert.match(route, /tokenFallbackForbidden === true/);
 });
