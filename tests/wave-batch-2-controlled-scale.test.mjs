@@ -165,30 +165,30 @@ test("failed V11 is replaced by V12 structured visual ontology with physical mot
   assert.match(route, /verifyCommittedWaveBatch2V12Activation/);
 });
 
-test("failed V16 is replaced by V17 exact-clause frames with pixel trace gates", () => {
+test("failed V17 is replaced by V18 pixel layouts with pixel trace gates", () => {
   for (const control of [
-    "SHOT_PRODUCT_ENGINE_V16_EVIDENCE_NATIVE_VISUAL_LANGUAGE_COMPILER",
     "SHOT_PRODUCT_ENGINE_V17_EXACT_CLAUSE_FRAME_COMPILER",
-    "EXACT_CLAUSE_FRAME_SPECIFICATION_V17",
-    "EXACT_CLAUSE_FRAME_COMPILER_V17",
+    "SHOT_PRODUCT_ENGINE_V18_PIXEL_LAYOUT_COMPILER",
+    "PIXEL_LAYOUT_SPECIFICATION_V18",
+    "PIXEL_LAYOUT_COMPILER_V18",
     "ISSUER_LEDGER_CONTAINMENT",
     "RESPONSE_FOUR_BOUNDARIES",
     "CONTROLLED_SCENARIO_TABLE",
     "SCENE_SPEC_TO_PIXEL_TRACE",
     "SCENE_SPEC_LAYOUT_SAFETY",
     "SCENE_SPEC_PHYSICAL_TRANSITION",
-    "PREFLIGHT_WAVE_BATCH_2_V17_ACTIVATION",
-    "ADOPT_WAVE_BATCH_2_V17_ENGINE_ROOT_CORRECTION",
+    "PREFLIGHT_WAVE_BATCH_2_V18_ACTIVATION",
+    "ADOPT_WAVE_BATCH_2_V18_ENGINE_ROOT_CORRECTION",
     "50_SCENE_SPECS_50_PIXEL_TRACES_150_FRAMES_LAYOUT_SAFE",
   ]) assert.match(route, new RegExp(control));
   assert.match(route, /sceneSpecCoverage === 50/);
   assert.match(route, /pixelTraceCoverage === 50/);
   assert.match(route, /familyCounts\.size === 10/);
   assert.match(route, /maximumFamilyShare <= 0\.2/);
-  assert.match(route, /v8V9V10V11V12V13V14V15V16ProductsPreservedAsEvidence: true/);
+  assert.match(route, /v8V9V10V11V12V13V14V15V16V17ProductsPreservedAsEvidence: true/);
   assert.match(route, /BATCH_2_V13_ATOMIC_COMMIT_FAILED/);
   assert.match(route, /verifyCommittedWaveBatch2V13Activation/);
   assert.match(route, /WAVE_BATCH_2_V13_REJECTED_ENGINE_VERSION/);
-  assert.match(route, /rendererContract\.input === "EXACT_CLAUSE_FRAME_ONLY"/);
+  assert.match(route, /rendererContract\.input === "PIXEL_LAYOUT_ONLY"/);
   assert.match(route, /tokenFallbackForbidden === true/);
 });
