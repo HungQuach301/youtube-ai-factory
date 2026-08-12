@@ -2690,7 +2690,13 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
     const prior = batch ? await db.prepare("SELECT COUNT(*) AS total FROM v7_batch_product_audits WHERE batch_id=?").bind(batch.id).first<{ total: number }>() : null;
     const currentAudit = batch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(batch.id).first<Row>() : null;
     const rootPolicy = rec(JSON.parse(String(batch?.root_cause_policy_json || "{}")));
-    const rejectedEngineForCurrent = clean(batch?.engine_version) === WAVE_BATCH_2_V10_ENGINE_VERSION ? WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION : clean(batch?.engine_version) === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION ? WAVE_BATCH_2_ENGINE_VERSION : "";
+    const rejectedEngineForCurrent = clean(batch?.engine_version) === WAVE_BATCH_2_V11_ENGINE_VERSION
+      ? WAVE_BATCH_2_V10_ENGINE_VERSION
+      : clean(batch?.engine_version) === WAVE_BATCH_2_V10_ENGINE_VERSION
+        ? WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION
+        : clean(batch?.engine_version) === WAVE_BATCH_2_REPLACEMENT_ENGINE_VERSION
+          ? WAVE_BATCH_2_ENGINE_VERSION
+          : "";
     const rejectedBatch = rejectedEngineForCurrent
       ? await db.prepare("SELECT * FROM v7_production_batches WHERE authorization_id=? AND wave_key='BATCH_2' AND engine_version=? ORDER BY created_at DESC LIMIT 1").bind(authorization.id, rejectedEngineForCurrent).first<Row>()
       : null;
@@ -2717,13 +2723,21 @@ async function newRequest(db: DB, authorization: Row, briefId: string, phase: st
       && clean(rejectedBatch?.status) === "ENGINE_ROOT_CAUSE_PRESERVED"
       && clean(rejectedAudit?.status) === "ENGINE_ROOT_CAUSE_REQUIRED"
       && currentDurableIntent;
+    const v11QualifiedAudit = clean(batch?.engine_version) === WAVE_BATCH_2_V11_ENGINE_VERSION
+      && clean(rootPolicy.replacementEngineVersion) === WAVE_BATCH_2_V11_ENGINE_VERSION
+      && clean(rootPolicy.fullScopeRegression) === "50_CONTRACTS_50_PROJECTIONS_50_GRAMMARS_150_FRAMES_PASS"
+      && rootPolicy.v8V9V10ProductsPreservedAsEvidence === true
+      && rootPolicy.retryPriorAudits === false
+      && clean(rejectedBatch?.status) === "ENGINE_ROOT_CAUSE_PRESERVED"
+      && clean(rejectedAudit?.status) === "ENGINE_ROOT_CAUSE_REQUIRED"
+      && currentDurableIntent;
     batchAuditAuthorized = Boolean(batch)
       && clean(batch?.status) === "PRODUCT_COMPLETE"
       && Number(batch?.total_units) === 50
       && Number(batch?.completed_units) === 50
       && Number(products?.total || 0) === 50
-      && (v8InitialAudit || v9QualifiedAudit || v10QualifiedAudit);
-    if (!batchAuditAuthorized) throw new Error("BATCH_2_PRODUCT_AUDIT_FIREWALL · qualified V8 initial audit or lineage-bound V9/V10 durable audit intent is required");
+      && (v8InitialAudit || v9QualifiedAudit || v10QualifiedAudit || v11QualifiedAudit);
+    if (!batchAuditAuthorized) throw new Error("BATCH_2_PRODUCT_AUDIT_FIREWALL · qualified V8 initial audit or lineage-bound V9/V10/V11 durable audit intent is required");
   }
   if (baseline?.execution_state === "FROZEN" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) throw new Error("PRODUCTION_EXECUTION_QUARANTINED · archetype certification must pass before provider dispatch");
   if (baseline?.execution_state === "CANARY_ONLY" && !phase.startsWith("ARCHETYPE_CERTIFICATION") && !sequenceQaAuthorized && !productAuditAuthorized && !batchAuditAuthorized) {

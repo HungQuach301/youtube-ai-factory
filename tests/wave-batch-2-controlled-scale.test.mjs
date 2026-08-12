@@ -75,6 +75,14 @@ test("Batch 2 V9 audit is lineage-qualified and exactly-once across reconnects",
   assert.match(route, /const frameContent = await Promise\.all/);
 });
 
+test("Batch 2 V11 audit accepts the preserved V10 lineage and keeps intent separate from request dispatch", () => {
+  assert.match(route, /clean\(batch\?\.engine_version\) === WAVE_BATCH_2_V11_ENGINE_VERSION/);
+  assert.match(route, /const v11QualifiedAudit/);
+  assert.match(route, /50_CONTRACTS_50_PROJECTIONS_50_GRAMMARS_150_FRAMES_PASS/);
+  assert.match(route, /rootPolicy\.v8V9V10ProductsPreservedAsEvidence === true/);
+  assert.match(route, /v8InitialAudit \|\| v9QualifiedAudit \|\| v10QualifiedAudit \|\| v11QualifiedAudit/);
+});
+
 test("failed V9 is replaced by V10 archetype-native semantic compilation", () => {
   for (const control of [
     "SHOT_PRODUCT_ENGINE_V10_ARCHETYPE_SEMANTIC_COMPILER",
