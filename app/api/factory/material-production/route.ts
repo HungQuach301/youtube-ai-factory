@@ -349,8 +349,9 @@ async function snapshot() {
   const sequenceProductEvidence = sequenceProduct?.evidence_id ? await db.prepare("SELECT * FROM v7_media_evidence WHERE id=? AND evidence_type='SEQUENCE_PRODUCT'").bind(sequenceProduct.evidence_id).first<Row>() : null;
   const sequenceProductAudit = sequenceProduct ? await db.prepare("SELECT * FROM v7_sequence_product_audits WHERE product_id=? ORDER BY created_at DESC LIMIT 1").bind(sequenceProduct.id).first<Row>() : null;
   const productionBatch = run ? await db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? ORDER BY created_at DESC LIMIT 1").bind(run.id).first<Row>() : null;
-  const expectedPreflightAction = clean(productionBatch?.engine_version) === WAVE_BATCH_2_V10_ENGINE_VERSION ? "PREFLIGHT_WAVE_BATCH_2_V11_ACTIVATION" : "PREFLIGHT_WAVE_BATCH_2_V10_ACTIVATION";
-  const expectedActivationAction = clean(productionBatch?.engine_version) === WAVE_BATCH_2_V10_ENGINE_VERSION ? "ADOPT_WAVE_BATCH_2_V11_ENGINE_ROOT_CORRECTION" : "ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION";
+  const v11ControlVisible = [WAVE_BATCH_2_V10_ENGINE_VERSION, WAVE_BATCH_2_V11_ENGINE_VERSION].includes(clean(productionBatch?.engine_version));
+  const expectedPreflightAction = v11ControlVisible ? "PREFLIGHT_WAVE_BATCH_2_V11_ACTIVATION" : "PREFLIGHT_WAVE_BATCH_2_V10_ACTIVATION";
+  const expectedActivationAction = v11ControlVisible ? "ADOPT_WAVE_BATCH_2_V11_ENGINE_ROOT_CORRECTION" : "ADOPT_WAVE_BATCH_2_V10_ENGINE_ROOT_CORRECTION";
   const batchActivationPreflight = run ? await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, expectedPreflightAction).first<Row>() : null;
   const batchActivation = run ? await db.prepare("SELECT * FROM v7_batch_activations WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, expectedActivationAction).first<Row>() : null;
   const batchProducts = productionBatch ? await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND engine_version=? ORDER BY created_at", productionBatch.id, productionBatch.engine_version) : [];
