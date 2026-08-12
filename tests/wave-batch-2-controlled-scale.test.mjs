@@ -179,11 +179,12 @@ test("failed V18 is replaced by V19 systemic process correction rather than samp
     "PRIMITIVE_ONLY_RENDERER",
     "RECOMPUTED_LAYOUT_AND_MOBILE_MEASUREMENTS",
     "ADVERSARIAL_FIXTURE_QUALIFICATION",
-    "V19_2_OBSTACLE_AVOIDING_CONNECTOR_SOLVER",
+    "V19_3_PORT_EGRESS_COMPLETE_LAYOUT_SOLVER",
     "CAPACITY_SAFE_SLOTS_AND_TOPOLOGY_DIRECTED_MOTION_PATH",
     "TOPOLOGY_DIRECTED_DISTINCT_ANCHORS",
     "OBSTACLE_AVOIDING_CONNECTOR_PORT_AND_PERIMETER_SOLVER",
     "OBSTACLE_AVOIDING_PERIMETER_PORTS",
+    "EGRESS_COMPLETE_PRIMITIVE_PLACEMENT",
     "LOGICAL_ID_BRANCH",
     "AUDIT_SAMPLE_BRANCH",
     "FRAME_COORDINATE_PATCH",
@@ -214,9 +215,12 @@ test("failed V18 is replaced by V19 systemic process correction rather than samp
   assert.match(route, /motionPathObjectIntersectionCount/);
   assert.match(route, /motionPathSafeAreaFailures/);
   assert.match(route, /motionRailReserved/);
-  assert.match(route, /ZERO-SPEND-PREFLIGHT-V19-2/);
+  assert.match(route, /ZERO-SPEND-PREFLIGHT-V19-3/);
   assert.match(route, /failedV19InitialPreflightPreservedAsEvidence: true/);
   assert.match(route, /failedV19_1PreflightPreservedAsEvidence: true/);
+  assert.match(route, /failedV19_2PreflightPreservedAsEvidence: true/);
+  assert.match(route, /primitiveEgressFailures/);
+  assert.match(route, /everyPrimitiveHasEgressPort/);
   assert.doesNotMatch(route, /const path = \[objects\[0\], objects\[Math\.floor\(objects\.length \/ 2\)\], objects\[objects\.length - 1\]\]/);
 });
 
