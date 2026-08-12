@@ -321,6 +321,9 @@ test("V20 through V21.3 rejection evidence require one Factory-candidate-span-bo
   assert.match(route, /candidateSpanId/);
   assert.match(route, /candidateSpansForContract/);
   assert.match(route, /spanId/);
+  assert.match(route, /layoutSafeLabel/);
+  assert.match(route, /progress\.plans \|\| progress\.planCoverage/);
+  assert.match(route, /ZERO-SPEND-PREFLIGHT-V21-4-LAYOUT-2/);
   assert.match(route, /sourceTextReconstructedByFactory: true/);
   assert.match(route, /numericTokenOffsetsAccepted: false/);
   assert.match(route, /modelComposedTokenIdsAccepted: false/);
