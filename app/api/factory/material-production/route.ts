@@ -2,6 +2,7 @@ import { AI_USAGE_TABLE_SQL, recordOpenAIUsage } from "../../../../lib/ai-usage"
 import { storeDriveBinaryArtifact, storeDriveJsonArtifact } from "../../../../lib/google-drive";
 import { CANONICAL_PILOT_MANIFEST_VERSION, deriveCanonicalPilotManifest } from "../../../../lib/canonical-pilot-manifest.mjs";
 import { CONTROLLED_RELEASE_POLICY, evaluateControlledRelease } from "../../../../lib/controlled-release-policy.mjs";
+import { WAVE_9_SCALE_READINESS_POLICY, providerRecoveryDecision, qualifyWave9ScaleReadiness } from "../../../../lib/wave9-scale-readiness.mjs";
 import jpeg from "jpeg-js";
 
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
@@ -58,6 +59,8 @@ const WAVE_BATCH_2_V22_PROGRAM_ACTION = "AUTHOR_WAVE_BATCH_2_V22_TYPED_SCENE_PRO
 const WAVE_BATCH_2_V22_PROGRAM_PHASE = "WAVE_BATCH_2_V22_TYPED_SCENE_PROGRAM_AUTHORING";
 const WAVE_BATCH_2_V22_PREFLIGHT_ACTION = "PREFLIGHT_WAVE_BATCH_2_V22_TYPED_SCENE_ACTIVATION";
 const WAVE_BATCH_2_V22_ACTIVATION_ACTION = "ADOPT_WAVE_BATCH_2_V22_TYPED_SCENE_PROCESS_CORRECTION";
+const WAVE_9_SCALE_READINESS_ACTION = "RECONCILE_AND_QUALIFY_WAVE_9_SCALE_READINESS";
+const WAVE_9_SCALE_READINESS_RECORD_ACTION = "QUALIFY_WAVE_9_SCALE_READINESS_HARDENING";
 const WAVE_ENGINE_EVOLUTION = [
   { version: "V13", auditScore: 27, outcome: "REJECTED_ENGINE_EVIDENCE", proven: ["Contract-native scene specification", "50/50 scene-spec and semantic-to-pixel trace coverage", "Exactly-once 50-shot reproduction"], rejectedBecause: "The schema carried contract meaning, but the rendered pixels still collapsed into token boxes with text overlap.", inherited: ["Authoritative scene specification", "Semantic-to-pixel lineage", "Immutable full-batch evidence"] },
   { version: "V14", auditScore: 28, outcome: "REJECTED_ENGINE_EVIDENCE", proven: ["Executable storyboard with domain primitives", "Hard text limits and reserved connector corridors", "Action timeline separated from audit"], rejectedBecause: "The compiler still mapped object origin, containment and destination incorrectly for contract-specific spatial relationships.", inherited: ["Domain primitives", "Bounded viewer text", "Explicit action timeline"] },
@@ -183,6 +186,7 @@ const STAGE09_ARCHITECTURE = {
 const schema = [
   AI_USAGE_TABLE_SQL,
   `CREATE TABLE IF NOT EXISTS v7_cost_events (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, project_id text, stage_key text NOT NULL, provider text NOT NULL, cost_class text NOT NULL, cost_type text NOT NULL, status text DEFAULT 'ESTIMATED' NOT NULL, estimated_usd real DEFAULT 0 NOT NULL, actual_usd real DEFAULT 0 NOT NULL, reusable_allocation_usd real DEFAULT 0 NOT NULL, currency text DEFAULT 'USD' NOT NULL, asset_id text, note text DEFAULT '' NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_continuity_snapshots (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,checkpoint_code text NOT NULL,lifecycle_state text DEFAULT 'MATERIALIZED' NOT NULL,content_json text NOT NULL,content_hash text NOT NULL,blocker_count integer DEFAULT 0 NOT NULL,active_request_count integer DEFAULT 0 NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_states (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, stage_key text NOT NULL, sequence integer NOT NULL, stage_name text NOT NULL, status text DEFAULT 'BLOCKED_UPSTREAM' NOT NULL, threshold integer DEFAULT 92 NOT NULL, attempt integer DEFAULT 0 NOT NULL, artifact_id text, blocker text, evidence_summary text DEFAULT 'No verified artifact' NOT NULL, frozen_at text, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_shot_artifacts (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,lifecycle_state text DEFAULT 'MATERIALIZED' NOT NULL,content_json text NOT NULL,content_hash text NOT NULL,runtime_key text,drive_file_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_material_runs (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, status text DEFAULT 'BUILDING' NOT NULL, mode text DEFAULT 'ZERO_SPEND_DRY_RUN' NOT NULL, brief_count integer DEFAULT 0 NOT NULL, pilot_count integer DEFAULT 0 NOT NULL, score integer DEFAULT 0 NOT NULL, remote_requests integer DEFAULT 0 NOT NULL, actual_cost_usd real DEFAULT 0 NOT NULL, gate_json text DEFAULT '[]' NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, completed_at text)`,
@@ -394,6 +398,8 @@ async function snapshot() {
   const semanticPlanControl = run ? await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, v22ControlVisible ? WAVE_BATCH_2_V22_PROGRAM_ACTION : WAVE_BATCH_2_V21_PLAN_ACTION).first<Row>() : null;
   const batchActivationPreflight = run ? await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, expectedPreflightAction).first<Row>() : null;
   const batchActivation = run ? await db.prepare("SELECT * FROM v7_batch_activations WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, expectedActivationAction).first<Row>() : null;
+  const scaleReadinessRecord = run ? await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, WAVE_9_SCALE_READINESS_RECORD_ACTION).first<Row>() : null;
+  const scaleReadinessSnapshot = await db.prepare("SELECT * FROM v7_continuity_snapshots WHERE program_id=? AND checkpoint_code=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, WAVE_9_SCALE_READINESS_POLICY.version).first<Row>();
   const batchProducts = productionBatch ? await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND engine_version=? ORDER BY created_at", productionBatch.id, productionBatch.engine_version) : [];
   const batchAudit = productionBatch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? ORDER BY created_at DESC LIMIT 1").bind(productionBatch.id).first<Row>() : null;
   const reliabilityBaseline = await db.prepare("SELECT * FROM v7_architecture_baselines WHERE program_id=? AND stage_key=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, STAGE).first<Row>();
@@ -487,6 +493,7 @@ async function snapshot() {
       preflight: batchActivationPreflight ? { id: batchActivationPreflight.id, status: batchActivationPreflight.status, inputHash: clean(batchActivationPreflight.input_hash), result: rec(JSON.parse(String(batchActivationPreflight.result_json || "{}"))), requestsBefore: Number(batchActivationPreflight.requests_before), costBefore: Number(batchActivationPreflight.cost_before), updatedAt: batchActivationPreflight.updated_at } : null,
       activation: batchActivation ? { id: batchActivation.id, status: batchActivation.status, idempotencyKey: clean(batchActivation.idempotency_key), targetBatchId: clean(batchActivation.target_batch_id), inputHash: clean(batchActivation.input_hash), result: rec(JSON.parse(String(batchActivation.result_json || "{}"))), committedAt: batchActivation.committed_at || null } : null,
     },
+    scaleReadiness: scaleReadinessRecord ? { status: scaleReadinessRecord.status, result: rec(JSON.parse(String(scaleReadinessRecord.result_json || "{}"))), canonicalSnapshotHash: clean(scaleReadinessSnapshot?.content_hash), checkpointAt: scaleReadinessSnapshot?.created_at || null, updatedAt: scaleReadinessRecord.updated_at } : null,
     canary: controlledCanary ? { id: controlledCanary.id, version: controlledCanary.version, status: controlledCanary.status, queue: JSON.parse(String(controlledCanary.queue_json || "[]")), currentIndex: Number(controlledCanary.current_index), currentBriefId: controlledCanary.current_brief_id || null, releasedUnits: Number(controlledCanary.released_units), passedUnits: Number(controlledCanary.passed_units), failedUnits: Number(controlledCanary.failed_units), requestsBefore: Number(controlledCanary.requests_before), costBefore: Number(controlledCanary.cost_before), requestBudget: Number(controlledCanary.request_budget), costBudget: Number(controlledCanary.cost_budget), activeRequestPeak: Number(controlledCanary.active_request_peak), gates: JSON.parse(String(controlledCanary.gate_json || "[]")), currentAudit: controlledCanaryAudit ? { status: controlledCanaryAudit.status, score: Number(controlledCanaryAudit.score), dimensions: JSON.parse(String(controlledCanaryAudit.dimensions_json || "{}")), findings: JSON.parse(String(controlledCanaryAudit.findings_json || "[]")), providerResponseId: controlledCanaryAudit.provider_response_id } : null, createdAt: controlledCanary.created_at, updatedAt: controlledCanary.updated_at } : null,
     recovery: recovery ? { id: recovery.id, version: recovery.version, status: recovery.status, snapshotHash: recovery.snapshot_hash, rootCause: JSON.parse(String(recovery.root_cause_json || "{}")), e2e: JSON.parse(String(recovery.e2e_json || "{}")), faultMatrix: JSON.parse(String(recovery.fault_matrix_json || "[]")), requestsBefore: Number(recovery.requests_before), requestsAfter: Number(recovery.requests_after), costBefore: Number(recovery.cost_before), costAfter: Number(recovery.cost_after), simulatedRequestSequence: Number(recovery.simulated_request_sequence), requestIntent: recoveryIntent ? { id: recoveryIntent.id, status: recoveryIntent.status, sequence: Number(recoveryIntent.simulated_sequence), idempotencyKey: recoveryIntent.idempotency_key, payloadHash: recoveryIntent.payload_hash } : null, outbox: recoveryOutbox ? { id: recoveryOutbox.id, status: recoveryOutbox.status, eventType: recoveryOutbox.event_type } : null, events: recoveryEvents.map((event) => ({ status: event.status, failureCode: event.failure_code || null, failedTransition: event.failed_transition || null, failedGate: event.failed_gate || null, expectedState: event.expected_state || null, actualState: event.actual_state || null, ledgerStatus: event.ledger_status || null, providerDispatchStatus: event.provider_dispatch_status || null, createdAt: event.created_at })), createdAt: recovery.created_at, updatedAt: recovery.updated_at } : null,
     pilot: { materialized: uniqueMaterialized, audited: audits.filter((item) => ["PASS", "REPAIR_REQUIRED"].includes(String(item.status))).length, total: pilotBriefs.length, percent: pilotBriefs.length ? Math.round((uniqueMaterialized + audits.length) / (pilotBriefs.length * 2) * 100) : 0, items },
@@ -6381,6 +6388,65 @@ async function authorWaveBatch2V22TypedScenePrograms() {
   return snapshot();
 }
 
+async function reconcileAndQualifyWave9ScaleReadiness() {
+  const env = await runtime(), db = env.DB!, { run, authorization } = await current(db);
+  if (!run || !authorization || !env.OPENAI_API_KEY) throw new Error("WAVE_9_SCALE_READINESS_CONFIGURATION_REQUIRED");
+  const programRecord = await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, WAVE_BATCH_2_V22_PROGRAM_ACTION).first<Row>();
+  if (!programRecord) throw new Error("WAVE_9_SCALE_READINESS_V22_REQUEST_131_EVIDENCE_REQUIRED");
+  if (["PREPARING", "DISPATCHING", "AUTHORING"].includes(clean(programRecord.status))) await authorWaveBatch2V22TypedScenePrograms();
+
+  let activeRequest = await db.prepare("SELECT * FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') ORDER BY created_at ASC LIMIT 1").bind(authorization.id).first<Row>();
+  if (activeRequest) {
+    const providerResponseId = clean(activeRequest.provider_response_id);
+    if (!providerResponseId) throw new Error("WAVE_9_SCALE_READINESS_ACTIVE_REQUEST_MISSING_PROVIDER_BINDING");
+    const ageMinutes = Math.max(0, (Date.now() - new Date(String(activeRequest.created_at)).getTime()) / 60_000), cancelRequested = clean(activeRequest.error).includes("SCALE_READINESS_CANCEL_REQUESTED");
+    const decision = providerRecoveryDecision({ providerStatus: clean(activeRequest.status).toLowerCase(), ageMinutes, cancelRequested });
+    if (decision.action === "CANCEL_EXISTING_ONCE") {
+      const cancelled = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(providerResponseId)}/cancel`, { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json" }, signal: AbortSignal.timeout(30000) });
+      if (!cancelled.ok) throw new Error(`WAVE_9_SCALE_READINESS_CANCEL_FAILED · ${cancelled.status}`);
+      const payload = await cancelled.json() as Row, now = new Date().toISOString();
+      await db.batch([
+        db.prepare("UPDATE v7_material_requests SET status=?,error=?,updated_at=? WHERE id=?").bind(["queued", "in_progress"].includes(clean(payload.status)) ? clean(payload.status).toUpperCase() : "IN_PROGRESS", `SCALE_READINESS_CANCEL_REQUESTED · ${now}`, now, activeRequest.id),
+        db.prepare("UPDATE v7_stage_states SET status='WAVE_9_REQUEST_RECONCILIATION',blocker='AWAIT_PROVIDER_TERMINAL_CONFIRMATION',evidence_summary='Request 131 exceeded hard SLA · one idempotent cancel issued · no replacement request, activation or production',updated_at=? WHERE id=?").bind(now, STAGE_ID),
+      ]);
+    }
+    return snapshot();
+  }
+
+  const [requestStats, usageJoin, briefStats, rejectedBatch] = await Promise.all([
+    db.prepare("SELECT COUNT(*) AS request_count,COUNT(DISTINCT idempotency_key) AS unique_request_keys,SUM(CASE WHEN provider_response_id IS NOT NULL THEN 1 ELSE 0 END) AS bound_response_count,COUNT(DISTINCT provider_response_id) AS unique_response_ids,SUM(CASE WHEN status='COMPLETE' AND provider_response_id IS NOT NULL THEN 1 ELSE 0 END) AS completed_bound_requests,COALESCE(SUM(actual_cost_usd),0) AS cost FROM v7_material_requests WHERE authorization_id=?").bind(authorization.id).first<Row>(),
+    db.prepare("SELECT COUNT(*) AS matched_completed_usage FROM v7_material_requests r INNER JOIN v7_ai_usage_events u ON u.provider_response_id=r.provider_response_id WHERE r.authorization_id=? AND r.status='COMPLETE'").bind(authorization.id).first<Row>(),
+    db.prepare("SELECT COUNT(*) AS brief_count FROM v7_material_briefs WHERE run_id=?").bind(run.id).first<Row>(),
+    db.prepare("SELECT * FROM v7_production_batches WHERE run_id=? AND wave_key='BATCH_2' AND engine_version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, WAVE_BATCH_2_V21_ENGINE_VERSION).first<Row>(),
+  ]);
+  const rejectedAudit = rejectedBatch ? await db.prepare("SELECT * FROM v7_batch_product_audits WHERE batch_id=? AND status='ENGINE_ROOT_CAUSE_REQUIRED' ORDER BY created_at DESC LIMIT 1").bind(rejectedBatch.id).first<Row>() : null;
+  if (!rejectedBatch || !rejectedAudit) throw new Error("WAVE_9_SCALE_READINESS_V21_4_NEGATIVE_CONTROL_REQUIRED");
+  const qualificationInput = {
+    briefCount: Number(briefStats?.brief_count || 0), acceptedBaseline: WAVE_9_SCALE_READINESS_POLICY.acceptedBaseline, activeRequests: 0,
+    requestCount: Number(requestStats?.request_count || 0), uniqueRequestKeys: Number(requestStats?.unique_request_keys || 0), boundResponseCount: Number(requestStats?.bound_response_count || 0), uniqueResponseIds: Number(requestStats?.unique_response_ids || 0),
+    completedBoundRequests: Number(requestStats?.completed_bound_requests || 0), matchedCompletedUsage: Number(usageJoin?.matched_completed_usage || 0), rejectedAuditScore: Number(rejectedAudit.score), rejectedAuditStatus: clean(rejectedAudit.status),
+  };
+  const result = qualifyWave9ScaleReadiness(qualificationInput), now = new Date().toISOString();
+  const canonicalState = {
+    version: WAVE_9_SCALE_READINESS_POLICY.version, capturedAt: now, programId: PROGRAM_ID, stage: STAGE, runId: clean(run.id), authorizationId: clean(authorization.id),
+    ledger: { total: qualificationInput.requestCount, active: 0, uniqueRequestKeys: qualificationInput.uniqueRequestKeys, boundResponses: qualificationInput.boundResponseCount, uniqueResponseIds: qualificationInput.uniqueResponseIds, completedUsageJoined: qualificationInput.matchedCompletedUsage, estimatedCostUsd: Number(requestStats?.cost || 0) },
+    request131: { recordId: clean(programRecord.id), status: clean(programRecord.status), resultHash: await sha(String(programRecord.result_json || "{}")) },
+    immutableEvidence: { v21_4BatchId: clean(rejectedBatch.id), v21_4AuditId: clean(rejectedAudit.id), v21_4AuditScore: Number(rejectedAudit.score), v21_4AuditStatus: clean(rejectedAudit.status) },
+    scaleReadiness: result,
+  };
+  const contentJson = JSON.stringify(canonicalState), contentHash = await sha(contentJson), checkpointId = `${clean(run.id)}-${WAVE_9_SCALE_READINESS_POLICY.version}-${contentHash.slice(0, 16)}`, recordId = `${clean(run.id)}-${WAVE_9_SCALE_READINESS_POLICY.version}`;
+  await db.batch([
+    db.prepare("INSERT INTO v7_continuity_snapshots (id,program_id,checkpoint_code,lifecycle_state,content_json,content_hash,blocker_count,active_request_count,created_at) VALUES (?,?,?,'MATERIALIZED',?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(checkpointId, PROGRAM_ID, WAVE_9_SCALE_READINESS_POLICY.version, contentJson, contentHash, result.scaleGovernor === "PASS" ? 0 : result.openGates.length, 0, now),
+    db.prepare("INSERT INTO v7_batch_activation_preflights (id,program_id,run_id,authorization_id,action,source_batch_id,source_audit_id,target_batch_id,input_hash,status,result_json,requests_before,cost_before,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET input_hash=excluded.input_hash,status=excluded.status,result_json=excluded.result_json,updated_at=excluded.updated_at").bind(recordId, PROGRAM_ID, run.id, authorization.id, WAVE_9_SCALE_READINESS_RECORD_ACTION, rejectedBatch.id, rejectedAudit.id, "WAVE_09_FULL_SCOPE_166", contentHash, result.status, JSON.stringify(result), qualificationInput.requestCount, Number(requestStats?.cost || 0), now, now),
+    db.prepare("UPDATE v7_material_runs SET status='WAVE_9_SCALE_READINESS_HARDENING',mode='ONE_LOGICAL_ACTIVATION_CHECKPOINTED_INTERNAL_PARTITIONS' WHERE id=?").bind(run.id),
+    db.prepare("UPDATE v7_material_authorizations SET status='PAUSED',scope='WAVE_09_SCALE_READINESS_HARDENING',updated_at=? WHERE id=?").bind(now, authorization.id),
+    db.prepare("UPDATE v7_stage_states SET status=?,blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(result.status === "HARDENING_PASS" ? "WAVE_9_SCALE_READINESS_HARDENING_PASS" : "WAVE_9_SCALE_READINESS_HARDENING_BLOCKED", result.status === "HARDENING_PASS" ? "INDEPENDENT_QUALITY_EVIDENCE_REQUIRED" : "CONTROL_PLANE_HARDENING_FAILED", `${result.status} · canonical ledger reconciled · ${result.chaos.passed}/${result.chaos.total} resilience scenarios · full Wave 9 remains one logical activation across 130 remaining units · Scale Governor ${result.scaleGovernor}`, now, STAGE_ID),
+  ]);
+  activeRequest = await db.prepare("SELECT id FROM v7_material_requests WHERE authorization_id=? AND status IN ('QUEUED','IN_PROGRESS') LIMIT 1").bind(authorization.id).first<Row>();
+  if (activeRequest) throw new Error("WAVE_9_SCALE_READINESS_POST_COMMIT_ACTIVE_REQUEST_CONTRADICTION");
+  return snapshot();
+}
+
 async function waveBatch2V21ActivationContext() {
   const context = await waveBatch2V21SemanticPlanContext(), { db, run, authorization, rejected, audit, scope, inputHash } = context, plan = await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE id=? AND action=? AND input_hash=? AND status='VALIDATED'").bind(context.planId, WAVE_BATCH_2_V21_PLAN_ACTION, inputHash).first<Row>();
   if (!plan) throw new Error("BATCH_2_V21_VALIDATED_SEMANTIC_PLAN_SET_REQUIRED");
@@ -6932,6 +6998,7 @@ export async function POST(request: Request) {
     if (body.action === "PREFLIGHT_WAVE_BATCH_2_V21_PLAN_ACTIVATION") return Response.json(await preflightWaveBatch2V21Activation(), { status: 200 });
     if (body.action === "ADOPT_WAVE_BATCH_2_V21_SEMANTIC_PROCESS_CORRECTION") return Response.json(await adoptWaveBatch2V21SemanticProcessCorrection(), { status: 201 });
     if (body.action === WAVE_BATCH_2_V22_PROGRAM_ACTION) return Response.json(await authorWaveBatch2V22TypedScenePrograms(), { status: 202 });
+    if (body.action === WAVE_9_SCALE_READINESS_ACTION) return Response.json(await reconcileAndQualifyWave9ScaleReadiness(), { status: 200 });
     if (body.action === WAVE_BATCH_2_V22_PREFLIGHT_ACTION) return Response.json(await preflightWaveBatch2V22Activation(), { status: 200 });
     if (body.action === WAVE_BATCH_2_V22_ACTIVATION_ACTION) return Response.json(await adoptWaveBatch2V22TypedSceneProcessCorrection(), { status: 201 });
     if (body.action === "PRODUCE_NEXT_WAVE_BATCH_2_SHOT") return Response.json(await produceNextWaveBatch2Shot(), { status: 201 });
