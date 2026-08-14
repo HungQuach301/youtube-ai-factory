@@ -178,6 +178,30 @@ export const productionPackages = sqliteTable("production_packages", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const v7PreproductionCompilations = sqliteTable("v7_preproduction_compilations", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  runId: text("run_id").notNull(),
+  version: text("version").notNull(),
+  upstreamArtifactId: text("upstream_artifact_id").notNull(),
+  upstreamHash: text("upstream_hash").notNull(),
+  inputHash: text("input_hash").notNull(),
+  status: text("status").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("MATERIALIZED"),
+  shotCount: integer("shot_count").notNull(),
+  artifactCount: integer("artifact_count").notNull(),
+  frozenArtifactCount: integer("frozen_artifact_count").notNull(),
+  blockedArtifactCount: integer("blocked_artifact_count").notNull(),
+  contentJson: text("content_json").notNull(),
+  contentHash: text("content_hash").notNull(),
+  remoteRequestsBefore: integer("remote_requests_before").notNull().default(0),
+  remoteRequestsAfter: integer("remote_requests_after").notNull().default(0),
+  costBefore: real("cost_before").notNull().default(0),
+  costAfter: real("cost_after").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const mediaAssets = sqliteTable("media_assets", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull(),

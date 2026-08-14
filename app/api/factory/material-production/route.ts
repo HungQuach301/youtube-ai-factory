@@ -3,7 +3,7 @@ import { storeDriveBinaryArtifact, storeDriveJsonArtifact } from "../../../../li
 import { CANONICAL_PILOT_MANIFEST_VERSION, deriveCanonicalPilotManifest } from "../../../../lib/canonical-pilot-manifest.mjs";
 import { CONTROLLED_RELEASE_POLICY, evaluateControlledRelease } from "../../../../lib/controlled-release-policy.mjs";
 import { WAVE_9_SCALE_READINESS_POLICY, providerRecoveryDecision, qualifyWave9ScaleReadiness } from "../../../../lib/wave9-scale-readiness.mjs";
-import { compileWave9ProductionSystemV23, WAVE_9_PRODUCTION_SYSTEM_V23 } from "../../../../lib/wave9-production-system-v23.mjs";
+import { compileWave9PreProductionV23, compileWave9ProductionSystemV23, WAVE_9_PREPRODUCTION_COMPILER_V23, WAVE_9_PRODUCTION_SYSTEM_V23 } from "../../../../lib/wave9-production-system-v23.mjs";
 import jpeg from "jpeg-js";
 
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
@@ -62,6 +62,7 @@ const WAVE_BATCH_2_V22_PREFLIGHT_ACTION = "PREFLIGHT_WAVE_BATCH_2_V22_TYPED_SCEN
 const WAVE_BATCH_2_V22_ACTIVATION_ACTION = "ADOPT_WAVE_BATCH_2_V22_TYPED_SCENE_PROCESS_CORRECTION";
 const WAVE_9_SCALE_READINESS_ACTION = "RECONCILE_AND_QUALIFY_WAVE_9_SCALE_READINESS";
 const WAVE_9_SCALE_READINESS_RECORD_ACTION = "QUALIFY_WAVE_9_SCALE_READINESS_HARDENING";
+const WAVE_9_PREPRODUCTION_COMPILE_ACTION = "COMPILE_WAVE_9_V23_PREPRODUCTION";
 const WAVE_ENGINE_EVOLUTION = [
   { version: "V13", auditScore: 27, outcome: "REJECTED_ENGINE_EVIDENCE", proven: ["Contract-native scene specification", "50/50 scene-spec and semantic-to-pixel trace coverage", "Exactly-once 50-shot reproduction"], rejectedBecause: "The schema carried contract meaning, but the rendered pixels still collapsed into token boxes with text overlap.", inherited: ["Authoritative scene specification", "Semantic-to-pixel lineage", "Immutable full-batch evidence"] },
   { version: "V14", auditScore: 28, outcome: "REJECTED_ENGINE_EVIDENCE", proven: ["Executable storyboard with domain primitives", "Hard text limits and reserved connector corridors", "Action timeline separated from audit"], rejectedBecause: "The compiler still mapped object origin, containment and destination incorrectly for contract-specific spatial relationships.", inherited: ["Domain primitives", "Bounded viewer text", "Explicit action timeline"] },
@@ -190,6 +191,7 @@ const schema = [
   AI_USAGE_TABLE_SQL,
   `CREATE TABLE IF NOT EXISTS v7_cost_events (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, project_id text, stage_key text NOT NULL, provider text NOT NULL, cost_class text NOT NULL, cost_type text NOT NULL, status text DEFAULT 'ESTIMATED' NOT NULL, estimated_usd real DEFAULT 0 NOT NULL, actual_usd real DEFAULT 0 NOT NULL, reusable_allocation_usd real DEFAULT 0 NOT NULL, currency text DEFAULT 'USD' NOT NULL, asset_id text, note text DEFAULT '' NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_continuity_snapshots (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,checkpoint_code text NOT NULL,lifecycle_state text DEFAULT 'MATERIALIZED' NOT NULL,content_json text NOT NULL,content_hash text NOT NULL,blocker_count integer DEFAULT 0 NOT NULL,active_request_count integer DEFAULT 0 NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS v7_preproduction_compilations (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,version text NOT NULL,upstream_artifact_id text NOT NULL,upstream_hash text NOT NULL,input_hash text NOT NULL,status text NOT NULL,lifecycle_state text DEFAULT 'MATERIALIZED' NOT NULL,shot_count integer NOT NULL,artifact_count integer NOT NULL,frozen_artifact_count integer NOT NULL,blocked_artifact_count integer NOT NULL,content_json text NOT NULL,content_hash text NOT NULL,remote_requests_before integer DEFAULT 0 NOT NULL,remote_requests_after integer DEFAULT 0 NOT NULL,cost_before real DEFAULT 0 NOT NULL,cost_after real DEFAULT 0 NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_stage_states (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, stage_key text NOT NULL, sequence integer NOT NULL, stage_name text NOT NULL, status text DEFAULT 'BLOCKED_UPSTREAM' NOT NULL, threshold integer DEFAULT 92 NOT NULL, attempt integer DEFAULT 0 NOT NULL, artifact_id text, blocker text, evidence_summary text DEFAULT 'No verified artifact' NOT NULL, frozen_at text, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_shot_artifacts (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,lifecycle_state text DEFAULT 'MATERIALIZED' NOT NULL,content_json text NOT NULL,content_hash text NOT NULL,runtime_key text,drive_file_id text,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS v7_material_runs (id text PRIMARY KEY NOT NULL, program_id text NOT NULL, status text DEFAULT 'BUILDING' NOT NULL, mode text DEFAULT 'ZERO_SPEND_DRY_RUN' NOT NULL, brief_count integer DEFAULT 0 NOT NULL, pilot_count integer DEFAULT 0 NOT NULL, score integer DEFAULT 0 NOT NULL, remote_requests integer DEFAULT 0 NOT NULL, actual_cost_usd real DEFAULT 0 NOT NULL, gate_json text DEFAULT '[]' NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, completed_at text)`,
@@ -401,6 +403,7 @@ async function snapshot() {
   const semanticPlanControl = run ? await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, v22ControlVisible ? WAVE_BATCH_2_V22_PROGRAM_ACTION : WAVE_BATCH_2_V21_PLAN_ACTION).first<Row>() : null;
   const batchActivationPreflight = run ? await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, expectedPreflightAction).first<Row>() : null;
   const batchActivation = run ? await db.prepare("SELECT * FROM v7_batch_activations WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, expectedActivationAction).first<Row>() : null;
+  const preProductionCompilation = run ? await db.prepare("SELECT * FROM v7_preproduction_compilations WHERE run_id=? AND version=? ORDER BY created_at DESC LIMIT 1").bind(run.id, WAVE_9_PREPRODUCTION_COMPILER_V23.version).first<Row>() : null;
   const scaleReadinessRecord = run ? await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE run_id=? AND action=? ORDER BY updated_at DESC LIMIT 1").bind(run.id, WAVE_9_SCALE_READINESS_RECORD_ACTION).first<Row>() : null;
   const scaleReadinessSnapshot = await db.prepare("SELECT * FROM v7_continuity_snapshots WHERE program_id=? AND checkpoint_code=? ORDER BY created_at DESC LIMIT 1").bind(PROGRAM_ID, WAVE_9_SCALE_READINESS_POLICY.version).first<Row>();
   const batchProducts = productionBatch ? await rows(db, "SELECT * FROM v7_shot_products WHERE batch_id=? AND engine_version=? ORDER BY created_at", productionBatch.id, productionBatch.engine_version) : [];
@@ -446,6 +449,7 @@ async function snapshot() {
   let motionContent: Row = {}; try { motionContent = motionEvidence ? rec(JSON.parse(String(motionEvidence.content_json || "{}"))) : {}; } catch { motionContent = {}; }
   let sequenceContent: Row = {}; try { sequenceContent = sequenceEvidence ? rec(JSON.parse(String(sequenceEvidence.content_json || "{}"))) : {}; } catch { sequenceContent = {}; }
   let sequenceProductContent: Row = {}; try { sequenceProductContent = sequenceProductEvidence ? rec(JSON.parse(String(sequenceProductEvidence.content_json || "{}"))) : {}; } catch { sequenceProductContent = {}; }
+  let preProductionContent: Row = {}; try { preProductionContent = preProductionCompilation ? rec(JSON.parse(String(preProductionCompilation.content_json || "{}"))) : {}; } catch { preProductionContent = {}; }
   const motionJob = mediaJobs.find((job) => job.job_type === "MOTION_PROOF_RENDER");
   const productionQuarantined = reliabilityBaseline?.execution_state === "FROZEN";
   const responseIds = new Set(requestRows.map((row) => clean(row.provider_response_id)).filter(Boolean));
@@ -471,6 +475,7 @@ async function snapshot() {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
     provider: { model: setting.modelId, reasoningEffort: setting.reasoningEffort, modelOptions: MODEL_OPTIONS, reasoningOptions: REASONING_OPTIONS },
     productionSystem: compileWave9ProductionSystemV23({ shotCount, upstreamFrozen: shotCount === 166, activeRequests: requestRows.filter((row) => ["QUEUED", "IN_PROGRESS"].includes(clean(row.status))).length, acceptedBaseline: WAVE_9_SCALE_READINESS_POLICY.acceptedBaseline }),
+    preProductionCompilation: preProductionCompilation ? { id: preProductionCompilation.id, version: preProductionCompilation.version, status: preProductionCompilation.status, lifecycle: preProductionCompilation.lifecycle_state, inputHash: preProductionCompilation.input_hash, contentHash: preProductionCompilation.content_hash, shotCount: Number(preProductionCompilation.shot_count), artifactCount: Number(preProductionCompilation.artifact_count), frozenArtifactCount: Number(preProductionCompilation.frozen_artifact_count), blockedArtifactCount: Number(preProductionCompilation.blocked_artifact_count), remoteRequestsBefore: Number(preProductionCompilation.remote_requests_before), remoteRequestsAfter: Number(preProductionCompilation.remote_requests_after), costBefore: Number(preProductionCompilation.cost_before), costAfter: Number(preProductionCompilation.cost_after), checks: arr(preProductionContent.checks).map(rec), sampleShots: arr(preProductionContent.packages).slice(0, 6).map(rec), next: clean(preProductionContent.next), productionActivation: clean(preProductionContent.productionActivation), createdAt: preProductionCompilation.created_at, updatedAt: preProductionCompilation.updated_at } : null,
     architecture: architectureSnapshot(Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET), executorOnline, sourceEvidenceReady),
     releasePolicy: CONTROLLED_RELEASE_POLICY,
     versionEvolution: WAVE_ENGINE_EVOLUTION,
@@ -6451,6 +6456,31 @@ async function reconcileAndQualifyWave9ScaleReadiness() {
   return snapshot();
 }
 
+async function compileWave9V23PreProduction() {
+  const env = await runtime(), db = env.DB!, { run } = await current(db);
+  if (!run) throw new Error("V23_PREPRODUCTION_RUN_REQUIRED");
+  const source = await upstream(db);
+  if (source.shots.length !== WAVE_9_PREPRODUCTION_COMPILER_V23.logicalScope) throw new Error(`V23_PREPRODUCTION_EXACT_SCOPE_REQUIRED · ${source.shots.length}/${WAVE_9_PREPRODUCTION_COMPILER_V23.logicalScope}`);
+  const usageBefore = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost,SUM(CASE WHEN status IN ('QUEUED','IN_PROGRESS') THEN 1 ELSE 0 END) AS active FROM v7_material_requests WHERE run_id=?").bind(run.id).first<Row>();
+  if (Number(usageBefore?.active || 0) !== 0) throw new Error("V23_PREPRODUCTION_ACTIVE_PROVIDER_RECONCILIATION_REQUIRED");
+  const inputHash = await sha(JSON.stringify({ version: WAVE_9_PREPRODUCTION_COMPILER_V23.version, upstreamArtifactId: source.artifact.id, upstreamHash: source.artifact.content_hash, logicalScope: source.shots.length }));
+  const recordId = `${clean(run.id)}-${WAVE_9_PREPRODUCTION_COMPILER_V23.version}-${inputHash.slice(0, 16)}`;
+  const existing = await db.prepare("SELECT id FROM v7_preproduction_compilations WHERE id=? AND input_hash=?").bind(recordId, inputHash).first<Row>();
+  if (existing) return snapshot();
+  const compiled = compileWave9PreProductionV23(source.shots, { upstreamArtifactId: source.artifact.id, upstreamHash: source.artifact.content_hash });
+  if (clean(compiled.status) !== "DESIGN_CONTRACTS_FROZEN_VISUAL_EVIDENCE_REQUIRED" || !arr(compiled.checks).every((item) => rec(item).pass === true)) throw new Error("V23_PREPRODUCTION_COMPILATION_BLOCKED");
+  const usageAfterCompile = await db.prepare("SELECT COUNT(*) AS total,COALESCE(SUM(actual_cost_usd),0) AS cost,SUM(CASE WHEN status IN ('QUEUED','IN_PROGRESS') THEN 1 ELSE 0 END) AS active FROM v7_material_requests WHERE run_id=?").bind(run.id).first<Row>();
+  if (Number(usageAfterCompile?.active || 0) !== 0 || Number(usageAfterCompile?.total || 0) !== Number(usageBefore?.total || 0) || Number(usageAfterCompile?.cost || 0) !== Number(usageBefore?.cost || 0)) throw new Error("V23_PREPRODUCTION_ZERO_SPEND_INVARIANT_FAILED");
+  const contentJson = JSON.stringify(compiled), contentHash = await sha(contentJson), now = new Date().toISOString(), checkpointId = `${recordId}-CHECKPOINT`;
+  await db.batch([
+    db.prepare("INSERT INTO v7_preproduction_compilations (id,program_id,run_id,version,upstream_artifact_id,upstream_hash,input_hash,status,lifecycle_state,shot_count,artifact_count,frozen_artifact_count,blocked_artifact_count,content_json,content_hash,remote_requests_before,remote_requests_after,cost_before,cost_after,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(recordId, PROGRAM_ID, run.id, WAVE_9_PREPRODUCTION_COMPILER_V23.version, source.artifact.id, source.artifact.content_hash, inputHash, compiled.status, compiled.lifecycle, compiled.scope, compiled.materializedArtifactContracts, compiled.frozenArtifactContracts, compiled.blockedVisualOrAssetArtifacts, contentJson, contentHash, Number(usageBefore?.total || 0), Number(usageAfterCompile?.total || 0), Number(usageBefore?.cost || 0), Number(usageAfterCompile?.cost || 0), now, now),
+    db.prepare("INSERT INTO v7_continuity_snapshots (id,program_id,checkpoint_code,lifecycle_state,content_json,content_hash,blocker_count,active_request_count,created_at) VALUES (?,?,?,'MATERIALIZED',?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(checkpointId, PROGRAM_ID, WAVE_9_PREPRODUCTION_COMPILER_V23.version, JSON.stringify({ recordId, version: compiled.version, status: compiled.status, source: compiled.source, scope: compiled.scope, materializedArtifactContracts: compiled.materializedArtifactContracts, frozenArtifactContracts: compiled.frozenArtifactContracts, blockedVisualOrAssetArtifacts: compiled.blockedVisualOrAssetArtifacts, compilerContentHash: contentHash, next: compiled.next, productionActivation: compiled.productionActivation }), contentHash, compiled.blockedVisualOrAssetArtifacts, 0, now),
+  ]);
+  const readBack = await db.prepare("SELECT * FROM v7_preproduction_compilations WHERE id=? AND input_hash=? AND content_hash=?").bind(recordId, inputHash, contentHash).first<Row>();
+  if (!readBack || Number(readBack.remote_requests_after) !== Number(readBack.remote_requests_before) || Number(readBack.cost_after) !== Number(readBack.cost_before)) throw new Error("V23_PREPRODUCTION_DURABLE_READBACK_FAILED");
+  return snapshot();
+}
+
 async function waveBatch2V21ActivationContext() {
   const context = await waveBatch2V21SemanticPlanContext(), { db, run, authorization, rejected, audit, scope, inputHash } = context, plan = await db.prepare("SELECT * FROM v7_batch_activation_preflights WHERE id=? AND action=? AND input_hash=? AND status='VALIDATED'").bind(context.planId, WAVE_BATCH_2_V21_PLAN_ACTION, inputHash).first<Row>();
   if (!plan) throw new Error("BATCH_2_V21_VALIDATED_SEMANTIC_PLAN_SET_REQUIRED");
@@ -7002,6 +7032,7 @@ export async function POST(request: Request) {
     if (body.action === "PREFLIGHT_WAVE_BATCH_2_V21_PLAN_ACTIVATION") return Response.json(await preflightWaveBatch2V21Activation(), { status: 200 });
     if (body.action === "ADOPT_WAVE_BATCH_2_V21_SEMANTIC_PROCESS_CORRECTION") return Response.json(await adoptWaveBatch2V21SemanticProcessCorrection(), { status: 201 });
     if (body.action === WAVE_BATCH_2_V22_PROGRAM_ACTION) return Response.json(await authorWaveBatch2V22TypedScenePrograms(), { status: 202 });
+    if (body.action === WAVE_9_PREPRODUCTION_COMPILE_ACTION) return Response.json(await compileWave9V23PreProduction(), { status: 201 });
     if (body.action === WAVE_9_SCALE_READINESS_ACTION) return Response.json(await reconcileAndQualifyWave9ScaleReadiness(), { status: 200 });
     if (body.action === WAVE_BATCH_2_V22_PREFLIGHT_ACTION) return Response.json(await preflightWaveBatch2V22Activation(), { status: 200 });
     if (body.action === WAVE_BATCH_2_V22_ACTIVATION_ACTION) return Response.json(await adoptWaveBatch2V22TypedSceneProcessCorrection(), { status: 201 });

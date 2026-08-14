@@ -1,0 +1,23 @@
+CREATE TABLE `v7_preproduction_compilations` (
+	`id` text PRIMARY KEY NOT NULL,
+	`program_id` text NOT NULL,
+	`run_id` text NOT NULL,
+	`version` text NOT NULL,
+	`upstream_artifact_id` text NOT NULL,
+	`upstream_hash` text NOT NULL,
+	`input_hash` text NOT NULL,
+	`status` text NOT NULL,
+	`lifecycle_state` text DEFAULT 'MATERIALIZED' NOT NULL,
+	`shot_count` integer NOT NULL,
+	`artifact_count` integer NOT NULL,
+	`frozen_artifact_count` integer NOT NULL,
+	`blocked_artifact_count` integer NOT NULL,
+	`content_json` text NOT NULL,
+	`content_hash` text NOT NULL,
+	`remote_requests_before` integer DEFAULT 0 NOT NULL,
+	`remote_requests_after` integer DEFAULT 0 NOT NULL,
+	`cost_before` real DEFAULT 0 NOT NULL,
+	`cost_after` real DEFAULT 0 NOT NULL,
+	`created_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
