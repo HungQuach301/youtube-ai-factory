@@ -3,6 +3,7 @@ import { storeDriveBinaryArtifact, storeDriveJsonArtifact } from "../../../../li
 import { CANONICAL_PILOT_MANIFEST_VERSION, deriveCanonicalPilotManifest } from "../../../../lib/canonical-pilot-manifest.mjs";
 import { CONTROLLED_RELEASE_POLICY, evaluateControlledRelease } from "../../../../lib/controlled-release-policy.mjs";
 import { WAVE_9_SCALE_READINESS_POLICY, providerRecoveryDecision, qualifyWave9ScaleReadiness } from "../../../../lib/wave9-scale-readiness.mjs";
+import { compileWave9ProductionSystemV23, WAVE_9_PRODUCTION_SYSTEM_V23 } from "../../../../lib/wave9-production-system-v23.mjs";
 import jpeg from "jpeg-js";
 
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
@@ -150,29 +151,31 @@ type Row = Record<string, unknown>;
 type Candidate = { id: string; provider: string; title: string; sourceUrl: string; assetUrl: string; thumbnailUrl: string; licenseCode: string; licenseUrl: string; width: number; height: number; duration: number; score: number };
 
 const STAGE09_ARCHITECTURE = {
-  version: "MATERIAL_PRODUCTION_V3_PRODUCT_COMPLETE",
-  status: "QUALITY_SCALE_REBUILD",
-  principle: "Production creates PRODUCT_COMPLETE through an integrated plan-compose-render-measure-correct loop. QA only audits the finished product and never drives production repair.",
+  version: WAVE_9_PRODUCTION_SYSTEM_V23.version,
+  status: "PREPRODUCTION_COMPILER_DEPLOYED",
+  principle: "Quality is authored in pre-production, frozen in immutable manifests and reproduced deterministically in production. QA only verifies the release candidate, with at most two attempts.",
   planes: [
-    { id: "CONTROL", name: "Control plane", status: "READY", responsibility: "Contracts, authorization, state, cost, stop/resume and immutable evidence references." },
-    { id: "SOURCE", name: "Source intelligence", status: "BLOCKED", responsibility: "Decode actual provider video, sample candidate frames and reject prohibited objects before selection." },
-    { id: "COMPOSE", name: "Integrated production", status: "READY_TO_EXECUTE", responsibility: "A product specification drives plan, composition, render, full-file measurement and bounded auto-correction in one production transaction." },
-    { id: "QA", name: "Independent audit", status: "BOUNDARY_ONLY", responsibility: "One audit verifies PRODUCT_COMPLETE. It is not a repair loop and cannot compensate for a weak composer." },
-    { id: "EXECUTION", name: "Media execution", status: "BLOCKED", responsibility: "Queue-backed frame extraction, rendering and media transforms run outside synchronous control-plane requests." },
-    { id: "SCALE", name: "Scale governor", status: "BLOCKED", responsibility: "One repaired unit, ten-shot pilot, 30-second sequence and bounded waves must pass before 166-shot production." },
+    { id: "EVIDENCE", name: "Narrative–evidence compiler", status: "READY", responsibility: "Turns every narration clause into typed subject, action, target, state, evidence and viewer takeaway." },
+    { id: "DESIGN", name: "Visual design compiler", status: "READY", responsibility: "Allocates visual language, domain-native archetype recipes, composition, text budget and adjacent-shot variation." },
+    { id: "STORY", name: "Storyboard + animatic", status: "READY", responsibility: "Locks ENTRY/MIDPOINT/EXIT, object paths, camera, timing and reading windows before final asset construction." },
+    { id: "ASSETS", name: "Asset planning + lock", status: "READY_TO_EXECUTE", responsibility: "Selects SOURCE/MAKE/HYBRID routes and freezes rights-traceable, hash-bound assets before rendering." },
+    { id: "PRODUCTION", name: "Deterministic production", status: "READY_TO_EXECUTE", responsibility: "Compiles immutable manifests into scene, motion, audio, shot and sequence masters without fallback or randomness." },
+    { id: "QA", name: "Release verification boundary", status: "BOUNDARY_ONLY", responsibility: "Verifies the frozen release candidate in at most two attempts; it cannot author briefs or mutate production artifacts." },
   ],
   qualityLadder: [
-    { order: 1, name: "Source-frame gate", exit: "Actual MP4 frames, negative-object clearance, rights and context fit." },
-    { order: 2, name: "Composite tournament", exit: "At least three materially different audience-facing compositions; one pixel champion." },
-    { order: 3, name: "Motion proof", exit: "Distinct entry, midpoint and exit plus exact narration-bound timing." },
-    { order: 4, name: "Sequence gate", exit: "30-second playback proves semantic continuity, variety, rhythm, mobile safety and clean audio handoff." },
-    { order: 5, name: "Wave admission", exit: "Standard >=92; controlled >=88 with Semantic Fit >=82, other dimensions >=88 and bounded defect tolerance." },
+    { order: 1, name: "Meaning lock", exit: "NarrativeEvidenceMap binds each clause to observable proof and source evidence." },
+    { order: 2, name: "Design lock", exit: "Visual Bible, archetype recipe and ShotDesignPackage resolve without generic-card fallback." },
+    { order: 3, name: "Time lock", exit: "Storyboard and animatic prove composition, motion, rhythm and mobile reading windows." },
+    { order: 4, name: "Asset lock", exit: "ApprovedAssetSet resolves every source, authored layer, right and content hash." },
+    { order: 5, name: "Manifest lock", exit: "ProductionManifest fully resolves scene, assets, layout, motion, audio, fonts and render settings." },
+    { order: 6, name: "Master construction", exit: "Stored ShotMaster and SequenceMaster read back identically from immutable bytes." },
   ],
   productCompletion: {
+    legacyPrinciple: "Production creates PRODUCT_COMPLETE through an integrated plan-compose-render-measure-correct loop",
     businessStates: ["SPECIFIED", "PRODUCING", "PRODUCT_COMPLETE", "RELEASED"],
-    internalLoop: ["PLAN", "COMPOSE", "RENDER", "MEASURE", "AUTO_CORRECT"],
+    internalLoop: ["COMPILE_MANIFEST", "CONSTRUCT_ASSETS", "COMPILE_SCENE", "COMPILE_MOTION_AUDIO", "RENDER_MASTER", "READ_BACK"],
     definitionOfDone: ["source lineage intact", "narrative graph complete", "no crop or unsafe-zone violation", "reading-time budget met", "adjacent treatments differ", "stored master passes full-file technical read-back"],
-    qaRole: "single independent release audit after PRODUCT_COMPLETE",
+    qaRole: "release-candidate verification only; maximum two attempts; no production authoring",
   },
   scalePolicy: {
     tranches: ["1 root-cause unit", "10-shot pilot", "30-second sequence", "25-shot wave", "remaining bounded waves"],
@@ -467,6 +470,7 @@ async function snapshot() {
   return {
     stage: { status: clean(stage?.status || "BLOCKED_UPSTREAM"), threshold: Number(stage?.threshold || THRESHOLD), blocker: stage?.blocker || null, evidence: clean(stage?.evidence_summary) }, upstream: { frozen: shotCount === 166, shotCount }, providerReadiness: { openai: Boolean(env.OPENAI_API_KEY), pexels: Boolean(env.PEXELS_API_KEY), pixabay: Boolean(env.PIXABAY_API_KEY), shutterstock: Boolean(env.SHUTTERSTOCK_CONSUMER_KEY) },
     provider: { model: setting.modelId, reasoningEffort: setting.reasoningEffort, modelOptions: MODEL_OPTIONS, reasoningOptions: REASONING_OPTIONS },
+    productionSystem: compileWave9ProductionSystemV23({ shotCount, upstreamFrozen: shotCount === 166, activeRequests: requestRows.filter((row) => ["QUEUED", "IN_PROGRESS"].includes(clean(row.status))).length, acceptedBaseline: WAVE_9_SCALE_READINESS_POLICY.acceptedBaseline }),
     architecture: architectureSnapshot(Boolean(env.MEDIA_EXECUTOR_SHARED_SECRET), executorOnline, sourceEvidenceReady),
     releasePolicy: CONTROLLED_RELEASE_POLICY,
     versionEvolution: WAVE_ENGINE_EVOLUTION,

@@ -22,6 +22,7 @@ type Snapshot = {
   canary: null | { id: string; version: string; status: string; queue: Array<{ briefId: string; logicalId: string; archetype: string; riskTier: string; startSeconds: number; promotionId?: string; certificationId?: string; renderer?: string; bindingStatus?: string; dispatchCapability?: string; materializationStrategy?: string }>; currentIndex: number; currentBriefId: string | null; releasedUnits: number; passedUnits: number; failedUnits: number; requestsBefore: number; costBefore: number; requestBudget: number; costBudget: number; activeRequestPeak: number; gates: Gate[]; currentAudit: null | { status: string; score: number; dimensions: Record<string, number>; findings: Finding[]; providerResponseId: string | null }; createdAt: string; updatedAt: string };
   recovery: null | { id: string; version: string; status: string; snapshotHash: string; rootCause: { failureCode: string; failedTransition: string; failedGate: string; expectedState: string; actualState: string; authorizationStatus: string; explanation: string }; e2e: { status: string; terminalState: string; simulatedRequestSequence: number; provider: string; remoteDispatches: number; costDelta: number; transition: string[] }; faultMatrix: Array<{ id: string; outcome: string; evidence: string }>; requestsBefore: number; requestsAfter: number; costBefore: number; costAfter: number; simulatedRequestSequence: number; requestIntent: null | { id: string; status: string; sequence: number; idempotencyKey: string; payloadHash: string }; outbox: null | { id: string; status: string; eventType: string }; events: Array<{ status: string; failureCode: string | null; failedTransition: string | null; failedGate: string | null; expectedState: string | null; actualState: string | null; ledgerStatus: string | null; providerDispatchStatus: string | null; createdAt: string }>; createdAt: string; updatedAt: string };
   provider: { model: string; reasoningEffort: string; modelOptions: Array<{ id: string; label: string; description: string }>; reasoningOptions: string[] };
+  productionSystem: { version: string; status: string; architecture: string; objective: string; focus: string; sourceScope: number; acceptedBaseline: number; remainingScope: number; remoteDispatches: number; costDeltaUsd: number; productionActivation: string; qaBoundary: { maxAttempts: number; role: string; mayAuthorProductionBriefs: boolean; mayMutateFrozenArtifacts: boolean }; toolchain: string[]; preProduction: Array<{ order: number; id: string; artifact: string; builder: string; freeze: string }>; production: Array<{ order: number; id: string; artifact: string; builder: string; complete: string }>; forbidden: string[]; constructionInvariants: Array<{ id: string; pass: boolean; evidence: string }> };
   architecture: { version: string; status: string; principle: string; planes: Array<{ id: string; name: string; status: string; responsibility: string }>; qualityLadder: Array<{ order: number; name: string; exit: string }>; scalePolicy: { tranches: string[]; concurrency: string; stopConditions: string[]; resume: string; controlledQaSampling: string } };
   releasePolicy: { version: string; standardOverall: number; controlledOverall: number; controlledSemanticFit: number; controlledOtherDimension: number; internalOnlyOverall: number; p0Max: number; semanticP1Max: number; presentationP1Max: number; controlledQaSampleRate: number };
   versionEvolution: Array<{ version: string; auditScore: number; outcome: string; proven: string[]; rejectedBecause: string; inherited: string[] }>;
@@ -316,9 +317,9 @@ export default function MaterialProductionPage() {
   const repairedUnit = data.pilot.items.find((item) => (item.tournament?.repairAttempt || 0) > 0);
   const repairedUnitNeedsPixelQa = data.run?.status === "PILOT_REPAIR_REVIEW" && Boolean(repairedUnit) && repairedUnit?.audit?.status !== "PASS";
   return <main className="shotShell">
-    <nav className="shotTop"><Link href="/control-plane">← V7 Control Plane</Link><span>PRODUCTION V7 · STAGE 09</span><b>{data.stage.status.replaceAll("_", " ")}</b></nav>
+    <nav className="shotTop"><Link href="/control-plane">← V7 Control Plane</Link><span>PRODUCTION SYSTEM V23 · STAGE 09</span><b>{data.stage.status.replaceAll("_", " ")}</b></nav>
     <section className="shotHero">
-      <div><p>FRESH MATERIAL PRODUCTION</p><h1>Prove the meaning before acquiring the pixels.</h1><span>Every frozen shot becomes a source-ready material brief. No prompt, URL or catalog result counts as footage.</span></div>
+      <div><p>PRE-PRODUCTION + PRODUCTION</p><h1>Design the finished artifact before final rendering begins.</h1><span>Meaning, visual grammar, motion, assets and timing are frozen upstream; production deterministically constructs the approved design.</span></div>
       <aside><small>DRY-RUN FLOOR</small><strong>{data.run?.score || 0}<i>/100</i></strong><span>{data.run?.gates.filter((gate) => gate.status === "PASS").length || 0}/{data.run?.gates.length || 8} gates passed</span></aside>
     </section>
     <section className="shotControl">
@@ -329,6 +330,22 @@ export default function MaterialProductionPage() {
       <button onClick={build} disabled={Boolean(working) || !ready}>{working === "BUILD" ? "Creating clean Stage 09.4 run…" : data.run?.status === "REPAIR_REQUIRED" ? "Build clean Stage 09.4 pilot" : data.run ? "Rebuild deterministic dry run" : "Build zero-spend dry run"}</button>
     </section>
     {error && <p className="stateBanner errorState">{error}</p>}
+    <section className="materialArchitecture">
+      <header><div><p>WAVE 9 PRODUCTION SYSTEM · {data.productionSystem.version}</p><h2>Build the release candidate before QA sees it.</h2><span>{data.productionSystem.objective}</span></div><strong>{data.productionSystem.status.replaceAll("_", " ")}</strong></header>
+      <div className="reliabilityMetrics">
+        <article><small>PRE-PRODUCTION</small><b>{data.productionSystem.preProduction.length}</b><span>frozen artifact contracts</span></article>
+        <article><small>PRODUCTION</small><b>{data.productionSystem.production.length}</b><span>deterministic construction stages</span></article>
+        <article><small>REMOTE DELTA</small><b>{data.productionSystem.remoteDispatches}</b><span>${data.productionSystem.costDeltaUsd.toFixed(2)} architecture deployment</span></article>
+        <article><small>QA BOUNDARY</small><b>≤{data.productionSystem.qaBoundary.maxAttempts}</b><span>verification attempts; no authoring</span></article>
+      </div>
+      <div className="materialQualityLadder">
+        <div><p>PRE-PRODUCTION COMPILER</p>{data.productionSystem.preProduction.map((stage)=><article key={stage.id}><b>{String(stage.order).padStart(2,"0")}</b><span><strong>{stage.artifact}</strong><small>{stage.builder} · FREEZE: {stage.freeze}</small></span></article>)}</div>
+        <aside><p>DETERMINISTIC PRODUCTION ENGINE</p>{data.productionSystem.production.map((stage)=><article key={stage.id}><b>{String(stage.order).padStart(2,"0")}</b><span><strong>{stage.artifact}</strong><small>{stage.builder} · COMPLETE: {stage.complete}</small></span></article>)}</aside>
+      </div>
+      <div className="materialPlanes">{data.productionSystem.toolchain.map((tool)=><article key={tool} className="ready"><small>PRODUCTION TOOL</small><p>{tool}</p></article>)}</div>
+      <div className="reliabilityControls">{data.productionSystem.forbidden.map((rule)=><span key={rule}>FORBIDDEN · {rule.replaceAll("_", " ")}</span>)}</div>
+      <div className="certificationResult"><b>CONSTRUCTION INVARIANTS · PRODUCTION ACTIVATION {data.productionSystem.productionActivation.replaceAll("_", " ")}</b>{data.productionSystem.constructionInvariants.map((item)=><small key={item.id}>{item.pass ? "PASS" : "BLOCKED"} · {item.id.replaceAll("_", " ")} · {item.evidence}</small>)}</div>
+    </section>
     <section className="reliabilityBaseline">
       <header><div><p>COMMERCIAL RELIABILITY BASELINE</p><h2>Production is quarantined until archetypes—not isolated shots—are certified.</h2><span>Stage 09 no longer mixes architecture discovery, renderer debugging and production execution in one batch.</span></div><strong>{data.reliability?.status.replaceAll("_", " ") || "QUALIFICATION REQUIRED"}</strong></header>
       {!data.reliability
