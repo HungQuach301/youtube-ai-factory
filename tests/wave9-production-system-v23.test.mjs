@@ -110,14 +110,29 @@ test("V23.3 emits real domain-native SVG bytes without a generic-card fallback",
   assert.doesNotMatch(svg, /placeholder/i);
 });
 
-test("production API exposes one bounded idempotent V23.3 storyboard render action", () => {
+test("production API exposes one checkpointed, bounded, idempotent V23.4 storyboard render action", () => {
   const route = fs.readFileSync(new URL("../app/api/factory/material-production/route.ts", import.meta.url), "utf8");
   assert.match(route, /RENDER_WAVE_9_V23_STORYBOARDS/);
   const start = route.indexOf("async function renderWave9V23Storyboards");
   const end = route.indexOf("async function waveBatch2V21ActivationContext", start);
   const implementation = route.slice(start, end);
-  assert.match(implementation, /boundedConcurrency = 8/);
+  assert.match(implementation, /boundedTranche = WAVE_9_STORYBOARD_RENDERER_V23\.trancheSize/);
+  assert.match(implementation, /next_offset=\?/);
+  assert.match(implementation, /status IN \('READY','RUNNING','PAUSED'\)/);
+  assert.match(implementation, /status='PAUSED'/);
   assert.match(implementation, /ON CONFLICT\(id\) DO NOTHING/);
   assert.match(implementation, /V23_STORYBOARD_ZERO_SPEND_INVARIANT_FAILED/);
   assert.doesNotMatch(implementation, /fetch\(/);
+});
+
+test("V23.4 client orchestration has a fixed ceiling and no automatic retry", () => {
+  const page = fs.readFileSync(new URL("../app/material-production/page.tsx", import.meta.url), "utf8");
+  const start = page.indexOf("async function renderStoryboardsV23");
+  const end = page.indexOf("async function sequenceAction", start);
+  const implementation = page.slice(start, end);
+  assert.match(implementation, /const maxSteps = 15/);
+  assert.match(implementation, /step < maxSteps/);
+  assert.match(implementation, /currentCount <= previousCount/);
+  assert.doesNotMatch(implementation, /while\s*\(/);
+  assert.doesNotMatch(implementation, /setTimeout/);
 });
