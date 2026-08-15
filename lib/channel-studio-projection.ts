@@ -19,8 +19,8 @@ function band(status: string): ContentBand {
   return "UNKNOWN";
 }
 
-export async function channelStudioProjection(channelId?: string | null): Promise<ChannelStudioProjection> {
-  const db = await database();
+export async function channelStudioProjection(channelId?: string | null, databaseOverride?: DB): Promise<ChannelStudioProjection> {
+  const db = databaseOverride || await database();
   const channels = await rows(db, "SELECT id,name,market,language,niche,created_at FROM channels ORDER BY created_at,id");
   if (channelId && !channels.some((channel) => text(channel.id) === channelId)) throw new ChannelNotFoundError(`Channel ${channelId} does not exist`);
   const selected = channelId ? channels.find((channel) => text(channel.id) === channelId) || null : channels[0] || null;

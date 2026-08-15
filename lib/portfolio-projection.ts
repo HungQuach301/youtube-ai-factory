@@ -20,8 +20,8 @@ function text(value: unknown) { return String(value ?? "").trim(); }
 function number(value: unknown) { return Number(value || 0); }
 function sum(items: Row[], field: string) { return items.reduce((total, item) => total + number(item[field]), 0); }
 
-export async function portfolioProjection() {
-  const db = await database();
+export async function portfolioProjection(databaseOverride?: DB) {
+  const db = databaseOverride || await database();
   const [channels, videos, programs, stages, costs, usage] = await Promise.all([
     rows(db, "SELECT id,name,market,language,niche,created_at FROM channels ORDER BY created_at,id"),
     rows(db, "SELECT id,channel_id,title,status,opportunity_score,progress,spent_usd,next_action,updated_at FROM video_projects ORDER BY updated_at DESC,id"),
@@ -72,8 +72,8 @@ export async function portfolioProjection() {
   };
 }
 
-export async function channelProjection(channelId: string) {
-  const db = await database();
+export async function channelProjection(channelId: string, databaseOverride?: DB) {
+  const db = databaseOverride || await database();
   const channels = await rows(db, "SELECT id,name,market,language,niche,created_at FROM channels WHERE id=?", channelId);
   const channel = channels[0];
   if (!channel) throw new ChannelNotFoundError(`Channel ${channelId} does not exist`);

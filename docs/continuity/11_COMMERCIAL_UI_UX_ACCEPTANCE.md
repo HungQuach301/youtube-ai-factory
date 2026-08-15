@@ -38,6 +38,8 @@ The protected V7/V23 Video Production Engine was not redesigned and no command a
 - Full regression suite: 95/95.
 - User manual confirmation on 2026-08-15: responsive behavior is present.
 - Commercial UI static contract: 14/14 automated checks; enforced by every verified build.
+- Canonical-data primary projection contract: pass for Portfolio, Channel Detail, Discovery and Channel Studio; enforced by every verified build.
+- The primary projection gate verifies structured data mapping, missing-channel errors, recommendation versus expert-decision separation and blocked production command authority.
 - Commercial client artifact budgets: pass; enforced by every verified build.
 - Built-worker rendered contract: 4/4 commercial page routes return HTTP 200 HTML with language, title, one main landmark, skip-link target, one active navigation item, H1, assistive loading state, no positive tabindex and no duplicate IDs.
 - Fail-closed recovery contract: 4/4 canonical APIs return HTTP 503 JSON, `no-store`, `fallback: false` and an explicit reason when canonical bindings are unavailable.
@@ -49,7 +51,7 @@ The protected V7/V23 Video Production Engine was not redesigned and no command a
 
 ## Evidence not yet available
 
-The supervised preview was healthy, but the cloud-browser navigation timed out on the bounded attempts. This was classified as preview/browser infrastructure failure, not a verified Site defect. The user subsequently confirmed responsive behavior manually. The following gates remain open:
+The supervised preview was healthy, but cloud-browser navigation timed out on both bounded attempts, including a fresh-tab recovery. This was classified as preview/browser infrastructure failure, not a verified Site defect. The user subsequently confirmed responsive behavior manually. The following gates remain open:
 
 - screenshot-based visual regression evidence;
 - zoom/reflow inspection in a rendered browser;
@@ -58,7 +60,7 @@ The supervised preview was healthy, but the cloud-browser navigation timed out o
 - lab LCP, INP and CLS measurement;
 - field Core Web Vitals telemetry.
 
-The initial server-rendered loading journey and missing-binding recovery APIs are now covered automatically. A hydrated primary journey backed by canonical data, browser interaction and visual output remains pending.
+The initial server-rendered loading journey, canonical-data projection mapping and missing-binding recovery APIs are now covered automatically. Browser hydration, interaction and visual output remain pending.
 
 Artifact budgets prevent client-size regression but do not substitute for runtime performance measurement. No field-performance or commercial-ready claim is authorized.
 
@@ -66,17 +68,17 @@ Artifact budgets prevent client-size regression but do not substitute for runtim
 
 | Surface | Semantic/static gate | Build/regression gate | Rendered visual/interaction gate |
 |---|---|---|---|
-| Shell / Portfolio | Pass, including loading SSR | Pass | Responsive pass; hydrated interaction evidence pending |
-| Channel Detail | Pass | Pass | Responsive pass; canonical-data interaction evidence pending |
-| Market Intelligence | Pass, including loading SSR | Pass | Responsive pass; hydrated interaction evidence pending |
-| Niche Discovery | Pass, including loading SSR | Pass | Responsive pass; hydrated interaction evidence pending |
-| Channel Studio | Pass, including loading SSR | Pass | Responsive pass; hydrated interaction evidence pending |
+| Shell / Portfolio | Pass, including loading SSR and canonical projection | Pass | Responsive pass; browser hydration/interaction pending |
+| Channel Detail | Pass, including canonical projection | Pass | Responsive pass; browser hydration/interaction pending |
+| Market Intelligence | Pass, including loading SSR and canonical projection | Pass | Responsive pass; browser hydration/interaction pending |
+| Niche Discovery | Pass, including loading SSR and canonical projection | Pass | Responsive pass; browser hydration/interaction pending |
+| Channel Studio | Pass, including loading SSR and canonical projection | Pass | Responsive pass; browser hydration/interaction pending |
 
 Recovery behavior remains fail-closed: projection failures expose canonical-state unavailability and explicitly state that no demo/local fallback was substituted.
 
 ## Exact next action
 
-When the approved preview/browser surface is reachable, resume Document 27 at the remaining browser evidence gates only. Test a hydrated canonical-data primary journey, browser recovery presentation, keyboard/focus, zoom/reflow, automated accessibility, sampled assistive technology, screenshot regression and Web Vitals. Do not repeat responsive verification unless responsive source changes. Repair only evidenced source defects, then rerun 29 boundaries, the 14-point commercial UI contract, rendered contract, build/artifact/performance budgets and 95 tests.
+When the approved preview/browser surface is reachable, resume Document 27 at the remaining browser evidence gates only. Verify hydrated canonical-data rendering, browser recovery presentation, keyboard/focus, zoom/reflow, automated accessibility, sampled assistive technology, screenshot regression and Web Vitals. Do not repeat responsive or canonical projection verification unless its source changes. Repair only evidenced source defects, then rerun 29 boundaries, the 14-point commercial UI contract, canonical primary projection contract, rendered contract, build/artifact/performance budgets and 95 tests.
 
 ## Protected scope
 

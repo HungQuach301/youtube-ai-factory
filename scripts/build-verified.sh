@@ -24,6 +24,9 @@ node "${script_dir}/check-async-error-boundaries.mjs"
 echo "Checking commercial UI static contract..."
 node "${script_dir}/check-commercial-ui.mjs"
 
+echo "Checking canonical-data primary projections..."
+node --import tsx "${script_dir}/check-commercial-primary.ts"
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \

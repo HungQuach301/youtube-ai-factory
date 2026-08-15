@@ -15,9 +15,9 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 ## Multi-channel commercial UI acceptance artifact
 
 - Durable ledger: `docs/continuity/11_COMMERCIAL_UI_UX_ACCEPTANCE.md`.
-- Classification: `RECONSTRUCTED_V1_RENDERED_ACCEPTANCE_GUARDS`.
+- Classification: `RECONSTRUCTED_V1_PRIMARY_PROJECTION_GUARDS`.
 - Current gate: `COMMERCIAL_UI_REVIEW_PENDING`.
 - Passed evidence: targeted lint, 29/29 boundaries, production build, Sites artifact validation, 95/95 tests and built-worker semantic checks.
-- Continuous gates: 14/14 commercial UI static checks, 4/4 rendered loading pages, 4/4 fail-closed recovery APIs, a 500 ms lab server-render ceiling and gzip client budgets are enforced by every verified build.
+- Continuous gates: 14/14 commercial UI static checks, canonical-data primary projections for all four reconstructed slices, 4/4 rendered loading pages, 4/4 fail-closed recovery APIs, a 500 ms lab server-render ceiling and gzip client budgets are enforced by every verified build.
 - User evidence: responsive behavior manually confirmed on 2026-08-15.
-- Pending evidence: hydrated canonical-data primary journey; browser recovery presentation; keyboard/focus; zoom/reflow; automated/manual accessibility; visual regression; Web Vitals and field telemetry.
+- Pending evidence: browser hydration/rendering; recovery presentation; keyboard/focus; zoom/reflow; automated/manual accessibility; visual regression; Web Vitals and field telemetry.

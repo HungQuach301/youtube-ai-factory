@@ -24,8 +24,8 @@ function parseArtifact(row: Row | undefined) {
   return content as Record<string, unknown>;
 }
 
-export async function discoveryProjection(channelId?: string | null): Promise<DiscoveryProjection> {
-  const db = await database();
+export async function discoveryProjection(channelId?: string | null, databaseOverride?: DB): Promise<DiscoveryProjection> {
+  const db = databaseOverride || await database();
   const channelRows = await rows(db, "SELECT id,name,market,language,niche,created_at FROM channels ORDER BY created_at,id");
   if (channelId && !channelRows.some((channel) => text(channel.id) === channelId)) throw new ChannelNotFoundError(`Channel ${channelId} does not exist`);
   const selectedChannels = channelId ? channelRows.filter((channel) => text(channel.id) === channelId) : channelRows;
