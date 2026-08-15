@@ -30,11 +30,28 @@ export type IntelligenceNicheWorkflowResult = {
   recommendation: { candidateId: string; candidateVersion: number; title: string; score: number } | null;
   expertDecisionOutcome: { action: ExpertDecision["action"]; candidateId: string; niche: string; decisionId: string; decisionVersion: number } | null;
   commitment: { niche: string; decisionId: string; decisionVersion: number } | null;
+  evidenceAssessment: EvidenceReadinessAssessment;
   errors: string[]; allowedNextActions: string[];
   downstreamGate: { consumer: "CHANNEL_STRATEGY"; state: "BLOCKED" | "READY_FOR_TYPED_HANDOFF"; reason: string; handoffId: string | null };
   commandContracts: CommandContract[];
   controls: { prevent: string[]; detect: string[]; contain: string[] };
   improvement: { signals: string[]; automaticallyProposed: string[]; expertApprovalRequired: string[]; promotionPath: string[]; automaticDemotionTriggers: string[] };
+};
+
+export type EvidenceReadinessCriterion = {
+  id: "RESEARCH_CHAMPION_BOUND" | "CHAMPION_SCORE_FLOOR" | "MARKET_ARTIFACT_FROZEN" | "VERIFIED_SOURCE_FLOOR" | "PRIMARY_SOURCE_FLOOR" | "P0_CLAIMS_RESOLVED" | "CONTRADICTIONS_REVIEWED";
+  label: string;
+  passed: boolean;
+  actual: string;
+  required: string;
+};
+
+export type EvidenceReadinessAssessment = {
+  ready: boolean;
+  passedCount: number;
+  total: number;
+  criteria: EvidenceReadinessCriterion[];
+  gaps: EvidenceReadinessCriterion["id"][];
 };
 
 const commandContracts: CommandContract[] = [
@@ -44,11 +61,27 @@ const commandContracts: CommandContract[] = [
   { command: "PROMOTE_POLICY_VERSION", autonomy: "A2_APPROVAL_REQUIRED", authority: "EXPERT_AND_ENGINEERING", activation: "DECLARED_NOT_ROUTED", preconditions: ["Representative backtest", "Shadow evidence", "Rollback target", "Explicit approval"], ceilings: { maximumLogicalAttempts: 1, providerRequests: 0, spendUsd: 0 } },
 ];
 
+export function assessIntelligenceNicheEvidence(input: IntelligenceNicheWorkflowInput): EvidenceReadinessAssessment {
+  const champion = input.candidates.find((candidate) => candidate.id === input.researchChampionId) || null;
+  const criteria: EvidenceReadinessCriterion[] = [
+    { id: "RESEARCH_CHAMPION_BOUND", label: "Research champion is canonically bound", passed: Boolean(champion), actual: champion?.id || "Not bound", required: "One canonical champion" },
+    { id: "CHAMPION_SCORE_FLOOR", label: "Champion score meets the policy floor", passed: Boolean(champion && champion.score >= 85), actual: champion ? String(champion.score) : "Not available", required: ">= 85" },
+    { id: "MARKET_ARTIFACT_FROZEN", label: "Market evidence artifact is frozen", passed: input.evidence.marketArtifactState === "FROZEN", actual: input.evidence.marketArtifactState, required: "FROZEN" },
+    { id: "VERIFIED_SOURCE_FLOOR", label: "Verified-source coverage meets the floor", passed: input.evidence.verifiedSources >= 10, actual: String(input.evidence.verifiedSources), required: ">= 10" },
+    { id: "PRIMARY_SOURCE_FLOOR", label: "Primary-source coverage meets the floor", passed: input.evidence.primarySources >= 3, actual: String(input.evidence.primarySources), required: ">= 3" },
+    { id: "P0_CLAIMS_RESOLVED", label: "All P0 claims are resolved", passed: input.evidence.unresolvedP0Claims === 0, actual: `${input.evidence.unresolvedP0Claims} unresolved`, required: "0 unresolved" },
+    { id: "CONTRADICTIONS_REVIEWED", label: "Contradictions are explicitly reviewed", passed: input.evidence.contradictionsReviewed, actual: input.evidence.contradictionsReviewed ? "Reviewed" : "Not recorded", required: "Reviewed" },
+  ];
+  const gaps = criteria.filter((criterion) => !criterion.passed).map((criterion) => criterion.id);
+  return { ready: gaps.length === 0, passedCount: criteria.length - gaps.length, total: criteria.length, criteria, gaps };
+}
+
 function base(input: IntelligenceNicheWorkflowInput) {
   return {
     contract: INTELLIGENCE_NICHE_WORKFLOW_VERSION,
     policyVersion: INTELLIGENCE_NICHE_POLICY_VERSION,
     aggregate: { portfolioId: input.portfolioId, channelId: input.channelId, version: input.aggregateVersion },
+    evidenceAssessment: assessIntelligenceNicheEvidence(input),
     commandContracts,
     controls: {
       prevent: ["Canonical portfolio/channel/candidate IDs", "Version-bound evidence and expert decision", "No implicit commitment from ranking"],
@@ -93,9 +126,9 @@ export function compileIntelligenceNicheWorkflow(input: IntelligenceNicheWorkflo
   const shared = base(input), errors = validationErrors(input);
   const candidate = input.candidates.find((item) => item.id === input.researchChampionId) || null;
   if (errors.length) return { ...shared, state: "CONTRACT_INVALID", readiness: "FAIL_CLOSED", recommendation: null, expertDecisionOutcome: null, commitment: null, errors, allowedNextActions: ["RECONCILE_CANONICAL_STATE"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: errors.join(" | "), handoffId: null } };
-  const evidenceReady = Boolean(candidate) && candidate!.score >= 85 && input.evidence.marketArtifactState === "FROZEN" && input.evidence.verifiedSources >= 10 && input.evidence.primarySources >= 3 && input.evidence.unresolvedP0Claims === 0 && input.evidence.contradictionsReviewed;
+  const evidenceReady = shared.evidenceAssessment.ready;
   const recommendation = candidate ? { candidateId: candidate.id, candidateVersion: candidate.version, title: candidate.title, score: candidate.score } : null;
-  if (!evidenceReady) return { ...shared, state: "INSUFFICIENT_EVIDENCE", readiness: "INSUFFICIENT_EVIDENCE", recommendation, expertDecisionOutcome: null, commitment: null, errors: [], allowedNextActions: ["REQUEST_BOUNDED_EVIDENCE_REFRESH", "REVIEW_EVIDENCE_GAPS"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Evidence readiness contract has not passed", handoffId: null } };
+  if (!evidenceReady) return { ...shared, state: "INSUFFICIENT_EVIDENCE", readiness: "INSUFFICIENT_EVIDENCE", recommendation, expertDecisionOutcome: null, commitment: null, errors: [], allowedNextActions: ["REQUEST_BOUNDED_EVIDENCE_REFRESH", "REVIEW_EVIDENCE_GAPS"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: `Evidence readiness blocked: ${shared.evidenceAssessment.gaps.join(", ")}`, handoffId: null } };
   const decision = input.expertDecision;
   if (!decision) return { ...shared, state: "EXPERT_DECISION_REQUIRED", readiness: "EVIDENCE_READY_EXPERT_DECISION_REQUIRED", recommendation, expertDecisionOutcome: null, commitment: null, errors: [], allowedNextActions: ["ACCEPT", "REJECT", "REQUEST_MORE_EVIDENCE"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Owner/expert decision is required", handoffId: null } };
   const expertDecisionOutcome = { action: decision.action, candidateId: candidate!.id, niche: candidate!.title, decisionId: decision.decisionId, decisionVersion: input.aggregateVersion };

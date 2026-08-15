@@ -28,6 +28,7 @@ The protected V7/V23 Video Production Engine was not redesigned. The only added 
 - Added mobile reflow for score grids, identity cards, table rows and status pills.
 - Added `prefers-reduced-motion` and forced-colors accommodations.
 - Preserved truthful read-only, compatibility, expert-gate and fail-closed authority states.
+- Replaced divergent candidate/workflow readiness labels with one authoritative seven-criterion evidence assessment and visible typed gaps.
 
 ## Evidence passed
 
@@ -37,7 +38,7 @@ The protected V7/V23 Video Production Engine was not redesigned. The only added 
 - Sites artifact validation: pass.
 - Full regression suite: 95/95.
 - User manual confirmation on 2026-08-15: responsive behavior is present.
-- Commercial UI static contract: 19/19 automated checks; enforced by every verified build.
+- Commercial UI static contract: 20/20 automated checks; enforced by every verified build.
 - Canonical-data primary projection contract: pass for Portfolio, Channel Detail, Discovery and Channel Studio; enforced by every verified build.
 - The primary projection gate verifies structured data mapping, missing-channel errors, recommendation versus expert-decision separation and blocked production command authority.
 - Commercial client artifact budgets: pass; enforced by every verified build.
@@ -52,7 +53,7 @@ The protected V7/V23 Video Production Engine was not redesigned. The only added 
 
 ## Evidence not yet available
 
-The supervised v291 preview was reachable and the hydrated fail-closed canonical-D1 recovery surface rendered truthfully without demo fallback. The preview had no seeded canonical product data, so the evidence-ready decision form was not fabricated for visual acceptance. The user previously confirmed responsive behavior manually. The following gates remain open:
+The supervised preview was reachable and the hydrated fail-closed canonical-D1 recovery surface rendered truthfully without demo fallback. Read-only production reconciliation showed that canonical channel data is currently `INSUFFICIENT_EVIDENCE`; therefore the decision form is not authorized to render and was not fabricated for visual acceptance. Document 15 records and repairs the previously divergent candidate/workflow labels. The user previously confirmed responsive behavior manually. The following gates remain open:
 
 - screenshot-based visual regression evidence;
 - zoom/reflow inspection in a rendered browser;
@@ -79,7 +80,7 @@ Recovery behavior remains fail-closed: projection failures expose canonical-stat
 
 ## Exact next action
 
-Resume Document 27 at the remaining browser evidence gates only using canonical data: verify the decision form, keyboard/focus, zoom/reflow, automated accessibility, sampled assistive technology, screenshot regression and Web Vitals. Do not fabricate demo data or repeat responsive/canonical projection verification unless its source changes. Repair only evidenced source defects, then rerun 30 boundaries, the 19-point commercial UI contract, canonical primary projection/command contract, rendered contract, build/artifact/performance budgets and 95 tests.
+Reconcile the seven-criterion assessment in canonical production and resolve only the owning-stage evidence gap through a valid typed fact. Once canonical state authorizes the form, resume Document 27 at the remaining browser evidence gates: decision form, keyboard/focus, zoom/reflow, automated accessibility, sampled assistive technology, screenshot regression and Web Vitals. Do not fabricate demo data or weaken readiness thresholds.
 
 ## Protected scope
 

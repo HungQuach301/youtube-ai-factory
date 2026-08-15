@@ -28,6 +28,7 @@ const checks = [
   ["mobile breakpoint", files.css.includes("@media(max-width:520px)")],
   ["expert decision form labels", files.discoveryView.includes("RATIONALE · IMMUTABLE") && files.discoveryView.includes("REUSABLE KNOWLEDGE ASSET")],
   ["expert decision truthful scope", files.discoveryView.includes("It will not change the channel niche or activate Channel Strategy")],
+  ["authoritative evidence readiness", files.discoveryView.includes("EVIDENCE READINESS · AUTHORITATIVE") && files.discoveryView.includes("evidenceAssessment.criteria")],
   ["SIWC decision authentication", files.decisionRoute.includes("getChatGPTUser") && files.decisionRoute.includes("SIWC_AUTHENTICATION_REQUIRED")],
   ["server-side expert authorization", files.decisionRoute.includes("FACTORY_EXPERT_EMAILS") && files.decisionRoute.includes("OWNER_EXPERT_AUTHORIZATION_REQUIRED")],
   ["idempotent decision boundary", files.decisionRoute.includes('request.headers.get("idempotency-key")')],

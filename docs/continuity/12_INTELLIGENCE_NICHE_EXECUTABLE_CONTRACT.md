@@ -10,6 +10,8 @@
 
 This contract converts the Intelligence and Niche Discovery slice into a versioned, executable decision workflow. The dedicated owner/expert decision command is now routed as a zero-spend append-only write; evidence refresh, policy improvement and policy promotion remain unrouted.
 
+Evidence readiness is owned by one seven-criterion assessment. Candidate labels, workflow state, decision-command visibility and downstream reason must derive from that same assessment; Document 15 records the production defect and repair.
+
 It owns the boundary:
 
 `Market/User/Competitor evidence → ranked niche recommendation → owner/expert decision → typed Channel Strategy handoff`

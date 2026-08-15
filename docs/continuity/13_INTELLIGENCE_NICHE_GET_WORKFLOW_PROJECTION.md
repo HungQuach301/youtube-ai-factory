@@ -10,6 +10,8 @@
 
 `GET /api/factory/discovery?channel=<id>` now compiles canonical Discovery evidence into an executable workflow read model. The Niche Discovery UI exposes workflow state, readiness, decision binding, allowed next actions and the Channel Strategy handoff gate.
 
+The projection now also exposes the authoritative evidence assessment: seven typed criteria with actual and required values, exact gaps and one readiness verdict shared by candidate cards and the workflow compiler.
+
 Portfolio scope never compiles one channel from another channel's evidence. It returns `CHANNEL_SCOPE_REQUIRED` until a single canonical channel is selected.
 
 ## Canonical version bindings

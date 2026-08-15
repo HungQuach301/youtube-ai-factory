@@ -16,6 +16,8 @@ assert.equal(pending.state, "EXPERT_DECISION_REQUIRED");
 assert.equal(pending.readiness, "EVIDENCE_READY_EXPERT_DECISION_REQUIRED");
 assert.equal(pending.commitment, null);
 assert.equal(pending.downstreamGate.state, "BLOCKED");
+assert.equal(pending.evidenceAssessment.ready, true);
+assert.equal(pending.evidenceAssessment.passedCount, 7);
 assert.equal(pending.commandContracts.find((command) => command.command === "SUBMIT_EXPERT_DECISION")?.activation, "ROUTED_ZERO_SPEND");
 assert.ok(pending.commandContracts.every((command) => command.ceilings.providerRequests === 0 && command.ceilings.spendUsd === 0));
 assert.ok(pending.commandContracts.filter((command) => command.command !== "SUBMIT_EXPERT_DECISION").every((command) => command.activation === "DECLARED_NOT_ROUTED"));
@@ -40,6 +42,8 @@ assert.deepEqual(moreEvidence.allowedNextActions, ["REQUEST_BOUNDED_EVIDENCE_REF
 const insufficient = compileIntelligenceNicheWorkflow({ ...base, evidence: { ...base.evidence, primarySources: 2 } });
 assert.equal(insufficient.state, "INSUFFICIENT_EVIDENCE");
 assert.equal(insufficient.downstreamGate.state, "BLOCKED");
+assert.deepEqual(insufficient.evidenceAssessment.gaps, ["PRIMARY_SOURCE_FLOOR"]);
+assert.match(insufficient.downstreamGate.reason, /PRIMARY_SOURCE_FLOOR/);
 
 const stale = compileIntelligenceNicheWorkflow({ ...base, expertDecision: expert("ACCEPT", { candidateVersion: 1, evidenceVersion: 3 }) });
 assert.equal(stale.state, "CONTRACT_INVALID");

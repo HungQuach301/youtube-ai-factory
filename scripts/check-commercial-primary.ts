@@ -145,6 +145,8 @@ assert.equal(discovery.workflow.decisionBinding, "NO_VERSION_BOUND_EXPERT_DECISI
 assert.equal(discovery.workflow.result?.aggregate.version, 7);
 assert.equal(discovery.workflow.result?.recommendation?.candidateVersion, 4);
 assert.equal(discovery.workflow.result?.state, "EXPERT_DECISION_REQUIRED");
+assert.equal(discovery.workflow.result?.evidenceAssessment.ready, true);
+assert.equal(discovery.workflow.result?.evidenceAssessment.passedCount, 7);
 assert.equal(discovery.workflow.result?.downstreamGate.state, "BLOCKED");
 assert.equal(discovery.workflow.decisionCommand?.activation, "ROUTED_ZERO_SPEND");
 assert.deepEqual(discovery.workflow.decisionCommand && { aggregate: discovery.workflow.decisionCommand.expectedAggregateVersion, decision: discovery.workflow.decisionCommand.expectedDecisionVersion, candidate: discovery.workflow.decisionCommand.candidateVersion, evidence: discovery.workflow.decisionCommand.evidenceVersion }, { aggregate: 7, decision: 0, candidate: 4, evidence: 4 });

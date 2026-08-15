@@ -26,7 +26,7 @@ Niche research champion, expert decision and committed channel niche are separat
 - Blank Suspense fallbacks in accepted slices: zero.
 - Commercial legibility, focus, touch-target, responsive and reduced-motion repair: complete in source.
 - Responsive behavior: manually confirmed by the user on 2026-08-15.
-- Commercial UI static contract: 19/19 and enforced during every verified build.
+- Commercial UI static contract: 20/20 and enforced during every verified build.
 - Canonical-data primary projection contract: Portfolio, Channel Detail, Discovery and Channel Studio pass with structured fixtures and enforced authority boundaries during every verified build.
 - Intelligence & Niche executable contract: eight fail-closed lifecycle paths pass; all typed commands are zero-spend and only the expert-decision command is routed.
 - Contract ledger: `docs/continuity/12_INTELLIGENCE_NICHE_EXECUTABLE_CONTRACT.md`.
@@ -36,11 +36,12 @@ Niche research champion, expert decision and committed channel niche are separat
 - Lab server-render budget: pass at 55.3 ms / 500 ms for the slowest route on the v291 checkpoint build.
 - Commercial client artifact budgets: pass and enforced during every verified build.
 - Browser hydration/rendering, keyboard/zoom-reflow, automated-accessibility, assistive-technology, visual-regression and Web Vitals evidence: pending because the healthy preview could not be reached by the approved cloud-browser surface within the bounded attempts.
+- Production reconciliation later found divergent partial/full evidence-readiness labels; Document 15 replaces them with one authoritative seven-criterion assessment and explicit typed gaps.
 - Evidence ledger: `docs/continuity/11_COMMERCIAL_UI_UX_ACCEPTANCE.md`.
 
 ## Exact next product action
 
-Complete the remaining browser/assistive/Web Vitals acceptance. Then design a separate typed niche-commitment command; do not route providers or couple commitment directly to Channel Strategy activation.
+Reconcile and resolve the canonical owning-stage evidence gap without weakening the gate. Complete the remaining decision-form browser/assistive/Web Vitals acceptance only after canonical readiness. Then design a separate typed niche-commitment command; do not couple commitment directly to Channel Strategy activation.
 
 ## Protected scope
 

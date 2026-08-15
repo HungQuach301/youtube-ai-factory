@@ -11,6 +11,7 @@ const channelRoute = await readFile(new URL("../app/api/factory/channels/[id]/ro
 const portfolioProjection = await readFile(new URL("../lib/portfolio-projection.ts", import.meta.url), "utf8");
 const discoveryRoute = await readFile(new URL("../app/api/factory/discovery/route.ts", import.meta.url), "utf8");
 const discoveryProjection = await readFile(new URL("../lib/discovery-projection.ts", import.meta.url), "utf8");
+const intelligenceNicheWorkflow = await readFile(new URL("../lib/intelligence-niche-workflow-contract.ts", import.meta.url), "utf8");
 const studioRoute = await readFile(new URL("../app/api/factory/channel-studio/route.ts", import.meta.url), "utf8");
 const studioProjection = await readFile(new URL("../lib/channel-studio-projection.ts", import.meta.url), "utf8");
 const marketPage = await readFile(new URL("../app/market-intelligence/page.tsx", import.meta.url), "utf8");
@@ -54,7 +55,9 @@ test("portfolio and channel detail are GET-only fail-closed canonical projection
 test("intelligence and niche discovery keep evidence readiness separate from expert commitment", () => {
   assert.match(discoveryRoute, /cache-control": "no-store"/);
   assert.doesNotMatch(discoveryRoute, /export async function (POST|PATCH|DELETE)/);
-  assert.match(discoveryProjection, /score >= 85 && frozenStage01 && verifiedSources >= 10/);
+  assert.match(discoveryProjection, /assessIntelligenceNicheEvidence/);
+  assert.match(discoveryProjection, /foundationReady/);
+  for (const criterion of ["CHAMPION_SCORE_FLOOR", "MARKET_ARTIFACT_FROZEN", "VERIFIED_SOURCE_FLOOR", "PRIMARY_SOURCE_FLOOR", "P0_CLAIMS_RESOLVED", "CONTRADICTIONS_REVIEWED"]) assert.match(intelligenceNicheWorkflow, new RegExp(criterion));
   assert.match(discoveryProjection, /EVIDENCE_READY_EXPERT_DECISION_REQUIRED/);
   assert.match(discoveryProjection, /OWNER_EXPERT_REQUIRED/);
   assert.match(discoveryProjection, /researchChampion/);

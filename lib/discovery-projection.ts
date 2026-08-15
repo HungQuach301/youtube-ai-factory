@@ -1,5 +1,5 @@
 import type { DiscoveryCandidate, DiscoveryProjection } from "@/app/discovery-contract";
-import { compileIntelligenceNicheWorkflow, type ExpertDecision, type IntelligenceNicheWorkflowResult } from "@/lib/intelligence-niche-workflow-contract";
+import { assessIntelligenceNicheEvidence, compileIntelligenceNicheWorkflow, type ExpertDecision, type IntelligenceNicheWorkflowInput, type IntelligenceNicheWorkflowResult } from "@/lib/intelligence-niche-workflow-contract";
 import { ChannelNotFoundError } from "@/lib/portfolio-projection";
 
 type Statement = { bind: (...values: unknown[]) => Statement; all: <T>() => Promise<{ results?: T[] }> };
@@ -74,26 +74,39 @@ export async function discoveryProjection(channelId?: string | null, databaseOve
   const frozenStage01 = text(stage01Row?.lifecycle_state) === "FROZEN";
   const champion = stage01?.champion && typeof stage01.champion === "object" ? stage01.champion as Record<string, unknown> : null;
   const championTitle = text(champion?.title);
-  const candidates: DiscoveryCandidate[] = objects(stage01?.candidates).map((candidate, index) => {
+  const selected = selectedChannels[0];
+  const selectedProgram = selected ? latestPrograms.get(text(selected.id)) : null;
+  const stage01Run = runs.find((run) => text(run.id) === text(stage01Row?.run_id));
+  const evidenceVersion = number(stage01Run?.attempt);
+  const contradictionRows = objects(stage01?.contradictions);
+  const contradictionsReviewed = stage01?.contradictionsReviewed === true || (contradictionRows.length > 0 && contradictionRows.every((item) => resolvedClaim(item.status)));
+  const unresolvedP0Claims = claims.filter((claim) => text(claim.risk_level) === "P0" && !resolvedClaim(claim.status)).length;
+  let candidates: DiscoveryCandidate[] = objects(stage01?.candidates).map((candidate, index) => {
     const score = number(candidate.score);
     const title = text(candidate.title);
-    const readiness = score >= 85 && frozenStage01 && verifiedSources >= 10
-      ? "EVIDENCE_READY_EXPERT_DECISION_REQUIRED"
-      : score >= 75 ? "REVIEW_REQUIRED" : "INSUFFICIENT_EVIDENCE";
     return {
       id: `${text(stage01Row?.id) || "unbound"}:${index + 1}`,
       title,
       centralQuestion: text(candidate.centralQuestion),
       viewerPromise: text(candidate.viewerPromise),
       novelty: number(candidate.novelty), evergreenFit: number(candidate.evergreenFit), visualPotential: number(candidate.visualPotential), score,
-      readiness,
+      readiness: score >= 75 ? "REVIEW_REQUIRED" : "INSUFFICIENT_EVIDENCE",
       risks: title === championTitle ? strings(champion?.risks) : [],
       recommendationState: title === championTitle ? "RESEARCH_CHAMPION" : "RESEARCH_CANDIDATE",
     };
   }).sort((a, b) => b.score - a.score);
-  const selected = selectedChannels[0];
-  const selectedProgram = selected ? latestPrograms.get(text(selected.id)) : null;
-  const stage01Run = runs.find((run) => text(run.id) === text(stage01Row?.run_id));
+  const championCandidate = candidates.find((candidate) => candidate.recommendationState === "RESEARCH_CHAMPION") || null;
+  const evidenceInput: IntelligenceNicheWorkflowInput = {
+    portfolioId: "CANONICAL_PORTFOLIO", channelId: channelId || text(selected?.id) || "PORTFOLIO_SCOPE",
+    aggregateVersion: Math.max(1, number(selectedProgram?.version)), currentNiche: text(selected?.niche) || null,
+    researchChampionId: championCandidate?.id || null,
+    candidates: candidates.map((candidate) => ({ id: candidate.id, version: Math.max(1, evidenceVersion), title: candidate.title, score: candidate.score, evidenceVersion: Math.max(1, evidenceVersion) })),
+    evidence: { version: Math.max(1, evidenceVersion), marketArtifactState: frozenStage01 ? "FROZEN" : stage01Row ? "DRAFT" : "MISSING", verifiedSources, primarySources, unresolvedP0Claims, contradictionsReviewed },
+    expertDecision: null,
+  };
+  const evidenceAssessment = assessIntelligenceNicheEvidence(evidenceInput);
+  const foundationReady = evidenceAssessment.criteria.filter((criterion) => !["RESEARCH_CHAMPION_BOUND", "CHAMPION_SCORE_FLOOR"].includes(criterion.id)).every((criterion) => criterion.passed);
+  candidates = candidates.map((candidate) => ({ ...candidate, readiness: candidate.score >= 85 && foundationReady ? "EVIDENCE_READY_EXPERT_DECISION_REQUIRED" : candidate.score >= 75 ? "REVIEW_REQUIRED" : "INSUFFICIENT_EVIDENCE" }));
   const workflowBlockers: string[] = [];
   let workflowResult: IntelligenceNicheWorkflowResult | null = null;
   let decisionCommand: DiscoveryProjection["workflow"]["decisionCommand"] = null;
@@ -109,17 +122,13 @@ export async function discoveryProjection(channelId?: string | null, databaseOve
     const boundDecision = expertDecision(programDecisions, aggregateVersion);
     decisionBinding = boundDecision.invalid ? "INVALID_VERSION_BOUND_EXPERT_DECISION" : boundDecision.decision ? "VERSION_BOUND_EXPERT_DECISION" : "NO_VERSION_BOUND_EXPERT_DECISION";
     if (boundDecision.invalid) workflowBlockers.push("A NICHE_EXPERT_DECISION_V1 record is malformed and cannot grant downstream authority.");
-    const evidenceVersion = number(stage01Run.attempt);
-    const championCandidate = candidates.find((candidate) => candidate.recommendationState === "RESEARCH_CHAMPION") || null;
-    const contradictionRows = objects(stage01?.contradictions);
-    const contradictionsReviewed = stage01?.contradictionsReviewed === true || (contradictionRows.length > 0 && contradictionRows.every((item) => resolvedClaim(item.status)));
     workflowResult = compileIntelligenceNicheWorkflow({
       portfolioId: "CANONICAL_PORTFOLIO", channelId, aggregateVersion, currentNiche: text(selected?.niche) || null,
       researchChampionId: championCandidate?.id || null,
       candidates: candidates.map((candidate) => ({ id: candidate.id, version: evidenceVersion, title: candidate.title, score: candidate.score, evidenceVersion })),
       evidence: {
         version: evidenceVersion, marketArtifactState: frozenStage01 ? "FROZEN" : "DRAFT", verifiedSources, primarySources,
-        unresolvedP0Claims: claims.filter((claim) => text(claim.risk_level) === "P0" && !resolvedClaim(claim.status)).length,
+        unresolvedP0Claims,
         contradictionsReviewed,
       },
       expertDecision: boundDecision.decision,
