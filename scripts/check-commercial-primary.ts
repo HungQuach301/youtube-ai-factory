@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { channelStudioProjection } from "../lib/channel-studio-projection";
 import { discoveryProjection } from "../lib/discovery-projection";
 import { nichePortfolioProjection } from "../lib/niche-portfolio-projection";
+import { NicheHypothesisCommandError, submitNicheHypothesis } from "../lib/niche-hypothesis-command";
 import { NicheDecisionCommandError, submitNicheExpertDecision } from "../lib/niche-expert-decision-command";
 import { ChannelNotFoundError, channelProjection, portfolioProjection } from "../lib/portfolio-projection";
 
@@ -77,6 +78,8 @@ const tables: Record<string, Row[]> = {
   v7_decision_records: [{ id: "decision-1", program_id: "program-1", decision_code: "NICHE_REVIEW", title: "Owner niche review", status: "PENDING_OWNER", effective_version: null, rationale: "Research recommendation is not a commitment", created_at: "2026-08-12T00:00:00.000Z" }],
   niche_expert_decisions: [],
   niche_expert_decision_audits: [],
+  niche_hypotheses: [],
+  niche_hypothesis_audits: [],
 };
 
 function queryRows(query: string, bindings: unknown[]) {
@@ -85,6 +88,7 @@ function queryRows(query: string, bindings: unknown[]) {
   assert.ok(table && tables[table], `Primary projection fixture does not cover query: ${query}`);
   let result = tables[table].map((row) => ({ ...row }));
   if (normalized.includes("where id=?")) result = result.filter((row) => row.id === bindings[0]);
+  if (normalized.includes("where id=? and channel_id=?")) result = result.filter((row) => row.channel_id === bindings[1]);
   if (normalized.includes("where channel_id=?")) result = result.filter((row) => row.channel_id === bindings[0]);
   if (normalized.includes("where program_id=?")) result = result.filter((row) => row.program_id === bindings[0]);
   if (normalized.includes("idempotency_key=?")) result = result.filter((row) => row.idempotency_key === bindings[0]);
@@ -95,6 +99,7 @@ function queryRows(query: string, bindings: unknown[]) {
   }
   if (normalized.includes("stage_key='01'")) result = result.filter((row) => row.stage_key === "01");
   if (normalized.includes("order by decision_version desc")) result.sort((a, b) => Number(b.decision_version || 0) - Number(a.decision_version || 0));
+  if (normalized.includes("order by hypothesis_version desc")) result.sort((a, b) => Number(b.hypothesis_version || 0) - Number(a.hypothesis_version || 0));
   return result;
 }
 
@@ -124,8 +129,25 @@ function executeMutation(item: Statement) {
     tables.niche_expert_decision_audits.push(Object.fromEntries(columns.map((column, index) => [column, values[index]])));
     return { meta: { changes: 1 } };
   }
+  if (normalized.startsWith("insert into niche_hypotheses")) {
+    const program = tables.v7_program_contracts.find((row) => row.id === values[20] && row.channel_id === values[21] && row.version === values[22]);
+    if (!program) return { meta: { changes: 0 } };
+    if (tables.niche_hypotheses.some((row) => row.idempotency_key === values[15] || (row.program_id === values[3] && row.hypothesis_version === values[5]))) throw new Error("UNIQUE constraint failed");
+    const columns = ["id", "portfolio_id", "channel_id", "program_id", "aggregate_version", "hypothesis_version", "title", "description", "rationale", "audience_assumptions_json", "demand_assumptions_json", "known_competitors_json", "winning_thesis", "actor_email", "actor_display_name", "idempotency_key", "request_hash", "correlation_id", "causation_id", "created_at"];
+    const row = Object.fromEntries(columns.map((column, index) => [column, values[index]]));
+    Object.assign(row, { origin: "EXPERT_SEEDED", lifecycle_state: "EVIDENCE_GATHERING", actor_role: "OWNER_EXPERT" });
+    tables.niche_hypotheses.push(row);
+    return { meta: { changes: 1 } };
+  }
+  if (normalized.startsWith("insert into niche_hypothesis_audits")) {
+    if (!tables.niche_hypotheses.some((row) => row.id === values[1])) throw new Error("FOREIGN KEY constraint failed");
+    const columns = ["id", "hypothesis_id", "program_id", "channel_id", "event_type", "actor_email", "actor_role", "idempotency_key", "request_hash", "correlation_id", "causation_id", "evidence_lineage_id", "created_at"];
+    tables.niche_hypothesis_audits.push(Object.fromEntries(columns.map((column, index) => [column, values[index]])));
+    return { meta: { changes: 1 } };
+  }
   if (normalized.startsWith("insert into v7_evidence_lineage")) {
-    tables.v7_evidence_lineage.push({ id: values[0], program_id: values[1], project_id: values[2], entity_type: values[3], title: values[4], lifecycle_state: "FROZEN", upstream_evidence_id: values[5], artifact_key: values[6], content_hash: values[7], storage_state: "CANONICAL_D1", rights_state: "NOT_APPLICABLE", cost_state: "ZERO_SPEND", quarantine_state: "CLEAR", pipeline_version: 7, created_at: values[8], updated_at: values[9] });
+    const hypothesisLineage = values[3] === "NICHE_HYPOTHESIS";
+    tables.v7_evidence_lineage.push({ id: values[0], program_id: values[1], project_id: values[2], entity_type: values[3], title: values[4], lifecycle_state: "FROZEN", upstream_evidence_id: hypothesisLineage ? null : values[5], artifact_key: hypothesisLineage ? values[5] : values[6], content_hash: hypothesisLineage ? values[6] : values[7], storage_state: "CANONICAL_D1", rights_state: "NOT_APPLICABLE", cost_state: "ZERO_SPEND", quarantine_state: "CLEAR", pipeline_version: 7, created_at: hypothesisLineage ? values[7] : values[8], updated_at: hypothesisLineage ? values[8] : values[9] });
     return { meta: { changes: 1 } };
   }
   throw new Error(`Primary projection fixture does not cover mutation: ${item.query}`);
@@ -173,7 +195,7 @@ assert.ok(discovery.workflow.result?.commandContracts.every((command) => command
 
 const nichePortfolio = await nichePortfolioProjection("channel-1", database);
 assert.equal(nichePortfolio.contract, "NICHE_PORTFOLIO_PROJECTION_V2");
-assert.equal(nichePortfolio.sourceState, "CANONICAL_V7_READ_ONLY_COMPATIBILITY_BRIDGE");
+assert.equal(nichePortfolio.sourceState, "CANONICAL_V7_WITH_EXPERT_HYPOTHESIS_APPEND");
 assert.equal(nichePortfolio.summary.opportunities, 2);
 assert.equal(nichePortfolio.summary.comparable, 2);
 assert.equal(nichePortfolio.decisionState, "PORTFOLIO_COMPARABLE");
@@ -184,9 +206,47 @@ assert.equal(nichePortfolio.comparison[0].competitors[0].strengths[0], "Large au
 assert.equal(nichePortfolio.comparison[0].prerequisites[0].status, "PASS");
 assert.equal(nichePortfolio.comparison[0].winningCriteria.length, 1);
 assert.equal(nichePortfolio.comparison[0].expertPriority, null);
-assert.equal(nichePortfolio.authority.v2Commands, "DECLARED_NOT_ROUTED");
-assert.deepEqual({ providerRequests: nichePortfolio.authority.providerRequests, spendUsd: nichePortfolio.authority.spendUsd, mutation: nichePortfolio.authority.productionDataMutation }, { providerRequests: 0, spendUsd: 0, mutation: false });
+assert.equal(nichePortfolio.authority.v2Commands, "SUBMIT_NICHE_HYPOTHESIS_ROUTED_ZERO_SPEND");
+assert.deepEqual({ providerRequests: nichePortfolio.authority.providerRequests, spendUsd: nichePortfolio.authority.spendUsd, hypothesisAppend: nichePortfolio.authority.hypothesisAppend, comparisonMutation: nichePortfolio.authority.comparisonMutation }, { providerRequests: 0, spendUsd: 0, hypothesisAppend: true, comparisonMutation: false });
 assert.equal(nichePortfolio.downstreamGate.state, "BLOCKED");
+
+const hypothesisBody = {
+  channelId: "channel-1", programId: "program-1", expectedAggregateVersion: 7, expectedHypothesisVersion: 0,
+  title: "Invisible systems behind healthcare prices",
+  description: "Explain the hidden incentives and price-setting systems that shape routine healthcare decisions.",
+  rationale: "Expert observation suggests recurring confusion, high decision cost and weak system-level explanation from existing channels.",
+  audienceAssumptions: ["Time-poor households making costly care decisions"],
+  demandAssumptions: ["Recurring need to understand opaque healthcare prices"],
+  knownCompetitors: ["Consumer health education channels"],
+  winningThesis: "Win through primary-source price-chain maps and repeatable decision-oriented visual explanations.",
+};
+const hypothesisCommand = { body: hypothesisBody, actor: { email: "owner@example.com", displayName: "Owner Expert", role: "OWNER_EXPERT" as const }, idempotencyKey: "niche-hypothesis:test-001" };
+const hypothesisRecorded = await submitNicheHypothesis(database, hypothesisCommand);
+assert.equal(hypothesisRecorded.outcome, "RECORDED");
+assert.equal(hypothesisRecorded.hypothesis.version, 1);
+assert.equal(hypothesisRecorded.nextAction, "PREPARE_NICHE_RESEARCH_PLAN");
+assert.deepEqual(hypothesisRecorded.authority, { authenticated: true, authorized: true, providerRequests: 0, spendUsd: 0, comparisonEligibility: false, expertPriorityMutation: false, nicheSelection: false, nicheCommitment: false, channelNicheMutation: false, channelStrategyActivation: false });
+assert.equal(tables.niche_hypotheses.length, 1);
+assert.equal(tables.niche_hypothesis_audits.length, 1);
+assert.equal(tables.v7_evidence_lineage.filter((row) => row.entity_type === "NICHE_HYPOTHESIS").length, 1);
+assert.equal(tables.channels[0].niche, "Hidden Systems Behind Money");
+const hypothesisReplay = await submitNicheHypothesis(database, hypothesisCommand);
+assert.equal(hypothesisReplay.outcome, "IDEMPOTENT_REPLAY");
+await assert.rejects(() => submitNicheHypothesis(database, { ...hypothesisCommand, body: { ...hypothesisBody, rationale: `${hypothesisBody.rationale} Different payload.` } }), (error: unknown) => error instanceof NicheHypothesisCommandError && error.code === "IDEMPOTENCY_KEY_REUSED" && error.status === 409);
+await assert.rejects(() => submitNicheHypothesis(database, { ...hypothesisCommand, idempotencyKey: "niche-hypothesis:test-002" }), (error: unknown) => error instanceof NicheHypothesisCommandError && error.code === "HYPOTHESIS_VERSION_CONFLICT" && error.status === 409);
+await assert.rejects(() => submitNicheHypothesis(database, { ...hypothesisCommand, idempotencyKey: "niche-hypothesis:test-003", body: { ...hypothesisBody, channelId: "channel-missing" } }), (error: unknown) => error instanceof NicheHypothesisCommandError && error.code === "CROSS_CHANNEL_PROGRAM_REFERENCE" && error.status === 409);
+const hypothesisPortfolio = await nichePortfolioProjection("channel-1", database);
+const expertInput = hypothesisPortfolio.comparison.find((item) => item.opportunityId === hypothesisRecorded.hypothesis.id);
+assert.ok(expertInput);
+assert.equal(hypothesisPortfolio.summary.opportunities, 3);
+assert.equal(hypothesisPortfolio.summary.expertSeeded, 1);
+assert.equal(expertInput.systemRank, null);
+assert.equal(expertInput.eligibility, "RESEARCH_REQUIRED");
+assert.equal(expertInput.axes.marketAttractiveness.score, null);
+assert.equal(expertInput.expertPriority, null);
+assert.equal(expertInput.hypothesis.audienceAssumptions[0], hypothesisBody.audienceAssumptions[0]);
+assert.deepEqual(expertInput.allowedNextActions, ["PREPARE_NICHE_RESEARCH_PLAN"]);
+assert.equal(hypothesisPortfolio.downstreamGate.state, "BLOCKED");
 
 tables.niche_expert_decisions.unshift({
   id: "decision-accept-1", portfolio_id: "CANONICAL_PORTFOLIO", channel_id: "channel-1", program_id: "program-1", aggregate_version: 7, decision_version: 1,

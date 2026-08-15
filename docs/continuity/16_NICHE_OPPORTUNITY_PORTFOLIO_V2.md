@@ -2,7 +2,7 @@
 
 **Contract:** `NICHE_OPPORTUNITY_PORTFOLIO_V2`  
 **Policy:** `NICHE_OPPORTUNITY_POLICY_V2`  
-**Status:** `SLICE_2_READ_ONLY_PORTFOLIO_IMPLEMENTED`
+**Status:** `SLICE_3_EXPERT_HYPOTHESIS_INTAKE_IMPLEMENTED`
 **Date:** 2026-08-15 (Asia/Bangkok)
 **Contract deployment:** Sites v295 / `022f72f4ee06703225e4520bcf83983f887fade4` / succeeded
 **Latest combined deployment:** Sites v297 / `b08cf9a10ced2911da891bf0361916a28daf2600` / succeeded
@@ -79,7 +79,7 @@ Declared V2 commands:
 | `COMMIT_NICHE` | Portfolio Governance |
 | `ACTIVATE_CHANNEL_STRATEGY` | separate Portfolio Governance command |
 
-For Slice 1 every command is `DECLARED_NOT_ROUTED`, provider requests `0`, spend USD `0`. The V1 expert-decision POST remains deployed only as a compatibility boundary; it is not V2 expert prioritization and cannot commit a niche.
+`SUBMIT_NICHE_HYPOTHESIS` is now `ROUTED_ZERO_SPEND`. Every other V2 command remains `DECLARED_NOT_ROUTED`, provider requests `0`, spend USD `0`. The V1 expert-decision POST remains deployed only as a compatibility boundary; it is not V2 expert prioritization and cannot commit a niche.
 
 ## Portfolio comparison policy
 
@@ -113,8 +113,8 @@ No threshold, weight, policy, autonomy or spend ceiling promotes automatically. 
 |---|---|---|
 | 1 | Niche Opportunity Contract V2, state machine, score/evidence/win-condition policy and contract tests | implemented |
 | 2 | Read-only Niche Portfolio projection and commercial comparison UI | implemented |
-| 3 | Expert hypothesis intake with append-only identity/version contract | next |
-| 4 | Bounded evidence validation and review | pending |
+| 3 | Expert hypothesis intake with append-only identity/version contract | implemented |
+| 4 | Bounded evidence validation and review | next |
 | 5 | Expert priority ordering and rationale capture | pending |
 | 6 | Pilot, selection, commitment and separate Channel Strategy activation | pending |
 
@@ -128,19 +128,20 @@ No threshold, weight, policy, autonomy or spend ceiling promotes automatically. 
 - Expert priority and system rank can disagree without either overwriting the other.
 - Selection cannot jump directly to commitment, and Channel Strategy remains blocked.
 - Duplicate or cross-portfolio inputs fail closed.
-- All nine V2 commands are declared, unrouted and zero-spend.
+- All nine V2 commands are declared and zero-spend; only hypothesis intake is routed.
 - Improvement policy cannot promote automatically.
 
 Continuous gate: `npm run check:niche-portfolio-v2`, executed by every verified build.
 
 ## Exact next action
 
-Implement Slice 3 as an append-only, identity-bound expert hypothesis intake contract and UI. It must capture assumptions, rationale and winning thesis, then enter the same support/contradiction/unknown research pipeline as system discoveries. It must not grant comparison eligibility, expert priority, selection, commitment or Channel Strategy activation.
+Implement Slice 4 as bounded evidence validation and expert evidence review. System-discovered and expert-seeded hypotheses must share the same support, contradiction and unknown workflow. Provider execution requires an approved plan, explicit source/spend ceilings and idempotency; validation alone must not grant comparison eligibility, priority, selection, commitment or Channel Strategy activation.
 
 ## Protected scope
 
-- No V2 command is routed in Slice 1 or Slice 2.
-- No production database migration, data mutation, provider request or spend.
+- Only `SUBMIT_NICHE_HYPOTHESIS` is routed in Slice 3.
+- The only new mutation is the append-only hypothesis/audit/lineage write from migration 0031.
+- No provider request or spend.
 - No replacement or reinterpretation of historical V1 records.
 - No single-winner yes/no UI for V2.
 - No aggregate score that can hide evidence uncertainty or compensate for a failed prerequisite.

@@ -38,6 +38,7 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 
 - Durable ledger: `docs/continuity/16_NICHE_OPPORTUNITY_PORTFOLIO_V2.md`.
 - Slice 2 ledger: `docs/continuity/17_NICHE_PORTFOLIO_READ_ONLY_PROJECTION.md`.
+- Slice 3 ledger: `docs/continuity/18_NICHE_EXPERT_HYPOTHESIS_INTAKE.md`.
 - Contract/policy: `NICHE_OPPORTUNITY_PORTFOLIO_V2` / `NICHE_OPPORTUNITY_POLICY_V2`.
 - Source: `lib/niche-opportunity-portfolio-contract.ts`.
 - Continuous gate: `scripts/check-niche-opportunity-portfolio-v2.ts`, executed by every verified build.
@@ -45,7 +46,8 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Win contract: prerequisites are hard gates; winning criteria expose capability gaps, close actions, cost/time and proof methods.
 - Expert leverage: expert-seeded hypotheses use the same support/contradiction/unknown research path; expert priority remains separate from system rank.
 - Authority: all nine V2 commands are declared but not routed, with provider requests `0` and spend USD `0`.
-- Read-only projection: `NICHE_PORTFOLIO_PROJECTION_V2`, `GET /api/factory/niche-portfolio`, canonical V7 compatibility bridge with truthful missing-data states.
+- Portfolio projection: `NICHE_PORTFOLIO_PROJECTION_V2`, `GET /api/factory/niche-portfolio`, canonical V7 compatibility bridge plus append-only expert hypotheses with truthful assumption/evidence separation.
+- Expert hypothesis command: `POST /api/factory/niche-hypotheses`, `NICHE_HYPOTHESIS_INTAKE_V1`, migration 0031 and append-only hypothesis/audit/lineage.
 - Commercial surface: side-by-side portfolio matrix and expandable market/audience/competitor/Conditions to Win dossiers at `/niche-discovery`.
 - Continuous evidence: 31/31 boundaries, 26/26 commercial UI, 10/10 V2 contract groups and 95/95 regression.
-- Next action: Slice 3 append-only expert hypothesis intake contract and UI.
+- Next action: Slice 4 bounded research planning, evidence validation and expert evidence review.

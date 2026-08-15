@@ -204,6 +204,13 @@
       "when": 1786789825448,
       "tag": "0030_niche_expert_decision_command",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1786806898406,
+      "tag": "0031_famous_puff_adder",
+      "breakpoints": true
     }
   ]
 }

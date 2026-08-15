@@ -175,7 +175,7 @@ export type NicheCommandContract = {
   command: NicheCommand;
   autonomy: "A1_RECOMMEND" | "A2_APPROVAL_REQUIRED" | "A3_BOUNDED";
   authority: "SYSTEM_WITHIN_POLICY" | "OWNER_EXPERT" | "PORTFOLIO_GOVERNANCE";
-  activation: "DECLARED_NOT_ROUTED";
+  activation: "DECLARED_NOT_ROUTED" | "ROUTED_ZERO_SPEND";
   preconditions: string[];
   ceilings: { maximumLogicalAttempts: number; providerRequests: number; spendUsd: number };
 };
@@ -233,7 +233,7 @@ const commandContracts: NicheCommandContract[] = [
   command: command as NicheCommand,
   autonomy: autonomy as NicheCommandContract["autonomy"],
   authority: authority as NicheCommandContract["authority"],
-  activation: "DECLARED_NOT_ROUTED" as const,
+  activation: command === "SUBMIT_NICHE_HYPOTHESIS" ? "ROUTED_ZERO_SPEND" as const : "DECLARED_NOT_ROUTED" as const,
   preconditions: preconditions as string[],
   ceilings: { maximumLogicalAttempts: 1, providerRequests: 0, spendUsd: 0 },
 }));

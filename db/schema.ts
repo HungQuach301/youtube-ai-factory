@@ -689,6 +689,58 @@ export const nicheExpertDecisionAudits = sqliteTable("niche_expert_decision_audi
   index("niche_expert_decision_audits_program_created_idx").on(table.programId, table.createdAt),
 ]);
 
+// Expert-seeded niche hypotheses are immutable inputs to the V2 evidence
+// workflow. They are intentionally separate from system rank, expert priority,
+// niche selection, commitment and Channel Strategy activation.
+export const nicheHypotheses = sqliteTable("niche_hypotheses", {
+  id: text("id").primaryKey(),
+  portfolioId: text("portfolio_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  programId: text("program_id").notNull(),
+  aggregateVersion: integer("aggregate_version").notNull(),
+  hypothesisVersion: integer("hypothesis_version").notNull(),
+  origin: text("origin").notNull().default("EXPERT_SEEDED"),
+  lifecycleState: text("lifecycle_state").notNull().default("EVIDENCE_GATHERING"),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  rationale: text("rationale").notNull(),
+  audienceAssumptionsJson: text("audience_assumptions_json").notNull(),
+  demandAssumptionsJson: text("demand_assumptions_json").notNull(),
+  knownCompetitorsJson: text("known_competitors_json").notNull(),
+  winningThesis: text("winning_thesis").notNull(),
+  actorEmail: text("actor_email").notNull(),
+  actorDisplayName: text("actor_display_name").notNull(),
+  actorRole: text("actor_role").notNull().default("OWNER_EXPERT"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_hypotheses_program_version_uq").on(table.programId, table.hypothesisVersion),
+  uniqueIndex("niche_hypotheses_idempotency_uq").on(table.idempotencyKey),
+  index("niche_hypotheses_channel_created_idx").on(table.channelId, table.createdAt),
+]);
+
+export const nicheHypothesisAudits = sqliteTable("niche_hypothesis_audits", {
+  id: text("id").primaryKey(),
+  hypothesisId: text("hypothesis_id").notNull().references(() => nicheHypotheses.id),
+  programId: text("program_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  eventType: text("event_type").notNull().default("NICHE_HYPOTHESIS_SUBMITTED"),
+  actorEmail: text("actor_email").notNull(),
+  actorRole: text("actor_role").notNull().default("OWNER_EXPERT"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  evidenceLineageId: text("evidence_lineage_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_hypothesis_audits_hypothesis_uq").on(table.hypothesisId),
+  index("niche_hypothesis_audits_program_created_idx").on(table.programId, table.createdAt),
+]);
+
 export const v7FoundationAudits = sqliteTable("v7_foundation_audits", {
   id: text("id").primaryKey(),
   programId: text("program_id").notNull(),

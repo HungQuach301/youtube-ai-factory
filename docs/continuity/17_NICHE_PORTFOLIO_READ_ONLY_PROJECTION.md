@@ -23,6 +23,8 @@ The `/niche-discovery` product surface now presents a portfolio of potential nic
 
 The surface is responsive, keyboard accessible and designed as the commercial decision workspace for Niche Discovery. It contains no V2 write control.
 
+Slice 3 extends this surface with one bounded write control. The comparison projection remains non-mutating; expert hypothesis assumptions are appended through a separate command and rendered as unranked, research-required inputs. See Document 18.
+
 ## Canonical compatibility bridge
 
 The current production database contains immutable V1 Stage 01/02 Intelligence artifacts, not the full V2 aggregate. Slice 2 therefore reads those artifacts through:

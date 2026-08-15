@@ -41,10 +41,11 @@ Niche research champion, expert decision and committed channel niche are separat
 - Evidence ledger: `docs/continuity/11_COMMERCIAL_UI_UX_ACCEPTANCE.md`.
 - Niche Opportunity Portfolio V2 Slice 1 is implemented as an unrouted executable contract. It replaces the future product decision shape—not historical V1 records—with a comparable niche list, three separate decision axes, hard prerequisites, explicit Conditions to Win and symmetric expert/system hypothesis validation. Ledger: `docs/continuity/16_NICHE_OPPORTUNITY_PORTFOLIO_V2.md`.
 - Slice 2 adds the read-only `NICHE_PORTFOLIO_PROJECTION_V2`, `GET /api/factory/niche-portfolio` and the commercial `/niche-discovery` comparison surface. The compatibility bridge exposes missing V2 facts rather than fabricating them. Ledger: `docs/continuity/17_NICHE_PORTFOLIO_READ_ONLY_PROJECTION.md`.
+- Slice 3 routes only `SUBMIT_NICHE_HYPOTHESIS`: SIWC identity, server allowlist, idempotency, optimistic versions, append-only hypothesis/audit/lineage and zero provider spend. The portfolio renders expert assumptions separately from evidence and keeps the input unranked and research-required. Ledger: `docs/continuity/18_NICHE_EXPERT_HYPOTHESIS_INTAKE.md`.
 
 ## Exact next product action
 
-Implement Slice 3: an append-only, identity-bound expert hypothesis intake contract and UI. Submission enters evidence gathering only; expert priority, selection, commitment and Channel Strategy activation remain later, separate boundaries.
+Implement Slice 4: bounded evidence validation and expert evidence review for system-discovered and expert-seeded hypotheses. Provider dispatch requires a separately approved research plan, source/spend ceilings and idempotent execution; no automatic comparison eligibility or downstream commitment.
 
 ## Protected scope
 

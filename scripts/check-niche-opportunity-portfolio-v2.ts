@@ -83,10 +83,12 @@ const duplicated = compileNicheOpportunityPortfolio({ ...base, opportunities: [b
 assert.ok(duplicated.errors.includes("DUPLICATE_OPPORTUNITY_ID"));
 assert.equal(duplicated.comparison.length, 0);
 
-assert.ok(comparable.commandContracts.every((command) => command.activation === "DECLARED_NOT_ROUTED" && command.ceilings.providerRequests === 0 && command.ceilings.spendUsd === 0));
+assert.equal(comparable.commandContracts.find((command) => command.command === "SUBMIT_NICHE_HYPOTHESIS")?.activation, "ROUTED_ZERO_SPEND");
+assert.ok(comparable.commandContracts.filter((command) => command.command !== "SUBMIT_NICHE_HYPOTHESIS").every((command) => command.activation === "DECLARED_NOT_ROUTED"));
+assert.ok(comparable.commandContracts.every((command) => command.ceilings.providerRequests === 0 && command.ceilings.spendUsd === 0));
 assert.equal(isNicheOpportunityTransitionAllowed("COMPARABLE", "EXPERT_PRIORITIZED"), true);
 assert.equal(isNicheOpportunityTransitionAllowed("EXPERT_PRIORITIZED", "COMMITTED"), false);
 assert.equal(isNicheOpportunityTransitionAllowed("SELECTED_PENDING_COMMITMENT", "COMMITTED"), true);
 assert.equal(comparable.improvement.automaticPromotion, false);
 
-console.log("Niche Opportunity Portfolio V2 contract passed 10/10 acceptance groups: comparable portfolio, expert-seeded validation, three separate axes, hard prerequisites, Conditions to Win, independent expert priority, guarded lifecycle, zero-spend command catalogue, fail-closed validation and governed improvement.");
+console.log("Niche Opportunity Portfolio V2 contract passed 10/10 acceptance groups: comparable portfolio, expert-seeded validation, three separate axes, hard prerequisites, Conditions to Win, independent expert priority, guarded lifecycle, bounded zero-spend hypothesis intake, fail-closed validation and governed improvement.");

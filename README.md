@@ -8,17 +8,18 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 
 ## Current production checkpoint
 
-- Deployed checkpoint: Sites v297, commit `b08cf9a10ced2911da891bf0361916a28daf2600`.
+- Deployed checkpoint before the current change: Sites v298, source HEAD `2f11cc3af35a482eace9802f34f9bb2474388f20`.
 - Product slices: Canonical Shell, Channel Detail, Intelligence/Niche and Channel Studio (`RECONSTRUCTED_V1`), plus the governed niche expert-decision command.
 - Boundaries: all projections remain no-store/fail-closed with no demo fallback; only `POST /api/factory/niche-decisions` has bounded zero-spend mutation authority.
 - Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only decision/audit/lineage. It does not mutate `channels.niche` or activate Channel Strategy.
 - Verification: 31/31 async API boundaries, 26/26 commercial UI contracts, targeted lint, production build/artifact/render/performance validation and 95/95 tests.
 - Readiness truth: candidate labels, workflow authority and decision-command visibility now share one seven-criterion evidence assessment with explicit typed gaps.
 - Niche Portfolio V2 Slice 1: the executable contract now requires a comparable list of opportunities, symmetric system/expert hypothesis validation, independent Market Attractiveness / Ability to Win / Evidence Confidence axes, hard prerequisites and explicit Conditions to Win. All V2 commands remain unrouted and zero-spend.
-- Niche Portfolio V2 Slice 2: `/niche-discovery` now provides a read-only side-by-side portfolio matrix and expandable market, audience, competitor, evidence and Conditions to Win dossiers. Missing V2 facts remain explicitly `Not recorded`; no legacy score is silently converted into a V2 axis.
+- Niche Portfolio V2 Slice 2: `/niche-discovery` provides a side-by-side portfolio matrix and expandable market, audience, competitor, evidence and Conditions to Win dossiers. Missing V2 facts remain explicitly `Not recorded`; no legacy score is silently converted into a V2 axis.
+- Niche Portfolio V2 Slice 3: an authorized expert can append a niche hypothesis with explicit rationale, audience/demand assumptions, known competitors and winning thesis. It enters the portfolio unranked and research-required; the command is identity-bound, versioned, idempotent, audited, zero-spend and cannot set priority, select, commit or activate Channel Strategy.
 - Commercial UI/UX acceptance remains pending for the canonically blocked decision-form browser/assistive/Web Vitals evidence listed in Document 11. Production now reports 6/7 readiness criteria passed; only `CONTRADICTIONS_REVIEWED` is missing.
 
-Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–17 before continuing in a new chat.
+Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–18 before continuing in a new chat.
 
 ## Runtime foundation
 

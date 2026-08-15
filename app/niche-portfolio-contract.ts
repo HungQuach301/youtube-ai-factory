@@ -44,8 +44,8 @@ export type NicheOpportunityProjection = {
   origin: "SYSTEM_DISCOVERED" | "EXPERT_SEEDED";
   lifecycleState: "EVIDENCE_GATHERING" | "COMPARABLE" | "EXPERT_PRIORITIZED";
   eligibility: "ELIGIBLE" | "BLOCKED_BY_PREREQUISITE" | "RESEARCH_REQUIRED";
-  systemRank: number;
-  systemRankBasis: "CANONICAL_V1_CANDIDATE_ORDER";
+  systemRank: number | null;
+  systemRankBasis: "CANONICAL_V1_CANDIDATE_ORDER" | "UNRANKED_EXPERT_HYPOTHESIS";
   expertPriority: number | null;
   expertPriorityBasis: "RECORDED_IN_SOURCE" | "NOT_RECORDED";
   axes: {
@@ -54,6 +54,16 @@ export type NicheOpportunityProjection = {
     evidenceConfidence: PortfolioAxis;
   };
   legacyScore: number | null;
+  hypothesis: {
+    version: number | null;
+    rationale: string | null;
+    audienceAssumptions: string[];
+    demandAssumptions: string[];
+    knownCompetitors: string[];
+    winningThesis: string | null;
+    submittedBy: string | null;
+    createdAt: string | null;
+  };
   marketPotential: {
     thesis: string | null;
     targetMarket: string | null;
@@ -93,19 +103,20 @@ export type NichePortfolioProjection = {
   contract: "NICHE_PORTFOLIO_PROJECTION_V2";
   policyVersion: "NICHE_OPPORTUNITY_POLICY_V2";
   generatedAt: string;
-  sourceState: "CANONICAL_V7_READ_ONLY_COMPATIBILITY_BRIDGE";
+  sourceState: "CANONICAL_V7_WITH_EXPERT_HYPOTHESIS_APPEND";
   scope: { mode: "PORTFOLIO" | "CHANNEL"; channelId: string | null };
   channels: Array<{ id: string; name: string; market: string; language: string }>;
+  intakeContexts: Array<{ channelId: string; channelName: string; programId: string; aggregateVersion: number; expectedHypothesisVersion: number }>;
   decisionState: "RESEARCH_IN_PROGRESS" | "PORTFOLIO_COMPARABLE" | "EXPERT_PRIORITIZATION_RECORDED";
   summary: { opportunities: number; comparable: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number };
   comparison: NicheOpportunityProjection[];
   rankingPolicy: {
-    systemRank: "CANONICAL_V1_CANDIDATE_ORDER";
+    systemRank: "CANONICAL_V1_CANDIDATE_ORDER_WITH_UNRANKED_EXPERT_INPUTS";
     expertPriority: "SEPARATE_VERSIONED_FACT";
     totalScore: null;
     note: string;
   };
-  authority: { activation: "READ_ONLY"; v2Commands: "DECLARED_NOT_ROUTED"; providerRequests: 0; spendUsd: 0; productionDataMutation: false };
+  authority: { activation: "BOUNDED_HYPOTHESIS_INTAKE"; v2Commands: "SUBMIT_NICHE_HYPOTHESIS_ROUTED_ZERO_SPEND"; providerRequests: 0; spendUsd: 0; hypothesisAppend: true; comparisonMutation: false; channelNicheMutation: false };
   downstreamGate: { consumer: "CHANNEL_STRATEGY"; state: "BLOCKED"; reason: string };
   integrity: { state: "READY" | "RECONCILIATION_REQUIRED"; notes: string[] };
 };
