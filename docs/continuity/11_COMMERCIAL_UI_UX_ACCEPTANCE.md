@@ -35,6 +35,9 @@ The protected V7/V23 Video Production Engine was not redesigned and no command a
 - Production build: pass.
 - Sites artifact validation: pass.
 - Full regression suite: 95/95.
+- User manual confirmation on 2026-08-15: responsive behavior is present.
+- Commercial UI static contract: 13/13 automated checks; enforced by every verified build.
+- Commercial client artifact budgets: pass; enforced by every verified build.
 - Built-worker SSR checks: HTTP 200; skip link, main landmark, current-page state and assistive loading state present.
 - Blank Suspense fallback scan across Intelligence, Niche Discovery and Channel Studio: zero.
 - Largest shared client CSS: 291,305 bytes raw / 52,988 bytes gzip.
@@ -42,32 +45,32 @@ The protected V7/V23 Video Production Engine was not redesigned and no command a
 
 ## Evidence not yet available
 
-The supervised preview was healthy, but the cloud-browser navigation timed out on both bounded attempts. This was classified as preview/browser infrastructure failure, not a verified Site defect. Therefore the following gates remain open:
+The supervised preview was healthy, but the cloud-browser navigation timed out on the bounded attempts. This was classified as preview/browser infrastructure failure, not a verified Site defect. The user subsequently confirmed responsive behavior manually. The following gates remain open:
 
-- desktop, tablet and mobile screenshot comparison;
-- visual overflow and zoom/reflow inspection in a rendered browser;
+- screenshot-based visual regression evidence;
+- zoom/reflow inspection in a rendered browser;
 - end-to-end keyboard traversal and visible-focus sequence;
 - automated accessibility scan and sampled screen-reader journey;
 - lab LCP, INP and CLS measurement;
 - field Core Web Vitals telemetry.
 
-Artifact size is diagnostic evidence only. It is not a substitute for runtime performance measurement. No field-performance or commercial-ready claim is authorized.
+Artifact budgets prevent client-size regression but do not substitute for runtime performance measurement. No field-performance or commercial-ready claim is authorized.
 
 ## Acceptance matrix
 
 | Surface | Semantic/static gate | Build/regression gate | Rendered visual/interaction gate |
 |---|---|---|---|
-| Shell / Portfolio | Pass | Pass | Pending |
-| Channel Detail | Pass | Pass | Pending |
-| Market Intelligence | Pass | Pass | Pending |
-| Niche Discovery | Pass | Pass | Pending |
-| Channel Studio | Pass | Pass | Pending |
+| Shell / Portfolio | Pass | Pass | Responsive pass; interaction evidence pending |
+| Channel Detail | Pass | Pass | Responsive pass; interaction evidence pending |
+| Market Intelligence | Pass | Pass | Responsive pass; interaction evidence pending |
+| Niche Discovery | Pass | Pass | Responsive pass; interaction evidence pending |
+| Channel Studio | Pass | Pass | Responsive pass; interaction evidence pending |
 
 Recovery behavior remains fail-closed: projection failures expose canonical-state unavailability and explicitly state that no demo/local fallback was substituted.
 
 ## Exact next action
 
-When the approved preview/browser surface is reachable, resume Document 27 at the rendered evidence gates only. Test desktop, tablet and mobile; primary and recovery journeys; keyboard/focus; zoom/reflow; automated accessibility; sampled assistive technology; and lab performance. Repair only evidenced source defects, then rerun 29 boundaries, build/artifact validation and 95 tests.
+When the approved preview/browser surface is reachable, resume Document 27 at the remaining rendered evidence gates only. Test primary and recovery journeys; keyboard/focus; zoom/reflow; automated accessibility; sampled assistive technology; screenshot regression and runtime performance. Do not repeat responsive verification unless responsive source changes. Repair only evidenced source defects, then rerun 29 boundaries, the 13-point commercial UI contract, build/artifact/performance budgets and 95 tests.
 
 ## Protected scope
 

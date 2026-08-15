@@ -21,6 +21,9 @@ fi
 echo "Checking asynchronous API error boundaries..."
 node "${script_dir}/check-async-error-boundaries.mjs"
 
+echo "Checking commercial UI static contract..."
+node "${script_dir}/check-commercial-ui.mjs"
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \
@@ -29,3 +32,6 @@ timeout \
   "${vinext}" build
 
 "${script_dir}/validate-artifact.sh"
+
+echo "Checking commercial client performance budgets..."
+node "${script_dir}/check-commercial-performance.mjs"
