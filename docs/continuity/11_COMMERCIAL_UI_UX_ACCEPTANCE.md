@@ -4,7 +4,7 @@
 **Run date:** 2026-08-15 (Asia/Bangkok)  
 **Source baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`  
 **Status:** `COMMERCIAL_UI_REVIEW_PENDING`  
-**Deployment:** Sites v291 / `4cd4162742795dffb52f307e65295c6293ff0a18` / succeeded
+**Deployment:** Sites v293 / `f61dc062617ab7107a5de5cd9e900c09d35220ae` / succeeded
 
 ## Scope
 
@@ -54,6 +54,8 @@ The protected V7/V23 Video Production Engine was not redesigned. The only added 
 ## Evidence not yet available
 
 The supervised preview was reachable and the hydrated fail-closed canonical-D1 recovery surface rendered truthfully without demo fallback. Read-only production reconciliation showed that canonical channel data is currently `INSUFFICIENT_EVIDENCE`; therefore the decision form is not authorized to render and was not fabricated for visual acceptance. Document 15 records and repairs the previously divergent candidate/workflow labels. The user previously confirmed responsive behavior manually. The following gates remain open:
+
+Production v293 exposes the exact result: 6/7 readiness criteria pass and `CONTRADICTIONS_REVIEWED` is the sole missing fact. Candidate labels now agree with the workflow and the downstream gate remains fail closed.
 
 - screenshot-based visual regression evidence;
 - zoom/reflow inspection in a rendered browser;

@@ -8,13 +8,13 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 
 ## Current production checkpoint
 
-- Deployed checkpoint: Sites v291, commit `4cd4162742795dffb52f307e65295c6293ff0a18`.
+- Deployed checkpoint: Sites v293, commit `f61dc062617ab7107a5de5cd9e900c09d35220ae`.
 - Product slices: Canonical Shell, Channel Detail, Intelligence/Niche and Channel Studio (`RECONSTRUCTED_V1`), plus the governed niche expert-decision command.
 - Boundaries: all projections remain no-store/fail-closed with no demo fallback; only `POST /api/factory/niche-decisions` has bounded zero-spend mutation authority.
 - Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only decision/audit/lineage. It does not mutate `channels.niche` or activate Channel Strategy.
 - Verification: 30/30 async API boundaries, 20/20 commercial UI contracts, targeted lint, production build/artifact/render/performance validation and 95/95 tests.
 - Readiness truth: candidate labels, workflow authority and decision-command visibility now share one seven-criterion evidence assessment with explicit typed gaps.
-- Commercial UI/UX acceptance remains pending only for the rendered browser/assistive/Web Vitals evidence listed in Document 11.
+- Commercial UI/UX acceptance remains pending for the canonically blocked decision-form browser/assistive/Web Vitals evidence listed in Document 11. Production now reports 6/7 readiness criteria passed; only `CONTRADICTIONS_REVIEWED` is missing.
 
 Read `AGENTS.md` and `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` before continuing in a new chat.
 

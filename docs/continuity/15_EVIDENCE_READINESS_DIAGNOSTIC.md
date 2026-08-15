@@ -33,6 +33,18 @@ Two independent readiness calculations therefore allowed a candidate card to ove
 
 This keeps defect detection and explanation inside the owning Intelligence/Niche stage. QA remains independent assurance and is not assigned responsibility for reconstructing missing readiness evidence.
 
+## Production verification
+
+Sites v293 deployed successfully at commit `f61dc062617ab7107a5de5cd9e900c09d35220ae`. A direct canonical channel projection returned:
+
+- `6/7` criteria passed;
+- sole gap `CONTRADICTIONS_REVIEWED` (`Not recorded`; required `Reviewed`);
+- all 17 candidates downgraded from the overstated ready label to `REVIEW_REQUIRED`;
+- `decisionCommand = null`;
+- downstream Channel Strategy state `BLOCKED` with the exact typed reason.
+
+Provider requests and spend remained zero. No database or channel state was mutated.
+
 ## Protected scope
 
 - No demo or local fallback.

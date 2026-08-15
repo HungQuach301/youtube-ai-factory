@@ -2,7 +2,7 @@
 
 **Classification:** `RECONSTRUCTED_V1_NICHE_EXPERT_DECISION_COMMAND_V1`
 **Baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`
-**Deployment:** Sites v291 / `4cd4162742795dffb52f307e65295c6293ff0a18` / succeeded
+**Deployment:** Sites v293 / `f61dc062617ab7107a5de5cd9e900c09d35220ae` / succeeded
 **Commercial UI/UX:** semantic/static acceptance passed; rendered review pending
 
 ## Implemented source
@@ -37,6 +37,7 @@ Niche research champion, expert decision and committed channel niche are separat
 - Commercial client artifact budgets: pass and enforced during every verified build.
 - Browser hydration/rendering, keyboard/zoom-reflow, automated-accessibility, assistive-technology, visual-regression and Web Vitals evidence: pending because the healthy preview could not be reached by the approved cloud-browser surface within the bounded attempts.
 - Production reconciliation later found divergent partial/full evidence-readiness labels; Document 15 replaces them with one authoritative seven-criterion assessment and explicit typed gaps.
+- Post-deployment v293 reconciliation: 6/7 passed; the sole gap is `CONTRADICTIONS_REVIEWED`. Candidate cards now truthfully show `REVIEW_REQUIRED`, the decision command remains absent and Channel Strategy remains blocked.
 - Evidence ledger: `docs/continuity/11_COMMERCIAL_UI_UX_ACCEPTANCE.md`.
 
 ## Exact next product action
