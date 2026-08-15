@@ -8,11 +8,11 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 
 ## Current production checkpoint
 
-- Deployed checkpoint: Sites v295, commit `022f72f4ee06703225e4520bcf83983f887fade4`.
+- Deployed checkpoint: Sites v297, commit `b08cf9a10ced2911da891bf0361916a28daf2600`.
 - Product slices: Canonical Shell, Channel Detail, Intelligence/Niche and Channel Studio (`RECONSTRUCTED_V1`), plus the governed niche expert-decision command.
 - Boundaries: all projections remain no-store/fail-closed with no demo fallback; only `POST /api/factory/niche-decisions` has bounded zero-spend mutation authority.
 - Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only decision/audit/lineage. It does not mutate `channels.niche` or activate Channel Strategy.
-- Verification: 30/30 async API boundaries, 20/20 commercial UI contracts, targeted lint, production build/artifact/render/performance validation and 95/95 tests.
+- Verification: 31/31 async API boundaries, 26/26 commercial UI contracts, targeted lint, production build/artifact/render/performance validation and 95/95 tests.
 - Readiness truth: candidate labels, workflow authority and decision-command visibility now share one seven-criterion evidence assessment with explicit typed gaps.
 - Niche Portfolio V2 Slice 1: the executable contract now requires a comparable list of opportunities, symmetric system/expert hypothesis validation, independent Market Attractiveness / Ability to Win / Evidence Confidence axes, hard prerequisites and explicit Conditions to Win. All V2 commands remain unrouted and zero-spend.
 - Niche Portfolio V2 Slice 2: `/niche-discovery` now provides a read-only side-by-side portfolio matrix and expandable market, audience, competitor, evidence and Conditions to Win dossiers. Missing V2 facts remain explicitly `Not recorded`; no legacy score is silently converted into a V2 axis.

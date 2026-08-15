@@ -33,12 +33,12 @@ The protected V7/V23 Video Production Engine was not redesigned. The only added 
 ## Evidence passed
 
 - Targeted ESLint on changed TypeScript/TSX: pass.
-- Async API error boundaries: 30/30.
+- Async API error boundaries: 31/31.
 - Production build: pass.
 - Sites artifact validation: pass.
 - Full regression suite: 95/95.
 - User manual confirmation on 2026-08-15: responsive behavior is present.
-- Commercial UI static contract: 20/20 automated checks; enforced by every verified build.
+- Commercial UI static contract: 26/26 automated checks; enforced by every verified build.
 - Canonical-data primary projection contract: pass for Portfolio, Channel Detail, Discovery and Channel Studio; enforced by every verified build.
 - The primary projection gate verifies structured data mapping, missing-channel errors, recommendation versus expert-decision separation and blocked production command authority.
 - Commercial client artifact budgets: pass; enforced by every verified build.

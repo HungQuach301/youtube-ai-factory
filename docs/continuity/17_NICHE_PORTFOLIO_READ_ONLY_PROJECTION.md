@@ -3,8 +3,9 @@
 **Slice:** `02_READ_ONLY_PORTFOLIO`
 **Projection:** `NICHE_PORTFOLIO_PROJECTION_V2`
 **Policy:** `NICHE_OPPORTUNITY_POLICY_V2`
-**Status:** `IMPLEMENTED_PENDING_PRODUCTION_CHECKPOINT`
+**Status:** `PRODUCTION_DEPLOYED_READ_ONLY`
 **Date:** 2026-08-15 (Asia/Bangkok)
+**Deployment:** Sites v297 / `b08cf9a10ced2911da891bf0361916a28daf2600` / succeeded
 
 ## Outcome
 

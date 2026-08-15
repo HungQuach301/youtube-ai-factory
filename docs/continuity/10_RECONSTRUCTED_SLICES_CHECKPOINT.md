@@ -2,7 +2,7 @@
 
 **Classification:** `RECONSTRUCTED_V1_NICHE_EXPERT_DECISION_COMMAND_V1`
 **Baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`
-**Deployment:** Sites v295 / `022f72f4ee06703225e4520bcf83983f887fade4` / succeeded
+**Deployment:** Sites v297 / `b08cf9a10ced2911da891bf0361916a28daf2600` / succeeded
 **Commercial UI/UX:** semantic/static acceptance passed; rendered review pending
 
 ## Implemented source
@@ -18,7 +18,7 @@ Niche research champion, expert decision and committed channel niche are separat
 
 ## Verified acceptance
 
-- Async API boundary audit: 30/30.
+- Async API boundary audit: 31/31.
 - Targeted lint for all reconstructed source: pass.
 - Production build and Sites artifact validation: pass.
 - Full regression suite: 95/95.
@@ -26,7 +26,7 @@ Niche research champion, expert decision and committed channel niche are separat
 - Blank Suspense fallbacks in accepted slices: zero.
 - Commercial legibility, focus, touch-target, responsive and reduced-motion repair: complete in source.
 - Responsive behavior: manually confirmed by the user on 2026-08-15.
-- Commercial UI static contract: 20/20 and enforced during every verified build.
+- Commercial UI static contract: 26/26 and enforced during every verified build.
 - Canonical-data primary projection contract: Portfolio, Channel Detail, Discovery and Channel Studio pass with structured fixtures and enforced authority boundaries during every verified build.
 - Intelligence & Niche executable contract: eight fail-closed lifecycle paths pass; all typed commands are zero-spend and only the expert-decision command is routed.
 - Contract ledger: `docs/continuity/12_INTELLIGENCE_NICHE_EXECUTABLE_CONTRACT.md`.
