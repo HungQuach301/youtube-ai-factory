@@ -1,6 +1,6 @@
 # Reconstructed Multi-Channel Slices Checkpoint
 
-**Classification:** `RECONSTRUCTED_V1_COMMERCIAL_GUARDS`
+**Classification:** `RECONSTRUCTED_V1_RENDERED_ACCEPTANCE_GUARDS`
 **Baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`
 **Deployment:** not deployed
 **Commercial UI/UX:** semantic/static acceptance passed; rendered review pending
@@ -26,14 +26,16 @@ Niche research champion, current channel niche and expert commitment are separat
 - Blank Suspense fallbacks in accepted slices: zero.
 - Commercial legibility, focus, touch-target, responsive and reduced-motion repair: complete in source.
 - Responsive behavior: manually confirmed by the user on 2026-08-15.
-- Commercial UI static contract: 13/13 and enforced during every verified build.
+- Commercial UI static contract: 14/14 and enforced during every verified build.
+- Rendered contract: 4/4 commercial loading pages and 4/4 fail-closed recovery APIs pass during every verified build.
+- Lab server-render budget: pass at 75.6 ms / 500 ms for the slowest route.
 - Commercial client artifact budgets: pass and enforced during every verified build.
-- Rendered keyboard/zoom-reflow/automated-accessibility/assistive-technology/visual-regression/runtime-performance evidence: pending because the healthy preview could not be reached by the approved cloud-browser surface within the bounded attempts.
+- Hydrated canonical-data, browser keyboard/zoom-reflow, automated-accessibility, assistive-technology, visual-regression and Web Vitals evidence: pending because the healthy preview could not be reached by the approved cloud-browser surface within the bounded attempts.
 - Evidence ledger: `docs/continuity/11_COMMERCIAL_UI_UX_ACCEPTANCE.md`.
 
 ## Exact next product action
 
-After the source continuity capsule is complete, resume only the remaining Document 27 rendered evidence gates when the approved preview/browser surface is reachable. Do not repeat responsive or semantic/static gates unless their source changes. Repair only evidenced defects and rerun the same functional verification. Do not deploy or add mutation authority.
+After the source continuity capsule is complete, resume only the remaining Document 27 browser/hydration evidence gates when the approved preview/browser surface is reachable. Do not repeat responsive, semantic/static or Worker-rendered gates unless their source changes. Repair only evidenced defects and rerun the same functional verification. Do not deploy or add mutation authority.
 
 ## Protected scope
 

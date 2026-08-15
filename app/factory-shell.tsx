@@ -41,7 +41,7 @@ export function FactoryShell({ children, active = "portfolio" }: { children: Rea
 
 export function ProjectionState({ loading, error, data, label = "canonical state" }: { loading: boolean; error: string | null; data: unknown; label?: string }) {
   if (error) return <section className="pfFailure" role="alert"><small>PROJECTION UNAVAILABLE</small><h1>Canonical state could not load.</h1><p>{error}</p><span>No demo or local fallback was substituted.</span></section>;
-  if (loading || !data) return <section className="pfLoading" role="status" aria-live="polite" aria-busy="true"><i aria-hidden="true" /><span>Loading {label}…</span></section>;
+  if (loading || !data) return <section className="pfLoading" role="status" aria-live="polite" aria-busy="true"><h1 className="pfSrOnly">{label}</h1><i aria-hidden="true" /><span>Loading {label}…</span></section>;
   return null;
 }
 

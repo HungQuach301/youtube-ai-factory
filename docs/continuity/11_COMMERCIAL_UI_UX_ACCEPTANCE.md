@@ -20,6 +20,7 @@ The protected V7/V23 Video Production Engine was not redesigned and no command a
 - Added a keyboard-visible skip link and one explicit `main` landmark.
 - Added `aria-current="page"` to the active factory navigation item.
 - Replaced blank Suspense fallbacks with named, live loading states.
+- Preserved one screen-reader-visible H1 in the initial loading shell.
 - Marked loading states with `role="status"`, `aria-live` and `aria-busy`.
 - Added an accessible name and numeric value to channel progress indicators.
 - Added high-visibility `:focus-visible` treatment and minimum 44 px interactive targets.
@@ -36,12 +37,15 @@ The protected V7/V23 Video Production Engine was not redesigned and no command a
 - Sites artifact validation: pass.
 - Full regression suite: 95/95.
 - User manual confirmation on 2026-08-15: responsive behavior is present.
-- Commercial UI static contract: 13/13 automated checks; enforced by every verified build.
+- Commercial UI static contract: 14/14 automated checks; enforced by every verified build.
 - Commercial client artifact budgets: pass; enforced by every verified build.
-- Built-worker SSR checks: HTTP 200; skip link, main landmark, current-page state and assistive loading state present.
+- Built-worker rendered contract: 4/4 commercial page routes return HTTP 200 HTML with language, title, one main landmark, skip-link target, one active navigation item, H1, assistive loading state, no positive tabindex and no duplicate IDs.
+- Fail-closed recovery contract: 4/4 canonical APIs return HTTP 503 JSON, `no-store`, `fallback: false` and an explicit reason when canonical bindings are unavailable.
+- Lab server-render budget: pass; slowest route `/` at 75.6 ms / 500 ms.
 - Blank Suspense fallback scan across Intelligence, Niche Discovery and Channel Studio: zero.
-- Largest shared client CSS: 291,305 bytes raw / 52,988 bytes gzip.
-- Largest page JavaScript chunk: 201,125 bytes raw / 46,326 bytes gzip.
+- Largest shared client CSS: 52,973 bytes gzip / 60,000 budget.
+- Largest page JavaScript chunk: 46,387 bytes gzip / 50,000 budget.
+- Total client JavaScript and CSS: 283,383 bytes gzip / 300,000 budget.
 
 ## Evidence not yet available
 
@@ -54,23 +58,25 @@ The supervised preview was healthy, but the cloud-browser navigation timed out o
 - lab LCP, INP and CLS measurement;
 - field Core Web Vitals telemetry.
 
+The initial server-rendered loading journey and missing-binding recovery APIs are now covered automatically. A hydrated primary journey backed by canonical data, browser interaction and visual output remains pending.
+
 Artifact budgets prevent client-size regression but do not substitute for runtime performance measurement. No field-performance or commercial-ready claim is authorized.
 
 ## Acceptance matrix
 
 | Surface | Semantic/static gate | Build/regression gate | Rendered visual/interaction gate |
 |---|---|---|---|
-| Shell / Portfolio | Pass | Pass | Responsive pass; interaction evidence pending |
-| Channel Detail | Pass | Pass | Responsive pass; interaction evidence pending |
-| Market Intelligence | Pass | Pass | Responsive pass; interaction evidence pending |
-| Niche Discovery | Pass | Pass | Responsive pass; interaction evidence pending |
-| Channel Studio | Pass | Pass | Responsive pass; interaction evidence pending |
+| Shell / Portfolio | Pass, including loading SSR | Pass | Responsive pass; hydrated interaction evidence pending |
+| Channel Detail | Pass | Pass | Responsive pass; canonical-data interaction evidence pending |
+| Market Intelligence | Pass, including loading SSR | Pass | Responsive pass; hydrated interaction evidence pending |
+| Niche Discovery | Pass, including loading SSR | Pass | Responsive pass; hydrated interaction evidence pending |
+| Channel Studio | Pass, including loading SSR | Pass | Responsive pass; hydrated interaction evidence pending |
 
 Recovery behavior remains fail-closed: projection failures expose canonical-state unavailability and explicitly state that no demo/local fallback was substituted.
 
 ## Exact next action
 
-When the approved preview/browser surface is reachable, resume Document 27 at the remaining rendered evidence gates only. Test primary and recovery journeys; keyboard/focus; zoom/reflow; automated accessibility; sampled assistive technology; screenshot regression and runtime performance. Do not repeat responsive verification unless responsive source changes. Repair only evidenced source defects, then rerun 29 boundaries, the 13-point commercial UI contract, build/artifact/performance budgets and 95 tests.
+When the approved preview/browser surface is reachable, resume Document 27 at the remaining browser evidence gates only. Test a hydrated canonical-data primary journey, browser recovery presentation, keyboard/focus, zoom/reflow, automated accessibility, sampled assistive technology, screenshot regression and Web Vitals. Do not repeat responsive verification unless responsive source changes. Repair only evidenced source defects, then rerun 29 boundaries, the 14-point commercial UI contract, rendered contract, build/artifact/performance budgets and 95 tests.
 
 ## Protected scope
 

@@ -14,6 +14,7 @@ const checks = [
   ["single named main target", files.shell.includes('id="main-content"')],
   ["current-page navigation", files.shell.includes("aria-current=")],
   ["assistive loading status", files.shell.includes('role="status"') && files.shell.includes('aria-busy="true"')],
+  ["loading heading hierarchy", files.shell.includes('className="pfSrOnly"') && files.css.includes(".pfSrOnly")],
   ["fail-closed recovery copy", files.shell.includes("No demo or local fallback was substituted")],
   ["named numeric progress", files.portfolio.includes('role="progressbar"') && files.portfolio.includes("aria-valuenow")],
   ["non-blank async fallbacks", [files.market, files.niche, files.studio].every((source) => !source.includes("fallback={null}") && source.includes("ProjectionState loading"))],

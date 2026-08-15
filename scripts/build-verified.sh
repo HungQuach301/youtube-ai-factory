@@ -33,5 +33,8 @@ timeout \
 
 "${script_dir}/validate-artifact.sh"
 
+echo "Checking rendered commercial journeys..."
+node "${script_dir}/check-commercial-rendered.mjs"
+
 echo "Checking commercial client performance budgets..."
 node "${script_dir}/check-commercial-performance.mjs"
