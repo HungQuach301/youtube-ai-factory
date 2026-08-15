@@ -6,22 +6,23 @@ This repository is the executable source for a multi-channel YouTube operating s
 
 V7/V23 remains the protected Video Production Engine beneath this portfolio architecture; it is not the top-level product shell.
 
-## Current production checkpoint
+## Current implementation checkpoint
 
-- Deployed checkpoint: Sites v301, commit `89b9a9ebcb152a498a60ba991debeca3ae43f236`.
-- Product slices: Canonical Shell, Channel Detail, Intelligence/Niche and Channel Studio (`RECONSTRUCTED_V1`), plus the governed niche expert-decision command.
-- Boundaries: all projections remain no-store/fail-closed with no demo fallback; only `POST /api/factory/niche-decisions` has bounded zero-spend mutation authority.
+- Production baseline before the current Slice 4 checkpoint: Sites v302, commit `729d0fe92b92d18603c0034d877d89d710476407`.
+- Product slices: Canonical Shell, Channel Detail, Intelligence/Niche and Channel Studio (`RECONSTRUCTED_V1`), governed expert decision, typed niche portfolio, expert hypothesis intake, strict niche/topic identity and Slice 4 Evidence Intelligence & Validation.
+- Boundaries: all projections remain no-store/fail-closed with no demo fallback; bounded zero-spend commands exist for expert decision, expert hypothesis and Slice 4 plan/validation/evidence review.
 - Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only decision/audit/lineage. It does not mutate `channels.niche` or activate Channel Strategy.
-- Verification: 32/32 async API boundaries, 33/33 commercial UI contracts, targeted lint, production build/artifact/render/performance validation and 95/95 tests.
+- Verification: 33/33 async API boundaries, 40/40 commercial UI contracts, production build/artifact/render/performance validation, 10/10 Niche V2 groups, 8 Intelligence/Niche lifecycle paths and 95/95 regression tests.
 - Readiness truth: candidate labels, workflow authority and decision-command visibility now share one seven-criterion evidence assessment with explicit typed gaps.
 - Niche Portfolio V2 Slice 1: the executable contract now requires a comparable list of opportunities, symmetric system/expert hypothesis validation, independent Market Attractiveness / Ability to Win / Evidence Confidence axes, hard prerequisites and explicit Conditions to Win. All V2 commands remain unrouted and zero-spend.
 - Niche Portfolio V2 Slice 2: `/niche-discovery` provides a side-by-side portfolio matrix and expandable market, audience, competitor, evidence and Conditions to Win dossiers. Missing V2 facts remain explicitly `Not recorded`; no legacy score is silently converted into a V2 axis.
 - Niche Portfolio V2 Slice 3: an authorized expert can append a niche hypothesis with explicit rationale, audience/demand assumptions, known competitors and winning thesis. It enters the portfolio unranked and research-required; the command is identity-bound, versioned, idempotent, audited, zero-spend and cannot set priority, select, commit or activate Channel Strategy.
 - Slice 3.1 identity repair: Niche Discovery now accepts only typed `NICHE_OPPORTUNITY` records. Legacy V1 video topics are excluded from niche ranking and preserved in Channel Studio/Content Planning with explicit provenance.
+- Slice 4: every typed niche dossier owns an append-only evidence workspace for a balanced versioned research plan, a bounded `APPROVED_NOT_DISPATCHED` validation envelope and expert evidence review. System-discovered and expert-seeded niches share the same support/contradiction/unknown path. Slice 4 actual provider requests/spend remain zero and it cannot grant score, rank, priority, selection, commitment or activation.
 - Product roadmap: Slices 4–8 are permanent product capabilities—Evidence Intelligence & Validation, Portfolio Comparison, Expert Prioritization, Niche Commitment & Governance, and Channel Strategy Activation—not one-time delivery tasks.
 - Commercial UI/UX acceptance remains pending for the canonically blocked decision-form browser/assistive/Web Vitals evidence listed in Document 11. Production now reports 6/7 readiness criteria passed; only `CONTRADICTIONS_REVIEWED` is missing.
 
-Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–19 before continuing in a new chat.
+Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–20 before continuing in a new chat.
 
 ## Runtime foundation
 

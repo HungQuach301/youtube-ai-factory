@@ -741,6 +741,75 @@ export const nicheHypothesisAudits = sqliteTable("niche_hypothesis_audits", {
   index("niche_hypothesis_audits_program_created_idx").on(table.programId, table.createdAt),
 ]);
 
+// Slice 4 owns an append-only evidence workflow shared by system-discovered
+// opportunities and expert-seeded hypotheses. Planning, validation approval and
+// expert review are evidence facts only: none of them may mutate comparison,
+// priority, selection, commitment or Channel Strategy activation.
+export const nicheEvidenceWorkflowEvents = sqliteTable("niche_evidence_workflow_events", {
+  id: text("id").primaryKey(),
+  portfolioId: text("portfolio_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  programId: text("program_id").notNull(),
+  opportunityId: text("opportunity_id").notNull(),
+  opportunityOrigin: text("opportunity_origin").notNull(),
+  aggregateVersion: integer("aggregate_version").notNull(),
+  evidenceVersion: integer("evidence_version").notNull(),
+  action: text("action").notNull(),
+  planVersion: integer("plan_version").notNull(),
+  supportingQuestionsJson: text("supporting_questions_json"),
+  contradictingQuestionsJson: text("contradicting_questions_json"),
+  unknownQuestionsJson: text("unknown_questions_json"),
+  sourceClassesJson: text("source_classes_json"),
+  providerAllowlistJson: text("provider_allowlist_json"),
+  maxSources: integer("max_sources"),
+  maxProviderRequests: integer("max_provider_requests"),
+  maxSpendCents: integer("max_spend_cents"),
+  validationStatus: text("validation_status"),
+  validationRequestId: text("validation_request_id"),
+  claimDirection: text("claim_direction"),
+  claimStatement: text("claim_statement"),
+  sourceRef: text("source_ref"),
+  sourceAuthority: text("source_authority"),
+  observedAt: text("observed_at"),
+  freshness: text("freshness"),
+  confidence: integer("confidence"),
+  affectedAxis: text("affected_axis"),
+  reviewDisposition: text("review_disposition"),
+  decisionImpact: text("decision_impact"),
+  actorEmail: text("actor_email").notNull(),
+  actorDisplayName: text("actor_display_name").notNull(),
+  actorRole: text("actor_role").notNull().default("OWNER_EXPERT"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_evidence_events_opportunity_version_uq").on(table.opportunityId, table.evidenceVersion),
+  uniqueIndex("niche_evidence_events_idempotency_uq").on(table.idempotencyKey),
+  index("niche_evidence_events_program_created_idx").on(table.programId, table.createdAt),
+]);
+
+export const nicheEvidenceWorkflowAudits = sqliteTable("niche_evidence_workflow_audits", {
+  id: text("id").primaryKey(),
+  eventId: text("event_id").notNull().references(() => nicheEvidenceWorkflowEvents.id),
+  programId: text("program_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  opportunityId: text("opportunity_id").notNull(),
+  eventType: text("event_type").notNull(),
+  actorEmail: text("actor_email").notNull(),
+  actorRole: text("actor_role").notNull().default("OWNER_EXPERT"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  evidenceLineageId: text("evidence_lineage_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_evidence_audits_event_uq").on(table.eventId),
+  index("niche_evidence_audits_opportunity_created_idx").on(table.opportunityId, table.createdAt),
+]);
+
 export const v7FoundationAudits = sqliteTable("v7_foundation_audits", {
   id: text("id").primaryKey(),
   programId: text("program_id").notNull(),

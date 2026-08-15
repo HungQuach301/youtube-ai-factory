@@ -211,6 +211,13 @@
       "when": 1786806898406,
       "tag": "0031_famous_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1786810367578,
+      "tag": "0032_smooth_nebula",
+      "breakpoints": true
     }
   ]
 }

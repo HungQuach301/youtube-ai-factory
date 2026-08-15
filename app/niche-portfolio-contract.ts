@@ -33,6 +33,47 @@ export type PortfolioCompetitor = {
   exploitableGaps: string[];
 };
 
+export type NicheEvidenceReview = {
+  eventId: string;
+  evidenceVersion: number;
+  direction: "SUPPORTS" | "CONTRADICTS" | "UNKNOWN";
+  statement: string;
+  sourceRef: string;
+  sourceAuthority: "PRIMARY" | "SECONDARY" | "EXPERT_OBSERVATION";
+  observedAt: string;
+  freshness: "CURRENT" | "AGING" | "STALE" | "UNKNOWN";
+  confidence: number;
+  affectedAxis: "MARKET_ATTRACTIVENESS" | "ABILITY_TO_WIN" | "EVIDENCE_CONFIDENCE" | "PREREQUISITE" | "WINNING_CRITERION";
+  disposition: "ACCEPTED" | "REJECTED" | "NEEDS_MORE_RESEARCH";
+  decisionImpact: string;
+  reviewedBy: string;
+  createdAt: string;
+};
+
+export type NicheEvidenceWorkflow = {
+  contract: "NICHE_EVIDENCE_WORKFLOW_V1";
+  evidenceVersion: number;
+  state: "NOT_STARTED" | "PLAN_READY" | "VALIDATION_APPROVED" | "EVIDENCE_UNDER_REVIEW";
+  plan: null | {
+    eventId: string;
+    version: number;
+    supportingQuestions: string[];
+    contradictingQuestions: string[];
+    unknownQuestions: string[];
+    sourceClasses: string[];
+    providerAllowlist: string[];
+    maxSources: number;
+    maxProviderRequests: number;
+    maxSpendUsd: number;
+    balanced: true;
+    createdAt: string;
+  };
+  validation: null | { requestId: string; planVersion: number; status: "APPROVED_NOT_DISPATCHED"; providerRequests: 0; spendUsd: 0; approvedAt: string };
+  reviews: NicheEvidenceReview[];
+  directionCoverage: { supports: number; contradicts: number; unknown: number };
+  scoringGate: { state: "BLOCKED_FOR_SLICE_5"; reason: string };
+};
+
 export type NicheOpportunityProjection = {
   entityType: "NICHE_OPPORTUNITY";
   provenance: "V2_SYSTEM_DISCOVERY" | "EXPERT_HYPOTHESIS_APPEND";
@@ -90,6 +131,7 @@ export type NicheOpportunityProjection = {
     unresolvedP0Claims: number;
     contradictionsReviewed: boolean;
   };
+  evidenceWorkflow: NicheEvidenceWorkflow;
   coverage: {
     marketPotential: "RECORDED" | "PARTIAL" | "MISSING";
     audience: "RECORDED" | "PARTIAL" | "MISSING";
@@ -109,7 +151,7 @@ export type NichePortfolioProjection = {
   channels: Array<{ id: string; name: string; market: string; language: string }>;
   intakeContexts: Array<{ channelId: string; channelName: string; programId: string; aggregateVersion: number; expectedHypothesisVersion: number }>;
   decisionState: "RESEARCH_IN_PROGRESS" | "PORTFOLIO_COMPARABLE" | "EXPERT_PRIORITIZATION_RECORDED";
-  summary: { opportunities: number; comparable: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number; excludedLegacyContentTopics: number };
+  summary: { opportunities: number; comparable: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number; researchPlans: number; validationApprovals: number; evidenceReviewed: number; excludedLegacyContentTopics: number };
   comparison: NicheOpportunityProjection[];
   rankingPolicy: {
     systemRank: "V2_NICHE_OPPORTUNITY_EVIDENCE_ORDER_WITH_UNRANKED_EXPERT_INPUTS";
@@ -117,7 +159,7 @@ export type NichePortfolioProjection = {
     totalScore: null;
     note: string;
   };
-  authority: { activation: "BOUNDED_HYPOTHESIS_INTAKE"; v2Commands: "SUBMIT_NICHE_HYPOTHESIS_ROUTED_ZERO_SPEND"; providerRequests: 0; spendUsd: 0; hypothesisAppend: true; comparisonMutation: false; channelNicheMutation: false };
+  authority: { activation: "BOUNDED_EVIDENCE_WORKFLOW"; v2Commands: "SUBMIT_HYPOTHESIS_AND_SLICE_4_EVIDENCE_ROUTED_ZERO_SPEND"; providerRequests: 0; spendUsd: 0; hypothesisAppend: true; researchPlanning: true; validationApproval: true; evidenceReview: true; comparisonMutation: false; channelNicheMutation: false };
   downstreamGate: { consumer: "CHANNEL_STRATEGY"; state: "BLOCKED"; reason: string };
   integrity: { state: "READY" | "RECONCILIATION_REQUIRED"; notes: string[] };
 };

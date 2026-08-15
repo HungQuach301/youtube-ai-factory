@@ -63,6 +63,13 @@ assert(unauthenticatedHypothesis.headers.get("cache-control") === "no-store", "n
 assert(unauthenticatedHypothesisPayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "niche hypothesis command must expose a typed authentication failure");
 assert(unauthenticatedHypothesisPayload.providerRequests === 0 && unauthenticatedHypothesisPayload.spendUsd === 0, "niche hypothesis authentication failure must remain zero-spend");
 
+const unauthenticatedEvidence = await worker.fetch(new Request("http://localhost/api/factory/niche-evidence", { method: "POST", headers: { accept: "application/json", "content-type": "application/json", "idempotency-key": "rendered-evidence:001" }, body: "{}" }), env, ctx);
+const unauthenticatedEvidencePayload = await unauthenticatedEvidence.json();
+assert(unauthenticatedEvidence.status === 401, "niche evidence command must reject a missing SIWC identity");
+assert(unauthenticatedEvidence.headers.get("cache-control") === "no-store", "niche evidence authentication failure must be no-store");
+assert(unauthenticatedEvidencePayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "niche evidence command must expose a typed authentication failure");
+assert(unauthenticatedEvidencePayload.providerRequests === 0 && unauthenticatedEvidencePayload.spendUsd === 0, "niche evidence authentication failure must remain zero-spend");
+
 const slowest = timings.reduce((current, item) => item.milliseconds > current.milliseconds ? item : current);
 assert(slowest.milliseconds <= 500, `${slowest.route} server-render ${slowest.milliseconds.toFixed(1)}ms exceeds the 500ms lab budget`);
-console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 2 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);
+console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 3 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);

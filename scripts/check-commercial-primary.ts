@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { channelStudioProjection } from "../lib/channel-studio-projection";
 import { discoveryProjection } from "../lib/discovery-projection";
 import { nichePortfolioProjection } from "../lib/niche-portfolio-projection";
+import { NicheEvidenceCommandError, submitNicheEvidenceCommand } from "../lib/niche-evidence-command";
 import { NicheHypothesisCommandError, submitNicheHypothesis } from "../lib/niche-hypothesis-command";
 import { NicheDecisionCommandError, submitNicheExpertDecision } from "../lib/niche-expert-decision-command";
 import { ChannelNotFoundError, channelProjection, portfolioProjection } from "../lib/portfolio-projection";
@@ -101,6 +102,8 @@ const tables: Record<string, Row[]> = {
   niche_expert_decision_audits: [],
   niche_hypotheses: [],
   niche_hypothesis_audits: [],
+  niche_evidence_workflow_events: [],
+  niche_evidence_workflow_audits: [],
 };
 
 function queryRows(query: string, bindings: unknown[]) {
@@ -112,6 +115,9 @@ function queryRows(query: string, bindings: unknown[]) {
   if (normalized.includes("where id=? and channel_id=?")) result = result.filter((row) => row.channel_id === bindings[1]);
   if (normalized.includes("where channel_id=?")) result = result.filter((row) => row.channel_id === bindings[0]);
   if (normalized.includes("where program_id=?")) result = result.filter((row) => row.program_id === bindings[0]);
+  if (normalized.includes("where opportunity_id=?")) result = result.filter((row) => row.opportunity_id === bindings[0]);
+  if (normalized.includes("and channel_id=?")) result = result.filter((row) => row.channel_id === bindings[1]);
+  if (normalized.includes("and program_id=?")) result = result.filter((row) => row.program_id === bindings[2]);
   if (normalized.includes("idempotency_key=?")) result = result.filter((row) => row.idempotency_key === bindings[0]);
   if (normalized.includes("decision_version=?")) result = result.filter((row) => row.decision_version === bindings[1]);
   if (normalized.includes("where program_id in")) {
@@ -119,8 +125,13 @@ function queryRows(query: string, bindings: unknown[]) {
     result = result.filter((row) => programIds.has(row.program_id));
   }
   if (normalized.includes("stage_key='01'")) result = result.filter((row) => row.stage_key === "01");
+  if (normalized.includes("action='prepare_niche_research_plan'")) result = result.filter((row) => row.action === "PREPARE_NICHE_RESEARCH_PLAN");
+  if (normalized.includes("action='request_niche_validation'")) result = result.filter((row) => row.action === "REQUEST_NICHE_VALIDATION");
+  if (normalized.includes("and plan_version=?")) result = result.filter((row) => row.plan_version === bindings[1]);
   if (normalized.includes("order by decision_version desc")) result.sort((a, b) => Number(b.decision_version || 0) - Number(a.decision_version || 0));
   if (normalized.includes("order by hypothesis_version desc")) result.sort((a, b) => Number(b.hypothesis_version || 0) - Number(a.hypothesis_version || 0));
+  if (normalized.includes("order by evidence_version desc")) result.sort((a, b) => Number(b.evidence_version || 0) - Number(a.evidence_version || 0));
+  if (normalized.includes("order by plan_version desc")) result.sort((a, b) => Number(b.plan_version || 0) - Number(a.plan_version || 0));
   return result;
 }
 
@@ -164,6 +175,19 @@ function executeMutation(item: Statement) {
     if (!tables.niche_hypotheses.some((row) => row.id === values[1])) throw new Error("FOREIGN KEY constraint failed");
     const columns = ["id", "hypothesis_id", "program_id", "channel_id", "event_type", "actor_email", "actor_role", "idempotency_key", "request_hash", "correlation_id", "causation_id", "evidence_lineage_id", "created_at"];
     tables.niche_hypothesis_audits.push(Object.fromEntries(columns.map((column, index) => [column, values[index]])));
+    return { meta: { changes: 1 } };
+  }
+  if (normalized.startsWith("insert into niche_evidence_workflow_events")) {
+    const columns = normalized.slice(normalized.indexOf("(") + 1, normalized.indexOf(")")).split(",").map((column) => column.trim());
+    const row = Object.fromEntries(columns.map((column, index) => [column, values[index]]));
+    if (tables.niche_evidence_workflow_events.some((item) => item.idempotency_key === row.idempotency_key || (item.opportunity_id === row.opportunity_id && item.evidence_version === row.evidence_version))) throw new Error("UNIQUE constraint failed");
+    tables.niche_evidence_workflow_events.push(row);
+    return { meta: { changes: 1 } };
+  }
+  if (normalized.startsWith("insert into niche_evidence_workflow_audits")) {
+    if (!tables.niche_evidence_workflow_events.some((row) => row.id === values[1])) throw new Error("FOREIGN KEY constraint failed");
+    const columns = ["id", "event_id", "program_id", "channel_id", "opportunity_id", "event_type", "actor_email", "actor_role", "idempotency_key", "request_hash", "correlation_id", "causation_id", "evidence_lineage_id", "created_at"];
+    tables.niche_evidence_workflow_audits.push(Object.fromEntries(columns.map((column, index) => [column, values[index]])));
     return { meta: { changes: 1 } };
   }
   if (normalized.startsWith("insert into v7_evidence_lineage")) {
@@ -230,8 +254,8 @@ assert.equal(nichePortfolio.comparison[0].winningCriteria.length, 1);
 assert.equal(nichePortfolio.comparison[0].expertPriority, null);
 assert.ok(nichePortfolio.comparison.every((item) => item.entityType === "NICHE_OPPORTUNITY" && item.provenance === "V2_SYSTEM_DISCOVERY"));
 assert.ok(nichePortfolio.comparison.every((item) => !stage01.candidates.some((topic) => topic.title === item.title)));
-assert.equal(nichePortfolio.authority.v2Commands, "SUBMIT_NICHE_HYPOTHESIS_ROUTED_ZERO_SPEND");
-assert.deepEqual({ providerRequests: nichePortfolio.authority.providerRequests, spendUsd: nichePortfolio.authority.spendUsd, hypothesisAppend: nichePortfolio.authority.hypothesisAppend, comparisonMutation: nichePortfolio.authority.comparisonMutation }, { providerRequests: 0, spendUsd: 0, hypothesisAppend: true, comparisonMutation: false });
+assert.equal(nichePortfolio.authority.v2Commands, "SUBMIT_HYPOTHESIS_AND_SLICE_4_EVIDENCE_ROUTED_ZERO_SPEND");
+assert.deepEqual({ providerRequests: nichePortfolio.authority.providerRequests, spendUsd: nichePortfolio.authority.spendUsd, hypothesisAppend: nichePortfolio.authority.hypothesisAppend, researchPlanning: nichePortfolio.authority.researchPlanning, validationApproval: nichePortfolio.authority.validationApproval, evidenceReview: nichePortfolio.authority.evidenceReview, comparisonMutation: nichePortfolio.authority.comparisonMutation }, { providerRequests: 0, spendUsd: 0, hypothesisAppend: true, researchPlanning: true, validationApproval: true, evidenceReview: true, comparisonMutation: false });
 assert.equal(nichePortfolio.downstreamGate.state, "BLOCKED");
 const stage01Artifact = tables.v7_intelligence_artifacts.find((row) => row.id === "artifact-01");
 assert.ok(stage01Artifact);
@@ -282,6 +306,44 @@ assert.equal(expertInput.expertPriority, null);
 assert.equal(expertInput.hypothesis.audienceAssumptions[0], hypothesisBody.audienceAssumptions[0]);
 assert.deepEqual(expertInput.allowedNextActions, ["PREPARE_NICHE_RESEARCH_PLAN"]);
 assert.equal(hypothesisPortfolio.downstreamGate.state, "BLOCKED");
+
+const evidenceActor = { email: "owner@example.com", displayName: "Owner Expert", role: "OWNER_EXPERT" as const };
+const planBody = {
+  action: "PREPARE_NICHE_RESEARCH_PLAN" as const, channelId: "channel-1", programId: "program-1", opportunityId: hypothesisRecorded.hypothesis.id,
+  opportunityOrigin: "EXPERT_SEEDED" as const, expectedAggregateVersion: 7, expectedEvidenceVersion: 0,
+  supportingQuestions: ["Which primary demand signals support recurring audience need?"], contradictingQuestions: ["Which evidence would falsify the demand thesis?"],
+  unknownQuestions: ["Which audience segment changes the investment decision?"], sourceClasses: ["Audience primary research", "YouTube first-party signals"],
+  providerAllowlist: [], maxSources: 12, maxProviderRequests: 0, maxSpendUsd: 0,
+};
+const planCommand = { body: planBody, actor: evidenceActor, idempotencyKey: "niche-evidence:plan-test-001" };
+const planRecorded = await submitNicheEvidenceCommand(database, planCommand);
+assert.equal(planRecorded.event.planVersion, 1);
+assert.equal(planRecorded.event.evidenceVersion, 1);
+assert.equal(planRecorded.authority.providerRequests, 0);
+assert.equal(planRecorded.authority.comparisonEligibility, false);
+assert.equal((await submitNicheEvidenceCommand(database, planCommand)).outcome, "IDEMPOTENT_REPLAY");
+const validationRecorded = await submitNicheEvidenceCommand(database, { actor: evidenceActor, idempotencyKey: "niche-evidence:validation-test-001", body: { action: "REQUEST_NICHE_VALIDATION", channelId: "channel-1", programId: "program-1", opportunityId: hypothesisRecorded.hypothesis.id, opportunityOrigin: "EXPERT_SEEDED", expectedAggregateVersion: 7, expectedEvidenceVersion: 1, planVersion: 1, approvalRationale: "The plan balances confirming, falsifying and decision-changing questions within a zero-spend envelope." } });
+assert.equal(validationRecorded.event.evidenceVersion, 2);
+assert.equal(validationRecorded.authority.spendUsd, 0);
+const reviewRecorded = await submitNicheEvidenceCommand(database, { actor: evidenceActor, idempotencyKey: "niche-evidence:review-test-001", body: { action: "RECORD_NICHE_EVIDENCE_REVIEW", channelId: "channel-1", programId: "program-1", opportunityId: hypothesisRecorded.hypothesis.id, opportunityOrigin: "EXPERT_SEEDED", expectedAggregateVersion: 7, expectedEvidenceVersion: 2, planVersion: 1, direction: "CONTRADICTS", claimStatement: "Audience interviews did not yet show a repeat viewing need for price-chain explanations.", sourceRef: "research://interview-wave-1", sourceAuthority: "PRIMARY", observedAt: "2026-08-15", freshness: "CURRENT", confidence: 76, affectedAxis: "MARKET_ATTRACTIVENESS", disposition: "NEEDS_MORE_RESEARCH", decisionImpact: "Run a second interview wave before any market-attractiveness scoring is attempted." } });
+assert.equal(reviewRecorded.event.evidenceVersion, 3);
+assert.equal(tables.niche_evidence_workflow_events.length, 3);
+assert.equal(tables.niche_evidence_workflow_audits.length, 3);
+assert.equal(tables.v7_evidence_lineage.filter((row) => row.entity_type === "NICHE_EVIDENCE_EVENT").length, 3);
+await assert.rejects(() => submitNicheEvidenceCommand(database, { ...planCommand, idempotencyKey: "niche-evidence:stale-test-001" }), (error: unknown) => error instanceof NicheEvidenceCommandError && error.code === "EVIDENCE_VERSION_CONFLICT" && error.status === 409);
+const evidencePortfolio = await nichePortfolioProjection("channel-1", database);
+const evidencedInput = evidencePortfolio.comparison.find((item) => item.opportunityId === hypothesisRecorded.hypothesis.id);
+assert.ok(evidencedInput);
+assert.equal(evidencedInput.evidenceWorkflow.state, "EVIDENCE_UNDER_REVIEW");
+assert.equal(evidencedInput.evidenceWorkflow.plan?.version, 1);
+assert.equal(evidencedInput.evidenceWorkflow.validation?.status, "APPROVED_NOT_DISPATCHED");
+assert.equal(evidencedInput.evidenceWorkflow.directionCoverage.contradicts, 1);
+assert.equal(evidencedInput.eligibility, "RESEARCH_REQUIRED");
+assert.equal(evidencedInput.systemRank, null);
+assert.equal(evidencePortfolio.summary.researchPlans, 1);
+assert.equal(evidencePortfolio.summary.validationApprovals, 1);
+assert.equal(evidencePortfolio.summary.evidenceReviewed, 1);
+assert.equal(evidencedInput.evidenceWorkflow.scoringGate.state, "BLOCKED_FOR_SLICE_5");
 
 tables.niche_expert_decisions.unshift({
   id: "decision-accept-1", portfolio_id: "CANONICAL_PORTFOLIO", channel_id: "channel-1", program_id: "program-1", aggregate_version: 7, decision_version: 1,
