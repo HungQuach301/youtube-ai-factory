@@ -873,6 +873,70 @@ export const nicheScoringAssessmentAudits = sqliteTable("niche_scoring_assessmen
   index("niche_scoring_audits_opportunity_created_idx").on(table.opportunityId, table.createdAt),
 ]);
 
+// Slice 6 records one atomic, append-only ordering of the complete comparable
+// portfolio. The set binds the latest Slice 5 assessment versions but never
+// rewrites their rank, axes, sufficiency, eligibility or Conditions to Win.
+export const nicheExpertPrioritySets = sqliteTable("niche_expert_priority_sets", {
+  id: text("id").primaryKey(),
+  portfolioId: text("portfolio_id").notNull(),
+  priorityVersion: integer("priority_version").notNull(),
+  action: text("action").notNull().default("SET_NICHE_PRIORITY"),
+  comparableSetHash: text("comparable_set_hash").notNull(),
+  itemCount: integer("item_count").notNull(),
+  portfolioRationale: text("portfolio_rationale").notNull(),
+  actorEmail: text("actor_email").notNull(),
+  actorDisplayName: text("actor_display_name").notNull(),
+  actorRole: text("actor_role").notNull().default("OWNER_EXPERT"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_priority_sets_portfolio_version_uq").on(table.portfolioId, table.priorityVersion),
+  uniqueIndex("niche_priority_sets_idempotency_uq").on(table.idempotencyKey),
+  index("niche_priority_sets_created_idx").on(table.portfolioId, table.createdAt),
+]);
+
+export const nicheExpertPriorityItems = sqliteTable("niche_expert_priority_items", {
+  id: text("id").primaryKey(),
+  prioritySetId: text("priority_set_id").notNull().references(() => nicheExpertPrioritySets.id),
+  portfolioId: text("portfolio_id").notNull(),
+  priorityVersion: integer("priority_version").notNull(),
+  channelId: text("channel_id").notNull(),
+  programId: text("program_id").notNull(),
+  opportunityId: text("opportunity_id").notNull(),
+  opportunityOrigin: text("opportunity_origin").notNull(),
+  aggregateVersion: integer("aggregate_version").notNull(),
+  evidenceVersion: integer("evidence_version").notNull(),
+  scoringVersion: integer("scoring_version").notNull(),
+  expertPriority: integer("expert_priority").notNull(),
+  rationale: text("rationale").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_priority_items_set_opportunity_uq").on(table.prioritySetId, table.opportunityId),
+  uniqueIndex("niche_priority_items_set_priority_uq").on(table.prioritySetId, table.expertPriority),
+  index("niche_priority_items_opportunity_created_idx").on(table.opportunityId, table.createdAt),
+]);
+
+export const nicheExpertPriorityAudits = sqliteTable("niche_expert_priority_audits", {
+  id: text("id").primaryKey(),
+  prioritySetId: text("priority_set_id").notNull().references(() => nicheExpertPrioritySets.id),
+  portfolioId: text("portfolio_id").notNull(),
+  eventType: text("event_type").notNull().default("NICHE_EXPERT_PRIORITY_SET_RECORDED"),
+  actorEmail: text("actor_email").notNull(),
+  actorRole: text("actor_role").notNull().default("OWNER_EXPERT"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  evidenceLineageId: text("evidence_lineage_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_priority_audits_set_uq").on(table.prioritySetId),
+  index("niche_priority_audits_created_idx").on(table.portfolioId, table.createdAt),
+]);
+
 export const v7FoundationAudits = sqliteTable("v7_foundation_audits", {
   id: text("id").primaryKey(),
   programId: text("program_id").notNull(),

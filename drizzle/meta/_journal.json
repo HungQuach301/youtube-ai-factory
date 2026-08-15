@@ -225,6 +225,13 @@
       "when": 1786812369955,
       "tag": "0033_famous_mauler",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1786814075542,
+      "tag": "0034_tiny_richard_fisk",
+      "breakpoints": true
     }
   ]
 }

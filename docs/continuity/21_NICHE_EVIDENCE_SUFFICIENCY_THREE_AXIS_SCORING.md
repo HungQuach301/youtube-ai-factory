@@ -97,6 +97,8 @@ Each new assessment is append-only and version-bound. Insufficient assessments p
 
 After the Slice 5 production checkpoint and recovery-tested source capsule, implement Slice 6 as the permanent expert-prioritization capability. Slice 6 must rank a comparable list by an explicit expert priority fact without rewriting system rank, the three axes, evidence sufficiency or eligibility. It must not select, commit or activate a niche; those remain Slice 7 and Slice 8 boundaries.
 
+Completed in Slice 6. Document 22 is now authoritative for expert priority and the next action.
+
 ## No-rerun list
 
 - Do not reconstruct or rerun Slices 1–5.

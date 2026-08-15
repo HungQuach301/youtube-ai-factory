@@ -77,6 +77,13 @@ assert(unauthenticatedScoring.headers.get("cache-control") === "no-store", "nich
 assert(unauthenticatedScoringPayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "niche scoring command must expose a typed authentication failure");
 assert(unauthenticatedScoringPayload.providerRequests === 0 && unauthenticatedScoringPayload.spendUsd === 0 && unauthenticatedScoringPayload.aggregateScore === null, "niche scoring authentication failure must remain zero-spend with no total score");
 
+const unauthenticatedPriority = await worker.fetch(new Request("http://localhost/api/factory/niche-priorities", { method: "POST", headers: { accept: "application/json", "content-type": "application/json", "idempotency-key": "rendered-priority:001" }, body: "{}" }), env, ctx);
+const unauthenticatedPriorityPayload = await unauthenticatedPriority.json();
+assert(unauthenticatedPriority.status === 401, "niche priority command must reject a missing SIWC identity");
+assert(unauthenticatedPriority.headers.get("cache-control") === "no-store", "niche priority authentication failure must be no-store");
+assert(unauthenticatedPriorityPayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "niche priority command must expose a typed authentication failure");
+assert(unauthenticatedPriorityPayload.providerRequests === 0 && unauthenticatedPriorityPayload.spendUsd === 0 && unauthenticatedPriorityPayload.aggregateScore === null && unauthenticatedPriorityPayload.selection === false && unauthenticatedPriorityPayload.commitment === false && unauthenticatedPriorityPayload.channelStrategyActivation === false, "niche priority authentication failure must preserve zero-spend and downstream authority boundaries");
+
 const slowest = timings.reduce((current, item) => item.milliseconds > current.milliseconds ? item : current);
 assert(slowest.milliseconds <= 500, `${slowest.route} server-render ${slowest.milliseconds.toFixed(1)}ms exceeds the 500ms lab budget`);
-console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 4 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);
+console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 5 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);

@@ -89,6 +89,20 @@ export type NicheScoringAssessment = {
   rankingMethod: "LEXICOGRAPHIC_THREE_AXIS_NO_TOTAL";
 };
 
+export type NicheExpertPriorityFact = {
+  contract: "NICHE_EXPERT_PRIORITY_V1";
+  state: "NOT_RECORDED" | "ACTIVE" | "STALE";
+  prioritySetId: string | null;
+  priorityVersion: number;
+  priority: number | null;
+  rationale: string | null;
+  portfolioRationale: string | null;
+  boundEvidenceVersion: number | null;
+  boundScoringVersion: number | null;
+  recordedBy: string | null;
+  recordedAt: string | null;
+};
+
 export type NicheOpportunityProjection = {
   entityType: "NICHE_OPPORTUNITY";
   provenance: "V2_SYSTEM_DISCOVERY" | "EXPERT_HYPOTHESIS_APPEND";
@@ -105,7 +119,8 @@ export type NicheOpportunityProjection = {
   systemRank: number | null;
   systemRankBasis: "SLICE_5_LEXICOGRAPHIC_EVIDENCE_ORDER" | "UNRANKED_PENDING_ASSESSMENT";
   expertPriority: number | null;
-  expertPriorityBasis: "RECORDED_IN_SOURCE" | "NOT_RECORDED";
+  expertPriorityBasis: "SLICE_6_VERSIONED_FACT" | "STALE_VERSIONED_FACT" | "NOT_RECORDED";
+  expertPriorityFact: NicheExpertPriorityFact;
   axes: {
     marketAttractiveness: PortfolioAxis;
     abilityToWin: PortfolioAxis;
@@ -166,16 +181,28 @@ export type NichePortfolioProjection = {
   scope: { mode: "PORTFOLIO" | "CHANNEL"; channelId: string | null };
   channels: Array<{ id: string; name: string; market: string; language: string }>;
   intakeContexts: Array<{ channelId: string; channelName: string; programId: string; aggregateVersion: number; expectedHypothesisVersion: number }>;
-  decisionState: "RESEARCH_IN_PROGRESS" | "PORTFOLIO_COMPARABLE" | "EXPERT_PRIORITIZATION_RECORDED";
-  summary: { opportunities: number; comparable: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number; researchPlans: number; validationApprovals: number; evidenceReviewed: number; scoringAssessments: number; excludedLegacyContentTopics: number };
+  decisionState: "RESEARCH_IN_PROGRESS" | "PORTFOLIO_COMPARABLE" | "EXPERT_PRIORITIZATION_RECORDED" | "EXPERT_PRIORITIZATION_STALE";
+  summary: { opportunities: number; comparable: number; prioritized: number; priorityVersion: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number; researchPlans: number; validationApprovals: number; evidenceReviewed: number; scoringAssessments: number; excludedLegacyContentTopics: number };
   comparison: NicheOpportunityProjection[];
+  priorityWorkspace: {
+    contract: "NICHE_EXPERT_PRIORITY_V1";
+    state: "NOT_READY" | "READY" | "ACTIVE" | "STALE";
+    priorityVersion: number;
+    comparableSetHash: string;
+    comparableCount: number;
+    prioritizedCount: number;
+    portfolioRationale: string | null;
+    recordedBy: string | null;
+    recordedAt: string | null;
+    reason: string;
+  };
   rankingPolicy: {
     systemRank: "SLICE_5_LEXICOGRAPHIC_THREE_AXIS_EVIDENCE_ORDER";
     expertPriority: "SEPARATE_VERSIONED_FACT";
     totalScore: null;
     note: string;
   };
-  authority: { activation: "EVIDENCE_AND_SCORING_WORKFLOW"; v2Commands: "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_AND_SLICE_5_SCORING_ZERO_SPEND"; providerRequests: 0; spendUsd: 0; hypothesisAppend: true; researchPlanning: true; validationApproval: true; evidenceReview: true; scoringAssessment: true; comparisonMutation: true; expertPriorityMutation: false; channelNicheMutation: false };
+  authority: { activation: "EVIDENCE_SCORING_AND_EXPERT_PRIORITIZATION"; v2Commands: "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_SLICE_5_SCORING_AND_SLICE_6_PRIORITY_ZERO_SPEND"; providerRequests: 0; spendUsd: 0; hypothesisAppend: true; researchPlanning: true; validationApproval: true; evidenceReview: true; scoringAssessment: true; comparisonMutation: true; expertPriorityMutation: true; systemRankMutation: false; axisMutation: false; evidenceSufficiencyMutation: false; eligibilityMutation: false; nicheSelection: false; nicheCommitment: false; channelNicheMutation: false; channelStrategyActivation: false };
   downstreamGate: { consumer: "CHANNEL_STRATEGY"; state: "BLOCKED"; reason: string };
   integrity: { state: "READY" | "RECONCILIATION_REQUIRED"; notes: string[] };
 };

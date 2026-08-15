@@ -2,7 +2,7 @@
 
 **Contract:** `NICHE_OPPORTUNITY_PORTFOLIO_V2`  
 **Policy:** `NICHE_OPPORTUNITY_POLICY_V2`  
-**Status:** `SLICE_3_1_NICHE_IDENTITY_REPAIR_PRODUCTION_DEPLOYED`
+**Status:** `SLICE_6_EXPERT_PRIORITIZATION_IMPLEMENTED_ACCEPTANCE_GREEN`
 **Date:** 2026-08-15 (Asia/Bangkok)
 **Contract deployment:** Sites v295 / `022f72f4ee06703225e4520bcf83983f887fade4` / succeeded
 **Latest combined deployment:** Sites v301 / `89b9a9ebcb152a498a60ba991debeca3ae43f236` / succeeded
@@ -125,9 +125,9 @@ No threshold, weight, policy, autonomy or spend ceiling promotes automatically. 
 | 2 | Read-only Niche Portfolio projection and commercial comparison UI | implemented |
 | 3 | Expert hypothesis intake with append-only identity/version contract | implemented |
 | 3.1 | Niche identity/granularity repair and legacy topic isolation | production deployed |
-| 4 | Evidence Intelligence & Validation capability | next |
-| 5 | Evidence-backed Niche Portfolio Comparison capability | pending |
-| 6 | Expert Prioritization Workspace capability | pending |
+| 4 | Evidence Intelligence & Validation capability | implemented |
+| 5 | Evidence-backed Niche Portfolio Comparison capability | implemented |
+| 6 | Expert Prioritization Workspace capability | implemented |
 | 7 | Niche Commitment & Governance capability | pending |
 | 8 | Channel Strategy Activation capability | pending |
 
@@ -150,7 +150,7 @@ Continuous gate: `npm run check:niche-portfolio-v2`, executed by every verified 
 
 ## Exact next action
 
-Implement Slice 4 as the permanent Evidence Intelligence & Validation feature. System-discovered and expert-seeded hypotheses must share the same support, contradiction and unknown workflow. Provider execution requires an approved plan, explicit source/spend ceilings and idempotency; validation alone must not grant comparison eligibility, priority, selection, commitment or Channel Strategy activation.
+After the Slice 6 production checkpoint and recovery-tested capsule, implement Slice 7 as the permanent Niche Commitment & Governance capability. It must introduce explicit selection before commitment, preserve system rank and expert priority as separate inputs, and leave Channel Strategy activation blocked for Slice 8.
 
 ## Protected scope
 
