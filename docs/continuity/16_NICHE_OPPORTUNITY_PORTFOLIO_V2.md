@@ -2,7 +2,7 @@
 
 **Contract:** `NICHE_OPPORTUNITY_PORTFOLIO_V2`  
 **Policy:** `NICHE_OPPORTUNITY_POLICY_V2`  
-**Status:** `SLICE_1_CONTRACT_IMPLEMENTED_NOT_ROUTED`  
+**Status:** `SLICE_2_READ_ONLY_PORTFOLIO_IMPLEMENTED`
 **Date:** 2026-08-15 (Asia/Bangkok)
 **Deployment:** Sites v295 / `022f72f4ee06703225e4520bcf83983f887fade4` / succeeded
 
@@ -111,8 +111,8 @@ No threshold, weight, policy, autonomy or spend ceiling promotes automatically. 
 | Slice | Deliverable | Status |
 |---|---|---|
 | 1 | Niche Opportunity Contract V2, state machine, score/evidence/win-condition policy and contract tests | implemented |
-| 2 | Read-only Niche Portfolio projection and commercial comparison UI | next |
-| 3 | Expert hypothesis intake with append-only identity/version contract | pending |
+| 2 | Read-only Niche Portfolio projection and commercial comparison UI | implemented |
+| 3 | Expert hypothesis intake with append-only identity/version contract | next |
 | 4 | Bounded evidence validation and review | pending |
 | 5 | Expert priority ordering and rationale capture | pending |
 | 6 | Pilot, selection, commitment and separate Channel Strategy activation | pending |
@@ -134,7 +134,7 @@ Continuous gate: `npm run check:niche-portfolio-v2`, executed by every verified 
 
 ## Exact next action
 
-Implement Slice 2 as a read-only canonical projection and commercial comparison surface. It must show the full opportunity dossier, side-by-side axes, audience/competitor detail, prerequisites, winning criteria, evidence confidence and independent system/expert ordering. It must not add POST/PATCH/DELETE, provider dispatch, niche selection, commitment or Channel Strategy activation.
+Implement Slice 3 as an append-only, identity-bound expert hypothesis intake contract and UI. It must capture assumptions, rationale and winning thesis, then enter the same support/contradiction/unknown research pipeline as system discoveries. It must not grant comparison eligibility, expert priority, selection, commitment or Channel Strategy activation.
 
 ## Protected scope
 

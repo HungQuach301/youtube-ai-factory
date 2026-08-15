@@ -82,6 +82,8 @@ Recovery behavior remains fail-closed: projection failures expose canonical-stat
 
 ## Exact next action
 
+Niche Portfolio V2 Slice 2 now adds a commercial comparison matrix and expandable evidence dossiers under Document 17. Its static, build, render, performance and regression gates pass. The approved cloud-browser surface again timed out before reaching the healthy agent preview, so this does not close the existing browser/hydration, keyboard/assistive, visual-regression or Web Vitals evidence gaps.
+
 Reconcile the seven-criterion assessment in canonical production and resolve only the owning-stage evidence gap through a valid typed fact. Once canonical state authorizes the form, resume Document 27 at the remaining browser evidence gates: decision form, keyboard/focus, zoom/reflow, automated accessibility, sampled assistive technology, screenshot regression and Web Vitals. Do not fabricate demo data or weaken readiness thresholds.
 
 ## Protected scope

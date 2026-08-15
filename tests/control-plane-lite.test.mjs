@@ -11,6 +11,9 @@ const channelRoute = await readFile(new URL("../app/api/factory/channels/[id]/ro
 const portfolioProjection = await readFile(new URL("../lib/portfolio-projection.ts", import.meta.url), "utf8");
 const discoveryRoute = await readFile(new URL("../app/api/factory/discovery/route.ts", import.meta.url), "utf8");
 const discoveryProjection = await readFile(new URL("../lib/discovery-projection.ts", import.meta.url), "utf8");
+const nichePortfolioRoute = await readFile(new URL("../app/api/factory/niche-portfolio/route.ts", import.meta.url), "utf8");
+const nichePortfolioProjection = await readFile(new URL("../lib/niche-portfolio-projection.ts", import.meta.url), "utf8");
+const nichePortfolioView = await readFile(new URL("../app/niche-portfolio-view.tsx", import.meta.url), "utf8");
 const intelligenceNicheWorkflow = await readFile(new URL("../lib/intelligence-niche-workflow-contract.ts", import.meta.url), "utf8");
 const nichePortfolioV2 = await readFile(new URL("../lib/niche-opportunity-portfolio-contract.ts", import.meta.url), "utf8");
 const studioRoute = await readFile(new URL("../app/api/factory/channel-studio/route.ts", import.meta.url), "utf8");
@@ -69,6 +72,14 @@ test("intelligence and niche discovery keep evidence readiness separate from exp
   assert.match(nichePortfolioV2, /SELECTED_PENDING_COMMITMENT/);
   assert.match(nichePortfolioV2, /ACTIVATE_CHANNEL_STRATEGY/);
   assert.match(nichePortfolioV2, /activation: "DECLARED_NOT_ROUTED"/);
+  assert.match(nichePortfolioRoute, /cache-control": "no-store"/);
+  assert.doesNotMatch(nichePortfolioRoute, /export async function (POST|PATCH|DELETE)/);
+  assert.match(nichePortfolioProjection, /CANONICAL_V7_READ_ONLY_COMPATIBILITY_BRIDGE/);
+  assert.match(nichePortfolioProjection, /totalScore: null/);
+  assert.match(nichePortfolioProjection, /productionDataMutation: false/);
+  assert.match(nichePortfolioView, /Opportunity comparison/);
+  assert.match(nichePortfolioView, /Opportunity dossiers/);
+  assert.match(nichePortfolioView, /All V2 commands remain declared, not routed/);
 });
 
 test("Channel Studio preserves compatibility provenance and blocks production commands", () => {

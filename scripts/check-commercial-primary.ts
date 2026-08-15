@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { channelStudioProjection } from "../lib/channel-studio-projection";
 import { discoveryProjection } from "../lib/discovery-projection";
+import { nichePortfolioProjection } from "../lib/niche-portfolio-projection";
 import { NicheDecisionCommandError, submitNicheExpertDecision } from "../lib/niche-expert-decision-command";
 import { ChannelNotFoundError, channelProjection, portfolioProjection } from "../lib/portfolio-projection";
 
@@ -12,8 +13,8 @@ const stage01 = {
   channelThesis: "Explain the invisible systems that shape everyday money decisions.",
   targetMarket: "United States",
   targetLanguage: "English",
-  topicClusters: [{ title: "Invisible payment rails" }],
-  audienceSegments: [{ title: "Curious professionals" }],
+  topicClusters: [{ title: "Invisible payment rails", demandSignal: "Recurring questions about hidden transaction fees", growthSignal: "Digital payment adoption keeps the system relevant" }],
+  audienceSegments: [{ title: "Curious professionals", characteristics: ["Time poor", "Financially curious"], needs: ["System-level clarity"], preferences: ["Evidence-led visual explanations"], pains: ["Fragmented financial explanations"], jobsToBeDone: ["Understand incentives before making decisions"] }],
   candidates: [{
     title: "The Hidden Cost of Convenience",
     centralQuestion: "Who pays when a transaction feels free?",
@@ -22,13 +23,30 @@ const stage01 = {
     evergreenFit: 89,
     visualPotential: 93,
     score: 91,
+    marketAttractiveness: 90,
+    abilityToWin: 84,
+    evidenceConfidence: 86,
+    marketPotential: { demandSignals: ["Stable demand for payment explanations"], growthSignals: ["Payment complexity is increasing"], monetizationPaths: ["YouTube ads", "Financial education sponsorship"], saturationRisks: ["Large personal-finance incumbents"] },
+    researchPlan: { supportingQuestions: ["Which demand signals are durable?"], contradictingQuestions: ["Which evidence would falsify the opportunity?"], unknownQuestions: ["Which segment has the strongest repeat intent?"] },
+    prerequisites: [{ label: "Primary-source research", status: "PASS", gap: 0, rationale: "Money claims require defensible sources.", closingAction: "Maintain source rubric", proofMethod: "Pilot scripts pass source audit" }],
+    winningCriteria: [{ label: "Evidence-led system storytelling", status: "GAP", gap: 12, rationale: "Depth must be repeatable.", closingAction: "Pilot three repeatable formats", proofMethod: "Retention and trust targets pass" }],
+  }, {
+    title: "The Incentives Behind Everyday Credit",
+    centralQuestion: "Who benefits from the way consumer credit is designed?",
+    viewerPromise: "Trace incentives from product design to household behavior.",
+    novelty: 88, evergreenFit: 91, visualPotential: 85, score: 88,
+    marketAttractiveness: 86, abilityToWin: 89, evidenceConfidence: 82,
+    marketPotential: { demandSignals: ["Persistent credit-product questions"], growthSignals: ["Consumer credit choices remain complex"], monetizationPaths: ["YouTube ads"], saturationRisks: ["Advice-heavy incumbents"] },
+    researchPlan: { supportingQuestions: ["What proves recurring audience demand?"], contradictingQuestions: ["Where are competitors already complete?"], unknownQuestions: ["Which format best reveals incentives?"] },
+    prerequisites: [{ label: "Controlled financial claims", status: "PASS", gap: 0, proofMethod: "Zero unsupported P0 claims" }],
+    winningCriteria: [{ label: "Cross-party incentive maps", status: "PASS", gap: 0, proofMethod: "Pilot comprehension score passes" }],
   }],
   champion: { title: "The Hidden Cost of Convenience", risks: ["Avoid unsupported fee claims"] },
   contradictionsReviewed: true,
 };
 
 const stage02 = {
-  references: [{ title: "Reference channel A", role: "FORMAT_REFERENCE_ONLY" }],
+  references: [{ title: "Reference channel A", role: "FORMAT_REFERENCE_ONLY", strengths: ["Large audience", "Fast publishing cadence"], weaknesses: ["Shallow source disclosure"], defensibility: ["Established brand"], contentAdvantages: ["Strong hooks"], exploitableGaps: ["End-to-end incentive tracing"] }],
   crossReferencePatterns: ["Strong system-level hooks"],
   gapStatement: "Few competitors trace incentives across the complete system.",
   antiCloneControls: ["Do not reuse reference phrasing"],
@@ -152,6 +170,23 @@ assert.equal(discovery.workflow.decisionCommand?.activation, "ROUTED_ZERO_SPEND"
 assert.deepEqual(discovery.workflow.decisionCommand && { aggregate: discovery.workflow.decisionCommand.expectedAggregateVersion, decision: discovery.workflow.decisionCommand.expectedDecisionVersion, candidate: discovery.workflow.decisionCommand.candidateVersion, evidence: discovery.workflow.decisionCommand.evidenceVersion }, { aggregate: 7, decision: 0, candidate: 4, evidence: 4 });
 assert.equal(discovery.workflow.result?.commandContracts.find((command) => command.command === "SUBMIT_EXPERT_DECISION")?.activation, "ROUTED_ZERO_SPEND");
 assert.ok(discovery.workflow.result?.commandContracts.every((command) => command.ceilings.providerRequests === 0 && command.ceilings.spendUsd === 0));
+
+const nichePortfolio = await nichePortfolioProjection("channel-1", database);
+assert.equal(nichePortfolio.contract, "NICHE_PORTFOLIO_PROJECTION_V2");
+assert.equal(nichePortfolio.sourceState, "CANONICAL_V7_READ_ONLY_COMPATIBILITY_BRIDGE");
+assert.equal(nichePortfolio.summary.opportunities, 2);
+assert.equal(nichePortfolio.summary.comparable, 2);
+assert.equal(nichePortfolio.decisionState, "PORTFOLIO_COMPARABLE");
+assert.equal(nichePortfolio.rankingPolicy.totalScore, null);
+assert.equal(nichePortfolio.comparison[0].axes.marketAttractiveness.state, "RECORDED");
+assert.equal(nichePortfolio.comparison[0].audiences[0].needs[0], "System-level clarity");
+assert.equal(nichePortfolio.comparison[0].competitors[0].strengths[0], "Large audience");
+assert.equal(nichePortfolio.comparison[0].prerequisites[0].status, "PASS");
+assert.equal(nichePortfolio.comparison[0].winningCriteria.length, 1);
+assert.equal(nichePortfolio.comparison[0].expertPriority, null);
+assert.equal(nichePortfolio.authority.v2Commands, "DECLARED_NOT_ROUTED");
+assert.deepEqual({ providerRequests: nichePortfolio.authority.providerRequests, spendUsd: nichePortfolio.authority.spendUsd, mutation: nichePortfolio.authority.productionDataMutation }, { providerRequests: 0, spendUsd: 0, mutation: false });
+assert.equal(nichePortfolio.downstreamGate.state, "BLOCKED");
 
 tables.niche_expert_decisions.unshift({
   id: "decision-accept-1", portfolio_id: "CANONICAL_PORTFOLIO", channel_id: "channel-1", program_id: "program-1", aggregate_version: 7, decision_version: 1,
