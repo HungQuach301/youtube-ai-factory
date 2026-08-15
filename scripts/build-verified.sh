@@ -30,6 +30,9 @@ node --import tsx "${script_dir}/check-commercial-primary.ts"
 echo "Checking Intelligence & Niche executable contract..."
 node --import tsx "${script_dir}/check-intelligence-niche-contract.ts"
 
+echo "Checking Niche Opportunity Portfolio V2 contract..."
+node --import tsx "${script_dir}/check-niche-opportunity-portfolio-v2.ts"
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \

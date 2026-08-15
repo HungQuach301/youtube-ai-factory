@@ -55,4 +55,4 @@ Provider requests and spend remained zero. No database or channel state was muta
 
 ## Exact next action
 
-Reconcile the deployed assessment against canonical production. If the only remaining gap is an absent explicit contradiction-review fact, design a separate append-only, identity-bound, zero-spend evidence-review command or ingest a valid owning-stage fact; never spoof readiness by editing the projection. Once all seven criteria pass, complete the decision-form browser/assistive/Web Vitals acceptance, then proceed to the separate typed niche-commitment command.
+Preserve this V1 diagnostic as compatibility evidence. For new product development, continue with Document 16 Slice 2. The V2 evidence model must retain the same principle—supporting, contradictory and unknown claims are explicit—but must not convert this missing V1 fact into a fabricated V2 readiness pass.

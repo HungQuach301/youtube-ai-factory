@@ -35,6 +35,7 @@ If any gate fails, report `ROLLOVER BLOCKED`. Do not ask the user to locate an o
 ## Recovery order in a new chat
 
 1. Read `AGENTS.md`, this file and the capsule manifest.
+   For Niche Discovery work, also read `docs/continuity/16_NICHE_OPPORTUNITY_PORTFOLIO_V2.md`.
 2. Verify Library/download checksums.
 3. Clone the bundle or apply the binary patch to the exact baseline.
 4. Verify recovered HEAD and clean worktree.

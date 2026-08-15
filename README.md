@@ -14,9 +14,10 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 - Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only decision/audit/lineage. It does not mutate `channels.niche` or activate Channel Strategy.
 - Verification: 30/30 async API boundaries, 20/20 commercial UI contracts, targeted lint, production build/artifact/render/performance validation and 95/95 tests.
 - Readiness truth: candidate labels, workflow authority and decision-command visibility now share one seven-criterion evidence assessment with explicit typed gaps.
+- Niche Portfolio V2 Slice 1: the executable contract now requires a comparable list of opportunities, symmetric system/expert hypothesis validation, independent Market Attractiveness / Ability to Win / Evidence Confidence axes, hard prerequisites and explicit Conditions to Win. All V2 commands remain unrouted and zero-spend.
 - Commercial UI/UX acceptance remains pending for the canonically blocked decision-form browser/assistive/Web Vitals evidence listed in Document 11. Production now reports 6/7 readiness criteria passed; only `CONTRADICTIONS_REVIEWED` is missing.
 
-Read `AGENTS.md` and `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` before continuing in a new chat.
+Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and `docs/continuity/16_NICHE_OPPORTUNITY_PORTFOLIO_V2.md` before continuing in a new chat.
 
 ## Runtime foundation
 

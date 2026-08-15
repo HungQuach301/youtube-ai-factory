@@ -39,10 +39,11 @@ Niche research champion, expert decision and committed channel niche are separat
 - Production reconciliation later found divergent partial/full evidence-readiness labels; Document 15 replaces them with one authoritative seven-criterion assessment and explicit typed gaps.
 - Post-deployment v293 reconciliation: 6/7 passed; the sole gap is `CONTRADICTIONS_REVIEWED`. Candidate cards now truthfully show `REVIEW_REQUIRED`, the decision command remains absent and Channel Strategy remains blocked.
 - Evidence ledger: `docs/continuity/11_COMMERCIAL_UI_UX_ACCEPTANCE.md`.
+- Niche Opportunity Portfolio V2 Slice 1 is implemented as an unrouted executable contract. It replaces the future product decision shape—not historical V1 records—with a comparable niche list, three separate decision axes, hard prerequisites, explicit Conditions to Win and symmetric expert/system hypothesis validation. Ledger: `docs/continuity/16_NICHE_OPPORTUNITY_PORTFOLIO_V2.md`.
 
 ## Exact next product action
 
-Reconcile and resolve the canonical owning-stage evidence gap without weakening the gate. Complete the remaining decision-form browser/assistive/Web Vitals acceptance only after canonical readiness. Then design a separate typed niche-commitment command; do not couple commitment directly to Channel Strategy activation.
+Implement Document 16 Slice 2: a read-only canonical Niche Opportunity Portfolio projection and commercial comparison surface. Do not route V2 commands; commitment and Channel Strategy activation remain later, separate boundaries.
 
 ## Protected scope
 

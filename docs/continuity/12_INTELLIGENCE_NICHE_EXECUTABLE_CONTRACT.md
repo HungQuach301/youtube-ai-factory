@@ -6,6 +6,8 @@
 **Source baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`  
 **Deployment:** Sites v291 / `4cd4162742795dffb52f307e65295c6293ff0a18` / succeeded
 
+> Compatibility notice: Document 16 supersedes this contract's single research-champion yes/no shape for new V2 product development. This V1 contract and its records remain immutable compatibility evidence; they are not V2 expert priority or niche commitment.
+
 ## Outcome and scope
 
 This contract converts the Intelligence and Niche Discovery slice into a versioned, executable decision workflow. The dedicated owner/expert decision command is now routed as a zero-spend append-only write; evidence refresh, policy improvement and policy promotion remain unrouted.
@@ -137,7 +139,7 @@ Each material expert intervention must emit at least one reusable rule, rubric a
 
 ## Exact next action
 
-See `docs/continuity/14_NICHE_EXPERT_DECISION_COMMAND.md` for the routed command. After production migration/runtime reconciliation and browser acceptance, design the separate niche-commitment command. Do not infer commitment from the decision record, route a provider or couple acceptance directly to Channel Strategy activation.
+Continue with Document 16 Slice 2, a read-only Niche Opportunity Portfolio projection and comparison surface. The routed V1 expert-decision command remains compatibility-only and must not be reused as V2 prioritization or commitment.
 
 ## Protected scope
 

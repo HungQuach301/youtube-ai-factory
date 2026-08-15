@@ -17,6 +17,20 @@ STAGE_10_16 = BLOCKED_UPSTREAM
 NEXT_ACTION = CONTINUITY_HARDENING_THEN_MOTION_PROOF
 ```
 
+## Multi-channel product program (current)
+
+```text
+NICHE_PORTFOLIO_PROGRAM = V2
+NICHE_PORTFOLIO_SLICE = 01_CONTRACT
+NICHE_PORTFOLIO_SLICE_01 = IMPLEMENTED_NOT_ROUTED
+NICHE_PORTFOLIO_NEXT = SLICE_02_READ_ONLY_PORTFOLIO
+V2_PROVIDER_REQUESTS = 0
+V2_SPEND_USD = 0
+CHANNEL_STRATEGY_GATE = BLOCKED
+```
+
+Document 16 is authoritative for the new niche portfolio decision shape. The legacy research-champion workflow remains compatibility evidence and must not be mistaken for V2 expert prioritization.
+
 ## Open evidence issues
 
 - Request and usage projections must be joined by provider response ID before costs are compared.

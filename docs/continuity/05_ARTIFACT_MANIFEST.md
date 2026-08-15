@@ -33,3 +33,15 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - GET integration: canonical program/run/candidate/evidence versions, strict expert binding and Channel Strategy gate are projected without mutation.
 - Decision persistence: append-only decision, audit and frozen lineage records with idempotency and optimistic concurrency; no channel niche mutation or Channel Strategy activation.
 - Next action: production migration/runtime reconciliation and browser acceptance, then a separate niche-commitment command contract.
+
+## Niche Opportunity Portfolio V2 artifacts
+
+- Durable ledger: `docs/continuity/16_NICHE_OPPORTUNITY_PORTFOLIO_V2.md`.
+- Contract/policy: `NICHE_OPPORTUNITY_PORTFOLIO_V2` / `NICHE_OPPORTUNITY_POLICY_V2`.
+- Source: `lib/niche-opportunity-portfolio-contract.ts`.
+- Continuous gate: `scripts/check-niche-opportunity-portfolio-v2.ts`, executed by every verified build.
+- Decision shape: comparable opportunity list; separate Market Attractiveness, Ability to Win and Evidence Confidence; no aggregate score.
+- Win contract: prerequisites are hard gates; winning criteria expose capability gaps, close actions, cost/time and proof methods.
+- Expert leverage: expert-seeded hypotheses use the same support/contradiction/unknown research path; expert priority remains separate from system rank.
+- Authority: all nine V2 commands are declared but not routed, with provider requests `0` and spend USD `0`.
+- Next action: Slice 2 read-only canonical portfolio projection and commercial comparison surface.

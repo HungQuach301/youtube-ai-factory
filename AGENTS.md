@@ -13,6 +13,10 @@
 - New portfolio slices are read-only until a separately approved typed command contract grants mutation authority.
 - Build quality into every owning stage. QA is independent release assurance, not a repair department.
 - Preserve recommendation, expert decision and committed state as separate facts.
+- Niche Discovery must output a comparable opportunity portfolio, never a single champion presented as a yes/no decision.
+- Keep system rank, expert priority, selection, commitment and Channel Strategy activation as separate versioned facts.
+- Treat niche prerequisites as hard gates; an attractive-market score cannot compensate for a failed prerequisite.
+- Route expert-seeded and system-discovered niche hypotheses through the same support, contradiction and unknown-evidence workflow.
 - No demo/local fallback may replace unavailable canonical data.
 - No operator-facing slice is commercial-ready without responsive, interaction, accessibility, truthful-state and performance evidence.
 - One chat may mutate a given worktree at a time.

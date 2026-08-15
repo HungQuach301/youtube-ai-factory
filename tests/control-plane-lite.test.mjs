@@ -12,6 +12,7 @@ const portfolioProjection = await readFile(new URL("../lib/portfolio-projection.
 const discoveryRoute = await readFile(new URL("../app/api/factory/discovery/route.ts", import.meta.url), "utf8");
 const discoveryProjection = await readFile(new URL("../lib/discovery-projection.ts", import.meta.url), "utf8");
 const intelligenceNicheWorkflow = await readFile(new URL("../lib/intelligence-niche-workflow-contract.ts", import.meta.url), "utf8");
+const nichePortfolioV2 = await readFile(new URL("../lib/niche-opportunity-portfolio-contract.ts", import.meta.url), "utf8");
 const studioRoute = await readFile(new URL("../app/api/factory/channel-studio/route.ts", import.meta.url), "utf8");
 const studioProjection = await readFile(new URL("../lib/channel-studio-projection.ts", import.meta.url), "utf8");
 const marketPage = await readFile(new URL("../app/market-intelligence/page.tsx", import.meta.url), "utf8");
@@ -61,6 +62,13 @@ test("intelligence and niche discovery keep evidence readiness separate from exp
   assert.match(discoveryProjection, /EVIDENCE_READY_EXPERT_DECISION_REQUIRED/);
   assert.match(discoveryProjection, /OWNER_EXPERT_REQUIRED/);
   assert.match(discoveryProjection, /researchChampion/);
+  assert.match(nichePortfolioV2, /NICHE_OPPORTUNITY_PORTFOLIO_V2/);
+  assert.match(nichePortfolioV2, /SYSTEM_DISCOVERED.*EXPERT_SEEDED/s);
+  assert.match(nichePortfolioV2, /MARKET_ATTRACTIVENESS.*ABILITY_TO_WIN.*EVIDENCE_CONFIDENCE/s);
+  assert.match(nichePortfolioV2, /Prerequisites are hard gates/);
+  assert.match(nichePortfolioV2, /SELECTED_PENDING_COMMITMENT/);
+  assert.match(nichePortfolioV2, /ACTIVATE_CHANNEL_STRATEGY/);
+  assert.match(nichePortfolioV2, /activation: "DECLARED_NOT_ROUTED"/);
 });
 
 test("Channel Studio preserves compatibility provenance and blocks production commands", () => {
