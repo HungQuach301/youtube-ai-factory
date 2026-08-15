@@ -2,19 +2,19 @@
 
 **Contract:** `INTELLIGENCE_NICHE_WORKFLOW_V1`  
 **Policy:** `INTELLIGENCE_NICHE_POLICY_V1`  
-**Status:** `CONTRACT_AND_GET_PROJECTION_IMPLEMENTED_ZERO_SPEND_NOT_ROUTED`
+**Status:** `CONTRACT_GET_PROJECTION_AND_EXPERT_DECISION_COMMAND_IMPLEMENTED`
 **Source baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`  
 **Deployment:** not deployed
 
 ## Outcome and scope
 
-This contract converts the Intelligence and Niche Discovery slice from a read-only recommendation surface into a versioned, executable decision specification without activating database writes, provider calls or production commands.
+This contract converts the Intelligence and Niche Discovery slice into a versioned, executable decision workflow. The dedicated owner/expert decision command is now routed as a zero-spend append-only write; evidence refresh, policy improvement and policy promotion remain unrouted.
 
 It owns the boundary:
 
 `Market/User/Competitor evidence → ranked niche recommendation → owner/expert decision → typed Channel Strategy handoff`
 
-It does not collect evidence, call a model, persist decisions, commit a niche or activate Channel Strategy. Those actions require separately approved command handlers, migrations, runtime reconciliation and deployment evidence.
+It does not collect evidence, call a model, commit a niche or activate Channel Strategy. Recording an expert decision persists only the decision aggregate, audit record and evidence lineage.
 
 ## Link to the eight Factory components
 
@@ -49,22 +49,20 @@ The connection is enforced by versioned handoff and blocking states, not by UI n
 | `EXPERT_DECISION_REQUIRED` | score ≥85, frozen artifact, ≥10 verified sources, ≥3 primary sources, zero unresolved P0 and contradiction review complete | accept, reject or request more evidence | blocked |
 | `MORE_EVIDENCE_REQUIRED` | expert requests additional evidence | bounded evidence refresh | blocked |
 | `NICHE_REJECTED` | expert rejects matching candidate version | next candidate or evidence refresh | blocked |
-| `NICHE_ACCEPTED` | expert accepts matching candidate/evidence/channel versions | prepare typed Channel Strategy handoff | ready for typed handoff |
+| `NICHE_ACCEPTED_PENDING_COMMITMENT` | expert accepts matching candidate/evidence/channel versions | prepare separate typed niche commitment | handoff eligible; no channel mutation |
 
-Ranking cannot create `NICHE_ACCEPTED`. A matching owner/expert decision is mandatory.
+Ranking cannot create `NICHE_ACCEPTED_PENDING_COMMITMENT`. A matching owner/expert decision is mandatory, and even that decision does not mutate the committed channel niche.
 
-## Declared command contracts
-
-All commands are `DECLARED_NOT_ROUTED`; this milestone grants no runtime authority.
+## Command contracts
 
 | Command | Autonomy | Authority | Current ceilings |
 |---|---|---|---|
 | `REQUEST_EVIDENCE_REFRESH` | A3 bounded | system within approved policy | 1 logical attempt, 0 provider requests, USD 0 |
-| `SUBMIT_EXPERT_DECISION` | A2 approval required | owner/expert | 1 logical attempt, 0 provider requests, USD 0 |
+| `SUBMIT_EXPERT_DECISION` | A2 approval required | SIWC-authenticated allowlisted owner/expert | routed, 1 logical attempt, 0 provider requests, USD 0 |
 | `PROPOSE_POLICY_IMPROVEMENT` | A1 recommendation | system within policy | 1 logical attempt, 0 provider requests, USD 0 |
 | `PROMOTE_POLICY_VERSION` | A2 approval required | expert + engineering | 1 logical attempt, 0 provider requests, USD 0 |
 
-Future handlers must add idempotency key, expected aggregate version, actor identity, expiry, correlation/causation IDs and immutable decision evidence before routing.
+The routed handler requires an HTTP idempotency key, expected aggregate and decision versions, exact candidate/evidence versions, SIWC identity, a server-side expert allowlist, immutable rationale/reusable knowledge and correlation/causation lineage.
 
 ## Techniques and implementation patterns
 
@@ -78,13 +76,13 @@ Future handlers must add idempotency key, expected aggregate version, actor iden
 | Evidence quality floors | quality is built into decision readiness | evidence-ready predicate |
 | Expert leverage capture | every expert intervention creates reusable knowledge | `reusableAsset` requirement |
 | Downstream containment | Channel Strategy cannot start from recommendation alone | typed downstream gate |
-| Zero-spend declaration | design is testable without hidden execution | command ceilings and `DECLARED_NOT_ROUTED` |
+| Zero-spend command | expert intent is durable without hidden automation | routed handler with provider and spend ceilings fixed at zero |
 
 ## Prevent, Detect and Contain
 
 - **Prevent:** canonical IDs; version-bound evidence/decision; explicit expert role; no implicit commitment from ranking.
 - **Detect:** source and P0 floors; contradiction review; stale candidate/evidence version; cross-channel decision detection.
-- **Contain:** fail-closed invalid state; expert commitment gate; Channel Strategy handoff blocked until accepted.
+- **Contain:** fail-closed invalid state; expert-decision gate; separate typed niche-commitment boundary; separate Channel Strategy activation.
 
 QA does not repair insufficient evidence or make the niche decision. Those responsibilities remain in Intelligence/Niche and the expert gate.
 
@@ -124,27 +122,25 @@ Each material expert intervention must emit at least one reusable rule, rubric a
 ## Verification
 
 - Eight deterministic lifecycle paths pass: pending expert, accept, reject, more evidence, insufficient evidence, stale versions, cross-channel rejection and non-champion decision rejection.
-- All declared commands remain zero-spend and unrouted.
+- All commands remain zero-spend; only `SUBMIT_EXPERT_DECISION` is routed.
 - Downstream handoff is available only for version-matched expert acceptance.
 - Governed promotion and demotion controls are executable contract output.
 - The contract gate runs during every verified production build.
 
 ## Known limitations
 
-- No persistence schema or migration exists for the new aggregate/decision records.
-- No command API or identity/authorization handler is active.
 - No provider or evidence-refresh executor is active.
 - Existing `/intelligence` remains the protected V7 compatibility execution workspace.
 - Commercial browser/hydration acceptance remains pending due preview-browser infrastructure timeouts.
 
 ## Exact next action
 
-The GET-only compiler integration is complete; see `docs/continuity/13_INTELLIGENCE_NICHE_GET_WORKFLOW_PROJECTION.md`. After its production checkpoint is verified, implement the dedicated identity-bound owner/expert decision aggregate and command boundary. Generate and inspect its migration before any database change. Do not infer commitment from legacy rows, route a provider or couple niche acceptance directly to Channel Strategy activation.
+See `docs/continuity/14_NICHE_EXPERT_DECISION_COMMAND.md` for the routed command. After production migration/runtime reconciliation and browser acceptance, design the separate niche-commitment command. Do not infer commitment from the decision record, route a provider or couple acceptance directly to Channel Strategy activation.
 
 ## Protected scope
 
-- No POST/PATCH/DELETE command handler.
-- No runtime DDL, migration or canonical write.
+- No command other than the bounded expert-decision POST.
+- No runtime DDL; schema changes use inspected migrations only.
 - No provider request, spend, production QA or V23.4 dispatch.
 - No automatic niche commitment or Channel Strategy activation.
 - No commercial-ready claim while browser evidence remains pending.

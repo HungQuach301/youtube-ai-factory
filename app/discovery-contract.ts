@@ -30,6 +30,17 @@ export type DiscoveryProjection = {
     decisionBinding: "NOT_APPLICABLE" | "NO_VERSION_BOUND_EXPERT_DECISION" | "VERSION_BOUND_EXPERT_DECISION" | "INVALID_VERSION_BOUND_EXPERT_DECISION";
     result: IntelligenceNicheWorkflowResult | null;
     blockers: string[];
+    decisionCommand: {
+      activation: "ROUTED_ZERO_SPEND";
+      programId: string;
+      expectedAggregateVersion: number;
+      expectedDecisionVersion: number;
+      candidateId: string;
+      candidateVersion: number;
+      evidenceVersion: number;
+      providerRequests: 0;
+      spendUsd: 0;
+    } | null;
   };
   evidence: { artifactCount: number; frozenStage01: boolean; verifiedSources: number; primarySources: number; claims: number; p0Claims: number; runs: number; lineageIds: string[] };
   integrity: { state: "READY" | "RECONCILIATION_REQUIRED"; notes: string[] };

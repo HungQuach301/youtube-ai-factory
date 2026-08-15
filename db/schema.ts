@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 
 export const channels = sqliteTable("channels", {
   id: text("id").primaryKey(),
@@ -637,6 +637,57 @@ export const v7DecisionRecords = sqliteTable("v7_decision_records", {
   rationale: text("rationale").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Intelligence/Niche owner-expert decision aggregate. These rows are append-only:
+// recommendation, expert decision, channel niche commitment and Channel Strategy
+// activation remain separate facts and commands.
+export const nicheExpertDecisions = sqliteTable("niche_expert_decisions", {
+  id: text("id").primaryKey(),
+  portfolioId: text("portfolio_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  programId: text("program_id").notNull(),
+  aggregateVersion: integer("aggregate_version").notNull(),
+  decisionVersion: integer("decision_version").notNull(),
+  action: text("action").notNull(),
+  candidateId: text("candidate_id").notNull(),
+  candidateVersion: integer("candidate_version").notNull(),
+  evidenceVersion: integer("evidence_version").notNull(),
+  actorEmail: text("actor_email").notNull(),
+  actorDisplayName: text("actor_display_name").notNull(),
+  actorRole: text("actor_role").notNull().default("OWNER_EXPERT"),
+  rationale: text("rationale").notNull(),
+  reusableAssetType: text("reusable_asset_type").notNull(),
+  reusableAssetSummary: text("reusable_asset_summary").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  supersedesDecisionId: text("supersedes_decision_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_expert_decisions_program_version_uq").on(table.programId, table.decisionVersion),
+  uniqueIndex("niche_expert_decisions_idempotency_uq").on(table.idempotencyKey),
+  index("niche_expert_decisions_channel_created_idx").on(table.channelId, table.createdAt),
+]);
+
+export const nicheExpertDecisionAudits = sqliteTable("niche_expert_decision_audits", {
+  id: text("id").primaryKey(),
+  decisionId: text("decision_id").notNull().references(() => nicheExpertDecisions.id),
+  programId: text("program_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  eventType: text("event_type").notNull().default("NICHE_EXPERT_DECISION_RECORDED"),
+  actorEmail: text("actor_email").notNull(),
+  actorRole: text("actor_role").notNull().default("OWNER_EXPERT"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  evidenceLineageId: text("evidence_lineage_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_expert_decision_audits_decision_uq").on(table.decisionId),
+  index("niche_expert_decision_audits_program_created_idx").on(table.programId, table.createdAt),
+]);
 
 export const v7FoundationAudits = sqliteTable("v7_foundation_audits", {
   id: text("id").primaryKey(),

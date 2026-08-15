@@ -31,7 +31,7 @@ function Studio() {
         <section className="pfStudioIdentity"><span className="pfAvatar">{data.selectedChannel.name.slice(0, 2).toUpperCase()}</span><div><small>{data.selectedChannel.id}</small><h2>{data.selectedChannel.name}</h2><p>{data.selectedChannel.market} · {data.selectedChannel.language}</p></div><StatusPill tone={data.integrity.state === "READY" ? "good" : "warn"}>{data.integrity.state}</StatusPill></section>
         <section className="pfStrategyThread">
           <article><small>NICHE STATE</small><h3>{data.nicheDecision.currentNiche || "Unbound"}</h3><p>{data.nicheDecision.provenance.replaceAll("_", " ")}</p><span>Research champion: {data.nicheDecision.recommendation || "none"}</span></article>
-          <article><small>CHANNEL STRATEGY</small><h3>{data.strategy.state.replaceAll("_", " ")}</h3><p>No viewer promise or differentiation is inferred.</p><span>Owner/expert commitment required</span></article>
+          <article><small>CHANNEL STRATEGY</small><h3>{data.strategy.state.replaceAll("_", " ")}</h3><p>No viewer promise or differentiation is inferred.</p><span>Typed niche commitment required</span></article>
           <article><small>CONTENT SYSTEM</small><h3>{data.pillars.length} compatibility pillar(s)</h3><p>Series aggregate: {data.series.state.replaceAll("_", " ")}</p><span>Legacy text labels stay unapproved</span></article>
           <article><small>PRODUCTION HANDOFF</small><h3>{data.productionHandoff.state.replaceAll("_", " ")}</h3><p>{data.productionHandoff.eligibleCompatibilityItems} compatibility item(s) score-ready</p><span>No intake command is exposed</span></article>
         </section>

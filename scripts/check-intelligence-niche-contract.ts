@@ -16,11 +16,15 @@ assert.equal(pending.state, "EXPERT_DECISION_REQUIRED");
 assert.equal(pending.readiness, "EVIDENCE_READY_EXPERT_DECISION_REQUIRED");
 assert.equal(pending.commitment, null);
 assert.equal(pending.downstreamGate.state, "BLOCKED");
-assert.ok(pending.commandContracts.every((command) => command.activation === "DECLARED_NOT_ROUTED" && command.ceilings.providerRequests === 0 && command.ceilings.spendUsd === 0));
+assert.equal(pending.commandContracts.find((command) => command.command === "SUBMIT_EXPERT_DECISION")?.activation, "ROUTED_ZERO_SPEND");
+assert.ok(pending.commandContracts.every((command) => command.ceilings.providerRequests === 0 && command.ceilings.spendUsd === 0));
+assert.ok(pending.commandContracts.filter((command) => command.command !== "SUBMIT_EXPERT_DECISION").every((command) => command.activation === "DECLARED_NOT_ROUTED"));
 
 const accepted = compileIntelligenceNicheWorkflow({ ...base, expertDecision: expert("ACCEPT") });
-assert.equal(accepted.state, "NICHE_ACCEPTED");
-assert.equal(accepted.commitment?.niche, "The Hidden Cost of Convenience");
+assert.equal(accepted.state, "NICHE_ACCEPTED_PENDING_COMMITMENT");
+assert.equal(accepted.expertDecisionOutcome?.niche, "The Hidden Cost of Convenience");
+assert.equal(accepted.commitment, null);
+assert.deepEqual(accepted.allowedNextActions, ["PREPARE_TYPED_NICHE_COMMITMENT"]);
 assert.equal(accepted.downstreamGate.state, "READY_FOR_TYPED_HANDOFF");
 assert.match(accepted.downstreamGate.handoffId || "", /^channel-1:strategy:/);
 
@@ -59,5 +63,6 @@ assert.equal(mismatchedChampion.downstreamGate.state, "BLOCKED");
 
 assert.deepEqual(pending.improvement.promotionPath, ["BACKTEST", "SHADOW", "EXPERT_REVIEW", "BOUNDED_CANARY", "MONITOR", "RETAIN_OR_ROLLBACK"]);
 assert.ok(pending.improvement.expertApprovalRequired.includes("Autonomy expansion"));
-assert.ok(pending.controls.contain.includes("Owner/expert commitment gate"));
-console.log("Intelligence & Niche executable contract passed 8 lifecycle paths with fail-closed versioning, expert commitment, zero-spend command declarations and governed improvement controls.");
+assert.ok(pending.controls.contain.includes("Owner/expert decision gate"));
+assert.ok(pending.controls.contain.includes("Separate typed niche-commitment boundary"));
+console.log("Intelligence & Niche executable contract passed 8 lifecycle paths with fail-closed versioning, expert decision, separate commitment, zero-spend commands and governed improvement controls.");

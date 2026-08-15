@@ -14,7 +14,7 @@
 
 All new projections are GET-only, `no-store`, fail-closed and use no demo fallback. Missing channels return 404; unavailable canonical database/schema/query state returns 503. No new provider call, runtime DDL, production command, migration or deletion is authorized.
 
-Niche research champion, current channel niche and expert commitment are separate facts. `channels.niche` and `video_projects.pillar` remain compatibility evidence, not approved strategy/pillar aggregates. V7/V23 remains the protected Video Production Engine.
+Niche research champion, expert decision and committed channel niche are separate facts. `channels.niche` and `video_projects.pillar` remain compatibility evidence, not approved strategy/pillar aggregates. V7/V23 remains the protected Video Production Engine.
 
 ## Verified acceptance
 
@@ -28,9 +28,10 @@ Niche research champion, current channel niche and expert commitment are separat
 - Responsive behavior: manually confirmed by the user on 2026-08-15.
 - Commercial UI static contract: 14/14 and enforced during every verified build.
 - Canonical-data primary projection contract: Portfolio, Channel Detail, Discovery and Channel Studio pass with structured fixtures and enforced authority boundaries during every verified build.
-- Intelligence & Niche executable contract: eight fail-closed lifecycle paths pass; all typed commands are zero-spend and `DECLARED_NOT_ROUTED`.
+- Intelligence & Niche executable contract: eight fail-closed lifecycle paths pass; all typed commands are zero-spend and only the expert-decision command is routed.
 - Contract ledger: `docs/continuity/12_INTELLIGENCE_NICHE_EXECUTABLE_CONTRACT.md`.
 - GET workflow projection: channel-isolated canonical version binding, strict expert-decision envelope and typed Channel Strategy gate are integrated into Discovery; ledger `docs/continuity/13_INTELLIGENCE_NICHE_GET_WORKFLOW_PROJECTION.md`.
+- Expert decision command: SIWC-authenticated server allowlist, append-only aggregate versions, idempotency, optimistic concurrency, immutable rationale/reusable knowledge and audit/evidence lineage; ledger `docs/continuity/14_NICHE_EXPERT_DECISION_COMMAND.md`.
 - Rendered contract: 4/4 commercial loading pages and 4/4 fail-closed recovery APIs pass during every verified build.
 - Lab server-render budget: pass at 75.6 ms / 500 ms for the slowest route.
 - Commercial client artifact budgets: pass and enforced during every verified build.
@@ -39,11 +40,11 @@ Niche research champion, current channel niche and expert commitment are separat
 
 ## Exact next product action
 
-Verify the authorized production checkpoint, then implement the dedicated identity-bound owner/expert decision aggregate and command boundary with SIWC authorization, idempotency, optimistic concurrency, immutable expert knowledge and audit lineage. Generate and inspect a migration before database mutation. Do not route providers or couple niche commitment directly to Channel Strategy activation.
+Reconcile the command migration and environment on the authorized production checkpoint, then complete browser acceptance. The next product mutation is a separate typed niche-commitment command; do not route providers or couple commitment directly to Channel Strategy activation.
 
 ## Protected scope
 
-- No deployment or production/database mutation.
+- No production command except the bounded expert-decision append.
 - No provider request or V23.4 dispatch.
 - No production QA, migration or legacy deletion.
 - No commercial-ready claim before Document 27 evidence passes.

@@ -23,3 +23,7 @@ Effective 2026-08-10 for Stage 09 stabilized material releases, `CONTROLLED_RELE
 ## ADR-056 — Usage evidence is not billing evidence
 
 Effective 2026-08-12, the Factory distinguishes `estimatedCostUsd`, provider-reported usage and `billingVerifiedCostUsd`. A completed OpenAI response ID plus its usage payload proves provider execution and supports a rate-card estimate, but does not prove that the user's OpenAI organization was invoiced. Billing remains `NOT_VERIFIED` until Organization Costs is connected and joined to the same project/time scope. UI and reports may not describe an estimate as an actual charge.
+
+## ADR-057 — Expert decision, niche commitment and strategy activation are separate commands
+
+Effective 2026-08-15, `SUBMIT_EXPERT_DECISION` is the first routed Intelligence/Niche command. It appends an SIWC-attributed, allowlisted, idempotent and version-bound decision plus audit/evidence lineage at zero provider spend. It does not update `channels.niche` and does not activate Channel Strategy. Acceptance creates handoff eligibility only; niche commitment and downstream activation require distinct typed boundaries so automation cannot convert a recommendation or expert review into an irreversible portfolio mutation.

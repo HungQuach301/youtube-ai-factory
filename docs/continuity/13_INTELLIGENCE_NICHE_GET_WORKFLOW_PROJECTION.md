@@ -3,7 +3,7 @@
 **Projection:** `DISCOVERY_WORKFLOW_PROJECTION_V1`  
 **Compiler:** `INTELLIGENCE_NICHE_WORKFLOW_V1`  
 **Source classification:** `RECONSTRUCTED_V1_INTELLIGENCE_NICHE_GET_PROJECTION_GUARD`  
-**Authority:** read-only; commands remain `DECLARED_NOT_ROUTED`
+**Authority:** GET remains read-only; expert-decision command context is projected for the separately authorized zero-spend POST
 
 ## Implemented outcome
 
@@ -22,21 +22,22 @@ Portfolio scope never compiles one channel from another channel's evidence. It r
 | source floors | verified and Tier-1 source records for the selected program |
 | unresolved P0 | P0 claims without verified/resolved/controlled status |
 | contradiction review | explicit artifact flag or a non-empty fully resolved contradiction set |
-| expert decision | strict `NICHE_EXPERT_DECISION_V1` envelope only |
+| expert decision | latest append-only `niche_expert_decisions` aggregate version |
 
 No timestamp, title, channel field or demo value is substituted for a missing canonical version.
 
-## Expert decision compatibility envelope
+## Dedicated expert-decision binding
 
-The read model accepts an existing `v7_decision_records` row only when all of these are true:
+The read model accepts the latest dedicated decision row only when all of these are true:
 
-- `decision_code = NICHE_EXPERT_DECISION_V1`;
-- `effective_version` equals the program aggregate version;
-- status is `ACCEPT`, `REJECT` or `REQUEST_MORE_EVIDENCE`;
-- rationale contains explicit channel, candidate, candidate version, evidence version and reusable expert asset fields;
+- `aggregate_version` equals the program aggregate version;
+- action is `ACCEPT`, `REJECT` or `REQUEST_MORE_EVIDENCE`;
+- channel, candidate, candidate version and evidence version are explicit columns;
+- actor role/email, idempotency key and request hash are present;
+- immutable rationale and reusable expert asset fields are present;
 - the compiler independently verifies channel, champion and version consistency.
 
-A malformed or stale envelope produces `DECISION_RECONCILIATION_REQUIRED`; it cannot open the downstream gate. Legacy/pending decision rows remain evidence but grant no authority.
+A malformed or stale aggregate produces `DECISION_RECONCILIATION_REQUIRED`; it cannot open the downstream gate. Legacy `v7_decision_records`, ranking and channel niche fields grant no decision authority.
 
 ## UI and operational states
 
@@ -45,12 +46,12 @@ A malformed or stale envelope produces `DECISION_RECONCILIATION_REQUIRED`; it ca
 - `DECISION_RECONCILIATION_REQUIRED`: a version-bound decision record is malformed or stale.
 - `COMPILED`: the pure compiler returned a fail-closed lifecycle result.
 
-The UI explicitly shows all command contracts as declared, unrouted, zero-provider and zero-spend. It never presents a recommendation as a commitment.
+The UI projects exact expected aggregate, decision, candidate and evidence versions for the expert command. It explicitly states zero-provider/zero-spend authority and never presents a recommendation or recorded decision as a committed channel niche.
 
 ## Verification contract
 
 - Canonical recommendation with no bound expert decision → `EXPERT_DECISION_REQUIRED`; Channel Strategy blocked.
-- Version-matched expert acceptance → `NICHE_ACCEPTED`; typed handoff ready.
+- Version-matched expert acceptance → `NICHE_ACCEPTED_PENDING_COMMITMENT`; typed handoff eligible while committed niche remains unchanged.
 - Stale aggregate decision → reconciliation required; handoff blocked.
 - Portfolio scope → channel selection required.
 - Existing eight compiler lifecycle tests remain enforced during every verified build.
@@ -58,11 +59,11 @@ The UI explicitly shows all command contracts as declared, unrouted, zero-provid
 
 ## Known limitation
 
-There is no identity-bound expert decision command or dedicated decision schema yet. The compatibility envelope is read-only and is not a substitute for an authenticated, idempotent, audited command path.
+The decision aggregate does not mutate `channels.niche` and does not activate Channel Strategy. Those remain separate future commands and acceptance gates.
 
 ## Exact next product action
 
-After the production checkpoint is verified, design and implement the dedicated owner/expert decision aggregate and command boundary: SIWC identity, authorization, idempotency key, expected aggregate version, immutable rationale/reusable asset, audit lineage and zero-provider execution. Generate and inspect a migration before any database change. Keep niche commitment and Channel Strategy activation as separate commands.
+After production migration/runtime reconciliation and browser acceptance, design the separate typed niche-commitment boundary. Keep Channel Strategy activation independent.
 
 ## Protected scope
 
@@ -70,4 +71,4 @@ After the production checkpoint is verified, design and implement the dedicated 
 - No provider dispatch or paid request.
 - No runtime DDL or automatic migration.
 - No production QA dispatch or V23 change.
-- No command route until identity, authorization, concurrency, audit and rollback controls pass.
+- No automatic niche commitment or Channel Strategy activation.

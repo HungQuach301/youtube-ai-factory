@@ -27,27 +27,22 @@ function parseArtifact(row: Row | undefined) {
 }
 
 function expertDecision(rows: Row[], aggregateVersion: number) {
-  const row = rows.find((item) => text(item.decision_code) === "NICHE_EXPERT_DECISION_V1");
+  const row = rows[0];
   if (!row) return { decision: null, invalid: false };
-  try {
-    const payload = JSON.parse(text(row.rationale)) as Record<string, unknown>;
-    const action = text(row.status);
-    const reusableAsset = payload.reusableAsset && typeof payload.reusableAsset === "object" && !Array.isArray(payload.reusableAsset)
-      ? payload.reusableAsset as Record<string, unknown> : null;
-    const assetType = text(reusableAsset?.type);
-    if (!text(row.id) || number(row.effective_version) !== aggregateVersion || !text(row.created_at) || !text(payload.channelId) || !["ACCEPT", "REJECT", "REQUEST_MORE_EVIDENCE"].includes(action)
-      || !text(payload.candidateId) || !Number.isInteger(Number(payload.candidateVersion)) || !Number.isInteger(Number(payload.evidenceVersion))
-      || !text(payload.rationale) || !["RULE", "RUBRIC_ANCHOR", "EXAMPLE", "ANTI_PATTERN", "EXCEPTION_PATTERN"].includes(assetType)
-      || !text(reusableAsset?.summary)) return { decision: null, invalid: true };
-    return { decision: {
-      decisionId: text(row.id), channelId: text(payload.channelId), actorRole: "OWNER_EXPERT",
-      action: action as ExpertDecision["action"], candidateId: text(payload.candidateId), candidateVersion: number(payload.candidateVersion),
-      evidenceVersion: number(payload.evidenceVersion), decidedAt: text(row.created_at), rationale: text(payload.rationale),
-      reusableAsset: { type: assetType as ExpertDecision["reusableAsset"]["type"], summary: text(reusableAsset?.summary) },
-    } satisfies ExpertDecision, invalid: false };
-  } catch {
-    return { decision: null, invalid: true };
-  }
+  const action = text(row.action);
+  const assetType = text(row.reusable_asset_type);
+  if (!text(row.id) || number(row.aggregate_version) !== aggregateVersion || !text(row.created_at) || !text(row.channel_id)
+    || text(row.actor_role) !== "OWNER_EXPERT" || !text(row.actor_email) || !text(row.idempotency_key) || !text(row.request_hash)
+    || !["ACCEPT", "REJECT", "REQUEST_MORE_EVIDENCE"].includes(action) || !text(row.candidate_id)
+    || !Number.isInteger(Number(row.candidate_version)) || !Number.isInteger(Number(row.evidence_version))
+    || !text(row.rationale) || !["RULE", "RUBRIC_ANCHOR", "EXAMPLE", "ANTI_PATTERN", "EXCEPTION_PATTERN"].includes(assetType)
+    || !text(row.reusable_asset_summary)) return { decision: null, invalid: true };
+  return { decision: {
+    decisionId: text(row.id), channelId: text(row.channel_id), actorRole: "OWNER_EXPERT",
+    action: action as ExpertDecision["action"], candidateId: text(row.candidate_id), candidateVersion: number(row.candidate_version),
+    evidenceVersion: number(row.evidence_version), decidedAt: text(row.created_at), rationale: text(row.rationale),
+    reusableAsset: { type: assetType as ExpertDecision["reusableAsset"]["type"], summary: text(row.reusable_asset_summary) },
+  } satisfies ExpertDecision, invalid: false };
 }
 
 export async function discoveryProjection(channelId?: string | null, databaseOverride?: DB): Promise<DiscoveryProjection> {
@@ -67,7 +62,7 @@ export async function discoveryProjection(channelId?: string | null, databaseOve
     rows(db, `SELECT id,program_id,risk_level,status FROM v7_claim_nodes WHERE program_id IN (${placeholders})`, ...programIds),
     rows(db, `SELECT id,program_id,stage_key,attempt,status,score,threshold,completed_at FROM v7_intelligence_runs WHERE program_id IN (${placeholders}) ORDER BY started_at DESC`, ...programIds),
     rows(db, `SELECT id,program_id,entity_type,lifecycle_state FROM v7_evidence_lineage WHERE program_id IN (${placeholders}) ORDER BY updated_at DESC`, ...programIds),
-    rows(db, `SELECT id,program_id,decision_code,status,effective_version,rationale,created_at FROM v7_decision_records WHERE program_id IN (${placeholders}) ORDER BY created_at DESC`, ...programIds),
+    rows(db, `SELECT id,program_id,channel_id,aggregate_version,decision_version,action,candidate_id,candidate_version,evidence_version,actor_email,actor_role,rationale,reusable_asset_type,reusable_asset_summary,idempotency_key,request_hash,created_at FROM niche_expert_decisions WHERE program_id IN (${placeholders}) ORDER BY decision_version DESC,created_at DESC`, ...programIds),
   ]) : [[], [], [], [], [], []];
 
   const stage01Row = artifacts.find((artifact) => text(artifact.stage_key) === "01");
@@ -101,6 +96,7 @@ export async function discoveryProjection(channelId?: string | null, databaseOve
   const stage01Run = runs.find((run) => text(run.id) === text(stage01Row?.run_id));
   const workflowBlockers: string[] = [];
   let workflowResult: IntelligenceNicheWorkflowResult | null = null;
+  let decisionCommand: DiscoveryProjection["workflow"]["decisionCommand"] = null;
   let workflowScopeState: DiscoveryProjection["workflow"]["scopeState"] = channelId ? "CANONICAL_PREREQUISITES_MISSING" : "CHANNEL_SCOPE_REQUIRED";
   let decisionBinding: DiscoveryProjection["workflow"]["decisionBinding"] = channelId ? "NO_VERSION_BOUND_EXPERT_DECISION" : "NOT_APPLICABLE";
   if (!channelId) workflowBlockers.push("Select one channel before compiling a channel-isolated workflow.");
@@ -128,6 +124,19 @@ export async function discoveryProjection(channelId?: string | null, databaseOve
       },
       expertDecision: boundDecision.decision,
     });
+    if (!boundDecision.invalid && championCandidate && ["EVIDENCE_READY_EXPERT_DECISION_REQUIRED", "EXPERT_DECIDED"].includes(workflowResult.readiness)) {
+      decisionCommand = {
+        activation: "ROUTED_ZERO_SPEND",
+        programId: text(selectedProgram.id),
+        expectedAggregateVersion: aggregateVersion,
+        expectedDecisionVersion: number(programDecisions[0]?.decision_version),
+        candidateId: championCandidate.id,
+        candidateVersion: evidenceVersion,
+        evidenceVersion,
+        providerRequests: 0,
+        spendUsd: 0,
+      };
+    }
     workflowScopeState = boundDecision.invalid ? "DECISION_RECONCILIATION_REQUIRED" : "COMPILED";
   }
   const notes: string[] = [];
@@ -143,7 +152,7 @@ export async function discoveryProjection(channelId?: string | null, databaseOve
     audience: { segments: objects(stage01?.audienceSegments) },
     competitors: { references: objects(stage02?.references), patterns: strings(stage02?.crossReferencePatterns), gaps: text(stage02?.gapStatement) || null, antiCloneControls: strings(stage02?.antiCloneControls) },
     niche: { currentNiche: text(selected?.niche) || (channelId ? null : "PORTFOLIO_SCOPE"), researchChampion: championTitle || null, candidates, decisionAuthority: "OWNER_EXPERT_REQUIRED" },
-    workflow: { contract: "DISCOVERY_WORKFLOW_PROJECTION_V1", scopeState: workflowScopeState, decisionBinding, result: workflowResult, blockers: workflowBlockers },
+    workflow: { contract: "DISCOVERY_WORKFLOW_PROJECTION_V1", scopeState: workflowScopeState, decisionBinding, result: workflowResult, blockers: workflowBlockers, decisionCommand },
     evidence: { artifactCount: artifacts.length, frozenStage01, verifiedSources, primarySources, claims: claims.length, p0Claims: claims.filter((claim) => text(claim.risk_level) === "P0").length, runs: runs.length, lineageIds: lineage.slice(0, 12).map((item) => text(item.id)) },
     integrity: { state: notes.length ? "RECONCILIATION_REQUIRED" : "READY", notes },
   };

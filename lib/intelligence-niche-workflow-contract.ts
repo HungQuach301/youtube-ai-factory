@@ -18,16 +18,17 @@ type CommandContract = {
   command: "REQUEST_EVIDENCE_REFRESH" | "SUBMIT_EXPERT_DECISION" | "PROPOSE_POLICY_IMPROVEMENT" | "PROMOTE_POLICY_VERSION";
   autonomy: "A1_RECOMMEND" | "A2_APPROVAL_REQUIRED" | "A3_BOUNDED";
   authority: "SYSTEM_WITHIN_POLICY" | "OWNER_EXPERT" | "EXPERT_AND_ENGINEERING";
-  activation: "DECLARED_NOT_ROUTED";
+  activation: "DECLARED_NOT_ROUTED" | "ROUTED_ZERO_SPEND";
   preconditions: string[];
   ceilings: { maximumLogicalAttempts: number; providerRequests: number; spendUsd: number };
 };
 export type IntelligenceNicheWorkflowResult = {
   contract: typeof INTELLIGENCE_NICHE_WORKFLOW_VERSION; policyVersion: typeof INTELLIGENCE_NICHE_POLICY_VERSION;
   aggregate: { portfolioId: string; channelId: string; version: number };
-  state: "CONTRACT_INVALID" | "INSUFFICIENT_EVIDENCE" | "EXPERT_DECISION_REQUIRED" | "MORE_EVIDENCE_REQUIRED" | "NICHE_REJECTED" | "NICHE_ACCEPTED";
+  state: "CONTRACT_INVALID" | "INSUFFICIENT_EVIDENCE" | "EXPERT_DECISION_REQUIRED" | "MORE_EVIDENCE_REQUIRED" | "NICHE_REJECTED" | "NICHE_ACCEPTED_PENDING_COMMITMENT";
   readiness: "FAIL_CLOSED" | "INSUFFICIENT_EVIDENCE" | "EVIDENCE_READY_EXPERT_DECISION_REQUIRED" | "EXPERT_DECIDED";
   recommendation: { candidateId: string; candidateVersion: number; title: string; score: number } | null;
+  expertDecisionOutcome: { action: ExpertDecision["action"]; candidateId: string; niche: string; decisionId: string; decisionVersion: number } | null;
   commitment: { niche: string; decisionId: string; decisionVersion: number } | null;
   errors: string[]; allowedNextActions: string[];
   downstreamGate: { consumer: "CHANNEL_STRATEGY"; state: "BLOCKED" | "READY_FOR_TYPED_HANDOFF"; reason: string; handoffId: string | null };
@@ -38,7 +39,7 @@ export type IntelligenceNicheWorkflowResult = {
 
 const commandContracts: CommandContract[] = [
   { command: "REQUEST_EVIDENCE_REFRESH", autonomy: "A3_BOUNDED", authority: "SYSTEM_WITHIN_POLICY", activation: "DECLARED_NOT_ROUTED", preconditions: ["Canonical channel scope", "Expired, missing or contradictory evidence", "No active logical refresh"], ceilings: { maximumLogicalAttempts: 1, providerRequests: 0, spendUsd: 0 } },
-  { command: "SUBMIT_EXPERT_DECISION", autonomy: "A2_APPROVAL_REQUIRED", authority: "OWNER_EXPERT", activation: "DECLARED_NOT_ROUTED", preconditions: ["Evidence-ready candidate", "Matching aggregate, candidate and evidence versions", "Reusable expert knowledge asset"], ceilings: { maximumLogicalAttempts: 1, providerRequests: 0, spendUsd: 0 } },
+  { command: "SUBMIT_EXPERT_DECISION", autonomy: "A2_APPROVAL_REQUIRED", authority: "OWNER_EXPERT", activation: "ROUTED_ZERO_SPEND", preconditions: ["SIWC-authenticated allowlisted owner/expert", "Evidence-ready candidate", "Matching aggregate, decision, candidate and evidence versions", "Immutable rationale and reusable expert knowledge asset", "Idempotency and audit lineage"], ceilings: { maximumLogicalAttempts: 1, providerRequests: 0, spendUsd: 0 } },
   { command: "PROPOSE_POLICY_IMPROVEMENT", autonomy: "A1_RECOMMEND", authority: "SYSTEM_WITHIN_POLICY", activation: "DECLARED_NOT_ROUTED", preconditions: ["Immutable learning record", "Qualified trigger", "Affected and unaffected scope"], ceilings: { maximumLogicalAttempts: 1, providerRequests: 0, spendUsd: 0 } },
   { command: "PROMOTE_POLICY_VERSION", autonomy: "A2_APPROVAL_REQUIRED", authority: "EXPERT_AND_ENGINEERING", activation: "DECLARED_NOT_ROUTED", preconditions: ["Representative backtest", "Shadow evidence", "Rollback target", "Explicit approval"], ceilings: { maximumLogicalAttempts: 1, providerRequests: 0, spendUsd: 0 } },
 ];
@@ -52,7 +53,7 @@ function base(input: IntelligenceNicheWorkflowInput) {
     controls: {
       prevent: ["Canonical portfolio/channel/candidate IDs", "Version-bound evidence and expert decision", "No implicit commitment from ranking"],
       detect: ["Evidence coverage and primary-source floors", "P0 and contradiction checks", "Stale or cross-channel decision detection"],
-      contain: ["Fail-closed invalid state", "Owner/expert commitment gate", "Downstream Channel Strategy handoff blocked until accepted"],
+      contain: ["Fail-closed invalid state", "Owner/expert decision gate", "Separate typed niche-commitment boundary", "Downstream Channel Strategy activation remains separate"],
     },
     improvement: {
       signals: ["Evidence expiry", "Expert override", "Decision reversal", "Calibration drift", "Observed niche outcome"],
@@ -91,13 +92,14 @@ function validationErrors(input: IntelligenceNicheWorkflowInput) {
 export function compileIntelligenceNicheWorkflow(input: IntelligenceNicheWorkflowInput): IntelligenceNicheWorkflowResult {
   const shared = base(input), errors = validationErrors(input);
   const candidate = input.candidates.find((item) => item.id === input.researchChampionId) || null;
-  if (errors.length) return { ...shared, state: "CONTRACT_INVALID", readiness: "FAIL_CLOSED", recommendation: null, commitment: null, errors, allowedNextActions: ["RECONCILE_CANONICAL_STATE"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: errors.join(" | "), handoffId: null } };
+  if (errors.length) return { ...shared, state: "CONTRACT_INVALID", readiness: "FAIL_CLOSED", recommendation: null, expertDecisionOutcome: null, commitment: null, errors, allowedNextActions: ["RECONCILE_CANONICAL_STATE"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: errors.join(" | "), handoffId: null } };
   const evidenceReady = Boolean(candidate) && candidate!.score >= 85 && input.evidence.marketArtifactState === "FROZEN" && input.evidence.verifiedSources >= 10 && input.evidence.primarySources >= 3 && input.evidence.unresolvedP0Claims === 0 && input.evidence.contradictionsReviewed;
   const recommendation = candidate ? { candidateId: candidate.id, candidateVersion: candidate.version, title: candidate.title, score: candidate.score } : null;
-  if (!evidenceReady) return { ...shared, state: "INSUFFICIENT_EVIDENCE", readiness: "INSUFFICIENT_EVIDENCE", recommendation, commitment: null, errors: [], allowedNextActions: ["REQUEST_BOUNDED_EVIDENCE_REFRESH", "REVIEW_EVIDENCE_GAPS"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Evidence readiness contract has not passed", handoffId: null } };
+  if (!evidenceReady) return { ...shared, state: "INSUFFICIENT_EVIDENCE", readiness: "INSUFFICIENT_EVIDENCE", recommendation, expertDecisionOutcome: null, commitment: null, errors: [], allowedNextActions: ["REQUEST_BOUNDED_EVIDENCE_REFRESH", "REVIEW_EVIDENCE_GAPS"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Evidence readiness contract has not passed", handoffId: null } };
   const decision = input.expertDecision;
-  if (!decision) return { ...shared, state: "EXPERT_DECISION_REQUIRED", readiness: "EVIDENCE_READY_EXPERT_DECISION_REQUIRED", recommendation, commitment: null, errors: [], allowedNextActions: ["ACCEPT", "REJECT", "REQUEST_MORE_EVIDENCE"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Owner/expert commitment is required", handoffId: null } };
-  if (decision.action === "REQUEST_MORE_EVIDENCE") return { ...shared, state: "MORE_EVIDENCE_REQUIRED", readiness: "EXPERT_DECIDED", recommendation, commitment: null, errors: [], allowedNextActions: ["REQUEST_BOUNDED_EVIDENCE_REFRESH"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Expert requested more evidence", handoffId: null } };
-  if (decision.action === "REJECT") return { ...shared, state: "NICHE_REJECTED", readiness: "EXPERT_DECIDED", recommendation, commitment: null, errors: [], allowedNextActions: ["REVIEW_NEXT_CANDIDATE", "REQUEST_BOUNDED_EVIDENCE_REFRESH"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Expert rejected the recommended candidate", handoffId: null } };
-  return { ...shared, state: "NICHE_ACCEPTED", readiness: "EXPERT_DECIDED", recommendation, commitment: { niche: candidate!.title, decisionId: decision.decisionId, decisionVersion: input.aggregateVersion }, errors: [], allowedNextActions: ["PREPARE_CHANNEL_STRATEGY_HANDOFF"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "READY_FOR_TYPED_HANDOFF", reason: "Evidence-ready niche accepted by owner/expert", handoffId: `${input.channelId}:strategy:${input.aggregateVersion}:${candidate!.id}:v${candidate!.version}:e${input.evidence.version}:${decision.decisionId}` } };
+  if (!decision) return { ...shared, state: "EXPERT_DECISION_REQUIRED", readiness: "EVIDENCE_READY_EXPERT_DECISION_REQUIRED", recommendation, expertDecisionOutcome: null, commitment: null, errors: [], allowedNextActions: ["ACCEPT", "REJECT", "REQUEST_MORE_EVIDENCE"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Owner/expert decision is required", handoffId: null } };
+  const expertDecisionOutcome = { action: decision.action, candidateId: candidate!.id, niche: candidate!.title, decisionId: decision.decisionId, decisionVersion: input.aggregateVersion };
+  if (decision.action === "REQUEST_MORE_EVIDENCE") return { ...shared, state: "MORE_EVIDENCE_REQUIRED", readiness: "EXPERT_DECIDED", recommendation, expertDecisionOutcome, commitment: null, errors: [], allowedNextActions: ["REQUEST_BOUNDED_EVIDENCE_REFRESH"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Expert requested more evidence", handoffId: null } };
+  if (decision.action === "REJECT") return { ...shared, state: "NICHE_REJECTED", readiness: "EXPERT_DECIDED", recommendation, expertDecisionOutcome, commitment: null, errors: [], allowedNextActions: ["REVIEW_NEXT_CANDIDATE", "REQUEST_BOUNDED_EVIDENCE_REFRESH"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Expert rejected the recommended candidate", handoffId: null } };
+  return { ...shared, state: "NICHE_ACCEPTED_PENDING_COMMITMENT", readiness: "EXPERT_DECIDED", recommendation, expertDecisionOutcome, commitment: null, errors: [], allowedNextActions: ["PREPARE_TYPED_NICHE_COMMITMENT"], downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "READY_FOR_TYPED_HANDOFF", reason: "Expert accepted the recommendation; niche commitment remains a separate command", handoffId: `${input.channelId}:strategy:${input.aggregateVersion}:${candidate!.id}:v${candidate!.version}:e${input.evidence.version}:${decision.decisionId}` } };
 }

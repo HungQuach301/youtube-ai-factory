@@ -26,8 +26,10 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 
 - Durable ledger: `docs/continuity/12_INTELLIGENCE_NICHE_EXECUTABLE_CONTRACT.md`.
 - GET projection ledger: `docs/continuity/13_INTELLIGENCE_NICHE_GET_WORKFLOW_PROJECTION.md`.
+- Expert decision command ledger: `docs/continuity/14_NICHE_EXPERT_DECISION_COMMAND.md`.
 - Contract/policy: `INTELLIGENCE_NICHE_WORKFLOW_V1` / `INTELLIGENCE_NICHE_POLICY_V1`.
 - Continuous gate: eight lifecycle paths with version, expert, evidence, champion-target and channel-isolation controls.
-- Authority: all typed commands are `DECLARED_NOT_ROUTED`, provider requests `0`, spend USD `0`.
+- Authority: only the SIWC-authenticated, allowlisted `SUBMIT_EXPERT_DECISION` command is routed; every command remains provider requests `0`, spend USD `0`.
 - GET integration: canonical program/run/candidate/evidence versions, strict expert binding and Channel Strategy gate are projected without mutation.
-- Next action: dedicated identity-bound expert-decision aggregate and command boundary; migration inspection required before database mutation.
+- Decision persistence: append-only decision, audit and frozen lineage records with idempotency and optimistic concurrency; no channel niche mutation or Channel Strategy activation.
+- Next action: production migration/runtime reconciliation and browser acceptance, then a separate niche-commitment command contract.
