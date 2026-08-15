@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./kernel.css";
 import "./continuity.css";
+import "./portfolio.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Frameflow — YouTube Operations",
-  description: "A controlled content operating system for building and running a YouTube channel.",
+  title: "AI Factory — Multi-channel YouTube Operations",
+  description: "Evidence-led multi-channel discovery, strategy, content planning and controlled production.",
   other: {
     "codex-preview": "development",
   },

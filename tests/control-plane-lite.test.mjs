@@ -5,24 +5,56 @@ import test from "node:test";
 const route = await readFile(new URL("../app/api/factory/material-production/route.ts", import.meta.url), "utf8");
 const page = await readFile(new URL("../app/material-production/page.tsx", import.meta.url), "utf8");
 const home = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+const shell = await readFile(new URL("../app/factory-shell.tsx", import.meta.url), "utf8");
+const portfolioRoute = await readFile(new URL("../app/api/factory/portfolio/route.ts", import.meta.url), "utf8");
+const channelRoute = await readFile(new URL("../app/api/factory/channels/[id]/route.ts", import.meta.url), "utf8");
+const portfolioProjection = await readFile(new URL("../lib/portfolio-projection.ts", import.meta.url), "utf8");
+const discoveryRoute = await readFile(new URL("../app/api/factory/discovery/route.ts", import.meta.url), "utf8");
+const discoveryProjection = await readFile(new URL("../lib/discovery-projection.ts", import.meta.url), "utf8");
+const studioRoute = await readFile(new URL("../app/api/factory/channel-studio/route.ts", import.meta.url), "utf8");
+const studioProjection = await readFile(new URL("../lib/channel-studio-projection.ts", import.meta.url), "utf8");
 
-test("the pre-cleanup Factory UI is restored in full", () => {
+test("the canonical shell is portfolio-first without replacing the protected production workspace", () => {
   assert.doesNotMatch(home, /export \{ default \} from "\.\/material-production\/page"/);
-  assert.match(home, /Command center/);
-  assert.match(home, /href="\/control-plane"/);
-  assert.match(home, /Market radar/);
-  assert.match(home, /Topic backlog/);
-  assert.match(home, /Content calendar/);
-  assert.match(home, /Video projects/);
+  assert.match(home, /Operate channels, not isolated videos/);
+  assert.match(home, /\/api\/factory\/portfolio/);
+  assert.match(home, /No sample channels were generated/);
   assert.match(page, /import Image from "next\/image"/);
   assert.match(page, /productionBatch/);
   assert.match(page, /previewUrl/);
   assert.match(page, /Preflight and start Batch 2/);
 });
 
-test("the restored shell retains its original primary and settings routes", () => {
-  assert.match(home, /href="\/control-plane"/);
-  assert.match(home, /href="\/settings"/);
+test("the canonical shell exposes connected factory capabilities and preserves protected routes", () => {
+  for (const href of ["/", "/market-intelligence", "/niche-discovery", "/channel-studio", "/control-plane", "/continuity", "/settings"]) assert.match(shell, new RegExp(href.replaceAll("/", "\\/")));
+  assert.match(shell, /No demo or local fallback was substituted/);
+});
+
+test("portfolio and channel detail are GET-only fail-closed canonical projections", () => {
+  assert.match(portfolioRoute, /cache-control": "no-store"/);
+  assert.match(channelRoute, /ChannelNotFoundError \? 404 : 503/);
+  assert.doesNotMatch(portfolioRoute + channelRoute, /export async function (POST|PATCH|DELETE)/);
+  assert.match(portfolioProjection, /CANONICAL_PLUS_READ_ONLY_MIGRATION_BRIDGE/);
+  assert.match(portfolioProjection, /READ_ONLY_MIGRATION_BRIDGE/);
+  assert.match(portfolioProjection, /RECORDED_USAGE_NOT_VERIFIED_BILLING/);
+});
+
+test("intelligence and niche discovery keep evidence readiness separate from expert commitment", () => {
+  assert.match(discoveryRoute, /cache-control": "no-store"/);
+  assert.doesNotMatch(discoveryRoute, /export async function (POST|PATCH|DELETE)/);
+  assert.match(discoveryProjection, /score >= 85 && frozenStage01 && verifiedSources >= 10/);
+  assert.match(discoveryProjection, /EVIDENCE_READY_EXPERT_DECISION_REQUIRED/);
+  assert.match(discoveryProjection, /OWNER_EXPERT_REQUIRED/);
+  assert.match(discoveryProjection, /researchChampion/);
+});
+
+test("Channel Studio preserves compatibility provenance and blocks production commands", () => {
+  assert.match(studioRoute, /cache-control": "no-store"/);
+  assert.doesNotMatch(studioRoute, /export async function (POST|PATCH|DELETE)/);
+  assert.match(studioProjection, /CHANNEL_FIELD_COMPATIBILITY_ONLY/);
+  assert.match(studioProjection, /LEGACY_TEXT_LABEL/);
+  assert.match(studioProjection, /COMMAND_NOT_AUTHORIZED/);
+  assert.match(studioProjection, /CANONICAL_AGGREGATE_NOT_IMPLEMENTED/);
 });
 
 test("operator state is a bounded canonical projection", () => {
