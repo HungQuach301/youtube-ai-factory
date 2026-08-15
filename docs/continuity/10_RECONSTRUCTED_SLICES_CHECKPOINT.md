@@ -2,7 +2,7 @@
 
 **Classification:** `RECONSTRUCTED_V1_NICHE_EXPERT_DECISION_COMMAND_V1`
 **Baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`
-**Deployment:** Sites v293 / `f61dc062617ab7107a5de5cd9e900c09d35220ae` / succeeded
+**Deployment:** Sites v295 / `022f72f4ee06703225e4520bcf83983f887fade4` / succeeded
 **Commercial UI/UX:** semantic/static acceptance passed; rendered review pending
 
 ## Implemented source

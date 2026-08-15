@@ -4,6 +4,7 @@
 **Policy:** `NICHE_OPPORTUNITY_POLICY_V2`  
 **Status:** `SLICE_1_CONTRACT_IMPLEMENTED_NOT_ROUTED`  
 **Date:** 2026-08-15 (Asia/Bangkok)
+**Deployment:** Sites v295 / `022f72f4ee06703225e4520bcf83983f887fade4` / succeeded
 
 ## Business outcome
 
