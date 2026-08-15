@@ -14,6 +14,8 @@
 - Build quality into every owning stage. QA is independent release assurance, not a repair department.
 - Preserve recommendation, expert decision and committed state as separate facts.
 - Niche Discovery must output a comparable opportunity portfolio, never a single champion presented as a yes/no decision.
+- Only typed `NICHE_OPPORTUNITY` aggregates may enter Niche Discovery; content pillars, series and video topics belong downstream in Channel Studio/Content Planning.
+- Slices 4–8 are permanent commercial-tool capabilities with owned data/API/UI/audit/metrics boundaries, never one-time project tasks or manual document workflows.
 - Keep system rank, expert priority, selection, commitment and Channel Strategy activation as separate versioned facts.
 - Treat niche prerequisites as hard gates; an attractive-market score cannot compensate for a failed prerequisite.
 - Route expert-seeded and system-discovered niche hypotheses through the same support, contradiction and unknown-evidence workflow.

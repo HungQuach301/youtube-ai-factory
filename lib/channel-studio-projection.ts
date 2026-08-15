@@ -10,6 +10,8 @@ async function database() { const { env } = await import("cloudflare:workers"); 
 async function rows(db: DB, query: string, ...values: unknown[]) { return (await db.prepare(query).bind(...values).all<Row>()).results || []; }
 function text(value: unknown) { return String(value ?? "").trim(); }
 function number(value: unknown) { return Number(value || 0); }
+function record(value: unknown): Row { return value && typeof value === "object" && !Array.isArray(value) ? value as Row : {}; }
+function objects(value: unknown) { return Array.isArray(value) ? value.filter((item): item is Row => Boolean(item) && typeof item === "object" && !Array.isArray(item)) : []; }
 function band(status: string): ContentBand {
   if (/OPPORTUNITY|IDEA|DISCOVER|SCORE/i.test(status)) return "OPPORTUNITY";
   if (/BACKLOG|RESEARCH/i.test(status)) return "BACKLOG";
@@ -29,12 +31,22 @@ export async function channelStudioProjection(channelId?: string | null, databas
   const programs = effectiveId ? await rows(db, "SELECT id,status,updated_at FROM v7_program_contracts WHERE channel_id=? ORDER BY updated_at DESC,id", effectiveId) : [];
   const programId = text(programs[0]?.id);
   const artifacts = programId ? await rows(db, "SELECT id,stage_key,lifecycle_state,content_json,updated_at FROM v7_intelligence_artifacts WHERE program_id=? AND stage_key='01' ORDER BY updated_at DESC,id", programId) : [];
-  let recommendation: string | null = null;
+  let contentResearchChampion: { title: string; provenance: "LEGACY_V1_VIDEO_TOPIC_CHAMPION" } | null = null;
+  let legacyTopicCandidates: ChannelStudioProjection["legacyTopicCandidates"] = [];
   if (artifacts[0]) {
     const payload = JSON.parse(text(artifacts[0].content_json)) as Record<string, unknown>;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error(`Artifact ${text(artifacts[0].id)} has an invalid canonical payload`);
-    const champion = payload.champion;
-    recommendation = champion && typeof champion === "object" && !Array.isArray(champion) ? text((champion as Record<string, unknown>).title) || null : null;
+    const championTitle = text(record(payload.champion).title);
+    contentResearchChampion = championTitle ? { title: championTitle, provenance: "LEGACY_V1_VIDEO_TOPIC_CHAMPION" } : null;
+    legacyTopicCandidates = objects(payload.candidates).map((candidate, index) => ({
+      id: `${text(artifacts[0].id)}:topic:${index + 1}`,
+      entityType: "VIDEO_TOPIC_CANDIDATE",
+      title: text(candidate.title) || `Unlabelled topic candidate ${index + 1}`,
+      centralQuestion: text(candidate.centralQuestion) || null,
+      viewerPromise: text(candidate.viewerPromise) || null,
+      score: number(candidate.score),
+      provenance: "LEGACY_V1_VIDEO_TOPIC_CANDIDATE",
+    }));
   }
   const portfolio = videos.map((video) => ({ id: text(video.id), title: text(video.title), pillar: text(video.pillar), rawStatus: text(video.status), band: band(text(video.status)), score: number(video.opportunity_score), progress: number(video.progress), nextAction: text(video.next_action), updatedAt: text(video.updated_at) }));
   const bands: ContentBand[] = ["OPPORTUNITY", "BACKLOG", "PLANNED", "PRODUCTION", "TERMINAL", "UNKNOWN"];
@@ -52,10 +64,12 @@ export async function channelStudioProjection(channelId?: string | null, databas
     scope: { mode: channelId ? "CHANNEL" : "PORTFOLIO", channelId: channelId || null },
     channels: channels.map((channel) => ({ id: text(channel.id), name: text(channel.name), market: text(channel.market), language: text(channel.language), niche: text(channel.niche) })),
     selectedChannel: selected ? { id: text(selected.id), name: text(selected.name), market: text(selected.market), language: text(selected.language), niche: text(selected.niche) } : null,
-    nicheDecision: { currentNiche: text(selected?.niche) || null, provenance: "CHANNEL_FIELD_COMPATIBILITY_ONLY", recommendation, decisionAuthority: "OWNER_EXPERT_REQUIRED" },
+    nicheDecision: { currentNiche: text(selected?.niche) || null, provenance: "CHANNEL_FIELD_COMPATIBILITY_ONLY", decisionAuthority: "OWNER_EXPERT_REQUIRED" },
     strategy: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED", viewerPromise: null, differentiation: null, gaps },
     pillars: [...pillarCounts.entries()].map(([label, itemCount]) => ({ label, itemCount, provenance: "LEGACY_TEXT_LABEL" as const })),
     series: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED", items: [] },
+    legacyTopicCandidates,
+    contentResearchChampion,
     portfolio,
     summary,
     editorialQueue: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED", compatibilityItems: portfolio.filter((item) => item.band === "PLANNED" || item.band === "PRODUCTION").length },

@@ -66,6 +66,8 @@ The approved cloud-browser surface timed out reaching the healthy agent preview,
 
 Implement Slice 4: create a versioned research plan and a separately approved, bounded evidence-validation command for both system and expert hypotheses. It must explicitly seek support, contradiction and decision-changing unknowns, enforce source/provider/spend ceilings, and require expert evidence review before comparison eligibility.
 
+Slice 4 is a permanent capability of the tool, followed by permanent capabilities for evidence-backed comparison (Slice 5), expert prioritization (Slice 6), niche commitment/governance (Slice 7) and Channel Strategy activation (Slice 8). None may be reduced to a one-time implementation task or manual document workflow.
+
 ## Protected scope
 
 - No provider dispatch in Slice 3.

@@ -3,7 +3,7 @@
 **Slice:** `02_READ_ONLY_PORTFOLIO`
 **Projection:** `NICHE_PORTFOLIO_PROJECTION_V2`
 **Policy:** `NICHE_OPPORTUNITY_POLICY_V2`
-**Status:** `PRODUCTION_DEPLOYED_READ_ONLY`
+**Status:** `SLICE_3_1_GRANULARITY_REPAIRED_PENDING_CHECKPOINT`
 **Date:** 2026-08-15 (Asia/Bangkok)
 **Deployment:** Sites v297 / `b08cf9a10ced2911da891bf0361916a28daf2600` / succeeded
 
@@ -25,20 +25,16 @@ The surface is responsive, keyboard accessible and designed as the commercial de
 
 Slice 3 extends this surface with one bounded write control. The comparison projection remains non-mutating; expert hypothesis assumptions are appended through a separate command and rendered as unranked, research-required inputs. See Document 18.
 
-## Canonical compatibility bridge
+## Niche-only compatibility boundary
 
-The current production database contains immutable V1 Stage 01/02 Intelligence artifacts, not the full V2 aggregate. Slice 2 therefore reads those artifacts through:
+Production V1 Stage 01 `candidates` are video-topic candidates, not niche opportunities. Slice 3.1 removes them from the niche portfolio regardless of score or research order and preserves them in Channel Studio as `LEGACY_V1_VIDEO_TOPIC_CANDIDATE` records.
 
-`CANONICAL_V7_READ_ONLY_COMPATIBILITY_BRIDGE`
+The projection now accepts only:
 
-The bridge follows four rules:
+1. an explicit `nicheOpportunities` record typed `NICHE_OPPORTUNITY` and containing a market boundary, audience with recurring need, viewer promise and scalable content territory; or
+2. an append-only expert hypothesis, rendered as an unranked, research-required `NICHE_OPPORTUNITY` input.
 
-1. Preserve the V1 candidate order as `systemRank`, labelled as legacy research order.
-2. Never reinterpret the legacy candidate score as Market Attractiveness, Ability to Win or a V2 total.
-3. Project an axis only when the canonical artifact explicitly records it. Evidence Confidence may be visibly labelled `COMPATIBILITY_DERIVED` from five V1 foundation gates.
-4. Render absent audience, competitor, research or Conditions to Win facts as `Not recorded`; never generate a demo or fill a gap with inference.
-
-This makes missing data an owning-stage research requirement, not a UI defect for QA to repair.
+Invalid declared niche records fail closed. If no niche-level record exists, the UI shows an honest empty/research-pending state. It never inserts a topic, demo or inferred fallback.
 
 ## Projection and API
 
@@ -66,7 +62,7 @@ An opportunity is `COMPARABLE` only when canonical evidence contains:
 
 A non-comparable opportunity remains visible as `RESEARCH_REQUIRED`. A comparable opportunity with any prerequisite other than `PASS` is `BLOCKED_BY_PREREQUISITE`; no score can compensate for that hard gate.
 
-At least two comparable opportunities are required for `PORTFOLIO_COMPARABLE`. Expert priority remains empty until a later append-only V2 command records it.
+At least two comparable niche opportunities are required for `PORTFOLIO_COMPARABLE`. Expert priority remains empty until a later append-only V2 command records it.
 
 ## Commercial UI/UX controls
 
@@ -108,7 +104,7 @@ Agent-preview visual inspection was attempted after the server became healthy, b
 
 ## Exact next action
 
-Implement Slice 3: an append-only, identity-bound expert hypothesis intake contract and UI. `SUBMIT_NICHE_HYPOTHESIS` must capture assumptions, rationale and winning thesis, then enter the same research pipeline as system discoveries. It must not grant comparison eligibility, expert priority, selection, commitment or Channel Strategy authority.
+Checkpoint Slice 3.1, then implement Slice 4 as the permanent Evidence Intelligence & Validation feature. It must create versioned research plans and separately approved bounded validation for typed niche opportunities only.
 
 ## Protected scope
 

@@ -42,10 +42,11 @@ Niche research champion, expert decision and committed channel niche are separat
 - Niche Opportunity Portfolio V2 Slice 1 is implemented as an unrouted executable contract. It replaces the future product decision shape—not historical V1 records—with a comparable niche list, three separate decision axes, hard prerequisites, explicit Conditions to Win and symmetric expert/system hypothesis validation. Ledger: `docs/continuity/16_NICHE_OPPORTUNITY_PORTFOLIO_V2.md`.
 - Slice 2 adds the read-only `NICHE_PORTFOLIO_PROJECTION_V2`, `GET /api/factory/niche-portfolio` and the commercial `/niche-discovery` comparison surface. The compatibility bridge exposes missing V2 facts rather than fabricating them. Ledger: `docs/continuity/17_NICHE_PORTFOLIO_READ_ONLY_PROJECTION.md`.
 - Slice 3 routes only `SUBMIT_NICHE_HYPOTHESIS`: SIWC identity, server allowlist, idempotency, optimistic versions, append-only hypothesis/audit/lineage and zero provider spend. The portfolio renders expert assumptions separately from evidence and keeps the input unranked and research-required. Ledger: `docs/continuity/18_NICHE_EXPERT_HYPOTHESIS_INTAKE.md`.
+- Slice 3.1 repairs entity granularity: only typed niche opportunities enter Niche Discovery; legacy V1 video-topic candidates are preserved under Channel Studio/Content Planning and cannot receive a niche rank. Ledger: `docs/continuity/19_NICHE_IDENTITY_GRANULARITY_REPAIR.md`.
 
 ## Exact next product action
 
-Implement Slice 4: bounded evidence validation and expert evidence review for system-discovered and expert-seeded hypotheses. Provider dispatch requires a separately approved research plan, source/spend ceilings and idempotent execution; no automatic comparison eligibility or downstream commitment.
+Checkpoint Slice 3.1, then implement Slice 4 as the permanent Evidence Intelligence & Validation feature for typed niche opportunities. Provider dispatch requires a separately approved research plan, source/spend ceilings and idempotent execution; no automatic comparison eligibility or downstream commitment. Slices 5–8 remain permanent tool capabilities.
 
 ## Protected scope
 

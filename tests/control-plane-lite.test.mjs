@@ -76,7 +76,10 @@ test("intelligence and niche discovery keep evidence readiness separate from exp
   assert.match(nichePortfolioV2, /activation: "DECLARED_NOT_ROUTED"/);
   assert.match(nichePortfolioRoute, /cache-control": "no-store"/);
   assert.doesNotMatch(nichePortfolioRoute, /export async function (POST|PATCH|DELETE)/);
-  assert.match(nichePortfolioProjection, /CANONICAL_V7_WITH_EXPERT_HYPOTHESIS_APPEND/);
+  assert.match(nichePortfolioProjection, /NICHE_OPPORTUNITY_ONLY_WITH_EXPERT_HYPOTHESIS_APPEND/);
+  assert.match(nichePortfolioProjection, /stage01\.nicheOpportunities/);
+  assert.match(nichePortfolioProjection, /LEGACY|excludedLegacyContentTopics/);
+  assert.doesNotMatch(nichePortfolioProjection, /CANONICAL_V1_CANDIDATE_ORDER/);
   assert.match(nichePortfolioProjection, /totalScore: null/);
   assert.match(nichePortfolioProjection, /hypothesisAppend: true/);
   assert.match(nichePortfolioProjection, /comparisonMutation: false/);

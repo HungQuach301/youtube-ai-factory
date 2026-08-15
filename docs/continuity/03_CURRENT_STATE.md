@@ -21,17 +21,18 @@ NEXT_ACTION = CONTINUITY_HARDENING_THEN_MOTION_PROOF
 
 ```text
 NICHE_PORTFOLIO_PROGRAM = V2
-NICHE_PORTFOLIO_SLICE = 03_EXPERT_HYPOTHESIS_INTAKE
+NICHE_PORTFOLIO_SLICE = 03_1_NICHE_IDENTITY_GRANULARITY_REPAIR
 NICHE_PORTFOLIO_SLICE_01 = IMPLEMENTED_NOT_ROUTED
 NICHE_PORTFOLIO_SLICE_02 = IMPLEMENTED_READ_ONLY
 NICHE_PORTFOLIO_SLICE_03 = IMPLEMENTED_ZERO_SPEND_APPEND
-NICHE_PORTFOLIO_NEXT = SLICE_04_BOUNDED_EVIDENCE_VALIDATION
+NICHE_PORTFOLIO_SLICE_03_1 = IMPLEMENTED_PENDING_CHECKPOINT
+NICHE_PORTFOLIO_NEXT = SLICE_04_EVIDENCE_INTELLIGENCE_VALIDATION_CAPABILITY
 V2_PROVIDER_REQUESTS = 0
 V2_SPEND_USD = 0
 CHANNEL_STRATEGY_GATE = BLOCKED
 ```
 
-Document 16 is authoritative for the new niche portfolio decision shape. The legacy research-champion workflow remains compatibility evidence and must not be mistaken for V2 expert prioritization.
+Documents 16 and 19 are authoritative for the niche decision shape and entity boundary. Legacy Stage 01 candidates are video-topic compatibility evidence and must not be mistaken for niche opportunities or V2 expert prioritization. Slices 4–8 are permanent product capabilities, not one-time implementation steps.
 
 ## Open evidence issues
 

@@ -34,6 +34,8 @@ export type PortfolioCompetitor = {
 };
 
 export type NicheOpportunityProjection = {
+  entityType: "NICHE_OPPORTUNITY";
+  provenance: "V2_SYSTEM_DISCOVERY" | "EXPERT_HYPOTHESIS_APPEND";
   opportunityId: string;
   channel: { id: string; name: string; market: string; language: string };
   program: { id: string; version: number };
@@ -45,7 +47,7 @@ export type NicheOpportunityProjection = {
   lifecycleState: "EVIDENCE_GATHERING" | "COMPARABLE" | "EXPERT_PRIORITIZED";
   eligibility: "ELIGIBLE" | "BLOCKED_BY_PREREQUISITE" | "RESEARCH_REQUIRED";
   systemRank: number | null;
-  systemRankBasis: "CANONICAL_V1_CANDIDATE_ORDER" | "UNRANKED_EXPERT_HYPOTHESIS";
+  systemRankBasis: "V2_SYSTEM_DISCOVERY" | "UNRANKED_EXPERT_HYPOTHESIS";
   expertPriority: number | null;
   expertPriorityBasis: "RECORDED_IN_SOURCE" | "NOT_RECORDED";
   axes: {
@@ -53,7 +55,6 @@ export type NicheOpportunityProjection = {
     abilityToWin: PortfolioAxis;
     evidenceConfidence: PortfolioAxis;
   };
-  legacyScore: number | null;
   hypothesis: {
     version: number | null;
     rationale: string | null;
@@ -103,15 +104,15 @@ export type NichePortfolioProjection = {
   contract: "NICHE_PORTFOLIO_PROJECTION_V2";
   policyVersion: "NICHE_OPPORTUNITY_POLICY_V2";
   generatedAt: string;
-  sourceState: "CANONICAL_V7_WITH_EXPERT_HYPOTHESIS_APPEND";
+  sourceState: "NICHE_OPPORTUNITY_ONLY_WITH_EXPERT_HYPOTHESIS_APPEND";
   scope: { mode: "PORTFOLIO" | "CHANNEL"; channelId: string | null };
   channels: Array<{ id: string; name: string; market: string; language: string }>;
   intakeContexts: Array<{ channelId: string; channelName: string; programId: string; aggregateVersion: number; expectedHypothesisVersion: number }>;
   decisionState: "RESEARCH_IN_PROGRESS" | "PORTFOLIO_COMPARABLE" | "EXPERT_PRIORITIZATION_RECORDED";
-  summary: { opportunities: number; comparable: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number };
+  summary: { opportunities: number; comparable: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number; excludedLegacyContentTopics: number };
   comparison: NicheOpportunityProjection[];
   rankingPolicy: {
-    systemRank: "CANONICAL_V1_CANDIDATE_ORDER_WITH_UNRANKED_EXPERT_INPUTS";
+    systemRank: "V2_NICHE_OPPORTUNITY_EVIDENCE_ORDER_WITH_UNRANKED_EXPERT_INPUTS";
     expertPriority: "SEPARATE_VERSIONED_FACT";
     totalScore: null;
     note: string;

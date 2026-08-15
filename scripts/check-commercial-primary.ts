@@ -16,6 +16,27 @@ const stage01 = {
   targetLanguage: "English",
   topicClusters: [{ title: "Invisible payment rails", demandSignal: "Recurring questions about hidden transaction fees", growthSignal: "Digital payment adoption keeps the system relevant" }],
   audienceSegments: [{ title: "Curious professionals", characteristics: ["Time poor", "Financially curious"], needs: ["System-level clarity"], preferences: ["Evidence-led visual explanations"], pains: ["Fragmented financial explanations"], jobsToBeDone: ["Understand incentives before making decisions"] }],
+  nicheOpportunities: [{
+    entityType: "NICHE_OPPORTUNITY", opportunityId: "niche-money-systems", title: "Hidden systems shaping everyday money decisions",
+    description: "A bounded US-market channel territory for evidence-led explanations of invisible financial systems.", viewerPromise: "Understand the system before making a costly money decision.", centralQuestion: "Which invisible financial systems repeatedly shape household outcomes?", contentTerritories: ["Payments", "Credit", "Pricing incentives"],
+    audienceSegments: [{ title: "Time-poor curious professionals", characteristics: ["Time poor", "Financially curious"], needs: ["System-level clarity"], preferences: ["Evidence-led visual explanations"], pains: ["Fragmented financial explanations"], jobsToBeDone: ["Understand incentives before making decisions"] }],
+    competitors: [{ title: "Reference channel A", strengths: ["Large audience"], weaknesses: ["Shallow source disclosure"], defensibility: ["Established brand"], contentAdvantages: ["Strong hooks"], exploitableGaps: ["End-to-end incentive tracing"] }],
+    scorecard: { marketAttractiveness: { score: 90 }, abilityToWin: { score: 84 }, evidenceConfidence: { score: 86 } },
+    marketPotential: { targetMarket: "United States", demandSignals: ["Stable demand for system explanations"], growthSignals: ["Financial products keep increasing in complexity"], monetizationPaths: ["YouTube ads", "Financial education sponsorship"], saturationRisks: ["Large personal-finance incumbents"] },
+    researchPlan: { supportingQuestions: ["Which demand signals are durable?"], contradictingQuestions: ["Which evidence would falsify the opportunity?"], unknownQuestions: ["Which segment has the strongest repeat intent?"] },
+    prerequisites: [{ label: "Primary-source research", status: "PASS", gap: 0, rationale: "Money claims require defensible sources.", closingAction: "Maintain source rubric", proofMethod: "Pilot scripts pass source audit" }],
+    winningCriteria: [{ label: "Evidence-led system storytelling", status: "GAP", gap: 12, rationale: "Depth must be repeatable.", closingAction: "Pilot three repeatable formats", proofMethod: "Retention and trust targets pass" }],
+  }, {
+    entityType: "NICHE_OPPORTUNITY", opportunityId: "niche-credit-incentives", title: "Consumer credit incentives for first-generation wealth builders",
+    description: "A bounded US-market channel territory revealing how credit-product incentives affect first-generation wealth builders.", viewerPromise: "See who benefits from each credit design before choosing a product.", centralQuestion: "How do recurring credit incentives shape first-generation wealth decisions?", contentTerritories: ["Credit products", "Risk pricing", "Household behavior"],
+    audienceSegments: [{ title: "First-generation wealth builders", characteristics: ["Digitally active", "Building financial confidence"], needs: ["Product-incentive clarity"], preferences: ["Concrete visual comparisons"], pains: ["Advice without system context"], jobsToBeDone: ["Choose credit products with fewer hidden tradeoffs"] }],
+    competitors: [{ title: "Advice-led finance channels", strengths: ["High publishing cadence"], weaknesses: ["Limited incentive tracing"], defensibility: ["Established distribution"], contentAdvantages: ["Actionable tips"], exploitableGaps: ["Cross-party incentive maps"] }],
+    scorecard: { marketAttractiveness: { score: 86 }, abilityToWin: { score: 89 }, evidenceConfidence: { score: 82 } },
+    marketPotential: { targetMarket: "United States", demandSignals: ["Persistent credit-product questions"], growthSignals: ["Consumer credit choices remain complex"], monetizationPaths: ["YouTube ads"], saturationRisks: ["Advice-heavy incumbents"] },
+    researchPlan: { supportingQuestions: ["What proves recurring audience demand?"], contradictingQuestions: ["Where are competitors already complete?"], unknownQuestions: ["Which format best reveals incentives?"] },
+    prerequisites: [{ label: "Controlled financial claims", status: "PASS", gap: 0, proofMethod: "Zero unsupported P0 claims" }],
+    winningCriteria: [{ label: "Cross-party incentive maps", status: "PASS", gap: 0, proofMethod: "Pilot comprehension score passes" }],
+  }],
   candidates: [{
     title: "The Hidden Cost of Convenience",
     centralQuestion: "Who pays when a transaction feels free?",
@@ -195,8 +216,9 @@ assert.ok(discovery.workflow.result?.commandContracts.every((command) => command
 
 const nichePortfolio = await nichePortfolioProjection("channel-1", database);
 assert.equal(nichePortfolio.contract, "NICHE_PORTFOLIO_PROJECTION_V2");
-assert.equal(nichePortfolio.sourceState, "CANONICAL_V7_WITH_EXPERT_HYPOTHESIS_APPEND");
+assert.equal(nichePortfolio.sourceState, "NICHE_OPPORTUNITY_ONLY_WITH_EXPERT_HYPOTHESIS_APPEND");
 assert.equal(nichePortfolio.summary.opportunities, 2);
+assert.equal(nichePortfolio.summary.excludedLegacyContentTopics, 2);
 assert.equal(nichePortfolio.summary.comparable, 2);
 assert.equal(nichePortfolio.decisionState, "PORTFOLIO_COMPARABLE");
 assert.equal(nichePortfolio.rankingPolicy.totalScore, null);
@@ -206,9 +228,22 @@ assert.equal(nichePortfolio.comparison[0].competitors[0].strengths[0], "Large au
 assert.equal(nichePortfolio.comparison[0].prerequisites[0].status, "PASS");
 assert.equal(nichePortfolio.comparison[0].winningCriteria.length, 1);
 assert.equal(nichePortfolio.comparison[0].expertPriority, null);
+assert.ok(nichePortfolio.comparison.every((item) => item.entityType === "NICHE_OPPORTUNITY" && item.provenance === "V2_SYSTEM_DISCOVERY"));
+assert.ok(nichePortfolio.comparison.every((item) => !stage01.candidates.some((topic) => topic.title === item.title)));
 assert.equal(nichePortfolio.authority.v2Commands, "SUBMIT_NICHE_HYPOTHESIS_ROUTED_ZERO_SPEND");
 assert.deepEqual({ providerRequests: nichePortfolio.authority.providerRequests, spendUsd: nichePortfolio.authority.spendUsd, hypothesisAppend: nichePortfolio.authority.hypothesisAppend, comparisonMutation: nichePortfolio.authority.comparisonMutation }, { providerRequests: 0, spendUsd: 0, hypothesisAppend: true, comparisonMutation: false });
 assert.equal(nichePortfolio.downstreamGate.state, "BLOCKED");
+const stage01Artifact = tables.v7_intelligence_artifacts.find((row) => row.id === "artifact-01");
+assert.ok(stage01Artifact);
+const stage01ArtifactJson = String(stage01Artifact.content_json);
+const topicOnlyArtifact = JSON.parse(stage01ArtifactJson) as Record<string, unknown>;
+delete topicOnlyArtifact.nicheOpportunities;
+stage01Artifact.content_json = JSON.stringify(topicOnlyArtifact);
+const topicOnlyPortfolio = await nichePortfolioProjection("channel-1", database);
+assert.equal(topicOnlyPortfolio.summary.opportunities, 0);
+assert.equal(topicOnlyPortfolio.summary.excludedLegacyContentTopics, 2);
+assert.equal(topicOnlyPortfolio.decisionState, "RESEARCH_IN_PROGRESS");
+stage01Artifact.content_json = stage01ArtifactJson;
 
 const hypothesisBody = {
   channelId: "channel-1", programId: "program-1", expectedAggregateVersion: 7, expectedHypothesisVersion: 0,
@@ -298,7 +333,10 @@ assert.equal(studio.summary.PLANNED, 1);
 assert.equal(studio.summary.TERMINAL, 1);
 assert.equal(studio.strategy.state, "CANONICAL_AGGREGATE_NOT_IMPLEMENTED");
 assert.equal(studio.productionHandoff.state, "COMMAND_NOT_AUTHORIZED");
-assert.notEqual(studio.nicheDecision.currentNiche, studio.nicheDecision.recommendation);
+assert.equal(studio.legacyTopicCandidates.length, 2);
+assert.ok(studio.legacyTopicCandidates.every((item) => item.entityType === "VIDEO_TOPIC_CANDIDATE" && item.provenance === "LEGACY_V1_VIDEO_TOPIC_CANDIDATE"));
+assert.equal(studio.contentResearchChampion?.title, stage01.champion.title);
+assert.notEqual(studio.nicheDecision.currentNiche, studio.contentResearchChampion?.title);
 
 for (const projection of [
   () => channelProjection("missing", database),

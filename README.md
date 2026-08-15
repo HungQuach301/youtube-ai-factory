@@ -17,9 +17,11 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 - Niche Portfolio V2 Slice 1: the executable contract now requires a comparable list of opportunities, symmetric system/expert hypothesis validation, independent Market Attractiveness / Ability to Win / Evidence Confidence axes, hard prerequisites and explicit Conditions to Win. All V2 commands remain unrouted and zero-spend.
 - Niche Portfolio V2 Slice 2: `/niche-discovery` provides a side-by-side portfolio matrix and expandable market, audience, competitor, evidence and Conditions to Win dossiers. Missing V2 facts remain explicitly `Not recorded`; no legacy score is silently converted into a V2 axis.
 - Niche Portfolio V2 Slice 3: an authorized expert can append a niche hypothesis with explicit rationale, audience/demand assumptions, known competitors and winning thesis. It enters the portfolio unranked and research-required; the command is identity-bound, versioned, idempotent, audited, zero-spend and cannot set priority, select, commit or activate Channel Strategy.
+- Slice 3.1 identity repair: Niche Discovery now accepts only typed `NICHE_OPPORTUNITY` records. Legacy V1 video topics are excluded from niche ranking and preserved in Channel Studio/Content Planning with explicit provenance.
+- Product roadmap: Slices 4–8 are permanent product capabilities—Evidence Intelligence & Validation, Portfolio Comparison, Expert Prioritization, Niche Commitment & Governance, and Channel Strategy Activation—not one-time delivery tasks.
 - Commercial UI/UX acceptance remains pending for the canonically blocked decision-form browser/assistive/Web Vitals evidence listed in Document 11. Production now reports 6/7 readiness criteria passed; only `CONTRADICTIONS_REVIEWED` is missing.
 
-Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–18 before continuing in a new chat.
+Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–19 before continuing in a new chat.
 
 ## Runtime foundation
 

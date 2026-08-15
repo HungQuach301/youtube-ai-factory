@@ -2,7 +2,7 @@
 
 **Contract:** `NICHE_OPPORTUNITY_PORTFOLIO_V2`  
 **Policy:** `NICHE_OPPORTUNITY_POLICY_V2`  
-**Status:** `SLICE_3_EXPERT_HYPOTHESIS_INTAKE_IMPLEMENTED`
+**Status:** `SLICE_3_1_NICHE_IDENTITY_REPAIR_IMPLEMENTED_PENDING_CHECKPOINT`
 **Date:** 2026-08-15 (Asia/Bangkok)
 **Contract deployment:** Sites v295 / `022f72f4ee06703225e4520bcf83983f887fade4` / succeeded
 **Latest combined deployment:** Sites v299 / `a674e347731e226430c5a17956beacfb659833ff` / succeeded
@@ -56,6 +56,16 @@ Prerequisites are hard gates. High market attractiveness cannot compensate for a
 | `NicheOpportunity` | Versioned dossier joining the above facts for comparison |
 
 Source: `lib/niche-opportunity-portfolio-contract.ts`.
+
+## Entity granularity boundary
+
+The comparison unit is exactly one `NICHE_OPPORTUNITY`: a bounded market, a specific audience, a recurring need/problem, a distinct content promise, a scalable content territory, monetization potential, a competitor gap and an evidence-testable right to win.
+
+The hierarchy is:
+
+`MARKET → NICHE_OPPORTUNITY → CONTENT_PILLAR → SERIES_CONCEPT → VIDEO_TOPIC_CANDIDATE`
+
+No content pillar, series or video topic may be promoted into the niche comparison by score, title similarity or legacy research order. Historical Stage 01 `candidates` are `VIDEO_TOPIC_CANDIDATE` records and belong to Channel Studio/Content Planning. See Document 19.
 
 ## Lifecycle and command boundaries
 
@@ -114,9 +124,14 @@ No threshold, weight, policy, autonomy or spend ceiling promotes automatically. 
 | 1 | Niche Opportunity Contract V2, state machine, score/evidence/win-condition policy and contract tests | implemented |
 | 2 | Read-only Niche Portfolio projection and commercial comparison UI | implemented |
 | 3 | Expert hypothesis intake with append-only identity/version contract | implemented |
-| 4 | Bounded evidence validation and review | next |
-| 5 | Expert priority ordering and rationale capture | pending |
-| 6 | Pilot, selection, commitment and separate Channel Strategy activation | pending |
+| 3.1 | Niche identity/granularity repair and legacy topic isolation | implemented pending checkpoint |
+| 4 | Evidence Intelligence & Validation capability | next |
+| 5 | Evidence-backed Niche Portfolio Comparison capability | pending |
+| 6 | Expert Prioritization Workspace capability | pending |
+| 7 | Niche Commitment & Governance capability | pending |
+| 8 | Channel Strategy Activation capability | pending |
+
+Slices 4–8 are permanent, operator-facing capabilities of the commercial tool. They require durable data contracts, APIs/domain services, commercial UI, audit/evidence lineage, automation boundaries, expert authority, metrics and governed continuous-improvement signals. They are not one-time project activities, documents or manual acceptance steps.
 
 ## Slice 1 acceptance evidence
 
@@ -135,7 +150,7 @@ Continuous gate: `npm run check:niche-portfolio-v2`, executed by every verified 
 
 ## Exact next action
 
-Implement Slice 4 as bounded evidence validation and expert evidence review. System-discovered and expert-seeded hypotheses must share the same support, contradiction and unknown workflow. Provider execution requires an approved plan, explicit source/spend ceilings and idempotency; validation alone must not grant comparison eligibility, priority, selection, commitment or Channel Strategy activation.
+After the Slice 3.1 checkpoint, implement Slice 4 as the permanent Evidence Intelligence & Validation feature. System-discovered and expert-seeded hypotheses must share the same support, contradiction and unknown workflow. Provider execution requires an approved plan, explicit source/spend ceilings and idempotency; validation alone must not grant comparison eligibility, priority, selection, commitment or Channel Strategy activation.
 
 ## Protected scope
 
