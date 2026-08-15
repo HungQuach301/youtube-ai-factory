@@ -22,10 +22,12 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - User evidence: responsive behavior manually confirmed on 2026-08-15.
 - Pending evidence: browser hydration/rendering; recovery presentation; keyboard/focus; zoom/reflow; automated/manual accessibility; visual regression; Web Vitals and field telemetry.
 
-## Intelligence & Niche executable contract artifact
+## Intelligence & Niche executable workflow artifacts
 
 - Durable ledger: `docs/continuity/12_INTELLIGENCE_NICHE_EXECUTABLE_CONTRACT.md`.
+- GET projection ledger: `docs/continuity/13_INTELLIGENCE_NICHE_GET_WORKFLOW_PROJECTION.md`.
 - Contract/policy: `INTELLIGENCE_NICHE_WORKFLOW_V1` / `INTELLIGENCE_NICHE_POLICY_V1`.
 - Continuous gate: eight lifecycle paths with version, expert, evidence, champion-target and channel-isolation controls.
 - Authority: all typed commands are `DECLARED_NOT_ROUTED`, provider requests `0`, spend USD `0`.
-- Next action: GET-only compiler integration; no command route, migration or deploy.
+- GET integration: canonical program/run/candidate/evidence versions, strict expert binding and Channel Strategy gate are projected without mutation.
+- Next action: dedicated identity-bound expert-decision aggregate and command boundary; migration inspection required before database mutation.

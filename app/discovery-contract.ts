@@ -1,3 +1,5 @@
+import type { IntelligenceNicheWorkflowResult } from "@/lib/intelligence-niche-workflow-contract";
+
 export type DiscoveryCandidate = {
   id: string;
   title: string;
@@ -22,6 +24,13 @@ export type DiscoveryProjection = {
   audience: { segments: Array<Record<string, unknown>> };
   competitors: { references: Array<Record<string, unknown>>; patterns: string[]; gaps: string | null; antiCloneControls: string[] };
   niche: { currentNiche: string | null; researchChampion: string | null; candidates: DiscoveryCandidate[]; decisionAuthority: "OWNER_EXPERT_REQUIRED" };
+  workflow: {
+    contract: "DISCOVERY_WORKFLOW_PROJECTION_V1";
+    scopeState: "CHANNEL_SCOPE_REQUIRED" | "CANONICAL_PREREQUISITES_MISSING" | "DECISION_RECONCILIATION_REQUIRED" | "COMPILED";
+    decisionBinding: "NOT_APPLICABLE" | "NO_VERSION_BOUND_EXPERT_DECISION" | "VERSION_BOUND_EXPERT_DECISION" | "INVALID_VERSION_BOUND_EXPERT_DECISION";
+    result: IntelligenceNicheWorkflowResult | null;
+    blockers: string[];
+  };
   evidence: { artifactCount: number; frozenStage01: boolean; verifiedSources: number; primarySources: number; claims: number; p0Claims: number; runs: number; lineageIds: string[] };
   integrity: { state: "READY" | "RECONCILIATION_REQUIRED"; notes: string[] };
 };

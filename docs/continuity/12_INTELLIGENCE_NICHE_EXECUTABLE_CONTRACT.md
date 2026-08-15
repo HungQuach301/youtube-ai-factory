@@ -2,7 +2,7 @@
 
 **Contract:** `INTELLIGENCE_NICHE_WORKFLOW_V1`  
 **Policy:** `INTELLIGENCE_NICHE_POLICY_V1`  
-**Status:** `CONTRACT_IMPLEMENTED_ZERO_SPEND_NOT_ROUTED`  
+**Status:** `CONTRACT_AND_GET_PROJECTION_IMPLEMENTED_ZERO_SPEND_NOT_ROUTED`
 **Source baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`  
 **Deployment:** not deployed
 
@@ -139,7 +139,7 @@ Each material expert intervention must emit at least one reusable rule, rubric a
 
 ## Exact next action
 
-Integrate this compiler into a GET-only workflow projection using canonical Discovery data and expose the derived state/readiness/downstream gate on the existing read surfaces. Do not route any command, create a migration, deploy or dispatch a provider. Browser acceptance resumes separately when the approved browser surface is reachable.
+The GET-only compiler integration is complete; see `docs/continuity/13_INTELLIGENCE_NICHE_GET_WORKFLOW_PROJECTION.md`. After its production checkpoint is verified, implement the dedicated identity-bound owner/expert decision aggregate and command boundary. Generate and inspect its migration before any database change. Do not infer commitment from legacy rows, route a provider or couple niche acceptance directly to Channel Strategy activation.
 
 ## Protected scope
 

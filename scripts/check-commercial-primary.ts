@@ -23,6 +23,7 @@ const stage01 = {
     score: 91,
   }],
   champion: { title: "The Hidden Cost of Convenience", risks: ["Avoid unsupported fee claims"] },
+  contradictionsReviewed: true,
 };
 
 const stage02 = {
@@ -38,7 +39,7 @@ const tables: Record<string, Row[]> = {
     { id: "video-1", channel_id: "channel-1", title: "Why Free Payments Are Not Free", pillar: "Payment rails", status: "PLANNED", opportunity_score: 91, progress: 40, budget_usd: 10, spent_usd: 2, next_action: "Freeze editorial brief", updated_at: "2026-08-14T00:00:00.000Z" },
     { id: "video-2", channel_id: "channel-1", title: "The Settlement Clock", pillar: "Payment rails", status: "COMPLETE", opportunity_score: 88, progress: 100, budget_usd: 8, spent_usd: 7, next_action: "Measure learning", updated_at: "2026-08-13T00:00:00.000Z" },
   ],
-  v7_program_contracts: [{ id: "program-1", channel_id: "channel-1", status: "STAGE_09_MOTION_PROOF_REQUIRED", execution_mode: "CONTROLLED", quality_policy: "UNIVERSAL_QUALITY_GATE", production_authorized: 0, overall_floor: 90, critical_floor: 90, dimension_floor: 80, p0_tolerance: 0, p1_tolerance: 0, updated_at: "2026-08-14T00:00:00.000Z" }],
+  v7_program_contracts: [{ id: "program-1", channel_id: "channel-1", version: 7, status: "STAGE_09_MOTION_PROOF_REQUIRED", execution_mode: "CONTROLLED", quality_policy: "UNIVERSAL_QUALITY_GATE", production_authorized: 0, overall_floor: 90, critical_floor: 90, dimension_floor: 80, p0_tolerance: 0, p1_tolerance: 0, updated_at: "2026-08-14T00:00:00.000Z" }],
   v7_stage_states: [
     { program_id: "program-1", stage_key: "01", sequence: 1, stage_name: "Market and audience intelligence", status: "FROZEN", threshold: 85, attempt: 1, artifact_id: "artifact-01", blocker: null, evidence_summary: "Evidence frozen", frozen_at: "2026-08-10T00:00:00.000Z", updated_at: "2026-08-10T00:00:00.000Z" },
     { program_id: "program-1", stage_key: "09", sequence: 9, stage_name: "Material production", status: "MOTION_PROOF_REQUIRED", threshold: 92, attempt: 1, artifact_id: null, blocker: "Motion proof required", evidence_summary: "Production remains locked", frozen_at: null, updated_at: "2026-08-14T00:00:00.000Z" },
@@ -51,7 +52,7 @@ const tables: Record<string, Row[]> = {
   ],
   v7_intelligence_sources: Array.from({ length: 10 }, (_, index) => ({ id: `source-${index + 1}`, program_id: "program-1", stage_key: "01", authority_tier: index < 4 ? "TIER_1_PRIMARY" : "TIER_2_AUTHORITY", verification_state: "VERIFIED" })),
   v7_claim_nodes: [{ id: "claim-1", program_id: "program-1", claim_class: "SYSTEM_FACT", risk_level: "P0", status: "VERIFIED" }],
-  v7_intelligence_runs: [{ id: "run-01", program_id: "program-1", stage_key: "01", status: "PASS", score: 91, threshold: 85, started_at: "2026-08-10T00:00:00.000Z", completed_at: "2026-08-10T01:00:00.000Z" }],
+  v7_intelligence_runs: [{ id: "run-01", program_id: "program-1", stage_key: "01", attempt: 4, status: "PASS", score: 91, threshold: 85, started_at: "2026-08-10T00:00:00.000Z", completed_at: "2026-08-10T01:00:00.000Z" }],
   v7_evidence_lineage: [{ id: "lineage-1", program_id: "program-1", project_id: "video-1", entity_type: "INTELLIGENCE", title: "Stage 01 evidence", lifecycle_state: "FROZEN", storage_state: "D1_STORED", rights_state: "VERIFIED", cost_state: "RECORDED", quarantine_state: "CLEAR", updated_at: "2026-08-10T00:00:00.000Z" }],
   v7_asset_registry: [{ id: "asset-1", program_id: "program-1", project_id: "video-1", name: "Owned diagram", asset_class: "OWNED_MOTION", lifecycle_state: "VERIFIED", sync_state: "SYNCED", rights_state: "OWNED", quarantined: 0, cost_usd: 0, updated_at: "2026-08-12T00:00:00.000Z" }],
   v7_decision_records: [{ id: "decision-1", program_id: "program-1", decision_code: "NICHE_REVIEW", title: "Owner niche review", status: "PENDING_OWNER", effective_version: null, rationale: "Research recommendation is not a commitment", created_at: "2026-08-12T00:00:00.000Z" }],
@@ -100,6 +101,30 @@ assert.equal(discovery.evidence.verifiedSources, 10);
 assert.equal(discovery.niche.candidates[0].readiness, "EVIDENCE_READY_EXPERT_DECISION_REQUIRED");
 assert.equal(discovery.niche.decisionAuthority, "OWNER_EXPERT_REQUIRED");
 assert.notEqual(discovery.niche.currentNiche, discovery.niche.researchChampion);
+assert.equal(discovery.workflow.scopeState, "COMPILED");
+assert.equal(discovery.workflow.decisionBinding, "NO_VERSION_BOUND_EXPERT_DECISION");
+assert.equal(discovery.workflow.result?.aggregate.version, 7);
+assert.equal(discovery.workflow.result?.recommendation?.candidateVersion, 4);
+assert.equal(discovery.workflow.result?.state, "EXPERT_DECISION_REQUIRED");
+assert.equal(discovery.workflow.result?.downstreamGate.state, "BLOCKED");
+assert.ok(discovery.workflow.result?.commandContracts.every((command) => command.activation === "DECLARED_NOT_ROUTED" && command.ceilings.providerRequests === 0 && command.ceilings.spendUsd === 0));
+
+tables.v7_decision_records.unshift({
+  id: "decision-accept-1", program_id: "program-1", decision_code: "NICHE_EXPERT_DECISION_V1", status: "ACCEPT", effective_version: 7,
+  rationale: JSON.stringify({ channelId: "channel-1", candidateId: "artifact-01:1", candidateVersion: 4, evidenceVersion: 4, rationale: "Evidence and differentiation reviewed.", reusableAsset: { type: "RUBRIC_ANCHOR", summary: "Prefer system-level differentiation with explicit factual-risk controls." } }),
+  created_at: "2026-08-15T00:00:00.000Z",
+});
+const acceptedDiscovery = await discoveryProjection("channel-1", database);
+assert.equal(acceptedDiscovery.workflow.decisionBinding, "VERSION_BOUND_EXPERT_DECISION");
+assert.equal(acceptedDiscovery.workflow.result?.state, "NICHE_ACCEPTED");
+assert.equal(acceptedDiscovery.workflow.result?.downstreamGate.state, "READY_FOR_TYPED_HANDOFF");
+tables.v7_decision_records[0].effective_version = 6;
+const staleAggregateDecision = await discoveryProjection("channel-1", database);
+assert.equal(staleAggregateDecision.workflow.scopeState, "DECISION_RECONCILIATION_REQUIRED");
+assert.equal(staleAggregateDecision.workflow.decisionBinding, "INVALID_VERSION_BOUND_EXPERT_DECISION");
+assert.equal(staleAggregateDecision.workflow.result?.state, "EXPERT_DECISION_REQUIRED");
+assert.equal(staleAggregateDecision.workflow.result?.downstreamGate.state, "BLOCKED");
+tables.v7_decision_records.shift();
 
 const studio = await channelStudioProjection("channel-1", database);
 assert.equal(studio.contract, "CHANNEL_STUDIO_PROJECTION_V1");
