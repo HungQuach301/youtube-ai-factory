@@ -4,7 +4,7 @@
 **Run date:** 2026-08-15 (Asia/Bangkok)  
 **Source baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`  
 **Status:** `COMMERCIAL_UI_REVIEW_PENDING`  
-**Deployment:** not deployed
+**Deployment:** Sites v291 / `4cd4162742795dffb52f307e65295c6293ff0a18` / succeeded
 
 ## Scope
 
@@ -13,7 +13,7 @@
 3. Market Intelligence and Niche Discovery.
 4. Channel Studio.
 
-The protected V7/V23 Video Production Engine was not redesigned and no command authority was added.
+The protected V7/V23 Video Production Engine was not redesigned. The only added authority is the zero-spend, SIWC-authenticated niche expert-decision command.
 
 ## Repairs completed
 
@@ -32,26 +32,27 @@ The protected V7/V23 Video Production Engine was not redesigned and no command a
 ## Evidence passed
 
 - Targeted ESLint on changed TypeScript/TSX: pass.
-- Async API error boundaries: 29/29.
+- Async API error boundaries: 30/30.
 - Production build: pass.
 - Sites artifact validation: pass.
 - Full regression suite: 95/95.
 - User manual confirmation on 2026-08-15: responsive behavior is present.
-- Commercial UI static contract: 14/14 automated checks; enforced by every verified build.
+- Commercial UI static contract: 19/19 automated checks; enforced by every verified build.
 - Canonical-data primary projection contract: pass for Portfolio, Channel Detail, Discovery and Channel Studio; enforced by every verified build.
 - The primary projection gate verifies structured data mapping, missing-channel errors, recommendation versus expert-decision separation and blocked production command authority.
 - Commercial client artifact budgets: pass; enforced by every verified build.
 - Built-worker rendered contract: 4/4 commercial page routes return HTTP 200 HTML with language, title, one main landmark, skip-link target, one active navigation item, H1, assistive loading state, no positive tabindex and no duplicate IDs.
 - Fail-closed recovery contract: 4/4 canonical APIs return HTTP 503 JSON, `no-store`, `fallback: false` and an explicit reason when canonical bindings are unavailable.
-- Lab server-render budget: pass; slowest route `/` at 75.6 ms / 500 ms.
+- SIWC command recovery contract: missing identity returns typed HTTP 401, `no-store`, provider requests `0` and spend USD `0`.
+- Lab server-render budget: pass; slowest route `/` at 55.3 ms / 500 ms on the v291 checkpoint build.
 - Blank Suspense fallback scan across Intelligence, Niche Discovery and Channel Studio: zero.
-- Largest shared client CSS: 52,973 bytes gzip / 60,000 budget.
-- Largest page JavaScript chunk: 46,387 bytes gzip / 50,000 budget.
-- Total client JavaScript and CSS: 283,383 bytes gzip / 300,000 budget.
+- Largest shared client CSS: 53,621 bytes gzip / 60,000 budget.
+- Largest page JavaScript chunk: 46,388 bytes gzip / 50,000 budget.
+- Total client JavaScript and CSS: 285,814 bytes gzip / 300,000 budget.
 
 ## Evidence not yet available
 
-The supervised preview was healthy, but cloud-browser navigation timed out on both bounded attempts, including a fresh-tab recovery. This was classified as preview/browser infrastructure failure, not a verified Site defect. The user subsequently confirmed responsive behavior manually. The following gates remain open:
+The supervised v291 preview was reachable and the hydrated fail-closed canonical-D1 recovery surface rendered truthfully without demo fallback. The preview had no seeded canonical product data, so the evidence-ready decision form was not fabricated for visual acceptance. The user previously confirmed responsive behavior manually. The following gates remain open:
 
 - screenshot-based visual regression evidence;
 - zoom/reflow inspection in a rendered browser;
@@ -78,11 +79,11 @@ Recovery behavior remains fail-closed: projection failures expose canonical-stat
 
 ## Exact next action
 
-When the approved preview/browser surface is reachable, resume Document 27 at the remaining browser evidence gates only. Verify hydrated canonical-data rendering, browser recovery presentation, keyboard/focus, zoom/reflow, automated accessibility, sampled assistive technology, screenshot regression and Web Vitals. Do not repeat responsive or canonical projection verification unless its source changes. Repair only evidenced source defects, then rerun 29 boundaries, the 14-point commercial UI contract, canonical primary projection contract, rendered contract, build/artifact/performance budgets and 95 tests.
+Resume Document 27 at the remaining browser evidence gates only using canonical data: verify the decision form, keyboard/focus, zoom/reflow, automated accessibility, sampled assistive technology, screenshot regression and Web Vitals. Do not fabricate demo data or repeat responsive/canonical projection verification unless its source changes. Repair only evidenced source defects, then rerun 30 boundaries, the 19-point commercial UI contract, canonical primary projection/command contract, rendered contract, build/artifact/performance budgets and 95 tests.
 
 ## Protected scope
 
-- No deploy, production/database mutation, provider request or dispatch.
-- No production QA, migration, delete or command-authority expansion.
+- No production command beyond the bounded expert-decision append; no provider request or dispatch.
+- No production QA, additional migration, delete or command-authority expansion.
 - Do not rerun already-passed semantic/static acceptance unless source changes.
 - Do not claim commercial readiness while `COMMERCIAL_UI_REVIEW_PENDING` remains open.

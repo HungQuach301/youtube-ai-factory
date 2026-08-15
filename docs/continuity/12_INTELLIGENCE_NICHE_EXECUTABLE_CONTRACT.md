@@ -4,7 +4,7 @@
 **Policy:** `INTELLIGENCE_NICHE_POLICY_V1`  
 **Status:** `CONTRACT_GET_PROJECTION_AND_EXPERT_DECISION_COMMAND_IMPLEMENTED`
 **Source baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`  
-**Deployment:** not deployed
+**Deployment:** Sites v291 / `4cd4162742795dffb52f307e65295c6293ff0a18` / succeeded
 
 ## Outcome and scope
 

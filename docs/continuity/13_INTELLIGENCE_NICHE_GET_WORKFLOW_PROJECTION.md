@@ -4,6 +4,7 @@
 **Compiler:** `INTELLIGENCE_NICHE_WORKFLOW_V1`  
 **Source classification:** `RECONSTRUCTED_V1_INTELLIGENCE_NICHE_GET_PROJECTION_GUARD`  
 **Authority:** GET remains read-only; expert-decision command context is projected for the separately authorized zero-spend POST
+**Deployment:** Sites v291 / `4cd4162742795dffb52f307e65295c6293ff0a18` / succeeded
 
 ## Implemented outcome
 

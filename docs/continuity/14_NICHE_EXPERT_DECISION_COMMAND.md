@@ -6,6 +6,7 @@
 **Authority:** `OWNER_EXPERT`  
 **Execution ceiling:** one logical write, zero provider requests, USD 0  
 **Migration:** `drizzle/0030_niche_expert_decision_command.sql` — generated, renamed above the existing 0029 migration, inspected and regeneration-stable
+**Deployment:** Sites v291 / `4cd4162742795dffb52f307e65295c6293ff0a18` / succeeded / environment revision 21
 
 ## Bounded outcome
 

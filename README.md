@@ -6,13 +6,14 @@ This repository is the executable source for a multi-channel YouTube operating s
 
 V7/V23 remains the protected Video Production Engine beneath this portfolio architecture; it is not the top-level product shell.
 
-## Current local checkpoint
+## Current production checkpoint
 
-- Source baseline: Sites v289, commit `87dae74fffc9d7388152e532efcbae6387cdaed5`.
-- Reconstructed local slices: Canonical Shell, Channel Detail, Intelligence/Niche and Channel Studio (`RECONSTRUCTED_V1`).
-- Boundaries: GET-only, no-store, fail-closed, no demo fallback, no new mutation/provider/runtime-DDL authority.
-- Verification at reconstruction: 29/29 async API boundaries, targeted lint, production build/artifact validation and 95/95 tests.
-- Deployment state: not deployed; commercial UI/UX acceptance remains pending.
+- Deployed checkpoint: Sites v291, commit `4cd4162742795dffb52f307e65295c6293ff0a18`.
+- Product slices: Canonical Shell, Channel Detail, Intelligence/Niche and Channel Studio (`RECONSTRUCTED_V1`), plus the governed niche expert-decision command.
+- Boundaries: all projections remain no-store/fail-closed with no demo fallback; only `POST /api/factory/niche-decisions` has bounded zero-spend mutation authority.
+- Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only decision/audit/lineage. It does not mutate `channels.niche` or activate Channel Strategy.
+- Verification: 30/30 async API boundaries, 19/19 commercial UI contracts, targeted lint, production build/artifact/render/performance validation and 95/95 tests.
+- Commercial UI/UX acceptance remains pending only for the rendered browser/assistive/Web Vitals evidence listed in Document 11.
 
 Read `AGENTS.md` and `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` before continuing in a new chat.
 
