@@ -2,10 +2,10 @@
 
 **Contract:** `NICHE_OPPORTUNITY_PORTFOLIO_V2`  
 **Policy:** `NICHE_OPPORTUNITY_POLICY_V2`  
-**Status:** `SLICE_3_1_NICHE_IDENTITY_REPAIR_IMPLEMENTED_PENDING_CHECKPOINT`
+**Status:** `SLICE_3_1_NICHE_IDENTITY_REPAIR_PRODUCTION_DEPLOYED`
 **Date:** 2026-08-15 (Asia/Bangkok)
 **Contract deployment:** Sites v295 / `022f72f4ee06703225e4520bcf83983f887fade4` / succeeded
-**Latest combined deployment:** Sites v299 / `a674e347731e226430c5a17956beacfb659833ff` / succeeded
+**Latest combined deployment:** Sites v301 / `89b9a9ebcb152a498a60ba991debeca3ae43f236` / succeeded
 
 ## Business outcome
 
@@ -124,7 +124,7 @@ No threshold, weight, policy, autonomy or spend ceiling promotes automatically. 
 | 1 | Niche Opportunity Contract V2, state machine, score/evidence/win-condition policy and contract tests | implemented |
 | 2 | Read-only Niche Portfolio projection and commercial comparison UI | implemented |
 | 3 | Expert hypothesis intake with append-only identity/version contract | implemented |
-| 3.1 | Niche identity/granularity repair and legacy topic isolation | implemented pending checkpoint |
+| 3.1 | Niche identity/granularity repair and legacy topic isolation | production deployed |
 | 4 | Evidence Intelligence & Validation capability | next |
 | 5 | Evidence-backed Niche Portfolio Comparison capability | pending |
 | 6 | Expert Prioritization Workspace capability | pending |
@@ -150,7 +150,7 @@ Continuous gate: `npm run check:niche-portfolio-v2`, executed by every verified 
 
 ## Exact next action
 
-After the Slice 3.1 checkpoint, implement Slice 4 as the permanent Evidence Intelligence & Validation feature. System-discovered and expert-seeded hypotheses must share the same support, contradiction and unknown workflow. Provider execution requires an approved plan, explicit source/spend ceilings and idempotency; validation alone must not grant comparison eligibility, priority, selection, commitment or Channel Strategy activation.
+Implement Slice 4 as the permanent Evidence Intelligence & Validation feature. System-discovered and expert-seeded hypotheses must share the same support, contradiction and unknown workflow. Provider execution requires an approved plan, explicit source/spend ceilings and idempotency; validation alone must not grant comparison eligibility, priority, selection, commitment or Channel Strategy activation.
 
 ## Protected scope
 

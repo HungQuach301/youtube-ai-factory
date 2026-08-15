@@ -2,7 +2,7 @@
 
 **Classification:** `RECONSTRUCTED_V1_NICHE_EXPERT_DECISION_COMMAND_V1`
 **Baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`
-**Deployment:** Sites v299 / `a674e347731e226430c5a17956beacfb659833ff` / succeeded
+**Deployment:** Sites v301 / `89b9a9ebcb152a498a60ba991debeca3ae43f236` / succeeded
 **Commercial UI/UX:** semantic/static acceptance passed; rendered review pending
 
 ## Implemented source
@@ -18,7 +18,7 @@ Niche research champion, expert decision and committed channel niche are separat
 
 ## Verified acceptance
 
-- Async API boundary audit: 31/31.
+- Async API boundary audit: 32/32.
 - Targeted lint for all reconstructed source: pass.
 - Production build and Sites artifact validation: pass.
 - Full regression suite: 95/95.
@@ -26,7 +26,7 @@ Niche research champion, expert decision and committed channel niche are separat
 - Blank Suspense fallbacks in accepted slices: zero.
 - Commercial legibility, focus, touch-target, responsive and reduced-motion repair: complete in source.
 - Responsive behavior: manually confirmed by the user on 2026-08-15.
-- Commercial UI static contract: 26/26 and enforced during every verified build.
+- Commercial UI static contract: 33/33 and enforced during every verified build.
 - Canonical-data primary projection contract: Portfolio, Channel Detail, Discovery and Channel Studio pass with structured fixtures and enforced authority boundaries during every verified build.
 - Intelligence & Niche executable contract: eight fail-closed lifecycle paths pass; all typed commands are zero-spend and only the expert-decision command is routed.
 - Contract ledger: `docs/continuity/12_INTELLIGENCE_NICHE_EXECUTABLE_CONTRACT.md`.
@@ -46,7 +46,7 @@ Niche research champion, expert decision and committed channel niche are separat
 
 ## Exact next product action
 
-Checkpoint Slice 3.1, then implement Slice 4 as the permanent Evidence Intelligence & Validation feature for typed niche opportunities. Provider dispatch requires a separately approved research plan, source/spend ceilings and idempotent execution; no automatic comparison eligibility or downstream commitment. Slices 5–8 remain permanent tool capabilities.
+Implement Slice 4 as the permanent Evidence Intelligence & Validation feature for typed niche opportunities. Provider dispatch requires a separately approved research plan, source/spend ceilings and idempotent execution; no automatic comparison eligibility or downstream commitment. Slices 5–8 remain permanent tool capabilities.
 
 ## Protected scope
 

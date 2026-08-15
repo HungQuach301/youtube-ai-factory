@@ -2,8 +2,9 @@
 
 **Slice:** `03_1_NICHE_IDENTITY_GRANULARITY_REPAIR`  
 **Contract:** `NICHE_ENTITY_TAXONOMY_V1`  
-**Status:** `IMPLEMENTED_PENDING_CHECKPOINT`  
+**Status:** `PRODUCTION_DEPLOYED`  
 **Date:** 2026-08-15 (Asia/Bangkok)
+**Deployment:** Sites v301 / `89b9a9ebcb152a498a60ba991debeca3ae43f236` / succeeded
 
 ## Root cause and outcome
 
@@ -65,7 +66,7 @@ Each owns its data model, domain/API boundary, UI/UX, audit/evidence lineage, au
 
 ## Exact next action
 
-Checkpoint and reconcile this identity repair, then implement Slice 4 for typed niche opportunities only.
+Implement Slice 4 for typed niche opportunities only.
 
 ## Protected scope
 

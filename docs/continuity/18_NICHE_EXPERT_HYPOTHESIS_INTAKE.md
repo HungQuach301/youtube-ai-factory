@@ -6,6 +6,7 @@
 **Status:** `PRODUCTION_DEPLOYED_ZERO_SPEND_APPEND`  
 **Date:** 2026-08-15 (Asia/Bangkok)
 **Deployment:** Sites v299 / `a674e347731e226430c5a17956beacfb659833ff` / succeeded
+**Latest combined deployment:** Sites v301 / `89b9a9ebcb152a498a60ba991debeca3ae43f236` / succeeded
 
 ## Outcome
 

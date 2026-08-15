@@ -17,8 +17,8 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Durable ledger: `docs/continuity/11_COMMERCIAL_UI_UX_ACCEPTANCE.md`.
 - Classification: `RECONSTRUCTED_V1_INTELLIGENCE_NICHE_CONTRACT_GUARD`.
 - Current gate: `COMMERCIAL_UI_REVIEW_PENDING`.
-- Passed evidence: targeted lint, 31/31 boundaries, production build, Sites artifact validation, 95/95 tests and built-worker semantic checks.
-- Continuous gates: 26/26 commercial UI static checks, canonical-data primary projections/command contracts, 4/4 rendered loading pages, 4/4 fail-closed recovery APIs, one SIWC-protected command rejection, a 500 ms lab server-render ceiling and gzip client budgets are enforced by every verified build.
+- Passed evidence: targeted lint, 32/32 boundaries, production build, Sites artifact validation, 95/95 tests and built-worker semantic checks.
+- Continuous gates: 33/33 commercial UI static checks, canonical-data primary projections/command contracts, 4/4 rendered loading pages, 4/4 fail-closed recovery APIs, two SIWC-protected command rejections, a 500 ms lab server-render ceiling and gzip client budgets are enforced by every verified build.
 - User evidence: responsive behavior manually confirmed on 2026-08-15.
 - Pending evidence: browser hydration/rendering; recovery presentation; keyboard/focus; zoom/reflow; automated/manual accessibility; visual regression; Web Vitals and field telemetry.
 
@@ -50,5 +50,5 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Portfolio projection: `NICHE_PORTFOLIO_PROJECTION_V2`, `GET /api/factory/niche-portfolio`, typed niche opportunities plus append-only expert hypotheses with truthful assumption/evidence separation. Legacy V1 video topics are excluded and preserved in Channel Studio.
 - Expert hypothesis command: `POST /api/factory/niche-hypotheses`, `NICHE_HYPOTHESIS_INTAKE_V1`, migration 0031 and append-only hypothesis/audit/lineage.
 - Commercial surface: side-by-side portfolio matrix and expandable market/audience/competitor/Conditions to Win dossiers at `/niche-discovery`.
-- Continuous evidence: 31/31 boundaries, 26/26 commercial UI, 10/10 V2 contract groups and 95/95 regression.
+- Continuous evidence: 32/32 boundaries, 33/33 commercial UI, 10/10 V2 contract groups and 95/95 regression.
 - Next action: checkpoint Slice 3.1, then implement the permanent Slice 4 Evidence Intelligence & Validation capability. Slices 5–8 are permanent comparison, prioritization, commitment/governance and Channel Strategy features.

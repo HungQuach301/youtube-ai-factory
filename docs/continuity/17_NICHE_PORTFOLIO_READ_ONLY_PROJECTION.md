@@ -3,9 +3,10 @@
 **Slice:** `02_READ_ONLY_PORTFOLIO`
 **Projection:** `NICHE_PORTFOLIO_PROJECTION_V2`
 **Policy:** `NICHE_OPPORTUNITY_POLICY_V2`
-**Status:** `SLICE_3_1_GRANULARITY_REPAIRED_PENDING_CHECKPOINT`
+**Status:** `SLICE_3_1_GRANULARITY_REPAIR_PRODUCTION_DEPLOYED`
 **Date:** 2026-08-15 (Asia/Bangkok)
 **Deployment:** Sites v297 / `b08cf9a10ced2911da891bf0361916a28daf2600` / succeeded
+**Latest repair deployment:** Sites v301 / `89b9a9ebcb152a498a60ba991debeca3ae43f236` / succeeded
 
 ## Outcome
 
@@ -104,7 +105,7 @@ Agent-preview visual inspection was attempted after the server became healthy, b
 
 ## Exact next action
 
-Checkpoint Slice 3.1, then implement Slice 4 as the permanent Evidence Intelligence & Validation feature. It must create versioned research plans and separately approved bounded validation for typed niche opportunities only.
+Implement Slice 4 as the permanent Evidence Intelligence & Validation feature. It must create versioned research plans and separately approved bounded validation for typed niche opportunities only.
 
 ## Protected scope
 
