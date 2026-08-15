@@ -1,4 +1,4 @@
-import type { NicheEvidenceWorkflow, NicheOpportunityProjection, NichePortfolioProjection, PortfolioAudience, PortfolioAxis, PortfolioCompetitor, PortfolioCondition } from "@/app/niche-portfolio-contract";
+import type { NicheEvidenceWorkflow, NicheOpportunityProjection, NichePortfolioProjection, NicheScoringAssessment, PortfolioAudience, PortfolioAxis, PortfolioCompetitor, PortfolioCondition } from "@/app/niche-portfolio-contract";
 import { NICHE_OPPORTUNITY_POLICY_VERSION } from "@/lib/niche-opportunity-portfolio-contract";
 import { ChannelNotFoundError } from "@/lib/portfolio-projection";
 
@@ -62,13 +62,22 @@ function evidenceWorkflow(opportunityId: string, events: Row[]): NicheEvidenceWo
     validation: validationRow ? { requestId: text(validationRow.id), planVersion, status: "APPROVED_NOT_DISPATCHED", providerRequests: 0, spendUsd: 0, approvedAt: text(validationRow.created_at) } : null,
     reviews,
     directionCoverage: { supports: reviews.filter((item) => item.direction === "SUPPORTS").length, contradicts: reviews.filter((item) => item.direction === "CONTRADICTS").length, unknown: reviews.filter((item) => item.direction === "UNKNOWN").length },
-    scoringGate: { state: "BLOCKED_FOR_SLICE_5", reason: "Slice 4 records evidence provenance and expert disposition only. Slice 5 must separately compute three-axis scoring and comparison eligibility." },
+    scoringGate: reviews.filter((item) => item.disposition === "ACCEPTED").length >= 5
+      ? { state: "READY_FOR_SLICE_5", reason: "Accepted evidence reviews are available for a separate sufficiency and three-axis assessment." }
+      : { state: "EVIDENCE_INSUFFICIENT", reason: "Record accepted reviews for all three axes, prerequisites and winning criteria before scoring." },
   };
 }
 function axis(candidate: Row, key: "marketAttractiveness" | "abilityToWin" | "evidenceConfidence"): PortfolioAxis {
   const explicit = numberOrNull(nested(candidate, "scorecard", key, "score")) ?? numberOrNull(candidate[key]);
-  if (explicit !== null && explicit >= 0 && explicit <= 100) return { score: explicit, state: "RECORDED", basis: `Canonical ${key} field` };
+  if (explicit !== null && explicit >= 0 && explicit <= 100) return { score: explicit, state: "COMPATIBILITY_DERIVED", basis: `Stage 01 hypothesis only; Slice 5 evidence assessment not recorded` };
   return { score: null, state: "NOT_RECORDED", basis: `The niche opportunity does not separately record ${key}` };
+}
+function scoringAssessment(opportunityId: string, assessments: Row[]): NicheScoringAssessment {
+  const row = assessments.filter((item) => text(item.opportunity_id) === opportunityId).sort((a, b) => Number(b.scoring_version) - Number(a.scoring_version))[0];
+  if (!row) return { contract: "NICHE_SCORING_ASSESSMENT_V1", scoringVersion: 0, evidenceVersion: 0, state: "NOT_ASSESSED", sufficiencyGaps: ["No Slice 5 scoring assessment is recorded"], comparisonEligibility: "RESEARCH_REQUIRED", axes: { marketAttractiveness: { score: null, state: "NOT_RECORDED", basis: "Awaiting evidence-bound Slice 5 assessment" }, abilityToWin: { score: null, state: "NOT_RECORDED", basis: "Awaiting evidence-bound Slice 5 assessment" }, evidenceConfidence: { score: null, state: "NOT_RECORDED", basis: "Awaiting evidence-bound Slice 5 assessment" } }, prerequisites: [], winningCriteria: [], assessedBy: null, assessedAt: null, rankingMethod: "LEXICOGRAPHIC_THREE_AXIS_NO_TOTAL" };
+  const parseConditions = (value: unknown) => { try { return objects(JSON.parse(text(value))).map((item, index) => ({ id: text(item.id) || `condition:${index + 1}`, label: text(item.label), rationale: text(item.basis) || null, status: (["PASS", "GAP"].includes(text(item.status)) ? text(item.status) : "UNKNOWN") as "PASS" | "GAP" | "UNKNOWN", gap: null, closingAction: text(item.closingAction) || null, proofMethod: text(item.proofMethod) || null })); } catch { return []; } };
+  const scoredAxis = (score: unknown, basis: unknown): PortfolioAxis => ({ score: numberOrNull(score), state: "RECORDED", basis: text(basis) });
+  return { contract: "NICHE_SCORING_ASSESSMENT_V1", scoringVersion: Number(row.scoring_version), evidenceVersion: Number(row.evidence_version), state: text(row.sufficiency_state) === "SUFFICIENT" ? "SUFFICIENT" : "INSUFFICIENT", sufficiencyGaps: parseJsonArray(row.sufficiency_gaps_json), comparisonEligibility: text(row.comparison_eligibility) as NicheScoringAssessment["comparisonEligibility"], axes: { marketAttractiveness: scoredAxis(row.market_attractiveness_score, row.market_attractiveness_basis), abilityToWin: scoredAxis(row.ability_to_win_score, row.ability_to_win_basis), evidenceConfidence: scoredAxis(row.evidence_confidence_score, row.evidence_confidence_basis) }, prerequisites: parseConditions(row.prerequisites_json), winningCriteria: parseConditions(row.winning_criteria_json), assessedBy: text(row.actor_display_name) || text(row.actor_email) || null, assessedAt: text(row.created_at) || null, rankingMethod: "LEXICOGRAPHIC_THREE_AXIS_NO_TOTAL" };
 }
 function coverage(present: number, expected: number) { return present === 0 ? "MISSING" as const : present >= expected ? "RECORDED" as const : "PARTIAL" as const; }
 function condition(item: unknown, id: string): PortfolioCondition | null {
@@ -135,13 +144,14 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
   const programs = selectedChannels.map((channel) => latestPrograms.get(text(channel.id))).filter((item): item is Row => Boolean(item));
   const programIds = programs.map((program) => text(program.id));
   const placeholders = programIds.map(() => "?").join(",");
-  const [artifacts, sources, claims, hypotheses, evidenceEvents] = programIds.length ? await Promise.all([
+  const [artifacts, sources, claims, hypotheses, evidenceEvents, scoringAssessments] = programIds.length ? await Promise.all([
     rows(db, `SELECT id,program_id,stage_key,lifecycle_state,content_json,updated_at FROM v7_intelligence_artifacts WHERE program_id IN (${placeholders}) ORDER BY updated_at DESC,id`, ...programIds),
     rows(db, `SELECT id,program_id,stage_key,authority_tier,verification_state FROM v7_intelligence_sources WHERE program_id IN (${placeholders})`, ...programIds),
     rows(db, `SELECT id,program_id,risk_level,status FROM v7_claim_nodes WHERE program_id IN (${placeholders})`, ...programIds),
     rows(db, `SELECT * FROM niche_hypotheses WHERE program_id IN (${placeholders}) ORDER BY created_at,id`, ...programIds),
     rows(db, `SELECT * FROM niche_evidence_workflow_events WHERE program_id IN (${placeholders}) ORDER BY evidence_version,id`, ...programIds),
-  ]) : [[], [], [], [], []];
+    rows(db, `SELECT * FROM niche_scoring_assessments WHERE program_id IN (${placeholders}) ORDER BY scoring_version,id`, ...programIds),
+  ]) : [[], [], [], [], [], []];
 
   const comparison: NicheOpportunityProjection[] = [];
   const notes: string[] = [];
@@ -171,9 +181,9 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
       const market = marketSignals(candidate, stage01);
       const audiences = objects(candidate.audienceSegments).map(audience);
       const competitors = objects(candidate.competitors).map(competitor);
-      const prerequisites = conditions(candidate, "PREREQUISITE");
-      const winningCriteria = conditions(candidate, "WINNING_CRITERION");
-      const axes = {
+      const sourcePrerequisites = conditions(candidate, "PREREQUISITE");
+      const sourceWinningCriteria = conditions(candidate, "WINNING_CRITERION");
+      const compatibilityAxes = {
         marketAttractiveness: axis(candidate, "marketAttractiveness"),
         abilityToWin: axis(candidate, "abilityToWin"),
         evidenceConfidence: axis(candidate, "evidenceConfidence"),
@@ -185,15 +195,18 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
       };
       plan.balanced = Boolean(plan.supportingQuestions.length && plan.contradictingQuestions.length && plan.unknownQuestions.length);
       const workflow = evidenceWorkflow(opportunityId, evidenceEvents);
+      const scoring = scoringAssessment(opportunityId, scoringAssessments);
+      const axes = scoring.state === "NOT_ASSESSED" ? compatibilityAxes : scoring.axes;
+      const prerequisites = scoring.prerequisites.length ? scoring.prerequisites : sourcePrerequisites;
+      const winningCriteria = scoring.winningCriteria.length ? scoring.winningCriteria : sourceWinningCriteria;
       const marketPresence = [market.demandSignals.length, market.growthSignals.length, market.monetizationPaths.length, market.saturationRisks.length].filter(Boolean).length;
       const audiencePresence = audiences.length ? audiences.flatMap((item) => [item.characteristics.length, item.needs.length, item.preferences.length, item.pains.length, item.jobsToBeDone.length, item.tensions.length]).filter(Boolean).length : 0;
       const competitorPresence = competitors.length ? competitors.flatMap((item) => [item.strengths.length, item.weaknesses.length, item.defensibility.length, item.contentAdvantages.length, item.exploitableGaps.length]).filter(Boolean).length : 0;
       const conditionsPresence = Number(prerequisites.length > 0) + Number(winningCriteria.length > 0);
-      const axesPresence = Object.values(axes).filter((item) => item.state === "RECORDED").length;
-      const comparable = axesPresence === 3 && marketPresence >= 2 && audiencePresence >= 3 && competitorPresence >= 2 && conditionsPresence === 2 && plan.balanced;
-      const prerequisiteBlocked = prerequisites.some((item) => item.status !== "PASS");
+      const axesPresence = Object.values(scoring.axes).filter((item) => item.state === "RECORDED").length;
+      const comparable = scoring.state === "SUFFICIENT";
       const expertPriority = numberOrNull(candidate.expertPriority);
-      const eligibility = !comparable ? "RESEARCH_REQUIRED" : prerequisiteBlocked ? "BLOCKED_BY_PREREQUISITE" : "ELIGIBLE";
+      const eligibility = scoring.comparisonEligibility;
       comparison.push({
         entityType: "NICHE_OPPORTUNITY", provenance: "V2_SYSTEM_DISCOVERY",
         opportunityId, channel: { id: text(channel.id), name: text(channel.name), market: text(channel.market), language: text(channel.language) },
@@ -201,18 +214,18 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
         description: text(candidate.description) || null, viewerPromise: text(candidate.viewerPromise) || null, centralQuestion: text(candidate.centralQuestion) || null,
         origin: text(candidate.origin) === "EXPERT_SEEDED" ? "EXPERT_SEEDED" : "SYSTEM_DISCOVERED",
         lifecycleState: expertPriority !== null && comparable ? "EXPERT_PRIORITIZED" : comparable ? "COMPARABLE" : "EVIDENCE_GATHERING",
-        eligibility, systemRank: index + 1, systemRankBasis: "V2_SYSTEM_DISCOVERY", expertPriority,
+        eligibility, systemRank: null, systemRankBasis: "UNRANKED_PENDING_ASSESSMENT", expertPriority,
         expertPriorityBasis: expertPriority === null ? "NOT_RECORDED" : "RECORDED_IN_SOURCE", axes,
         hypothesis: { version: null, rationale: null, audienceAssumptions: [], demandAssumptions: [], knownCompetitors: [], winningThesis: null, submittedBy: null, createdAt: null }, marketPotential: market,
         audiences, competitors, competitorPatterns: strings(candidate.competitorPatterns), competitorGap: text(candidate.competitorGap) || null, prerequisites, winningCriteria,
         risks: strings(candidate.risks), researchPlan: plan,
         evidence: { artifactId: text(stage01Row.id), artifactState: text(stage01Row.lifecycle_state), verifiedSources, primarySources, unresolvedP0Claims, contradictionsReviewed },
-        evidenceWorkflow: workflow,
+        evidenceWorkflow: workflow, scoringAssessment: scoring,
         coverage: {
           marketPotential: coverage(marketPresence, 4), audience: coverage(audiencePresence, 5), competitor: coverage(competitorPresence, 4),
           conditionsToWin: coverage(conditionsPresence, 2), threeAxisScorecard: coverage(axesPresence, 3),
         },
-        allowedNextActions: workflow.state === "NOT_STARTED" ? ["PREPARE_NICHE_RESEARCH_PLAN"] : workflow.state === "PLAN_READY" ? ["REQUEST_NICHE_VALIDATION", "REVISE_NICHE_RESEARCH_PLAN"] : ["RECORD_NICHE_EVIDENCE_REVIEW", "REVISE_NICHE_RESEARCH_PLAN"],
+        allowedNextActions: workflow.state === "NOT_STARTED" ? ["PREPARE_NICHE_RESEARCH_PLAN"] : workflow.state === "PLAN_READY" ? ["REQUEST_NICHE_VALIDATION", "REVISE_NICHE_RESEARCH_PLAN"] : scoring.state === "SUFFICIENT" ? ["COMPARE_PORTFOLIO", "REASSESS_NICHE_SCORING"] : ["RECORD_NICHE_EVIDENCE_REVIEW", "RECORD_NICHE_SCORING_ASSESSMENT", "REVISE_NICHE_RESEARCH_PLAN"],
       });
     });
   }
@@ -221,19 +234,16 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
     const program = programs.find((item) => text(item.id) === text(hypothesis.program_id));
     if (!channel || !program) { notes.push(`Expert hypothesis ${text(hypothesis.id)} has an invalid channel/program binding.`); continue; }
     const workflow = evidenceWorkflow(text(hypothesis.id), evidenceEvents);
+    const scoring = scoringAssessment(text(hypothesis.id), scoringAssessments);
+    const comparable = scoring.state === "SUFFICIENT";
     comparison.push({
       entityType: "NICHE_OPPORTUNITY", provenance: "EXPERT_HYPOTHESIS_APPEND",
       opportunityId: text(hypothesis.id),
       channel: { id: text(channel.id), name: text(channel.name), market: text(channel.market), language: text(channel.language) },
       program: { id: text(program.id), version: Math.max(1, numberOrNull(program.version) ?? 1) },
       title: text(hypothesis.title) || "Unlabelled expert hypothesis", description: text(hypothesis.description) || null,
-      viewerPromise: null, centralQuestion: null, origin: "EXPERT_SEEDED", lifecycleState: "EVIDENCE_GATHERING", eligibility: "RESEARCH_REQUIRED",
-      systemRank: null, systemRankBasis: "UNRANKED_EXPERT_HYPOTHESIS", expertPriority: null, expertPriorityBasis: "NOT_RECORDED",
-      axes: {
-        marketAttractiveness: { score: null, state: "NOT_RECORDED", basis: "Expert demand assumptions are not market evidence" },
-        abilityToWin: { score: null, state: "NOT_RECORDED", basis: "A winning thesis is not validated ability-to-win evidence" },
-        evidenceConfidence: { score: null, state: "NOT_RECORDED", basis: "No evidence review has been recorded" },
-      },
+      viewerPromise: null, centralQuestion: null, origin: "EXPERT_SEEDED", lifecycleState: comparable ? "COMPARABLE" : "EVIDENCE_GATHERING", eligibility: scoring.comparisonEligibility,
+      systemRank: null, systemRankBasis: "UNRANKED_PENDING_ASSESSMENT", expertPriority: null, expertPriorityBasis: "NOT_RECORDED", axes: scoring.axes,
       hypothesis: {
         version: numberOrNull(hypothesis.hypothesis_version), rationale: text(hypothesis.rationale) || null,
         audienceAssumptions: parseJsonArray(hypothesis.audience_assumptions_json), demandAssumptions: parseJsonArray(hypothesis.demand_assumptions_json),
@@ -241,12 +251,12 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
         submittedBy: text(hypothesis.actor_display_name) || text(hypothesis.actor_email) || null, createdAt: text(hypothesis.created_at) || null,
       },
       marketPotential: { thesis: null, targetMarket: null, demandSignals: [], growthSignals: [], monetizationPaths: [], saturationRisks: [], geographyAndLanguage: [] },
-      audiences: [], competitors: [], competitorPatterns: [], competitorGap: null, prerequisites: [], winningCriteria: [], risks: [],
+      audiences: [], competitors: [], competitorPatterns: [], competitorGap: null, prerequisites: scoring.prerequisites, winningCriteria: scoring.winningCriteria, risks: [],
       researchPlan: { supportingQuestions: [], contradictingQuestions: [], unknownQuestions: [], balanced: false },
       evidence: { artifactId: text(hypothesis.id), artifactState: "HYPOTHESIS_SUBMITTED", verifiedSources: 0, primarySources: 0, unresolvedP0Claims: 0, contradictionsReviewed: false },
-      evidenceWorkflow: workflow,
-      coverage: { marketPotential: "MISSING", audience: "MISSING", competitor: "MISSING", conditionsToWin: "MISSING", threeAxisScorecard: "MISSING" },
-      allowedNextActions: workflow.state === "NOT_STARTED" ? ["PREPARE_NICHE_RESEARCH_PLAN"] : workflow.state === "PLAN_READY" ? ["REQUEST_NICHE_VALIDATION", "REVISE_NICHE_RESEARCH_PLAN"] : ["RECORD_NICHE_EVIDENCE_REVIEW", "REVISE_NICHE_RESEARCH_PLAN"],
+      evidenceWorkflow: workflow, scoringAssessment: scoring,
+      coverage: { marketPotential: "MISSING", audience: "MISSING", competitor: "MISSING", conditionsToWin: scoring.prerequisites.length && scoring.winningCriteria.length ? "RECORDED" : "MISSING", threeAxisScorecard: scoring.state === "NOT_ASSESSED" ? "MISSING" : "RECORDED" },
+      allowedNextActions: workflow.state === "NOT_STARTED" ? ["PREPARE_NICHE_RESEARCH_PLAN"] : workflow.state === "PLAN_READY" ? ["REQUEST_NICHE_VALIDATION", "REVISE_NICHE_RESEARCH_PLAN"] : scoring.state === "SUFFICIENT" ? ["COMPARE_PORTFOLIO", "REASSESS_NICHE_SCORING"] : ["RECORD_NICHE_EVIDENCE_REVIEW", "RECORD_NICHE_SCORING_ASSESSMENT", "REVISE_NICHE_RESEARCH_PLAN"],
     });
   }
   comparison.sort((a, b) => {
@@ -258,6 +268,8 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
       || a.channel.name.localeCompare(b.channel.name) || (a.systemRank ?? Number.MAX_SAFE_INTEGER) - (b.systemRank ?? Number.MAX_SAFE_INTEGER)
       || (a.hypothesis.version ?? 0) - (b.hypothesis.version ?? 0);
   });
+  let evidenceRank = 0;
+  for (const item of comparison) if (item.scoringAssessment.state === "SUFFICIENT") { item.systemRank = ++evidenceRank; item.systemRankBasis = "SLICE_5_LEXICOGRAPHIC_EVIDENCE_ORDER"; }
   const comparable = comparison.filter((item) => item.lifecycleState !== "EVIDENCE_GATHERING");
   const prioritiesRecorded = comparable.length >= 2 && comparable.every((item) => item.expertPriority !== null);
   return {
@@ -277,11 +289,12 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
       researchPlans: comparison.filter((item) => item.evidenceWorkflow.plan).length,
       validationApprovals: comparison.filter((item) => item.evidenceWorkflow.validation).length,
       evidenceReviewed: comparison.filter((item) => item.evidenceWorkflow.reviews.length).length,
+      scoringAssessments: comparison.filter((item) => item.scoringAssessment.state !== "NOT_ASSESSED").length,
       excludedLegacyContentTopics,
     }, comparison,
-    rankingPolicy: { systemRank: "V2_NICHE_OPPORTUNITY_EVIDENCE_ORDER_WITH_UNRANKED_EXPERT_INPUTS", expertPriority: "SEPARATE_VERSIONED_FACT", totalScore: null, note: "Only typed niche opportunities may receive a system rank. Legacy content-topic order is excluded; expert inputs remain unranked until evidence validation." },
-    authority: { activation: "BOUNDED_EVIDENCE_WORKFLOW", v2Commands: "SUBMIT_HYPOTHESIS_AND_SLICE_4_EVIDENCE_ROUTED_ZERO_SPEND", providerRequests: 0, spendUsd: 0, hypothesisAppend: true, researchPlanning: true, validationApproval: true, evidenceReview: true, comparisonMutation: false, channelNicheMutation: false },
-    downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Slice 4 records research plans, bounded validation approvals and expert evidence reviews only; scoring, priority, selection, commitment and strategy activation remain separate capabilities." },
+    rankingPolicy: { systemRank: "SLICE_5_LEXICOGRAPHIC_THREE_AXIS_EVIDENCE_ORDER", expertPriority: "SEPARATE_VERSIONED_FACT", totalScore: null, note: "Eligible and prerequisite-blocked niches are ordered by eligibility tier, then Market Attractiveness, Ability to Win and Evidence Confidence. No aggregate score is calculated." },
+    authority: { activation: "EVIDENCE_AND_SCORING_WORKFLOW", v2Commands: "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_AND_SLICE_5_SCORING_ZERO_SPEND", providerRequests: 0, spendUsd: 0, hypothesisAppend: true, researchPlanning: true, validationApproval: true, evidenceReview: true, scoringAssessment: true, comparisonMutation: true, expertPriorityMutation: false, channelNicheMutation: false },
+    downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Slice 5 establishes evidence sufficiency and portfolio comparison only. Expert priority, niche selection, commitment and Channel Strategy activation remain separate Slice 6–8 capabilities." },
     integrity: { state: notes.length ? "RECONCILIATION_REQUIRED" : "READY", notes },
   };
 }

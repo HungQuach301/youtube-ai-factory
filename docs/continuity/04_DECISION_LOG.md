@@ -31,3 +31,7 @@ Effective 2026-08-15, `SUBMIT_EXPERT_DECISION` is the first routed Intelligence/
 ## ADR-058 — Evidence workflow is append-only and cannot grant decision authority
 
 Effective 2026-08-15, Slice 4 provides one versioned support/contradiction/unknown workflow for system-discovered niches and expert-seeded hypotheses. Research planning, bounded validation approval and expert evidence review are durable product capabilities, but none may mutate score, comparison eligibility, system rank, expert priority, selection, commitment or Channel Strategy activation. The current validation command records `APPROVED_NOT_DISPATCHED`; actual provider requests and spend remain zero until a separate typed execution command is implemented and reconciled.
+
+## ADR-059 — Comparison uses evidence sufficiency and lexicographic axes, never a total score
+
+Effective 2026-08-15, Slice 5 records an append-only, latest-evidence-bound assessment shared by system-discovered and expert-seeded niches. The server verifies accepted evidence bindings, support/contradiction/unknown coverage, a primary source and freshness before granting comparison sufficiency. Market Attractiveness, Ability to Win and Evidence Confidence remain independent. System rank orders sufficient assessments lexicographically by eligibility and the three axes; no aggregate score exists. Prerequisite gaps hard-block eligibility, while winning-criterion gaps remain explicit closing/proof work. Expert priority, selection, commitment, `channels.niche` and Channel Strategy activation remain separate capabilities.

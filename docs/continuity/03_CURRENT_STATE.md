@@ -21,19 +21,20 @@ NEXT_ACTION = CONTINUITY_HARDENING_THEN_MOTION_PROOF
 
 ```text
 NICHE_PORTFOLIO_PROGRAM = V2
-NICHE_PORTFOLIO_SLICE = 04_EVIDENCE_INTELLIGENCE_VALIDATION
+NICHE_PORTFOLIO_SLICE = 05_EVIDENCE_SUFFICIENCY_THREE_AXIS_COMPARISON
 NICHE_PORTFOLIO_SLICE_01 = IMPLEMENTED_NOT_ROUTED
 NICHE_PORTFOLIO_SLICE_02 = IMPLEMENTED_READ_ONLY
 NICHE_PORTFOLIO_SLICE_03 = IMPLEMENTED_ZERO_SPEND_APPEND
 NICHE_PORTFOLIO_SLICE_03_1 = PRODUCTION_DEPLOYED
 NICHE_PORTFOLIO_SLICE_04 = IMPLEMENTED_ACCEPTANCE_GREEN
-NICHE_PORTFOLIO_NEXT = SLICE_04_PRODUCTION_CHECKPOINT_THEN_SLICE_05_SCORING_COMPARISON
+NICHE_PORTFOLIO_SLICE_05 = IMPLEMENTED_ACCEPTANCE_GREEN
+NICHE_PORTFOLIO_NEXT = SLICE_05_PRODUCTION_CHECKPOINT_THEN_SLICE_06_EXPERT_PRIORITIZATION
 V2_PROVIDER_REQUESTS = 0
 V2_SPEND_USD = 0
 CHANNEL_STRATEGY_GATE = BLOCKED
 ```
 
-Documents 16, 19 and 20 are authoritative for the niche decision shape, entity boundary and evidence workflow. Legacy Stage 01 candidates are video-topic compatibility evidence and must not be mistaken for niche opportunities or V2 expert prioritization. Slices 4–8 are permanent product capabilities, not one-time implementation steps.
+Documents 16, 19, 20 and 21 are authoritative for the niche decision shape, entity boundary, evidence workflow and evidence-bound comparison. Legacy Stage 01 candidates are video-topic compatibility evidence and must not be mistaken for niche opportunities or V2 expert prioritization. Slices 4–8 are permanent product capabilities, not one-time implementation steps.
 
 ## Open evidence issues
 

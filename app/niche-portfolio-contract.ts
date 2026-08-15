@@ -71,7 +71,22 @@ export type NicheEvidenceWorkflow = {
   validation: null | { requestId: string; planVersion: number; status: "APPROVED_NOT_DISPATCHED"; providerRequests: 0; spendUsd: 0; approvedAt: string };
   reviews: NicheEvidenceReview[];
   directionCoverage: { supports: number; contradicts: number; unknown: number };
-  scoringGate: { state: "BLOCKED_FOR_SLICE_5"; reason: string };
+  scoringGate: { state: "READY_FOR_SLICE_5" | "EVIDENCE_INSUFFICIENT"; reason: string };
+};
+
+export type NicheScoringAssessment = {
+  contract: "NICHE_SCORING_ASSESSMENT_V1";
+  scoringVersion: number;
+  evidenceVersion: number;
+  state: "NOT_ASSESSED" | "SUFFICIENT" | "INSUFFICIENT";
+  sufficiencyGaps: string[];
+  comparisonEligibility: "ELIGIBLE" | "BLOCKED_BY_PREREQUISITE" | "RESEARCH_REQUIRED";
+  axes: { marketAttractiveness: PortfolioAxis; abilityToWin: PortfolioAxis; evidenceConfidence: PortfolioAxis };
+  prerequisites: PortfolioCondition[];
+  winningCriteria: PortfolioCondition[];
+  assessedBy: string | null;
+  assessedAt: string | null;
+  rankingMethod: "LEXICOGRAPHIC_THREE_AXIS_NO_TOTAL";
 };
 
 export type NicheOpportunityProjection = {
@@ -88,7 +103,7 @@ export type NicheOpportunityProjection = {
   lifecycleState: "EVIDENCE_GATHERING" | "COMPARABLE" | "EXPERT_PRIORITIZED";
   eligibility: "ELIGIBLE" | "BLOCKED_BY_PREREQUISITE" | "RESEARCH_REQUIRED";
   systemRank: number | null;
-  systemRankBasis: "V2_SYSTEM_DISCOVERY" | "UNRANKED_EXPERT_HYPOTHESIS";
+  systemRankBasis: "SLICE_5_LEXICOGRAPHIC_EVIDENCE_ORDER" | "UNRANKED_PENDING_ASSESSMENT";
   expertPriority: number | null;
   expertPriorityBasis: "RECORDED_IN_SOURCE" | "NOT_RECORDED";
   axes: {
@@ -132,6 +147,7 @@ export type NicheOpportunityProjection = {
     contradictionsReviewed: boolean;
   };
   evidenceWorkflow: NicheEvidenceWorkflow;
+  scoringAssessment: NicheScoringAssessment;
   coverage: {
     marketPotential: "RECORDED" | "PARTIAL" | "MISSING";
     audience: "RECORDED" | "PARTIAL" | "MISSING";
@@ -151,15 +167,15 @@ export type NichePortfolioProjection = {
   channels: Array<{ id: string; name: string; market: string; language: string }>;
   intakeContexts: Array<{ channelId: string; channelName: string; programId: string; aggregateVersion: number; expectedHypothesisVersion: number }>;
   decisionState: "RESEARCH_IN_PROGRESS" | "PORTFOLIO_COMPARABLE" | "EXPERT_PRIORITIZATION_RECORDED";
-  summary: { opportunities: number; comparable: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number; researchPlans: number; validationApprovals: number; evidenceReviewed: number; excludedLegacyContentTopics: number };
+  summary: { opportunities: number; comparable: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number; researchPlans: number; validationApprovals: number; evidenceReviewed: number; scoringAssessments: number; excludedLegacyContentTopics: number };
   comparison: NicheOpportunityProjection[];
   rankingPolicy: {
-    systemRank: "V2_NICHE_OPPORTUNITY_EVIDENCE_ORDER_WITH_UNRANKED_EXPERT_INPUTS";
+    systemRank: "SLICE_5_LEXICOGRAPHIC_THREE_AXIS_EVIDENCE_ORDER";
     expertPriority: "SEPARATE_VERSIONED_FACT";
     totalScore: null;
     note: string;
   };
-  authority: { activation: "BOUNDED_EVIDENCE_WORKFLOW"; v2Commands: "SUBMIT_HYPOTHESIS_AND_SLICE_4_EVIDENCE_ROUTED_ZERO_SPEND"; providerRequests: 0; spendUsd: 0; hypothesisAppend: true; researchPlanning: true; validationApproval: true; evidenceReview: true; comparisonMutation: false; channelNicheMutation: false };
+  authority: { activation: "EVIDENCE_AND_SCORING_WORKFLOW"; v2Commands: "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_AND_SLICE_5_SCORING_ZERO_SPEND"; providerRequests: 0; spendUsd: 0; hypothesisAppend: true; researchPlanning: true; validationApproval: true; evidenceReview: true; scoringAssessment: true; comparisonMutation: true; expertPriorityMutation: false; channelNicheMutation: false };
   downstreamGate: { consumer: "CHANNEL_STRATEGY"; state: "BLOCKED"; reason: string };
   integrity: { state: "READY" | "RECONCILIATION_REQUIRED"; notes: string[] };
 };

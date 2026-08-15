@@ -810,6 +810,69 @@ export const nicheEvidenceWorkflowAudits = sqliteTable("niche_evidence_workflow_
   index("niche_evidence_audits_opportunity_created_idx").on(table.opportunityId, table.createdAt),
 ]);
 
+// Slice 5 consumes frozen Slice 4 reviews and records a new, append-only
+// sufficiency/scoring fact. The three axes stay separate; no aggregate score is
+// stored. Comparison eligibility is an explicit result, while expert priority,
+// niche commitment and Channel Strategy remain outside this capability.
+export const nicheScoringAssessments = sqliteTable("niche_scoring_assessments", {
+  id: text("id").primaryKey(),
+  portfolioId: text("portfolio_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  programId: text("program_id").notNull(),
+  opportunityId: text("opportunity_id").notNull(),
+  opportunityOrigin: text("opportunity_origin").notNull(),
+  aggregateVersion: integer("aggregate_version").notNull(),
+  evidenceVersion: integer("evidence_version").notNull(),
+  scoringVersion: integer("scoring_version").notNull(),
+  action: text("action").notNull().default("RECORD_NICHE_SCORING_ASSESSMENT"),
+  sufficiencyState: text("sufficiency_state").notNull(),
+  sufficiencyGapsJson: text("sufficiency_gaps_json").notNull(),
+  marketAttractivenessScore: integer("market_attractiveness_score").notNull(),
+  marketAttractivenessBasis: text("market_attractiveness_basis").notNull(),
+  marketAttractivenessEvidenceJson: text("market_attractiveness_evidence_json").notNull(),
+  abilityToWinScore: integer("ability_to_win_score").notNull(),
+  abilityToWinBasis: text("ability_to_win_basis").notNull(),
+  abilityToWinEvidenceJson: text("ability_to_win_evidence_json").notNull(),
+  evidenceConfidenceScore: integer("evidence_confidence_score").notNull(),
+  evidenceConfidenceBasis: text("evidence_confidence_basis").notNull(),
+  evidenceConfidenceEvidenceJson: text("evidence_confidence_evidence_json").notNull(),
+  prerequisitesJson: text("prerequisites_json").notNull(),
+  winningCriteriaJson: text("winning_criteria_json").notNull(),
+  comparisonEligibility: text("comparison_eligibility").notNull(),
+  actorEmail: text("actor_email").notNull(),
+  actorDisplayName: text("actor_display_name").notNull(),
+  actorRole: text("actor_role").notNull().default("OWNER_EXPERT"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_scoring_opportunity_version_uq").on(table.opportunityId, table.scoringVersion),
+  uniqueIndex("niche_scoring_idempotency_uq").on(table.idempotencyKey),
+  index("niche_scoring_program_created_idx").on(table.programId, table.createdAt),
+]);
+
+export const nicheScoringAssessmentAudits = sqliteTable("niche_scoring_assessment_audits", {
+  id: text("id").primaryKey(),
+  assessmentId: text("assessment_id").notNull().references(() => nicheScoringAssessments.id),
+  programId: text("program_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  opportunityId: text("opportunity_id").notNull(),
+  eventType: text("event_type").notNull().default("NICHE_SCORING_ASSESSMENT_RECORDED"),
+  actorEmail: text("actor_email").notNull(),
+  actorRole: text("actor_role").notNull().default("OWNER_EXPERT"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  evidenceLineageId: text("evidence_lineage_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_scoring_audits_assessment_uq").on(table.assessmentId),
+  index("niche_scoring_audits_opportunity_created_idx").on(table.opportunityId, table.createdAt),
+]);
+
 export const v7FoundationAudits = sqliteTable("v7_foundation_audits", {
   id: text("id").primaryKey(),
   programId: text("program_id").notNull(),

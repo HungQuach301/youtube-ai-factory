@@ -16,6 +16,8 @@ const nichePortfolioProjection = await readFile(new URL("../lib/niche-portfolio-
 const nichePortfolioView = await readFile(new URL("../app/niche-portfolio-view.tsx", import.meta.url), "utf8");
 const nicheHypothesisRoute = await readFile(new URL("../app/api/factory/niche-hypotheses/route.ts", import.meta.url), "utf8");
 const nicheHypothesisCommand = await readFile(new URL("../lib/niche-hypothesis-command.ts", import.meta.url), "utf8");
+const nicheScoringRoute = await readFile(new URL("../app/api/factory/niche-scoring/route.ts", import.meta.url), "utf8");
+const nicheScoringCommand = await readFile(new URL("../lib/niche-scoring-command.ts", import.meta.url), "utf8");
 const intelligenceNicheWorkflow = await readFile(new URL("../lib/intelligence-niche-workflow-contract.ts", import.meta.url), "utf8");
 const nichePortfolioV2 = await readFile(new URL("../lib/niche-opportunity-portfolio-contract.ts", import.meta.url), "utf8");
 const studioRoute = await readFile(new URL("../app/api/factory/channel-studio/route.ts", import.meta.url), "utf8");
@@ -82,7 +84,9 @@ test("intelligence and niche discovery keep evidence readiness separate from exp
   assert.doesNotMatch(nichePortfolioProjection, /CANONICAL_V1_CANDIDATE_ORDER/);
   assert.match(nichePortfolioProjection, /totalScore: null/);
   assert.match(nichePortfolioProjection, /hypothesisAppend: true/);
-  assert.match(nichePortfolioProjection, /comparisonMutation: false/);
+  assert.match(nichePortfolioProjection, /comparisonMutation: true/);
+  assert.match(nichePortfolioProjection, /expertPriorityMutation: false/);
+  assert.match(nichePortfolioProjection, /SLICE_5_LEXICOGRAPHIC_THREE_AXIS_EVIDENCE_ORDER/);
   assert.match(nichePortfolioView, /Opportunity comparison/);
   assert.match(nichePortfolioView, /Opportunity dossiers/);
   assert.match(nichePortfolioView, /Submit a niche hypothesis for verification/);
@@ -92,6 +96,11 @@ test("intelligence and niche discovery keep evidence readiness separate from exp
   assert.match(nicheHypothesisCommand, /PREPARE_NICHE_RESEARCH_PLAN/);
   assert.match(nicheHypothesisCommand, /comparisonEligibility: false/);
   assert.match(nicheHypothesisCommand, /channelStrategyActivation: false/);
+  assert.match(nicheScoringRoute, /getChatGPTUser/);
+  assert.match(nicheScoringRoute, /FACTORY_EXPERT_EMAILS/);
+  assert.match(nicheScoringCommand, /aggregateScore: null/);
+  assert.match(nicheScoringCommand, /channelStrategyActivation: false/);
+  assert.match(nicheScoringCommand, /INVALID_EVIDENCE_BINDING/);
 });
 
 test("Channel Studio preserves compatibility provenance and blocks production commands", () => {

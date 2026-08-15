@@ -218,6 +218,13 @@
       "when": 1786810367578,
       "tag": "0032_smooth_nebula",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1786812369955,
+      "tag": "0033_famous_mauler",
+      "breakpoints": true
     }
   ]
 }

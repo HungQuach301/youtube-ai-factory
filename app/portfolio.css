@@ -32,3 +32,5 @@
 @media(max-width:1000px){.npEvidenceSnapshot{grid-template-columns:repeat(2,1fr)}.npEvidenceLedger{grid-template-columns:1fr}}
 @media(max-width:720px){.npEvidenceWorkflow>header,.npEvidenceForm>footer{align-items:flex-start;flex-direction:column}.npEvidenceWorkflow>header>div:last-child{justify-items:start}.npEvidenceForm{grid-template-columns:1fr}.npEvidenceForm .wide{grid-column:auto}.npCeilings{grid-template-columns:1fr}.npEvidenceForm button{width:100%}}
 @media(max-width:520px){.npEvidenceSnapshot{grid-template-columns:1fr}.npEvidenceLedger article>header,.npEvidenceLedger article>footer{align-items:flex-start;flex-direction:column}.npEvidenceLedger article>header span{margin-left:0}.npEvidenceLedger article>footer b{text-align:left}}
+/* Slice 5 evidence-bound scoring reuses the commercial evidence-form system. */
+.npScoring{border-color:#c9b27b}.npScoring>header{background:#40351f}.npScoring>header small{color:#e5c77f}.npScoringGaps{padding:12px 15px;background:#fff8e9;color:#66532e;font-size:10px}.npScoringGaps strong{display:block}.npScoringGaps ul{margin:7px 0 0;padding-left:17px;line-height:1.5}

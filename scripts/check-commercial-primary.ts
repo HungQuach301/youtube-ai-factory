@@ -3,6 +3,7 @@ import { channelStudioProjection } from "../lib/channel-studio-projection";
 import { discoveryProjection } from "../lib/discovery-projection";
 import { nichePortfolioProjection } from "../lib/niche-portfolio-projection";
 import { NicheEvidenceCommandError, submitNicheEvidenceCommand } from "../lib/niche-evidence-command";
+import { NicheScoringCommandError, submitNicheScoringCommand } from "../lib/niche-scoring-command";
 import { NicheHypothesisCommandError, submitNicheHypothesis } from "../lib/niche-hypothesis-command";
 import { NicheDecisionCommandError, submitNicheExpertDecision } from "../lib/niche-expert-decision-command";
 import { ChannelNotFoundError, channelProjection, portfolioProjection } from "../lib/portfolio-projection";
@@ -104,6 +105,11 @@ const tables: Record<string, Row[]> = {
   niche_hypothesis_audits: [],
   niche_evidence_workflow_events: [],
   niche_evidence_workflow_audits: [],
+  niche_scoring_assessments: [
+    { id: "score-1", portfolio_id: "CANONICAL_PORTFOLIO", channel_id: "channel-1", program_id: "program-1", opportunity_id: "niche-money-systems", opportunity_origin: "SYSTEM_DISCOVERED", aggregate_version: 7, evidence_version: 8, scoring_version: 1, sufficiency_state: "SUFFICIENT", sufficiency_gaps_json: "[]", market_attractiveness_score: 90, market_attractiveness_basis: "Accepted demand evidence supports durable recurring need.", ability_to_win_score: 84, ability_to_win_basis: "Accepted competitive evidence supports a differentiated format.", evidence_confidence_score: 86, evidence_confidence_basis: "Balanced current evidence includes a primary source.", prerequisites_json: JSON.stringify([{ id: "p1", label: "Primary-source research", status: "PASS", basis: "The source protocol is operating.", closingAction: "Maintain source rubric", proofMethod: "Pilot scripts pass source audit" }]), winning_criteria_json: JSON.stringify([{ id: "w1", label: "Evidence-led system storytelling", status: "GAP", basis: "Repeatability still needs proof.", closingAction: "Pilot three repeatable formats", proofMethod: "Retention and trust targets pass" }]), comparison_eligibility: "ELIGIBLE", actor_email: "owner@example.com", actor_display_name: "Owner Expert", created_at: "2026-08-15T00:00:00.000Z" },
+    { id: "score-2", portfolio_id: "CANONICAL_PORTFOLIO", channel_id: "channel-1", program_id: "program-1", opportunity_id: "niche-credit-incentives", opportunity_origin: "SYSTEM_DISCOVERED", aggregate_version: 7, evidence_version: 8, scoring_version: 1, sufficiency_state: "SUFFICIENT", sufficiency_gaps_json: "[]", market_attractiveness_score: 86, market_attractiveness_basis: "Accepted demand evidence supports persistent audience need.", ability_to_win_score: 89, ability_to_win_basis: "Accepted gap evidence supports incentive-map differentiation.", evidence_confidence_score: 82, evidence_confidence_basis: "Balanced current evidence includes a primary source.", prerequisites_json: JSON.stringify([{ id: "p2", label: "Controlled financial claims", status: "PASS", basis: "The claims protocol is operating.", closingAction: "Maintain claim control", proofMethod: "Zero unsupported P0 claims" }]), winning_criteria_json: JSON.stringify([{ id: "w2", label: "Cross-party incentive maps", status: "PASS", basis: "Pilot maps meet the comprehension target.", closingAction: "Maintain map rubric", proofMethod: "Pilot comprehension score passes" }]), comparison_eligibility: "ELIGIBLE", actor_email: "owner@example.com", actor_display_name: "Owner Expert", created_at: "2026-08-15T00:00:00.000Z" },
+  ],
+  niche_scoring_assessment_audits: [],
 };
 
 function queryRows(query: string, bindings: unknown[]) {
@@ -131,6 +137,7 @@ function queryRows(query: string, bindings: unknown[]) {
   if (normalized.includes("order by decision_version desc")) result.sort((a, b) => Number(b.decision_version || 0) - Number(a.decision_version || 0));
   if (normalized.includes("order by hypothesis_version desc")) result.sort((a, b) => Number(b.hypothesis_version || 0) - Number(a.hypothesis_version || 0));
   if (normalized.includes("order by evidence_version desc")) result.sort((a, b) => Number(b.evidence_version || 0) - Number(a.evidence_version || 0));
+  if (normalized.includes("order by scoring_version desc")) result.sort((a, b) => Number(b.scoring_version || 0) - Number(a.scoring_version || 0));
   if (normalized.includes("order by plan_version desc")) result.sort((a, b) => Number(b.plan_version || 0) - Number(a.plan_version || 0));
   return result;
 }
@@ -189,6 +196,15 @@ function executeMutation(item: Statement) {
     const columns = ["id", "event_id", "program_id", "channel_id", "opportunity_id", "event_type", "actor_email", "actor_role", "idempotency_key", "request_hash", "correlation_id", "causation_id", "evidence_lineage_id", "created_at"];
     tables.niche_evidence_workflow_audits.push(Object.fromEntries(columns.map((column, index) => [column, values[index]])));
     return { meta: { changes: 1 } };
+  }
+  if (normalized.startsWith("insert into niche_scoring_assessments")) {
+    if (tables.niche_scoring_assessments.some((row) => row.idempotency_key === values[25] || (row.opportunity_id === values[4] && row.scoring_version === values[8]))) throw new Error("UNIQUE constraint failed");
+    const columns = ["id", "portfolio_id", "channel_id", "program_id", "opportunity_id", "opportunity_origin", "aggregate_version", "evidence_version", "scoring_version", "sufficiency_state", "sufficiency_gaps_json", "market_attractiveness_score", "market_attractiveness_basis", "market_attractiveness_evidence_json", "ability_to_win_score", "ability_to_win_basis", "ability_to_win_evidence_json", "evidence_confidence_score", "evidence_confidence_basis", "evidence_confidence_evidence_json", "prerequisites_json", "winning_criteria_json", "comparison_eligibility", "actor_email", "actor_display_name", "idempotency_key", "request_hash", "correlation_id", "causation_id", "created_at"];
+    const row = Object.fromEntries(columns.map((column, index) => [column, values[index]])); Object.assign(row, { action: "RECORD_NICHE_SCORING_ASSESSMENT", actor_role: "OWNER_EXPERT" }); tables.niche_scoring_assessments.push(row); return { meta: { changes: 1 } };
+  }
+  if (normalized.startsWith("insert into niche_scoring_assessment_audits")) {
+    if (!tables.niche_scoring_assessments.some((row) => row.id === values[1])) throw new Error("FOREIGN KEY constraint failed");
+    const columns = ["id", "assessment_id", "program_id", "channel_id", "opportunity_id", "actor_email", "idempotency_key", "request_hash", "correlation_id", "causation_id", "evidence_lineage_id", "created_at"]; const row = Object.fromEntries(columns.map((column, index) => [column, values[index]])); Object.assign(row, { event_type: "NICHE_SCORING_ASSESSMENT_RECORDED", actor_role: "OWNER_EXPERT" }); tables.niche_scoring_assessment_audits.push(row); return { meta: { changes: 1 } };
   }
   if (normalized.startsWith("insert into v7_evidence_lineage")) {
     const hypothesisLineage = values[3] === "NICHE_HYPOTHESIS";
@@ -254,8 +270,8 @@ assert.equal(nichePortfolio.comparison[0].winningCriteria.length, 1);
 assert.equal(nichePortfolio.comparison[0].expertPriority, null);
 assert.ok(nichePortfolio.comparison.every((item) => item.entityType === "NICHE_OPPORTUNITY" && item.provenance === "V2_SYSTEM_DISCOVERY"));
 assert.ok(nichePortfolio.comparison.every((item) => !stage01.candidates.some((topic) => topic.title === item.title)));
-assert.equal(nichePortfolio.authority.v2Commands, "SUBMIT_HYPOTHESIS_AND_SLICE_4_EVIDENCE_ROUTED_ZERO_SPEND");
-assert.deepEqual({ providerRequests: nichePortfolio.authority.providerRequests, spendUsd: nichePortfolio.authority.spendUsd, hypothesisAppend: nichePortfolio.authority.hypothesisAppend, researchPlanning: nichePortfolio.authority.researchPlanning, validationApproval: nichePortfolio.authority.validationApproval, evidenceReview: nichePortfolio.authority.evidenceReview, comparisonMutation: nichePortfolio.authority.comparisonMutation }, { providerRequests: 0, spendUsd: 0, hypothesisAppend: true, researchPlanning: true, validationApproval: true, evidenceReview: true, comparisonMutation: false });
+assert.equal(nichePortfolio.authority.v2Commands, "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_AND_SLICE_5_SCORING_ZERO_SPEND");
+assert.deepEqual({ providerRequests: nichePortfolio.authority.providerRequests, spendUsd: nichePortfolio.authority.spendUsd, scoringAssessment: nichePortfolio.authority.scoringAssessment, comparisonMutation: nichePortfolio.authority.comparisonMutation, expertPriorityMutation: nichePortfolio.authority.expertPriorityMutation }, { providerRequests: 0, spendUsd: 0, scoringAssessment: true, comparisonMutation: true, expertPriorityMutation: false });
 assert.equal(nichePortfolio.downstreamGate.state, "BLOCKED");
 const stage01Artifact = tables.v7_intelligence_artifacts.find((row) => row.id === "artifact-01");
 assert.ok(stage01Artifact);
@@ -343,7 +359,56 @@ assert.equal(evidencedInput.systemRank, null);
 assert.equal(evidencePortfolio.summary.researchPlans, 1);
 assert.equal(evidencePortfolio.summary.validationApprovals, 1);
 assert.equal(evidencePortfolio.summary.evidenceReviewed, 1);
-assert.equal(evidencedInput.evidenceWorkflow.scoringGate.state, "BLOCKED_FOR_SLICE_5");
+assert.equal(evidencedInput.evidenceWorkflow.scoringGate.state, "EVIDENCE_INSUFFICIENT");
+
+const acceptedReviews = [
+  ["SUPPORTS", "MARKET_ATTRACTIVENESS", "PRIMARY", "Current first-party demand evidence supports recurring audience need."],
+  ["CONTRADICTS", "ABILITY_TO_WIN", "SECONDARY", "A strong incumbent weakens the assumed distribution advantage."],
+  ["UNKNOWN", "EVIDENCE_CONFIDENCE", "SECONDARY", "The repeat-viewing threshold remains a decision-changing unknown."],
+  ["SUPPORTS", "PREREQUISITE", "PRIMARY", "The source-control prerequisite passed a documented pilot audit."],
+  ["SUPPORTS", "WINNING_CRITERION", "SECONDARY", "The visual price-chain format passed the pilot comprehension threshold."],
+] as const;
+const acceptedIds: Record<string, string[]> = {};
+for (const [index, [direction, affectedAxis, sourceAuthority, claimStatement]] of acceptedReviews.entries()) {
+  const recorded = await submitNicheEvidenceCommand(database, { actor: evidenceActor, idempotencyKey: `niche-evidence:accepted-${index + 1}`, body: { action: "RECORD_NICHE_EVIDENCE_REVIEW", channelId: "channel-1", programId: "program-1", opportunityId: hypothesisRecorded.hypothesis.id, opportunityOrigin: "EXPERT_SEEDED", expectedAggregateVersion: 7, expectedEvidenceVersion: 3 + index, planVersion: 1, direction, claimStatement, sourceRef: `research://accepted-${index + 1}`, sourceAuthority, observedAt: "2026-08-15", freshness: "CURRENT", confidence: 84, affectedAxis, disposition: "ACCEPTED", decisionImpact: "Bind this accepted review to the next evidence-sufficiency and scoring assessment." } });
+  (acceptedIds[affectedAxis] ||= []).push(recorded.event.id);
+}
+const scoringBody = {
+  action: "RECORD_NICHE_SCORING_ASSESSMENT" as const, channelId: "channel-1", programId: "program-1", opportunityId: hypothesisRecorded.hypothesis.id, opportunityOrigin: "EXPERT_SEEDED" as const,
+  expectedAggregateVersion: 7, expectedEvidenceVersion: 8, expectedScoringVersion: 0,
+  marketAttractiveness: { score: 78, basis: "Primary demand evidence supports a meaningful recurring audience need.", evidenceEventIds: acceptedIds.MARKET_ATTRACTIVENESS },
+  abilityToWin: { score: 66, basis: "The proposed format differentiates, but incumbent distribution remains strong.", evidenceEventIds: acceptedIds.ABILITY_TO_WIN },
+  evidenceConfidence: { score: 74, basis: "The evidence set is balanced, current and includes primary-source review.", evidenceEventIds: acceptedIds.EVIDENCE_CONFIDENCE },
+  prerequisites: [{ id: "source-control", label: "Primary-source control", status: "PASS" as const, basis: "The documented pilot audit confirms the prerequisite is operating.", evidenceEventIds: acceptedIds.PREREQUISITE, closingAction: "Maintain the source-control rubric", proofMethod: "Every pilot passes the source audit" }],
+  winningCriteria: [{ id: "visual-chain", label: "Visual price-chain explanation", status: "GAP" as const, basis: "One pilot passed, but repeatability across the content line is unproven.", evidenceEventIds: acceptedIds.WINNING_CRITERION, closingAction: "Run two additional format pilots", proofMethod: "Three pilots pass comprehension targets" }],
+};
+const scoringCommand = { body: scoringBody, actor: evidenceActor, idempotencyKey: "niche-scoring:test-001" };
+const scoringRecorded = await submitNicheScoringCommand(database, scoringCommand);
+assert.equal(scoringRecorded.assessment.sufficiencyState, "SUFFICIENT");
+assert.equal(scoringRecorded.assessment.comparisonEligibility, "ELIGIBLE");
+assert.equal(scoringRecorded.authority.aggregateScore, null);
+assert.equal(scoringRecorded.authority.expertPriorityMutation, false);
+assert.equal((await submitNicheScoringCommand(database, scoringCommand)).outcome, "IDEMPOTENT_REPLAY");
+await assert.rejects(() => submitNicheScoringCommand(database, { ...scoringCommand, idempotencyKey: "niche-scoring:stale-001" }), (error: unknown) => error instanceof NicheScoringCommandError && error.code === "SCORING_VERSION_CONFLICT");
+const extraConfidence = await submitNicheEvidenceCommand(database, { actor: evidenceActor, idempotencyKey: "niche-evidence:accepted-confidence-support", body: { action: "RECORD_NICHE_EVIDENCE_REVIEW", channelId: "channel-1", programId: "program-1", opportunityId: hypothesisRecorded.hypothesis.id, opportunityOrigin: "EXPERT_SEEDED", expectedAggregateVersion: 7, expectedEvidenceVersion: 8, planVersion: 1, direction: "SUPPORTS", claimStatement: "A second current source supports the reliability of the evidence package.", sourceRef: "research://accepted-confidence-support", sourceAuthority: "SECONDARY", observedAt: "2026-08-15", freshness: "CURRENT", confidence: 82, affectedAxis: "EVIDENCE_CONFIDENCE", disposition: "ACCEPTED", decisionImpact: "Use this review to exercise the server-side direction-sufficiency gate." } });
+await assert.rejects(() => submitNicheScoringCommand(database, { ...scoringCommand, idempotencyKey: "niche-scoring:stale-evidence", body: { ...scoringBody, expectedScoringVersion: 1 } }), (error: unknown) => error instanceof NicheScoringCommandError && error.code === "EVIDENCE_VERSION_CONFLICT");
+const insufficient = await submitNicheScoringCommand(database, { actor: evidenceActor, idempotencyKey: "niche-scoring:test-002", body: { ...scoringBody, expectedEvidenceVersion: 9, expectedScoringVersion: 1, evidenceConfidence: { ...scoringBody.evidenceConfidence, evidenceEventIds: [extraConfidence.event.id] } } });
+assert.equal(insufficient.assessment.sufficiencyState, "INSUFFICIENT");
+assert.equal(insufficient.assessment.comparisonEligibility, "RESEARCH_REQUIRED");
+assert.ok(insufficient.assessment.sufficiencyGaps.some((gap) => gap.includes("unknown")));
+const prerequisiteBlocked = await submitNicheScoringCommand(database, { actor: evidenceActor, idempotencyKey: "niche-scoring:test-003", body: { ...scoringBody, expectedEvidenceVersion: 9, expectedScoringVersion: 2, prerequisites: scoringBody.prerequisites.map((item) => ({ ...item, status: "GAP" as const, basis: "The latest audit found a prerequisite gap that must be closed before eligibility." })) } });
+assert.equal(prerequisiteBlocked.assessment.sufficiencyState, "SUFFICIENT");
+assert.equal(prerequisiteBlocked.assessment.comparisonEligibility, "BLOCKED_BY_PREREQUISITE");
+const scoredPortfolio = await nichePortfolioProjection("channel-1", database);
+const scoredExpertInput = scoredPortfolio.comparison.find((item) => item.opportunityId === hypothesisRecorded.hypothesis.id);
+assert.ok(scoredExpertInput);
+assert.equal(scoredExpertInput.lifecycleState, "COMPARABLE");
+assert.equal(scoredExpertInput.axes.marketAttractiveness.score, 78);
+assert.equal(scoredExpertInput.eligibility, "BLOCKED_BY_PREREQUISITE");
+assert.equal(scoredExpertInput.systemRankBasis, "SLICE_5_LEXICOGRAPHIC_EVIDENCE_ORDER");
+assert.equal(scoredExpertInput.expertPriority, null);
+assert.equal(scoredPortfolio.rankingPolicy.totalScore, null);
+assert.equal(tables.channels[0].niche, "Hidden Systems Behind Money");
 
 tables.niche_expert_decisions.unshift({
   id: "decision-accept-1", portfolio_id: "CANONICAL_PORTFOLIO", channel_id: "channel-1", program_id: "program-1", aggregate_version: 7, decision_version: 1,

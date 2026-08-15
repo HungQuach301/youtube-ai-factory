@@ -70,6 +70,13 @@ assert(unauthenticatedEvidence.headers.get("cache-control") === "no-store", "nic
 assert(unauthenticatedEvidencePayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "niche evidence command must expose a typed authentication failure");
 assert(unauthenticatedEvidencePayload.providerRequests === 0 && unauthenticatedEvidencePayload.spendUsd === 0, "niche evidence authentication failure must remain zero-spend");
 
+const unauthenticatedScoring = await worker.fetch(new Request("http://localhost/api/factory/niche-scoring", { method: "POST", headers: { accept: "application/json", "content-type": "application/json", "idempotency-key": "rendered-scoring:001" }, body: "{}" }), env, ctx);
+const unauthenticatedScoringPayload = await unauthenticatedScoring.json();
+assert(unauthenticatedScoring.status === 401, "niche scoring command must reject a missing SIWC identity");
+assert(unauthenticatedScoring.headers.get("cache-control") === "no-store", "niche scoring authentication failure must be no-store");
+assert(unauthenticatedScoringPayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "niche scoring command must expose a typed authentication failure");
+assert(unauthenticatedScoringPayload.providerRequests === 0 && unauthenticatedScoringPayload.spendUsd === 0 && unauthenticatedScoringPayload.aggregateScore === null, "niche scoring authentication failure must remain zero-spend with no total score");
+
 const slowest = timings.reduce((current, item) => item.milliseconds > current.milliseconds ? item : current);
 assert(slowest.milliseconds <= 500, `${slowest.route} server-render ${slowest.milliseconds.toFixed(1)}ms exceeds the 500ms lab budget`);
-console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 3 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);
+console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 4 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);
