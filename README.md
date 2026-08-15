@@ -8,7 +8,7 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 
 ## Current production checkpoint
 
-- Deployed checkpoint before the current change: Sites v298, source HEAD `2f11cc3af35a482eace9802f34f9bb2474388f20`.
+- Deployed checkpoint: Sites v299, commit `a674e347731e226430c5a17956beacfb659833ff`.
 - Product slices: Canonical Shell, Channel Detail, Intelligence/Niche and Channel Studio (`RECONSTRUCTED_V1`), plus the governed niche expert-decision command.
 - Boundaries: all projections remain no-store/fail-closed with no demo fallback; only `POST /api/factory/niche-decisions` has bounded zero-spend mutation authority.
 - Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only decision/audit/lineage. It does not mutate `channels.niche` or activate Channel Strategy.

@@ -5,7 +5,7 @@
 **Status:** `SLICE_3_EXPERT_HYPOTHESIS_INTAKE_IMPLEMENTED`
 **Date:** 2026-08-15 (Asia/Bangkok)
 **Contract deployment:** Sites v295 / `022f72f4ee06703225e4520bcf83983f887fade4` / succeeded
-**Latest combined deployment:** Sites v297 / `b08cf9a10ced2911da891bf0361916a28daf2600` / succeeded
+**Latest combined deployment:** Sites v299 / `a674e347731e226430c5a17956beacfb659833ff` / succeeded
 
 ## Business outcome
 

@@ -3,8 +3,9 @@
 **Slice:** `03_EXPERT_HYPOTHESIS_INTAKE`  
 **Command:** `SUBMIT_NICHE_HYPOTHESIS`  
 **Contract:** `NICHE_HYPOTHESIS_INTAKE_V1`  
-**Status:** `IMPLEMENTED_PENDING_PRODUCTION_RECONCILIATION`  
+**Status:** `PRODUCTION_DEPLOYED_ZERO_SPEND_APPEND`  
 **Date:** 2026-08-15 (Asia/Bangkok)
+**Deployment:** Sites v299 / `a674e347731e226430c5a17956beacfb659833ff` / succeeded
 
 ## Outcome
 
