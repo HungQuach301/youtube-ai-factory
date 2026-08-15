@@ -1,6 +1,6 @@
 # Reconstructed Multi-Channel Slices Checkpoint
 
-**Classification:** `RECONSTRUCTED_V1_PRIMARY_PROJECTION_GUARDS`
+**Classification:** `RECONSTRUCTED_V1_INTELLIGENCE_NICHE_CONTRACT_GUARD`
 **Baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`
 **Deployment:** not deployed
 **Commercial UI/UX:** semantic/static acceptance passed; rendered review pending
@@ -28,6 +28,8 @@ Niche research champion, current channel niche and expert commitment are separat
 - Responsive behavior: manually confirmed by the user on 2026-08-15.
 - Commercial UI static contract: 14/14 and enforced during every verified build.
 - Canonical-data primary projection contract: Portfolio, Channel Detail, Discovery and Channel Studio pass with structured fixtures and enforced authority boundaries during every verified build.
+- Intelligence & Niche executable contract: eight fail-closed lifecycle paths pass; all typed commands are zero-spend and `DECLARED_NOT_ROUTED`.
+- Contract ledger: `docs/continuity/12_INTELLIGENCE_NICHE_EXECUTABLE_CONTRACT.md`.
 - Rendered contract: 4/4 commercial loading pages and 4/4 fail-closed recovery APIs pass during every verified build.
 - Lab server-render budget: pass at 75.6 ms / 500 ms for the slowest route.
 - Commercial client artifact budgets: pass and enforced during every verified build.
@@ -36,7 +38,7 @@ Niche research champion, current channel niche and expert commitment are separat
 
 ## Exact next product action
 
-After the source continuity capsule is complete, resume only the remaining Document 27 browser/hydration evidence gates when the approved preview/browser surface is reachable. Do not repeat responsive, semantic/static, canonical projection or Worker-rendered gates unless their source changes. Repair only evidenced defects and rerun the same functional verification. Do not deploy or add mutation authority.
+Integrate the executable compiler into a GET-only workflow projection using canonical Discovery data. Expose derived readiness and Channel Strategy handoff state without routing any typed command. Resume Document 27 browser/hydration gates separately when the approved browser surface is reachable. Do not deploy or add mutation authority.
 
 ## Protected scope
 

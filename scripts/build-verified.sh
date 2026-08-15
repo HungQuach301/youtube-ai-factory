@@ -27,6 +27,9 @@ node "${script_dir}/check-commercial-ui.mjs"
 echo "Checking canonical-data primary projections..."
 node --import tsx "${script_dir}/check-commercial-primary.ts"
 
+echo "Checking Intelligence & Niche executable contract..."
+node --import tsx "${script_dir}/check-intelligence-niche-contract.ts"
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \

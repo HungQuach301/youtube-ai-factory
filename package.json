@@ -11,6 +11,7 @@
     "check:async-boundaries": "node scripts/check-async-error-boundaries.mjs",
     "check:commercial-ui": "node scripts/check-commercial-ui.mjs",
     "check:commercial-primary": "node --import tsx scripts/check-commercial-primary.ts",
+    "check:intelligence-niche-contract": "node --import tsx scripts/check-intelligence-niche-contract.ts",
     "check:commercial-rendered": "node scripts/check-commercial-rendered.mjs",
     "check:commercial-performance": "node scripts/check-commercial-performance.mjs",
     "build": "bash scripts/build-verified.sh",
