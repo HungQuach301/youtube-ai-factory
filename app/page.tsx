@@ -40,7 +40,7 @@ export default function Home() {
         {data.channels.length ? <div className="pfChannelGrid">{data.channels.map((channel) => <Link href={`/channels/${encodeURIComponent(channel.id)}`} className="pfChannelCard" key={channel.id}>
           <div className="pfCardTop"><span className="pfAvatar">{channel.name.slice(0, 2).toUpperCase()}</span><StatusPill tone={channel.integrity === "READY" ? "good" : "warn"}>{channel.integrity}</StatusPill></div>
           <h3>{channel.name}</h3><p>{channel.niche}</p><div className="pfMeta"><span>{channel.market} · {channel.language}</span><span>{channel.videos.active}/{channel.videos.count} active</span></div>
-          <div className="pfProgress"><i style={{ width: `${channel.videos.averageProgress}%` }} /></div>
+          <div className="pfProgress" role="progressbar" aria-label={`${channel.name} average video progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={channel.videos.averageProgress}><i aria-hidden="true" style={{ width: `${channel.videos.averageProgress}%` }} /></div>
           <footer><span>{channel.program?.status || "NO PROGRAM MAPPING"}</span><b>Open channel →</b></footer>
         </Link>)}</div> : <div className="pfEmpty"><h3>No canonical channels</h3><p>The registry is empty. No sample channels were generated.</p></div>}
       </section>

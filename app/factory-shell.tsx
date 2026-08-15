@@ -24,21 +24,24 @@ export function FactoryShell({ children, active = "portfolio" }: { children: Rea
     production: "/control-plane",
     continuity: "/continuity",
   };
-  return <main className="pfShell">
+  return <>
+    <a className="pfSkipLink" href="#main-content">Skip to main content</a>
+    <div className="pfShell">
     <aside className="pfSidebar">
       <Link className="pfBrand" href="/"><Mark /><span><strong>AI Factory</strong><small>Multi-channel operations</small></span></Link>
       <nav aria-label="Factory navigation">
-        {navigation.map(([key, number, label]) => <Link key={key} className={active === key ? "active" : ""} href={href[key]}><span>{number}</span>{label}</Link>)}
+        {navigation.map(([key, number, label]) => <Link key={key} aria-current={active === key ? "page" : undefined} className={active === key ? "active" : ""} href={href[key]}><span>{number}</span>{label}</Link>)}
       </nav>
       <div className="pfSidebarFoot"><div><i />Read-only projection</div><Link href="/settings">Factory settings →</Link></div>
     </aside>
-    <section className="pfWorkspace">{children}</section>
-  </main>;
+    <main className="pfWorkspace" id="main-content" tabIndex={-1}>{children}</main>
+    </div>
+  </>;
 }
 
 export function ProjectionState({ loading, error, data, label = "canonical state" }: { loading: boolean; error: string | null; data: unknown; label?: string }) {
   if (error) return <section className="pfFailure" role="alert"><small>PROJECTION UNAVAILABLE</small><h1>Canonical state could not load.</h1><p>{error}</p><span>No demo or local fallback was substituted.</span></section>;
-  if (loading || !data) return <section className="pfLoading" aria-live="polite"><i /><span>Loading {label}…</span></section>;
+  if (loading || !data) return <section className="pfLoading" role="status" aria-live="polite" aria-busy="true"><i aria-hidden="true" /><span>Loading {label}…</span></section>;
   return null;
 }
 

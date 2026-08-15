@@ -13,6 +13,9 @@ const discoveryRoute = await readFile(new URL("../app/api/factory/discovery/rout
 const discoveryProjection = await readFile(new URL("../lib/discovery-projection.ts", import.meta.url), "utf8");
 const studioRoute = await readFile(new URL("../app/api/factory/channel-studio/route.ts", import.meta.url), "utf8");
 const studioProjection = await readFile(new URL("../lib/channel-studio-projection.ts", import.meta.url), "utf8");
+const marketPage = await readFile(new URL("../app/market-intelligence/page.tsx", import.meta.url), "utf8");
+const nichePage = await readFile(new URL("../app/niche-discovery/page.tsx", import.meta.url), "utf8");
+const studioPage = await readFile(new URL("../app/channel-studio/page.tsx", import.meta.url), "utf8");
 
 test("the canonical shell is portfolio-first without replacing the protected production workspace", () => {
   assert.doesNotMatch(home, /export \{ default \} from "\.\/material-production\/page"/);
@@ -28,6 +31,15 @@ test("the canonical shell is portfolio-first without replacing the protected pro
 test("the canonical shell exposes connected factory capabilities and preserves protected routes", () => {
   for (const href of ["/", "/market-intelligence", "/niche-discovery", "/channel-studio", "/control-plane", "/continuity", "/settings"]) assert.match(shell, new RegExp(href.replaceAll("/", "\\/")));
   assert.match(shell, /No demo or local fallback was substituted/);
+  assert.match(shell, /Skip to main content/);
+  assert.match(shell, /aria-current=/);
+  assert.match(shell, /id="main-content"/);
+  assert.match(shell, /role="status"/);
+  assert.match(home, /role="progressbar"/);
+  for (const acceptedPage of [marketPage, nichePage, studioPage]) {
+    assert.doesNotMatch(acceptedPage, /fallback=\{null\}/);
+    assert.match(acceptedPage, /ProjectionState loading/);
+  }
 });
 
 test("portfolio and channel detail are GET-only fail-closed canonical projections", () => {

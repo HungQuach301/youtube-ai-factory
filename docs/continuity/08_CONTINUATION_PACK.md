@@ -15,4 +15,6 @@ Record completed and incomplete work, artifact/version/hash, provider usage and 
 
 ## Current handoff
 
-Continue from `MOTION_PROOF_REQUIRED` for champion C only after the Continuity Hardening Gate is reconciled. Do not recreate the Stage 09 source, candidates, composite tournament or pilot.
+For the multi-channel product surface, continue from `COMMERCIAL_UI_REVIEW_PENDING` using `docs/continuity/11_COMMERCIAL_UI_UX_ACCEPTANCE.md`. Resume only the rendered desktop/tablet/mobile, interaction, accessibility and lab-performance gates when the approved preview/browser surface is reachable. Do not deploy, mutate production/database state, dispatch providers, add command authority or repeat already-passed semantic/static acceptance unless source changes.
+
+The protected production handoff remains `MOTION_PROOF_REQUIRED` for champion C only after the Continuity Hardening Gate is reconciled. Do not recreate Stage 09 source, candidates, the composite tournament or pilot.

@@ -1,9 +1,9 @@
 # Reconstructed Multi-Channel Slices Checkpoint
 
-**Classification:** `RECONSTRUCTED_V1`
+**Classification:** `RECONSTRUCTED_V1_UI_ACCESSIBILITY_REPAIR`
 **Baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`
 **Deployment:** not deployed
-**Commercial UI/UX:** acceptance pending
+**Commercial UI/UX:** semantic/static acceptance passed; rendered review pending
 
 ## Implemented source
 
@@ -22,11 +22,15 @@ Niche research champion, current channel niche and expert commitment are separat
 - Targeted lint for all reconstructed source: pass.
 - Production build and Sites artifact validation: pass.
 - Full regression suite: 95/95.
-- Visual/responsive/keyboard/accessibility/performance acceptance: pending; no commercial-ready claim.
+- Built-worker SSR accessibility hooks: pass.
+- Blank Suspense fallbacks in accepted slices: zero.
+- Commercial legibility, focus, touch-target, responsive and reduced-motion repair: complete in source.
+- Rendered visual/responsive/keyboard/automated-accessibility/performance evidence: pending because the healthy preview could not be reached by the approved cloud-browser surface within the bounded attempts.
+- Evidence ledger: `docs/continuity/11_COMMERCIAL_UI_UX_ACCEPTANCE.md`.
 
 ## Exact next product action
 
-After the source continuity capsule is complete, run Document 27 commercial UI/UX acceptance for the four reconstructed slices, repair only discovered source defects, and rerun the same functional verification. Do not deploy or add mutation authority.
+After the source continuity capsule is complete, resume only the remaining Document 27 rendered evidence gates when the approved preview/browser surface is reachable. Do not repeat the passed semantic/static gates unless source changes. Repair only evidenced defects and rerun the same functional verification. Do not deploy or add mutation authority.
 
 ## Protected scope
 

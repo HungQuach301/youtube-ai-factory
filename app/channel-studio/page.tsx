@@ -49,4 +49,4 @@ function Studio() {
   </FactoryShell>;
 }
 
-export default function ChannelStudioPage() { return <Suspense fallback={null}><Studio /></Suspense>; }
+export default function ChannelStudioPage() { return <Suspense fallback={<FactoryShell active="studio"><ProjectionState loading error={null} data={null} label="Channel Studio" /></FactoryShell>}><Studio /></Suspense>; }
