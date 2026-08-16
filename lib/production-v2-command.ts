@@ -8,7 +8,7 @@ type StoredObject = { body: ReadableStream<Uint8Array> | null; arrayBuffer(): Pr
 export type ProductionV2Bucket = { put(key: string, value: ArrayBuffer | Uint8Array | string, options?: Record<string, unknown>): Promise<void>; get(key: string): Promise<StoredObject | null>; head(key: string): Promise<{ size?: number } | null> };
 export type ProductionV2Runtime = { DB: ProductionV2CommandDB; BUCKET: ProductionV2Bucket; ELEVENLABS_API_KEY?: string };
 
-const ENGINE = PRODUCTION_ENGINE_V2.engineVersion;
+const ENGINE = PRODUCTION_ENGINE_V2;
 const now = () => new Date().toISOString();
 const clean = (value: unknown) => String(value ?? "").trim();
 const num = (value: unknown) => Number(value ?? 0);
