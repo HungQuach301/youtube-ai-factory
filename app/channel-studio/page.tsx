@@ -28,12 +28,34 @@ function AutopilotWorkspace({ data, refresh }: { data: ChannelStudioProjection; 
   }
   function configure(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = new FormData(event.currentTarget); command("CONFIGURE_AUTOMATION_POLICY", { mode: String(form.get("mode")), dailyBudgetUsd: Number(form.get("dailyBudgetUsd")), monthlyBudgetUsd: Number(form.get("monthlyBudgetUsd")), perVideoCostCeilingUsd: Number(form.get("perVideoCostCeilingUsd")), cadencePerMonth: Number(form.get("cadencePerMonth")), repairLimit: Number(form.get("repairLimit")), riskTolerance: String(form.get("riskTolerance")), autoProduction: form.get("autoProduction") === "on", autoPublish: form.get("autoPublish") === "on", escalationRules: String(form.get("escalationRules")).split("\n").map((item) => item.trim()).filter(Boolean) }); }
   const runReady = planning.strategy.state === "ACTIVE" && planning.policy.state === "ACTIVE";
+  const productionFeComplete = planning.run.state === "COMPLETE"
+    && planning.handoff.state === "READY_FOR_PRODUCTION"
+    && planning.handoff.eligibleBriefs > 0
+    && planning.handoff.eligibleBriefs === planning.summary.briefsReady
+    && planning.briefs.every((brief) => brief.state === "READY_FOR_PRODUCTION");
+  const productionQaComplete = productionFeComplete
+    && planning.integrity.state === "READY"
+    && planning.summary.openExceptions === 0
+    && planning.summary.providerRequests === 0
+    && planning.summary.spendUsd === 0
+    && planning.handoff.blockers.length === 0
+    && !planning.handoff.publishingAuthorized;
+  const sliceStates = [
+    planning.policy.state,
+    planning.run.state,
+    planning.run.state,
+    planning.run.state,
+    planning.run.state,
+    planning.run.state,
+    productionFeComplete ? "COMPLETE" : "PENDING",
+    productionQaComplete ? "COMPLETE" : "PENDING",
+  ];
   return <>
     <section className="cpHero">
       <div><small>CONTENT SYSTEM & PLANNING V1 · AUTOPILOT-FIRST</small><h2>{planning.handoff.state === "READY_FOR_PRODUCTION" ? `${planning.summary.briefsReady} briefs ready for production` : "Turn one active strategy into a repeatable publishing system."}</h2><p>{planning.strategy.viewerPromise || "An active strategy viewer promise is required."}</p><div className="cpHeroBadges"><StatusPill tone={planning.policy.state === "ACTIVE" ? "good" : "warn"}>{planning.policy.mode || "POLICY REQUIRED"}</StatusPill><span>Policy v{planning.policy.version}</span><span>Strategy v{planning.strategy.version}</span><span>Run v{planning.run.version}</span></div></div>
       <aside><div><small>PILLARS</small><strong>{planning.summary.pillars}</strong></div><div><small>SERIES</small><strong>{planning.summary.series}</strong></div><div><small>OPPORTUNITIES</small><strong>{planning.summary.opportunities}</strong></div><div><small>BRIEFS READY</small><strong>{planning.summary.briefsReady}</strong></div><div><small>OPEN EXCEPTIONS</small><strong>{planning.summary.openExceptions}</strong></div><div><small>PLANNING SPEND</small><strong>${planning.summary.spendUsd.toFixed(2)}</strong></div></aside>
     </section>
-    <section className="cpPath" aria-label="Content System and Planning slices">{["Authority", "Content system", "Backlog", "Editorial plan", "Brief compiler", "Orchestrator", "Production FE", "Production QA"].map((label, index) => <article className={(index === 0 ? planning.policy.version : index < 6 ? planning.run.version : planning.run.state === "COMPLETE" ? 1 : 0) ? "done" : ""} key={label}><span>0{index + 1}</span><strong>{label}</strong><small>{index === 0 ? planning.policy.state : index < 6 ? planning.run.state : planning.run.state === "COMPLETE" ? "ACCEPTANCE CANDIDATE" : "PENDING"}</small></article>)}</section>
+    <section className="cpPath" aria-label="Content System and Planning slices">{["Authority", "Content system", "Backlog", "Editorial plan", "Brief compiler", "Orchestrator", "Production FE", "Production QA"].map((label, index) => <article className={["ACTIVE", "COMPLETE"].includes(sliceStates[index]) ? "done" : ""} key={label}><span>0{index + 1}</span><strong>{label}</strong><small>{sliceStates[index]}</small></article>)}</section>
     <div className="cpControlGrid">
       <section className="cpPolicy"><header><div><small>SLICE 1 · AUTOMATION POLICY & AUTHORITY</small><h2>Owner sets the envelope once.</h2><p>Autopilot acts only inside this versioned policy. Strategic, risk and cost exceptions return to the owner.</p></div><StatusPill tone={planning.policy.state === "ACTIVE" ? "good" : planning.policy.state === "EMERGENCY_STOPPED" ? "bad" : "warn"}>{planning.policy.state}</StatusPill></header>
         <form onSubmit={configure}><label><span>Operating mode</span><select name="mode" defaultValue={planning.policy.mode || "FULL_AUTOPILOT"}><option value="FULL_AUTOPILOT">Full Autopilot</option><option value="EXCEPTIONS_ONLY">Exceptions only</option><option value="EXPERT_REVIEW">Expert review</option></select></label><label><span>Risk tolerance</span><select name="riskTolerance" defaultValue={planning.policy.riskTolerance || "LOW"}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label><label><span>Daily budget · USD</span><input name="dailyBudgetUsd" type="number" min="0" step="0.01" defaultValue={planning.policy.dailyBudgetUsd || 25} /></label><label><span>Monthly budget · USD</span><input name="monthlyBudgetUsd" type="number" min="0" step="0.01" defaultValue={planning.policy.monthlyBudgetUsd || 500} /></label><label><span>Per-video ceiling · USD</span><input name="perVideoCostCeilingUsd" type="number" min="0" step="0.01" defaultValue={planning.policy.perVideoCostCeilingUsd || 40} /></label><label><span>Videos per month</span><input name="cadencePerMonth" type="number" min="1" max="60" defaultValue={planning.policy.cadencePerMonth || 8} /></label><label><span>Automatic repair limit</span><input name="repairLimit" type="number" min="0" max="4" defaultValue={planning.policy.repairLimit || 1} /></label><div className="cpSwitches"><label><input name="autoProduction" type="checkbox" defaultChecked={planning.policy.autoProduction} /><span>Authorize automatic production handoff</span></label><label><input name="autoPublish" type="checkbox" defaultChecked={planning.policy.autoPublish} /><span>Authorize automatic publishing after downstream QA</span></label></div><label className="wide"><span>Mandatory escalation rules · one per line</span><textarea name="escalationRules" defaultValue={(planning.policy.escalationRules.length ? planning.policy.escalationRules : escalationDefaults).join("\n")} /></label><footer className="wide"><p>Changing policy creates v{planning.policy.version + 1}; it never rewrites prior system decisions.</p><button disabled={status === "SUBMITTING"}>Record policy v{planning.policy.version + 1}</button></footer></form>

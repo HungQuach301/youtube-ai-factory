@@ -24,7 +24,7 @@ The active Channel Strategy v1 is compiled into a permanent, versioned Content S
 ```text
 FUNCTIONAL_SITES_VERSION = 313
 FUNCTIONAL_SOURCE_COMMIT = f7a125c2f101c3ee3dca23e6d4a080f747142c46
-FINAL_ACCEPTANCE_CHECKPOINT = SITES_V314
+FINAL_ACCEPTANCE_CHECKPOINT = SITES_V315
 CHANNEL = channel-hidden-systems
 CHANNEL_STRATEGY = ACTIVE_V1
 ACTIVATION_ID = channel-strategy-activation:c7b50c41-7f09-4320-8bfe-93b0f4b0cf08
@@ -57,10 +57,11 @@ Content Autopilot may compile content systems, backlogs, editorial plans and pro
 - 69/69 commercial UI contract checks.
 - 10/10 control-plane tests and 96/96 full regressions.
 - Four rendered journeys, four fail-closed read APIs and eight SIWC-protected zero-spend command checks.
-- Client gzip: CSS 60,807/62,000; largest page JS 46,387/50,000; catalog 309,126/310,000.
-- Production browser: all eight slices visible; 4/8/8/8/8 object counts; zero application console errors.
+- Client gzip: CSS 60,807/62,000; largest page JS 46,387/50,000; catalog 309,159/310,000.
+- Production browser: all eight slices visible and closed; 4/8/8/8/8 object counts; zero application console errors.
 - Production read-back: policy v3, run v2, `READY_FOR_PRODUCTION`, integrity `READY`, Strategy v1 lineage unchanged.
 - Production font asset defect found during QA was repaired by removing build-machine `next/font` paths; final build contains no `/workspace/.../.vinext/fonts` URL.
+- Slices 7 and 8 report `COMPLETE` only when the canonical handoff, eligible-brief equality, brief readiness, integrity, exception, zero-request, zero-spend, blocker and publishing-closure gates all pass.
 
 ## Protected next boundary
 
