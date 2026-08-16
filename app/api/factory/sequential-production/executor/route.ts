@@ -155,7 +155,12 @@ async function startCompilation(env: Env, stageKey: StageKey, idempotencyKey: st
     .bind(requestId, context.program.id, context.queue.id, stageKey, "OPENAI", idempotencyKey, requestHash, stageKey === "01" || stageKey === "03" ? "PRIMARY_SOURCES_VERIFIED" : stageKey === "02" ? "REFERENCE_ANALYSIS_ONLY" : "CHANNEL_OWNED_ORIGINAL", startedAt).run();
   const tools = ["01", "02", "03"].includes(stageKey) ? [{ type: "web_search", return_token_budget: "unlimited" }] : undefined;
   const maxOutputTokens = stageKey === "03" || stageKey === "06" ? 40000 : 24000;
-  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": idempotencyKey }, body: JSON.stringify({ model, reasoning: { effort: "high" }, ...(tools ? { tools } : {}), background: true, store: true, max_output_tokens: maxOutputTokens, input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }], text: { format: { type: "json_schema", name: `sequential_stage_${stageKey.replace("A", "a").replace("B", "b")}_bundle`, strict: true, schema: bundleSchema } } }), signal: AbortSignal.timeout(30000) });
+  const responseSchema = structuredClone(bundleSchema) as Row;
+  const artifactsSchema = (responseSchema.properties as Row).artifacts as Row;
+  const artifactItemSchema = artifactsSchema.items as Row;
+  const artifactProperties = artifactItemSchema.properties as Row;
+  artifactProperties.artifactType = { type: "string", enum: required };
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": idempotencyKey }, body: JSON.stringify({ model, reasoning: { effort: "high" }, ...(tools ? { tools } : {}), background: true, store: true, max_output_tokens: maxOutputTokens, input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }], text: { format: { type: "json_schema", name: `sequential_stage_${stageKey.replace("A", "a").replace("B", "b")}_bundle`, strict: true, schema: responseSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) {
     const detail = (await response.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 500);
     await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,completed_at=? WHERE id=?").bind(`OPENAI_${response.status}`, now(), requestId).run();
@@ -184,8 +189,15 @@ async function finalizeCompilation(env: Env, actor: SequentialActor, stageKey: S
     }
     return { outcome: "PENDING", stageKey, providerRequestId, providerStatus: status };
   }
-  const required = parseJson<string[]>(context.contract.required_artifacts_json, []), bundle = parseJson<Row>(outputText(payload), {}), artifacts = validateBundle(stageKey, required, bundle);
-  const usage = measureOpenAIUsage(payload, env.OPENAI_QA_MODEL || MODEL), responseHash = await digest(outputText(payload)), completedAt = now();
+  const required = parseJson<string[]>(context.contract.required_artifacts_json, []), rawOutput = outputText(payload), bundle = parseJson<Row>(rawOutput, {});
+  const usage = measureOpenAIUsage(payload, env.OPENAI_QA_MODEL || MODEL), responseHash = await digest(rawOutput), completedAt = now();
+  let artifacts: Row[];
+  try { artifacts = validateBundle(stageKey, required, bundle); }
+  catch (error) {
+    const errorCode = error instanceof SequentialCommandError ? error.code : "STAGE_BUNDLE_VALIDATION_FAILED";
+    await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',response_hash=?,error_code=?,cost_usd=?,completed_at=? WHERE id=?").bind(responseHash, errorCode, usage.actualUsd, completedAt, providerRequestId).run();
+    return { outcome: "FAILED", stageKey, providerRequestId, providerStatus: status, errorCode, message: error instanceof Error ? error.message : "Stage bundle validation failed", usage };
+  }
   await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='COMPLETED',response_hash=?,cost_usd=?,completed_at=?,error_code=NULL WHERE id=?").bind(responseHash, usage.actualUsd, completedAt, providerRequestId).run();
   const parentArtifactIds = context.parentArtifacts.map((artifact) => clean(artifact.id));
   const rightsState = stageKey === "01" || stageKey === "03" ? "PRIMARY_SOURCES_VERIFIED" : stageKey === "02" ? "REFERENCE_ANALYSIS_ONLY" : "CHANNEL_OWNED_ORIGINAL";
