@@ -21,12 +21,16 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
   const packages = await rows(db, `SELECT p.*,c.sequence,
     (SELECT COUNT(*) FROM production_v2_shot_contracts s WHERE s.package_id=p.id AND s.lifecycle_state='CONTRACT_VALID') AS valid_shots,
     (SELECT COUNT(*) FROM production_v2_artifacts a WHERE a.package_id=p.id) AS artifact_count,
-    (SELECT COUNT(*) FROM production_v2_quality_assessments q WHERE q.package_id=p.id) AS qa_count
+    (SELECT COUNT(*) FROM production_v2_quality_assessments q WHERE q.package_id=p.id) AS qa_count,
+    (SELECT COUNT(*) FROM production_v2_provider_requests r WHERE r.package_id=p.id) AS provider_request_total,
+    (SELECT COUNT(*) FROM production_v2_provider_requests r WHERE r.package_id=p.id AND r.lifecycle_state='FAILED') AS provider_request_failed,
+    (SELECT a.id FROM production_v2_artifacts a WHERE a.package_id=p.id AND a.artifact_type='FULL_VIDEO_MASTER' ORDER BY a.created_at DESC LIMIT 1) AS master_artifact_id
     FROM production_v2_packages p JOIN content_episode_concepts_v2 c ON c.id=p.episode_concept_id
     WHERE p.channel_id=? ORDER BY c.sequence`, channelId);
   const waves = await rows(db, "SELECT * FROM production_v2_scale_waves WHERE channel_id=? ORDER BY wave_number", channelId);
   const requestSummary = await db.prepare(`SELECT COUNT(*) AS total,
     SUM(CASE WHEN r.lifecycle_state IN ('CREATED','RUNNING') THEN 1 ELSE 0 END) AS active,
+    SUM(CASE WHEN r.lifecycle_state='FAILED' THEN 1 ELSE 0 END) AS failed,
     COALESCE(SUM(cost_usd),0) AS spend FROM production_v2_provider_requests r
     JOIN production_v2_packages p ON p.id=r.package_id WHERE p.channel_id=?`).bind(channelId).first<Row>();
   const foundationAudit = await db.prepare("SELECT evidence_hash,detail_json FROM production_v2_audits WHERE channel_id=? AND event_type='GREENFIELD_FOUNDATION_COMPILED' LIMIT 1").bind(channelId).first<Row>();
@@ -56,7 +60,7 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
       dailyBudgetUsd: number(policy.daily_budget_usd), monthlyBudgetUsd: number(policy.monthly_budget_usd), perVideoBudgetUsd: number(policy.per_video_budget_usd),
       maxRemoteRequests: number(policy.max_remote_requests), maxRepairAttempts: number(policy.max_repair_attempts), autoDispatch: boolean(policy.auto_dispatch), autoPublish: boolean(policy.auto_publish), legacyReusePolicy: clean(policy.legacy_reuse_policy),
     },
-    summary: { targetVideos: 15, packagesCompiled: compiled, shotContracts: number(shotCount?.total), validShotContracts: validContracts, videosReady: ready, openExceptions: 0, providerRequests: number(requestSummary?.total), activeProviderRequests: number(requestSummary?.active), spendUsd: number(requestSummary?.spend), legacySources },
+    summary: { targetVideos: 15, packagesCompiled: compiled, shotContracts: number(shotCount?.total), validShotContracts: validContracts, videosReady: ready, openExceptions: 0, providerRequests: number(requestSummary?.total), failedProviderRequests: number(requestSummary?.failed), activeProviderRequests: number(requestSummary?.active), spendUsd: number(requestSummary?.spend), legacySources },
     checkpoints: [
       { number: 1, label: "Greenfield foundation", state: checkpoint1 ? "COMPLETE" : "ACTIVE", evidence: checkpoint1 ? "15 packages · 75 contracts · zero legacy · $0" : "Foundation evidence incomplete" },
       { number: 2, label: "Golden pilot", state: checkpoint2 ? "COMPLETE" : checkpoint1 ? "ACTIVE" : "BLOCKED", evidence: checkpoint2 ? "10-shot and 30-second proof passed" : checkpoint1 ? "Ready for controlled pilot" : "Foundation required" },
@@ -64,7 +68,7 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
       { number: 4, label: "Controlled scale", state: checkpoint4 ? "COMPLETE" : checkpoint3 ? "ACTIVE" : "BLOCKED", evidence: checkpoint4 ? "15/15 videos ready" : checkpoint3 ? `${ready}/15 ready · run controlled 2/4/8 waves` : "Canary required" },
     ],
     scaleWaves: waves.map((wave) => ({ number: number(wave.wave_number), state: clean(wave.lifecycle_state), packageCount: number(wave.package_count), completedCount: number(wave.completed_count), p0Count: number(wave.p0_count), p1Rate: number(wave.p1_rate), duplicateRate: number(wave.duplicate_rate), providerFailureRate: number(wave.provider_failure_rate), costVarianceRate: number(wave.cost_variance_rate) })),
-    packages: packages.map((item) => ({ id: clean(item.id), sequence: number(item.sequence), title: clean(item.title), state: clean(item.lifecycle_state) as ProductionV2State, targetDurationSeconds: number(item.target_duration_seconds), shotCount: number(item.shot_count), validShotContracts: number(item.valid_shots), artifacts: number(item.artifact_count), qaAssessments: number(item.qa_count), providerRequests: number(item.provider_requests), spendUsd: number(item.spend_usd), traceabilityComplete: boolean(item.traceability_complete), legacySourceCount: number(item.legacy_source_count), engineVersion: clean(item.engine_version) })),
+    packages: packages.map((item) => ({ id: clean(item.id), sequence: number(item.sequence), title: clean(item.title), state: clean(item.lifecycle_state) as ProductionV2State, targetDurationSeconds: number(item.target_duration_seconds), shotCount: number(item.shot_count), validShotContracts: number(item.valid_shots), artifacts: number(item.artifact_count), qaAssessments: number(item.qa_count), providerRequests: number(item.provider_request_total), failedProviderRequests: number(item.provider_request_failed), spendUsd: number(item.spend_usd), traceabilityComplete: boolean(item.traceability_complete), legacySourceCount: number(item.legacy_source_count), engineVersion: clean(item.engine_version), masterArtifactId: clean(item.master_artifact_id) || undefined })),
     integrity: { state: checks.every((check) => check.passed) ? "READY" : "BLOCKED", checks, nextAction: checkpoint4 ? "REVIEW_PUBLISHING_AUTHORITY" : checkpoint3 ? "RUN_CONTROLLED_WAVES" : checkpoint2 ? "RUN_FULL_VIDEO_CANARY" : checkpoint1 ? "START_GOLDEN_PILOT" : "REPAIR_FOUNDATION" },
   };
 }

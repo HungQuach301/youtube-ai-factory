@@ -30,6 +30,19 @@ export async function GET(request: Request) {
   }
 }
 
+export async function HEAD(request: Request) {
+  try {
+    const url = new URL(request.url), artifactId = url.searchParams.get("artifact");
+    if (!artifactId) return new Response(null, { status: 400, headers: NO_STORE });
+    const env = await runtime();
+    if (!env.DB || !env.BUCKET) return new Response(null, { status: 503, headers: NO_STORE });
+    const { artifact } = await readArtifact({ DB: env.DB, BUCKET: env.BUCKET, ELEVENLABS_API_KEY: env.ELEVENLABS_API_KEY }, artifactId);
+    return new Response(null, { headers: { ...NO_STORE, "content-type": String(artifact.mime_type), "content-length": String(artifact.byte_size), "x-content-sha256": String(artifact.sha256) } });
+  } catch (error) {
+    return new Response(null, { status: error instanceof ProductionV2CommandError ? error.status : 503, headers: NO_STORE });
+  }
+}
+
 async function secretMatches(left: string, right: string) {
   if (!left || !right) return false; const encode = (value: string) => new TextEncoder().encode(value);
   const [a, b] = await Promise.all([crypto.subtle.digest("SHA-256", encode(left)), crypto.subtle.digest("SHA-256", encode(right))]);

@@ -23,10 +23,12 @@ export type ProductionV2Package = {
   artifacts: number;
   qaAssessments: number;
   providerRequests: number;
+  failedProviderRequests: number;
   spendUsd: number;
   traceabilityComplete: boolean;
   legacySourceCount: number;
   engineVersion: string;
+  masterArtifactId?: string;
 };
 
 export type ProductionV2Projection = {
@@ -53,6 +55,7 @@ export type ProductionV2Projection = {
     videosReady: number;
     openExceptions: number;
     providerRequests: number;
+    failedProviderRequests: number;
     activeProviderRequests: number;
     spendUsd: number;
     legacySources: number;
