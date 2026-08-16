@@ -1779,3 +1779,211 @@ export const v7ArtifactPromotions = sqliteTable("v7_artifact_promotions", {
   preflightJson: text("preflight_json").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Production Engine V2 is a greenfield, append-only production boundary. It
+// consumes only canonical Content Planning V2 briefs and never imports or
+// queries legacy V1–V23 production artifacts. Shared platform bindings (D1,
+// object storage, SIWC and provider credentials) are accessed through new V2
+// adapters and every state transition is evidence-backed.
+export const productionV2Policies = sqliteTable("production_v2_policies", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id").notNull(),
+  policyVersion: integer("policy_version").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("ACTIVE"),
+  mode: text("mode").notNull().default("FULL_AUTOPILOT"),
+  dailyBudgetUsd: real("daily_budget_usd").notNull(),
+  monthlyBudgetUsd: real("monthly_budget_usd").notNull(),
+  perVideoBudgetUsd: real("per_video_budget_usd").notNull(),
+  maxRemoteRequests: integer("max_remote_requests").notNull(),
+  maxRepairAttempts: integer("max_repair_attempts").notNull().default(1),
+  autoDispatch: integer("auto_dispatch", { mode: "boolean" }).notNull().default(false),
+  autoPublish: integer("auto_publish", { mode: "boolean" }).notNull().default(false),
+  legacyReusePolicy: text("legacy_reuse_policy").notNull().default("ZERO_CODE_ZERO_ARTIFACT"),
+  stopRulesJson: text("stop_rules_json").notNull(),
+  actorEmail: text("actor_email").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("production_v2_policy_channel_version_uq").on(table.channelId, table.policyVersion),
+  uniqueIndex("production_v2_policy_idempotency_uq").on(table.idempotencyKey),
+]);
+
+export const productionV2Packages = sqliteTable("production_v2_packages", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id").notNull(),
+  policyId: text("policy_id").notNull().references(() => productionV2Policies.id),
+  sourceBriefId: text("source_brief_id").notNull().references(() => productionBriefsV2.id),
+  episodeConceptId: text("episode_concept_id").notNull().references(() => contentEpisodeConceptsV2.id),
+  packageVersion: integer("package_version").notNull().default(1),
+  title: text("title").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("PRODUCTION_PACKAGE_COMPILED"),
+  targetDurationSeconds: integer("target_duration_seconds").notNull(),
+  shotCount: integer("shot_count").notNull(),
+  traceabilityComplete: integer("traceability_complete", { mode: "boolean" }).notNull().default(false),
+  legacySourceCount: integer("legacy_source_count").notNull().default(0),
+  providerRequests: integer("provider_requests").notNull().default(0),
+  spendUsd: real("spend_usd").notNull().default(0),
+  engineVersion: text("engine_version").notNull().default("PRODUCTION_ENGINE_V2_GREENFIELD"),
+  contentHash: text("content_hash").notNull(),
+  frozenAt: text("frozen_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("production_v2_package_brief_version_uq").on(table.sourceBriefId, table.packageVersion),
+  index("production_v2_package_channel_state_idx").on(table.channelId, table.lifecycleState, table.createdAt),
+]);
+
+export const productionV2ShotContracts = sqliteTable("production_v2_shot_contracts", {
+  id: text("id").primaryKey(),
+  packageId: text("package_id").notNull().references(() => productionV2Packages.id),
+  sequence: integer("sequence").notNull(),
+  narrativeBeat: text("narrative_beat").notNull(),
+  claim: text("claim").notNull(),
+  evidenceRefsJson: text("evidence_refs_json").notNull(),
+  route: text("route").notNull(),
+  visualJob: text("visual_job").notNull(),
+  requiredEvidenceJson: text("required_evidence_json").notNull(),
+  forbiddenEvidenceJson: text("forbidden_evidence_json").notNull(),
+  entryState: text("entry_state").notNull(),
+  midpointState: text("midpoint_state").notNull(),
+  exitState: text("exit_state").notNull(),
+  maxDurationSeconds: integer("max_duration_seconds").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("CONTRACT_VALID"),
+  engineVersion: text("engine_version").notNull().default("PRODUCTION_ENGINE_V2_GREENFIELD"),
+  contentHash: text("content_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("production_v2_shot_package_sequence_uq").on(table.packageId, table.sequence),
+  index("production_v2_shot_state_idx").on(table.packageId, table.lifecycleState),
+]);
+
+export const productionV2Jobs = sqliteTable("production_v2_jobs", {
+  id: text("id").primaryKey(),
+  packageId: text("package_id").notNull().references(() => productionV2Packages.id),
+  shotContractId: text("shot_contract_id").references(() => productionV2ShotContracts.id),
+  jobType: text("job_type").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("SPECIFIED"),
+  attempt: integer("attempt").notNull().default(0),
+  maxAttempts: integer("max_attempts").notNull().default(1),
+  idempotencyKey: text("idempotency_key").notNull(),
+  inputHash: text("input_hash").notNull(),
+  leaseOwner: text("lease_owner"),
+  leaseExpiresAt: text("lease_expires_at"),
+  blocker: text("blocker"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("production_v2_job_idempotency_uq").on(table.idempotencyKey),
+  index("production_v2_job_state_idx").on(table.lifecycleState, table.createdAt),
+]);
+
+export const productionV2Artifacts = sqliteTable("production_v2_artifacts", {
+  id: text("id").primaryKey(),
+  packageId: text("package_id").notNull().references(() => productionV2Packages.id),
+  shotContractId: text("shot_contract_id").references(() => productionV2ShotContracts.id),
+  artifactType: text("artifact_type").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("STORED"),
+  storageKey: text("storage_key").notNull(),
+  mimeType: text("mime_type").notNull(),
+  byteSize: integer("byte_size").notNull(),
+  sha256: text("sha256").notNull(),
+  rightsState: text("rights_state").notNull(),
+  provenanceJson: text("provenance_json").notNull(),
+  engineVersion: text("engine_version").notNull().default("PRODUCTION_ENGINE_V2_GREENFIELD"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  frozenAt: text("frozen_at"),
+}, (table) => [
+  uniqueIndex("production_v2_artifact_storage_hash_uq").on(table.storageKey, table.sha256),
+  index("production_v2_artifact_package_type_idx").on(table.packageId, table.artifactType),
+]);
+
+export const productionV2ProviderRequests = sqliteTable("production_v2_provider_requests", {
+  id: text("id").primaryKey(),
+  policyId: text("policy_id").notNull().references(() => productionV2Policies.id),
+  packageId: text("package_id").notNull().references(() => productionV2Packages.id),
+  jobId: text("job_id").references(() => productionV2Jobs.id),
+  provider: text("provider").notNull(),
+  operation: text("operation").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("CREATED"),
+  providerResponseId: text("provider_response_id"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  costUsd: real("cost_usd").notNull().default(0),
+  errorCode: text("error_code"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  completedAt: text("completed_at"),
+}, (table) => [
+  uniqueIndex("production_v2_provider_idempotency_uq").on(table.idempotencyKey),
+  index("production_v2_provider_package_state_idx").on(table.packageId, table.lifecycleState),
+]);
+
+export const productionV2QualityAssessments = sqliteTable("production_v2_quality_assessments", {
+  id: text("id").primaryKey(),
+  packageId: text("package_id").notNull().references(() => productionV2Packages.id),
+  artifactId: text("artifact_id").references(() => productionV2Artifacts.id),
+  assessmentType: text("assessment_type").notNull(),
+  evaluationNumber: integer("evaluation_number").notNull(),
+  lifecycleState: text("lifecycle_state").notNull(),
+  score: integer("score").notNull(),
+  p0Count: integer("p0_count").notNull().default(0),
+  p1Count: integer("p1_count").notNull().default(0),
+  dimensionsJson: text("dimensions_json").notNull(),
+  findingsJson: text("findings_json").notNull(),
+  evidenceHash: text("evidence_hash").notNull(),
+  independentActor: text("independent_actor").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("production_v2_assessment_artifact_eval_uq").on(table.artifactId, table.assessmentType, table.evaluationNumber),
+  index("production_v2_assessment_package_idx").on(table.packageId, table.createdAt),
+]);
+
+export const productionV2RepairPackages = sqliteTable("production_v2_repair_packages", {
+  id: text("id").primaryKey(),
+  packageId: text("package_id").notNull().references(() => productionV2Packages.id),
+  assessmentId: text("assessment_id").notNull().references(() => productionV2QualityAssessments.id),
+  rootStage: text("root_stage").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("AUTHORIZED"),
+  allowedChangesJson: text("allowed_changes_json").notNull(),
+  regressionTestsJson: text("regression_tests_json").notNull(),
+  maxRemoteRequests: integer("max_remote_requests").notNull(),
+  maxSpendUsd: real("max_spend_usd").notNull(),
+  attempt: integer("attempt").notNull().default(1),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  completedAt: text("completed_at"),
+}, (table) => [uniqueIndex("production_v2_repair_package_attempt_uq").on(table.packageId, table.attempt)]);
+
+export const productionV2ScaleWaves = sqliteTable("production_v2_scale_waves", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id").notNull(),
+  waveNumber: integer("wave_number").notNull(),
+  scopeJson: text("scope_json").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("BLOCKED_UPSTREAM"),
+  packageCount: integer("package_count").notNull(),
+  completedCount: integer("completed_count").notNull().default(0),
+  p0Count: integer("p0_count").notNull().default(0),
+  p1Rate: real("p1_rate").notNull().default(0),
+  duplicateRate: real("duplicate_rate").notNull().default(0),
+  providerFailureRate: real("provider_failure_rate").notNull().default(0),
+  costVarianceRate: real("cost_variance_rate").notNull().default(0),
+  admissionEvidenceHash: text("admission_evidence_hash"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  completedAt: text("completed_at"),
+}, (table) => [uniqueIndex("production_v2_wave_channel_number_uq").on(table.channelId, table.waveNumber)]);
+
+export const productionV2Audits = sqliteTable("production_v2_audits", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  eventType: text("event_type").notNull(),
+  actorType: text("actor_type").notNull(),
+  actorEmail: text("actor_email"),
+  detailJson: text("detail_json").notNull(),
+  evidenceHash: text("evidence_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("production_v2_audit_entity_event_uq").on(table.entityId, table.eventType),
+  index("production_v2_audit_channel_idx").on(table.channelId, table.createdAt),
+]);

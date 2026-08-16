@@ -21,7 +21,7 @@ export function FactoryShell({ children, active = "portfolio" }: { children: Rea
     intelligence: "/market-intelligence",
     niches: "/niche-discovery",
     studio: "/channel-studio",
-    production: "/control-plane",
+    production: "/video-engine",
     continuity: "/continuity",
   };
   return <>

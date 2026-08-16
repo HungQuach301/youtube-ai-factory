@@ -40,6 +40,10 @@ const canonicalContentBootstrap = await readFile(new URL("../lib/canonical-conte
 const contentMigration = await readFile(new URL("../drizzle/0038_clean_dexter_bennett.sql", import.meta.url), "utf8");
 const contentV2Migration = await readFile(new URL("../drizzle/0039_fancy_legion.sql", import.meta.url), "utf8");
 const contentCadenceReconciliation = await readFile(new URL("../drizzle/0040_exact_cadence_v2.sql", import.meta.url), "utf8");
+const productionV2Migration = await readFile(new URL("../drizzle/0041_confused_rockslide.sql", import.meta.url), "utf8");
+const productionV2Route = await readFile(new URL("../app/api/factory/production-v2/route.ts", import.meta.url), "utf8");
+const productionV2Projection = await readFile(new URL("../lib/production-v2-projection.ts", import.meta.url), "utf8");
+const productionV2Workspace = await readFile(new URL("../app/video-engine/production-engine-workspace.tsx", import.meta.url), "utf8");
 
 test("the canonical shell is portfolio-first without replacing the protected production workspace", () => {
   assert.doesNotMatch(home, /export \{ default \} from "\.\/material-production\/page"/);
@@ -53,7 +57,7 @@ test("the canonical shell is portfolio-first without replacing the protected pro
 });
 
 test("the canonical shell exposes connected factory capabilities and preserves protected routes", () => {
-  for (const href of ["/", "/market-intelligence", "/niche-discovery", "/channel-studio", "/control-plane", "/continuity", "/settings"]) assert.match(shell, new RegExp(href.replaceAll("/", "\\/")));
+  for (const href of ["/", "/market-intelligence", "/niche-discovery", "/channel-studio", "/video-engine", "/continuity", "/settings"]) assert.match(shell, new RegExp(href.replaceAll("/", "\\/")));
   assert.match(shell, /No demo or local fallback was substituted/);
   assert.match(shell, /Skip to main content/);
   assert.match(shell, /aria-current=/);
@@ -202,6 +206,23 @@ test("Content System and Planning closes eight slices inside an explicit authori
   assert.match(contentCadenceReconciliation, /V2_EPISODE_CONCEPTS/);
   assert.match(contentCadenceReconciliation, /providerRequests.*0.*spendUsd.*0/);
   assert.match(contentCadenceReconciliation, /autoProduction.*true.*autoPublish.*false/);
+});
+
+test("Production Engine V2 starts from a greenfield, exact and zero-spend foundation", () => {
+  for (const table of ["production_v2_policies", "production_v2_packages", "production_v2_shot_contracts", "production_v2_jobs", "production_v2_artifacts", "production_v2_provider_requests", "production_v2_quality_assessments", "production_v2_repair_packages", "production_v2_scale_waves", "production_v2_audits"]) assert.match(productionV2Migration, new RegExp("CREATE TABLE `" + table + "`"));
+  assert.match(productionV2Migration, /ZERO_CODE_ZERO_ARTIFACT/);
+  assert.match(productionV2Migration, /PRODUCTION_ENGINE_V2_GREENFIELD/);
+  assert.match(productionV2Migration, /PRODUCTION_PACKAGE_COMPILED/);
+  assert.match(productionV2Migration, /providerRequests.*0.*spendUsd.*0/);
+  assert.match(productionV2Projection, /compiled === 15/);
+  assert.match(productionV2Projection, /validContracts === 75/);
+  assert.match(productionV2Projection, /LEGACY_FIREWALL/);
+  assert.match(productionV2Projection, /PUBLISHING_CLOSED/);
+  assert.match(productionV2Route, /cache-control": "no-store"/);
+  assert.match(productionV2Route, /CANONICAL_DATABASE_UNAVAILABLE/);
+  assert.match(productionV2Workspace, /Turn approved briefs into release evidence/);
+  assert.match(productionV2Workspace, /Start controlled pilot/);
+  assert.match(productionV2Workspace, /AUTO PUBLISH/);
 });
 
 test("operator state is a bounded canonical projection", () => {

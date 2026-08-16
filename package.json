@@ -15,6 +15,7 @@
     "check:niche-portfolio-v2": "node --import tsx scripts/check-niche-opportunity-portfolio-v2.ts",
     "check:channel-strategy-bootstrap": "node --import tsx scripts/check-canonical-channel-strategy-bootstrap.ts",
     "check:content-planning": "node --import tsx scripts/check-content-system-planning.ts",
+    "check:production-v2-firewall": "node scripts/check-production-v2-firewall.mjs",
     "check:commercial-rendered": "node scripts/check-commercial-rendered.mjs",
     "check:commercial-performance": "node scripts/check-commercial-performance.mjs",
     "build": "bash scripts/build-verified.sh",

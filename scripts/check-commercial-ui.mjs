@@ -28,6 +28,10 @@ const files = Object.fromEntries(await Promise.all([
   ["contentAutopilotCommand", "lib/content-autopilot-command.ts"],
   ["contentPlanningProjection", "lib/content-planning-projection.ts"],
   ["canonicalContentBootstrap", "lib/canonical-content-autopilot-bootstrap.ts"],
+  ["productionV2Page", "app/video-engine/production-engine-workspace.tsx"],
+  ["productionV2Route", "app/api/factory/production-v2/route.ts"],
+  ["productionV2Projection", "lib/production-v2-projection.ts"],
+  ["productionV2Contract", "app/production-v2-contract.ts"],
   ["css", "app/portfolio.css"],
 ].map(async ([key, file]) => [key, await readFile(file, "utf8")])));
 
@@ -102,6 +106,12 @@ const checks = [
   ["Content Autopilot system actor", files.contentPlanningContract.includes("SYSTEM_AUTOPILOT") && files.contentAutopilotCommand.includes("'SYSTEM_AUTOPILOT'") && files.contentPlanningProjection.includes('actorType: run ? "SYSTEM_AUTOPILOT" : null')],
   ["Content Autopilot production boundary remains separate", files.contentPlanningProjection.includes("productionDispatchAuthorized") && files.contentPlanningProjection.includes("publishingAuthorized") && files.canonicalContentBootstrap.includes("autoProduction: true") && files.canonicalContentBootstrap.includes("autoPublish: false")],
   ["Content Autopilot responsive production workspace", files.css.includes(".ownerSettingsGrid") && files.css.includes("@media(max-width:1120px)") && files.css.includes("@media(max-width:820px)") && files.css.includes("@media(max-width:520px)")],
+  ["Production V2 owner-first navigation", files.shell.includes('production: "/video-engine"') && files.productionV2Page.includes("Turn approved briefs into release evidence")],
+  ["Production V2 five-view workspace", ["Overview", "Production packages", "Quality & exceptions", "Cost & activity", "System details"].every((label) => files.productionV2Page.includes(label))],
+  ["Production V2 fail-closed projection", files.productionV2Route.includes("CANONICAL_DATABASE_UNAVAILABLE") && files.productionV2Route.includes("fallback: false") && files.productionV2Projection.includes("LEGACY_FIREWALL")],
+  ["Production V2 exact package and shot coverage", files.productionV2Projection.includes("compiled === 15") && files.productionV2Projection.includes("validContracts === 75")],
+  ["Production V2 separate publishing authority", files.productionV2Page.includes("autoPublish") && files.productionV2Page.includes("AUTO PUBLISH") && files.productionV2Projection.includes("PUBLISHING_CLOSED")],
+  ["Production V2 responsive workspace", files.css.includes(".pv2Hero") && files.css.includes(".pv2Packages") && files.css.includes("@media(max-width:620px)")],
 ];
 
 const failures = checks.filter(([, passed]) => !passed);
