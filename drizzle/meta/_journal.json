@@ -267,6 +267,13 @@
       "when": 1786865437165,
       "tag": "0039_fancy_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1786867200000,
+      "tag": "0040_exact_cadence_v2",
+      "breakpoints": true
     }
   ]
 }

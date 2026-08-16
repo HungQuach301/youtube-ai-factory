@@ -39,6 +39,7 @@ const contentPlanningProjection = await readFile(new URL("../lib/content-plannin
 const canonicalContentBootstrap = await readFile(new URL("../lib/canonical-content-autopilot-bootstrap.ts", import.meta.url), "utf8");
 const contentMigration = await readFile(new URL("../drizzle/0038_clean_dexter_bennett.sql", import.meta.url), "utf8");
 const contentV2Migration = await readFile(new URL("../drizzle/0039_fancy_legion.sql", import.meta.url), "utf8");
+const contentCadenceReconciliation = await readFile(new URL("../drizzle/0040_exact_cadence_v2.sql", import.meta.url), "utf8");
 
 test("the canonical shell is portfolio-first without replacing the protected production workspace", () => {
   assert.doesNotMatch(home, /export \{ default \} from "\.\/material-production\/page"/);
@@ -197,6 +198,10 @@ test("Content System and Planning closes eight slices inside an explicit authori
   assert.match(canonicalContentBootstrap, /autoPublish: false/);
   for (const table of ["content_automation_policies", "content_planning_runs", "content_pillars", "content_series", "content_opportunities", "editorial_plans", "editorial_plan_items", "production_briefs_v1", "content_planning_exceptions", "content_planning_audits"]) assert.match(contentMigration, new RegExp("CREATE TABLE `" + table + "`"));
   for (const table of ["content_episode_concepts_v2", "editorial_plan_items_v2", "production_briefs_v2"]) assert.match(contentV2Migration, new RegExp("CREATE TABLE `" + table + "`"));
+  assert.match(contentCadenceReconciliation, /plan_item_count,[\s\n]+brief_count[\s\S]*15,[\s\n]+15/);
+  assert.match(contentCadenceReconciliation, /V2_EPISODE_CONCEPTS/);
+  assert.match(contentCadenceReconciliation, /providerRequests.*0.*spendUsd.*0/);
+  assert.match(contentCadenceReconciliation, /autoProduction.*true.*autoPublish.*false/);
 });
 
 test("operator state is a bounded canonical projection", () => {
