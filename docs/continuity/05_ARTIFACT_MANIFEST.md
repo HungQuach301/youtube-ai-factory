@@ -58,3 +58,10 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Priority workflow: `POST /api/factory/niche-priorities`, `NICHE_PRIORITY_COMMAND_V1`, migration 0034 and append-only set/item/audit/frozen-lineage records; complete comparable-set validation and automatic stale-state projection.
 - Continuous evidence: 35/35 boundaries, 47/47 commercial UI, 10/10 V2 contract groups, 8 Intelligence/Niche lifecycle paths and 95/95 regression.
 - Next action: checkpoint/reconcile Slice 6, create a recovery-tested rollover capsule, then implement permanent Slice 7 commitment/governance. Slice 8 remains Channel Strategy activation.
+# Slice 7 artifacts
+
+- `lib/niche-governance-command.ts`: permanent selection/commitment command contract.
+- `app/api/factory/niche-governance/route.ts`: SIWC-protected zero-spend route.
+- `db/schema.ts` and `drizzle/0035_massive_celestials.sql`: append-only governance ledgers.
+- `lib/niche-portfolio-projection.ts`: active/stale governance projection.
+- `docs/continuity/23_NICHE_COMMITMENT_GOVERNANCE.md`: authoritative Slice 7 handoff.

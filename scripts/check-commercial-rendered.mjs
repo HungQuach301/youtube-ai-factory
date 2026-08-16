@@ -84,6 +84,13 @@ assert(unauthenticatedPriority.headers.get("cache-control") === "no-store", "nic
 assert(unauthenticatedPriorityPayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "niche priority command must expose a typed authentication failure");
 assert(unauthenticatedPriorityPayload.providerRequests === 0 && unauthenticatedPriorityPayload.spendUsd === 0 && unauthenticatedPriorityPayload.aggregateScore === null && unauthenticatedPriorityPayload.selection === false && unauthenticatedPriorityPayload.commitment === false && unauthenticatedPriorityPayload.channelStrategyActivation === false, "niche priority authentication failure must preserve zero-spend and downstream authority boundaries");
 
+const unauthenticatedGovernance = await worker.fetch(new Request("http://localhost/api/factory/niche-governance", { method: "POST", headers: { accept: "application/json", "content-type": "application/json", "idempotency-key": "rendered-governance:001" }, body: "{}" }), env, ctx);
+const unauthenticatedGovernancePayload = await unauthenticatedGovernance.json();
+assert(unauthenticatedGovernance.status === 401, "niche governance must reject a missing SIWC identity");
+assert(unauthenticatedGovernance.headers.get("cache-control") === "no-store", "niche governance authentication failure must be no-store");
+assert(unauthenticatedGovernancePayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "niche governance must expose a typed authentication failure");
+assert(unauthenticatedGovernancePayload.providerRequests === 0 && unauthenticatedGovernancePayload.spendUsd === 0 && unauthenticatedGovernancePayload.aggregateScore === null && unauthenticatedGovernancePayload.selection === false && unauthenticatedGovernancePayload.commitment === false && unauthenticatedGovernancePayload.channelStrategyActivation === false, "niche governance authentication failure must preserve zero-spend and downstream boundaries");
+
 const slowest = timings.reduce((current, item) => item.milliseconds > current.milliseconds ? item : current);
 assert(slowest.milliseconds <= 500, `${slowest.route} server-render ${slowest.milliseconds.toFixed(1)}ms exceeds the 500ms lab budget`);
-console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 5 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);
+console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 6 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);

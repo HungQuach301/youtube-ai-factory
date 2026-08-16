@@ -83,6 +83,8 @@ function scoringAssessment(opportunityId: string, assessments: Row[]): NicheScor
 function emptyPriorityFact() {
   return { contract: "NICHE_EXPERT_PRIORITY_V1" as const, state: "NOT_RECORDED" as const, prioritySetId: null, priorityVersion: 0, priority: null, rationale: null, portfolioRationale: null, boundEvidenceVersion: null, boundScoringVersion: null, recordedBy: null, recordedAt: null };
 }
+function emptySelectionFact() { return { contract: "NICHE_SELECTION_V1" as const, state: "NOT_RECORDED" as const, selectionId: null, selectionVersion: 0, rationale: null, tradeoffs: [] as string[], commitmentConditions: [] as string[], recordedBy: null, recordedAt: null }; }
+function emptyCommitmentFact() { return { contract: "NICHE_COMMITMENT_V1" as const, state: "NOT_RECORDED" as const, commitmentId: null, commitmentVersion: 0, governanceOwner: null, rationale: null, riskAcceptance: null, reviewCadenceDays: null, revisitTriggers: [] as string[], committedBy: null, committedAt: null }; }
 function coverage(present: number, expected: number) { return present === 0 ? "MISSING" as const : present >= expected ? "RECORDED" as const : "PARTIAL" as const; }
 function condition(item: unknown, id: string): PortfolioCondition | null {
   if (typeof item === "string") return { id, label: item, rationale: null, status: "UNKNOWN", gap: null, closingAction: null, proofMethod: null };
@@ -148,7 +150,7 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
   const programs = selectedChannels.map((channel) => latestPrograms.get(text(channel.id))).filter((item): item is Row => Boolean(item));
   const programIds = programs.map((program) => text(program.id));
   const placeholders = programIds.map(() => "?").join(",");
-  const [artifacts, sources, claims, hypotheses, evidenceEvents, scoringAssessments, prioritySets, priorityItems] = programIds.length ? await Promise.all([
+  const [artifacts, sources, claims, hypotheses, evidenceEvents, scoringAssessments, prioritySets, priorityItems, selections, commitments] = programIds.length ? await Promise.all([
     rows(db, `SELECT id,program_id,stage_key,lifecycle_state,content_json,updated_at FROM v7_intelligence_artifacts WHERE program_id IN (${placeholders}) ORDER BY updated_at DESC,id`, ...programIds),
     rows(db, `SELECT id,program_id,stage_key,authority_tier,verification_state FROM v7_intelligence_sources WHERE program_id IN (${placeholders})`, ...programIds),
     rows(db, `SELECT id,program_id,risk_level,status FROM v7_claim_nodes WHERE program_id IN (${placeholders})`, ...programIds),
@@ -157,7 +159,9 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
     rows(db, `SELECT * FROM niche_scoring_assessments WHERE program_id IN (${placeholders}) ORDER BY scoring_version,id`, ...programIds),
     rows(db, "SELECT * FROM niche_expert_priority_sets WHERE portfolio_id='CANONICAL_PORTFOLIO' ORDER BY priority_version DESC,id"),
     rows(db, "SELECT * FROM niche_expert_priority_items WHERE portfolio_id='CANONICAL_PORTFOLIO' ORDER BY priority_version,expert_priority,id"),
-  ]) : [[], [], [], [], [], [], [], []];
+    rows(db, "SELECT * FROM niche_portfolio_selections WHERE portfolio_id='CANONICAL_PORTFOLIO' ORDER BY selection_version DESC,id"),
+    rows(db, "SELECT * FROM niche_portfolio_commitments WHERE portfolio_id='CANONICAL_PORTFOLIO' ORDER BY commitment_version DESC,id"),
+  ]) : [[], [], [], [], [], [], [], [], [], []];
 
   const comparison: NicheOpportunityProjection[] = [];
   const notes: string[] = [];
@@ -220,7 +224,7 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
         origin: text(candidate.origin) === "EXPERT_SEEDED" ? "EXPERT_SEEDED" : "SYSTEM_DISCOVERED",
         lifecycleState: comparable ? "COMPARABLE" : "EVIDENCE_GATHERING",
         eligibility, systemRank: null, systemRankBasis: "UNRANKED_PENDING_ASSESSMENT", expertPriority: null,
-        expertPriorityBasis: "NOT_RECORDED", expertPriorityFact: emptyPriorityFact(), axes,
+        expertPriorityBasis: "NOT_RECORDED", expertPriorityFact: emptyPriorityFact(), selectionFact: emptySelectionFact(), commitmentFact: emptyCommitmentFact(), axes,
         hypothesis: { version: null, rationale: null, audienceAssumptions: [], demandAssumptions: [], knownCompetitors: [], winningThesis: null, submittedBy: null, createdAt: null }, marketPotential: market,
         audiences, competitors, competitorPatterns: strings(candidate.competitorPatterns), competitorGap: text(candidate.competitorGap) || null, prerequisites, winningCriteria,
         risks: strings(candidate.risks), researchPlan: plan,
@@ -248,7 +252,7 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
       program: { id: text(program.id), version: Math.max(1, numberOrNull(program.version) ?? 1) },
       title: text(hypothesis.title) || "Unlabelled expert hypothesis", description: text(hypothesis.description) || null,
       viewerPromise: null, centralQuestion: null, origin: "EXPERT_SEEDED", lifecycleState: comparable ? "COMPARABLE" : "EVIDENCE_GATHERING", eligibility: scoring.comparisonEligibility,
-      systemRank: null, systemRankBasis: "UNRANKED_PENDING_ASSESSMENT", expertPriority: null, expertPriorityBasis: "NOT_RECORDED", expertPriorityFact: emptyPriorityFact(), axes: scoring.axes,
+      systemRank: null, systemRankBasis: "UNRANKED_PENDING_ASSESSMENT", expertPriority: null, expertPriorityBasis: "NOT_RECORDED", expertPriorityFact: emptyPriorityFact(), selectionFact: emptySelectionFact(), commitmentFact: emptyCommitmentFact(), axes: scoring.axes,
       hypothesis: {
         version: numberOrNull(hypothesis.hypothesis_version), rationale: text(hypothesis.rationale) || null,
         audienceAssumptions: parseJsonArray(hypothesis.audience_assumptions_json), demandAssumptions: parseJsonArray(hypothesis.demand_assumptions_json),
@@ -305,6 +309,35 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
     portfolioRationale: text(latestPrioritySet?.portfolio_rationale) || null, recordedBy: text(latestPrioritySet?.actor_display_name) || text(latestPrioritySet?.actor_email) || null, recordedAt: text(latestPrioritySet?.created_at) || null,
     reason: comparable.length < 2 ? "At least two evidence-sufficient opportunities are required." : prioritySetActive ? "The expert-priority set is bound to the current Slice 5 comparable portfolio." : latestPrioritySet ? "The comparable set or a bound Slice 5 version changed; record a new priority version." : "The comparable portfolio is ready for an independent expert-priority ordering.",
   };
+  const latestSelection = selections.sort((a, b) => Number(b.selection_version) - Number(a.selection_version))[0];
+  const selectedOpportunity = latestSelection ? comparison.find((item) => item.opportunityId === text(latestSelection.opportunity_id)) : undefined;
+  const selectionActive = Boolean(latestSelection && prioritySetActive && selectedOpportunity && selectedOpportunity.eligibility === "ELIGIBLE"
+    && text(latestSelection.priority_set_id) === text(latestPrioritySet?.id) && Number(latestSelection.priority_version) === latestPriorityVersion
+    && text(latestSelection.comparable_set_hash) === comparableSetHash && selectedOpportunity.program.version === Number(latestSelection.aggregate_version)
+    && selectedOpportunity.scoringAssessment.evidenceVersion === Number(latestSelection.evidence_version) && selectedOpportunity.scoringAssessment.scoringVersion === Number(latestSelection.scoring_version));
+  if (selectedOpportunity && latestSelection) {
+    selectedOpportunity.selectionFact = { contract: "NICHE_SELECTION_V1", state: selectionActive ? "ACTIVE" : "STALE", selectionId: text(latestSelection.id), selectionVersion: Number(latestSelection.selection_version), rationale: text(latestSelection.rationale) || null, tradeoffs: parseJsonArray(latestSelection.tradeoffs_json), commitmentConditions: parseJsonArray(latestSelection.commitment_conditions_json), recordedBy: text(latestSelection.actor_display_name) || text(latestSelection.actor_email) || null, recordedAt: text(latestSelection.created_at) || null };
+    if (selectionActive) { selectedOpportunity.lifecycleState = "SELECTED_PENDING_COMMITMENT"; selectedOpportunity.allowedNextActions.push("COMMIT_NICHE"); }
+  }
+  const latestCommitment = commitments.sort((a, b) => Number(b.commitment_version) - Number(a.commitment_version))[0];
+  const committedOpportunity = latestCommitment ? comparison.find((item) => item.opportunityId === text(latestCommitment.opportunity_id)) : undefined;
+  const commitmentActive = Boolean(latestCommitment && selectionActive && committedOpportunity && text(latestCommitment.selection_id) === text(latestSelection?.id)
+    && Number(latestCommitment.selection_version) === Number(latestSelection?.selection_version) && text(latestCommitment.priority_set_id) === text(latestPrioritySet?.id)
+    && Number(latestCommitment.priority_version) === latestPriorityVersion && text(latestCommitment.comparable_set_hash) === comparableSetHash
+    && committedOpportunity.program.version === Number(latestCommitment.aggregate_version) && committedOpportunity.scoringAssessment.evidenceVersion === Number(latestCommitment.evidence_version)
+    && committedOpportunity.scoringAssessment.scoringVersion === Number(latestCommitment.scoring_version));
+  if (committedOpportunity && latestCommitment) {
+    committedOpportunity.commitmentFact = { contract: "NICHE_COMMITMENT_V1", state: commitmentActive ? "ACTIVE" : "STALE", commitmentId: text(latestCommitment.id), commitmentVersion: Number(latestCommitment.commitment_version), governanceOwner: text(latestCommitment.governance_owner) || null, rationale: text(latestCommitment.rationale) || null, riskAcceptance: text(latestCommitment.risk_acceptance) || null, reviewCadenceDays: Number(latestCommitment.review_cadence_days) || null, revisitTriggers: parseJsonArray(latestCommitment.revisit_triggers_json), committedBy: text(latestCommitment.actor_display_name) || text(latestCommitment.actor_email) || null, committedAt: text(latestCommitment.created_at) || null };
+    if (commitmentActive) { committedOpportunity.lifecycleState = "COMMITTED"; committedOpportunity.allowedNextActions = committedOpportunity.allowedNextActions.filter((action) => action !== "COMMIT_NICHE"); }
+  }
+  const selectionVersion = Number(latestSelection?.selection_version || 0), commitmentVersion = Number(latestCommitment?.commitment_version || 0);
+  const governanceWorkspace = {
+    contract: "NICHE_COMMITMENT_GOVERNANCE_V1" as const,
+    state: !prioritySetActive ? (latestSelection || latestCommitment ? "STALE" as const : "PRIORITY_REQUIRED" as const) : commitmentActive ? "COMMITTED" as const : selectionActive ? "SELECTED_PENDING_COMMITMENT" as const : latestSelection || latestCommitment ? "STALE" as const : "READY_FOR_SELECTION" as const,
+    selectionVersion, commitmentVersion, selectedOpportunityId: latestSelection ? text(latestSelection.opportunity_id) : null, selectionId: latestSelection ? text(latestSelection.id) : null,
+    committedOpportunityId: latestCommitment ? text(latestCommitment.opportunity_id) : null, commitmentId: latestCommitment ? text(latestCommitment.id) : null,
+    reason: !prioritySetActive ? "An active Slice 6 priority set is required." : commitmentActive ? "The explicit commitment is current. Channel Strategy remains blocked until Slice 8 activation." : selectionActive ? "The selected niche is pending an explicit governance commitment." : latestSelection || latestCommitment ? "Upstream priority, evidence or scoring changed; record a new selection before commitment." : "The active expert-priority portfolio is ready for a separate niche selection.",
+  };
   return {
     contract: "NICHE_PORTFOLIO_PROJECTION_V2", policyVersion: NICHE_OPPORTUNITY_POLICY_VERSION, generatedAt: new Date().toISOString(),
     sourceState: "NICHE_OPPORTUNITY_ONLY_WITH_EXPERT_HYPOTHESIS_APPEND", scope: { mode: channelId ? "CHANNEL" : "PORTFOLIO", channelId: channelId || null },
@@ -314,9 +347,9 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
       const latestHypothesisVersion = hypotheses.filter((item) => text(item.program_id) === text(program.id)).reduce((latest, item) => Math.max(latest, numberOrNull(item.hypothesis_version) ?? 0), 0);
       return { channelId: text(program.channel_id), channelName: text(channel?.name) || text(program.channel_id), programId: text(program.id), aggregateVersion: Math.max(1, numberOrNull(program.version) ?? 1), expectedHypothesisVersion: latestHypothesisVersion };
     }),
-    decisionState: comparable.length < 2 ? "RESEARCH_IN_PROGRESS" : prioritiesRecorded ? "EXPERT_PRIORITIZATION_RECORDED" : latestPrioritySet ? "EXPERT_PRIORITIZATION_STALE" : "PORTFOLIO_COMPARABLE",
+    decisionState: commitmentActive ? "NICHE_COMMITTED" : selectionActive ? "SELECTED_PENDING_COMMITMENT" : (latestSelection || latestCommitment) && !selectionActive ? "GOVERNANCE_STALE" : comparable.length < 2 ? "RESEARCH_IN_PROGRESS" : prioritiesRecorded ? "EXPERT_PRIORITIZATION_RECORDED" : latestPrioritySet ? "EXPERT_PRIORITIZATION_STALE" : "PORTFOLIO_COMPARABLE",
     summary: {
-      opportunities: comparison.length, comparable: comparable.length, prioritized: prioritySetActive ? latestPriorityItems.length : 0, priorityVersion: latestPriorityVersion, eligible: comparison.filter((item) => item.eligibility === "ELIGIBLE").length,
+      opportunities: comparison.length, comparable: comparable.length, prioritized: prioritySetActive ? latestPriorityItems.length : 0, priorityVersion: latestPriorityVersion, selected: selectionActive ? 1 : 0, selectionVersion, committed: commitmentActive ? 1 : 0, commitmentVersion, eligible: comparison.filter((item) => item.eligibility === "ELIGIBLE").length,
       blockedByPrerequisite: comparison.filter((item) => item.eligibility === "BLOCKED_BY_PREREQUISITE").length,
       researchRequired: comparison.filter((item) => item.eligibility === "RESEARCH_REQUIRED").length, expertSeeded: comparison.filter((item) => item.origin === "EXPERT_SEEDED").length,
       researchPlans: comparison.filter((item) => item.evidenceWorkflow.plan).length,
@@ -324,10 +357,10 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
       evidenceReviewed: comparison.filter((item) => item.evidenceWorkflow.reviews.length).length,
       scoringAssessments: comparison.filter((item) => item.scoringAssessment.state !== "NOT_ASSESSED").length,
       excludedLegacyContentTopics,
-    }, comparison, priorityWorkspace,
+    }, comparison, priorityWorkspace, governanceWorkspace,
     rankingPolicy: { systemRank: "SLICE_5_LEXICOGRAPHIC_THREE_AXIS_EVIDENCE_ORDER", expertPriority: "SEPARATE_VERSIONED_FACT", totalScore: null, note: "Eligible and prerequisite-blocked niches are ordered by eligibility tier, then Market Attractiveness, Ability to Win and Evidence Confidence. No aggregate score is calculated." },
-    authority: { activation: "EVIDENCE_SCORING_AND_EXPERT_PRIORITIZATION", v2Commands: "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_SLICE_5_SCORING_AND_SLICE_6_PRIORITY_ZERO_SPEND", providerRequests: 0, spendUsd: 0, hypothesisAppend: true, researchPlanning: true, validationApproval: true, evidenceReview: true, scoringAssessment: true, comparisonMutation: true, expertPriorityMutation: true, systemRankMutation: false, axisMutation: false, evidenceSufficiencyMutation: false, eligibilityMutation: false, nicheSelection: false, nicheCommitment: false, channelNicheMutation: false, channelStrategyActivation: false },
-    downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: "Slice 6 records expert priority only. Slice 7 owns selection, commitment and governance; Slice 8 separately owns Channel Strategy activation." },
+    authority: { activation: "EVIDENCE_SCORING_PRIORITY_SELECTION_AND_COMMITMENT", v2Commands: "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_SLICE_5_SCORING_SLICE_6_PRIORITY_AND_SLICE_7_GOVERNANCE_ZERO_SPEND", providerRequests: 0, spendUsd: 0, hypothesisAppend: true, researchPlanning: true, validationApproval: true, evidenceReview: true, scoringAssessment: true, comparisonMutation: true, expertPriorityMutation: true, systemRankMutation: false, axisMutation: false, evidenceSufficiencyMutation: false, eligibilityMutation: false, nicheSelection: true, nicheCommitment: true, channelNicheMutation: false, channelStrategyActivation: false },
+    downstreamGate: { consumer: "CHANNEL_STRATEGY", state: "BLOCKED", reason: commitmentActive ? "Slice 7 commitment is recorded. Slice 8 separately owns Channel Strategy activation and channels.niche mutation." : "Slice 7 requires explicit selection and commitment before Slice 8 may separately activate Channel Strategy." },
     integrity: { state: notes.length ? "RECONCILIATION_REQUIRED" : "READY", notes },
   };
 }

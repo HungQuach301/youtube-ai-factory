@@ -81,7 +81,7 @@ The workspace shows system rank, the three Slice 5 axes and eligibility as read-
 
 ## Exact next action
 
-After the Slice 6 production checkpoint and recovery-tested source capsule, implement Slice 7 as the permanent Niche Commitment & Governance capability. Slice 7 must preserve expert priority as an input fact, introduce an explicit selection state before commitment, prohibit direct `EXPERT_PRIORITIZED → COMMITTED`, and keep Channel Strategy activation blocked for Slice 8.
+Slice 7 is implemented as Document 23: explicit selection precedes commitment, expert priority remains an input fact and Channel Strategy stays blocked. After the Slice 7 production checkpoint and recovery-tested capsule, implement Slice 8 as permanent Channel Strategy Activation.
 
 ## Protected scope
 

@@ -89,7 +89,7 @@ Declared V2 commands:
 | `COMMIT_NICHE` | Portfolio Governance |
 | `ACTIVATE_CHANNEL_STRATEGY` | separate Portfolio Governance command |
 
-`SUBMIT_NICHE_HYPOTHESIS` is now `ROUTED_ZERO_SPEND`. Every other V2 command remains `DECLARED_NOT_ROUTED`, provider requests `0`, spend USD `0`. The V1 expert-decision POST remains deployed only as a compatibility boundary; it is not V2 expert prioritization and cannot commit a niche.
+`SUBMIT_NICHE_HYPOTHESIS`, `SELECT_NICHE_FOR_COMMITMENT` and `COMMIT_NICHE` are now `ROUTED_ZERO_SPEND`. Channel Strategy activation remains `DECLARED_NOT_ROUTED`; provider requests and spend remain zero. The V1 expert-decision POST remains a compatibility boundary and is not V2 selection or commitment.
 
 ## Portfolio comparison policy
 
@@ -150,11 +150,11 @@ Continuous gate: `npm run check:niche-portfolio-v2`, executed by every verified 
 
 ## Exact next action
 
-After the Slice 6 production checkpoint and recovery-tested capsule, implement Slice 7 as the permanent Niche Commitment & Governance capability. It must introduce explicit selection before commitment, preserve system rank and expert priority as separate inputs, and leave Channel Strategy activation blocked for Slice 8.
+After the Slice 7 production checkpoint and recovery-tested capsule, implement Slice 8 as permanent Channel Strategy Activation. It must consume only an active committed niche through a separate versioned command and preserve every upstream fact.
 
 ## Protected scope
 
-- Only `SUBMIT_NICHE_HYPOTHESIS` is routed in Slice 3.
+- Only hypothesis intake and the Slice 7 selection/commitment commands are routed; strategy activation remains blocked.
 - The only new mutation is the append-only hypothesis/audit/lineage write from migration 0031.
 - No provider request or spend.
 - No replacement or reinterpretation of historical V1 records.

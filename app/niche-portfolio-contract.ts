@@ -103,6 +103,32 @@ export type NicheExpertPriorityFact = {
   recordedAt: string | null;
 };
 
+export type NicheSelectionFact = {
+  contract: "NICHE_SELECTION_V1";
+  state: "NOT_RECORDED" | "ACTIVE" | "STALE";
+  selectionId: string | null;
+  selectionVersion: number;
+  rationale: string | null;
+  tradeoffs: string[];
+  commitmentConditions: string[];
+  recordedBy: string | null;
+  recordedAt: string | null;
+};
+
+export type NicheCommitmentFact = {
+  contract: "NICHE_COMMITMENT_V1";
+  state: "NOT_RECORDED" | "ACTIVE" | "STALE";
+  commitmentId: string | null;
+  commitmentVersion: number;
+  governanceOwner: string | null;
+  rationale: string | null;
+  riskAcceptance: string | null;
+  reviewCadenceDays: number | null;
+  revisitTriggers: string[];
+  committedBy: string | null;
+  committedAt: string | null;
+};
+
 export type NicheOpportunityProjection = {
   entityType: "NICHE_OPPORTUNITY";
   provenance: "V2_SYSTEM_DISCOVERY" | "EXPERT_HYPOTHESIS_APPEND";
@@ -114,13 +140,15 @@ export type NicheOpportunityProjection = {
   viewerPromise: string | null;
   centralQuestion: string | null;
   origin: "SYSTEM_DISCOVERED" | "EXPERT_SEEDED";
-  lifecycleState: "EVIDENCE_GATHERING" | "COMPARABLE" | "EXPERT_PRIORITIZED";
+  lifecycleState: "EVIDENCE_GATHERING" | "COMPARABLE" | "EXPERT_PRIORITIZED" | "SELECTED_PENDING_COMMITMENT" | "COMMITTED";
   eligibility: "ELIGIBLE" | "BLOCKED_BY_PREREQUISITE" | "RESEARCH_REQUIRED";
   systemRank: number | null;
   systemRankBasis: "SLICE_5_LEXICOGRAPHIC_EVIDENCE_ORDER" | "UNRANKED_PENDING_ASSESSMENT";
   expertPriority: number | null;
   expertPriorityBasis: "SLICE_6_VERSIONED_FACT" | "STALE_VERSIONED_FACT" | "NOT_RECORDED";
   expertPriorityFact: NicheExpertPriorityFact;
+  selectionFact: NicheSelectionFact;
+  commitmentFact: NicheCommitmentFact;
   axes: {
     marketAttractiveness: PortfolioAxis;
     abilityToWin: PortfolioAxis;
@@ -181,8 +209,8 @@ export type NichePortfolioProjection = {
   scope: { mode: "PORTFOLIO" | "CHANNEL"; channelId: string | null };
   channels: Array<{ id: string; name: string; market: string; language: string }>;
   intakeContexts: Array<{ channelId: string; channelName: string; programId: string; aggregateVersion: number; expectedHypothesisVersion: number }>;
-  decisionState: "RESEARCH_IN_PROGRESS" | "PORTFOLIO_COMPARABLE" | "EXPERT_PRIORITIZATION_RECORDED" | "EXPERT_PRIORITIZATION_STALE";
-  summary: { opportunities: number; comparable: number; prioritized: number; priorityVersion: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number; researchPlans: number; validationApprovals: number; evidenceReviewed: number; scoringAssessments: number; excludedLegacyContentTopics: number };
+  decisionState: "RESEARCH_IN_PROGRESS" | "PORTFOLIO_COMPARABLE" | "EXPERT_PRIORITIZATION_RECORDED" | "EXPERT_PRIORITIZATION_STALE" | "SELECTED_PENDING_COMMITMENT" | "NICHE_COMMITTED" | "GOVERNANCE_STALE";
+  summary: { opportunities: number; comparable: number; prioritized: number; priorityVersion: number; selected: number; selectionVersion: number; committed: number; commitmentVersion: number; eligible: number; blockedByPrerequisite: number; researchRequired: number; expertSeeded: number; researchPlans: number; validationApprovals: number; evidenceReviewed: number; scoringAssessments: number; excludedLegacyContentTopics: number };
   comparison: NicheOpportunityProjection[];
   priorityWorkspace: {
     contract: "NICHE_EXPERT_PRIORITY_V1";
@@ -196,13 +224,24 @@ export type NichePortfolioProjection = {
     recordedAt: string | null;
     reason: string;
   };
+  governanceWorkspace: {
+    contract: "NICHE_COMMITMENT_GOVERNANCE_V1";
+    state: "PRIORITY_REQUIRED" | "READY_FOR_SELECTION" | "SELECTED_PENDING_COMMITMENT" | "COMMITTED" | "STALE";
+    selectionVersion: number;
+    commitmentVersion: number;
+    selectedOpportunityId: string | null;
+    selectionId: string | null;
+    committedOpportunityId: string | null;
+    commitmentId: string | null;
+    reason: string;
+  };
   rankingPolicy: {
     systemRank: "SLICE_5_LEXICOGRAPHIC_THREE_AXIS_EVIDENCE_ORDER";
     expertPriority: "SEPARATE_VERSIONED_FACT";
     totalScore: null;
     note: string;
   };
-  authority: { activation: "EVIDENCE_SCORING_AND_EXPERT_PRIORITIZATION"; v2Commands: "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_SLICE_5_SCORING_AND_SLICE_6_PRIORITY_ZERO_SPEND"; providerRequests: 0; spendUsd: 0; hypothesisAppend: true; researchPlanning: true; validationApproval: true; evidenceReview: true; scoringAssessment: true; comparisonMutation: true; expertPriorityMutation: true; systemRankMutation: false; axisMutation: false; evidenceSufficiencyMutation: false; eligibilityMutation: false; nicheSelection: false; nicheCommitment: false; channelNicheMutation: false; channelStrategyActivation: false };
+  authority: { activation: "EVIDENCE_SCORING_PRIORITY_SELECTION_AND_COMMITMENT"; v2Commands: "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_SLICE_5_SCORING_SLICE_6_PRIORITY_AND_SLICE_7_GOVERNANCE_ZERO_SPEND"; providerRequests: 0; spendUsd: 0; hypothesisAppend: true; researchPlanning: true; validationApproval: true; evidenceReview: true; scoringAssessment: true; comparisonMutation: true; expertPriorityMutation: true; systemRankMutation: false; axisMutation: false; evidenceSufficiencyMutation: false; eligibilityMutation: false; nicheSelection: true; nicheCommitment: true; channelNicheMutation: false; channelStrategyActivation: false };
   downstreamGate: { consumer: "CHANNEL_STRATEGY"; state: "BLOCKED"; reason: string };
   integrity: { state: "READY" | "RECONCILIATION_REQUIRED"; notes: string[] };
 };

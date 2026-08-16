@@ -232,6 +232,13 @@
       "when": 1786814075542,
       "tag": "0034_tiny_richard_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1786842569284,
+      "tag": "0035_massive_celestials",
+      "breakpoints": true
     }
   ]
 }

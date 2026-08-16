@@ -39,3 +39,8 @@ Effective 2026-08-15, Slice 5 records an append-only, latest-evidence-bound asse
 ## ADR-060 — Expert priority is an atomic versioned portfolio fact, never a rank override
 
 Effective 2026-08-16, Slice 6 records the complete current comparable portfolio as one append-only priority set. Every item binds the canonical program, evidence and scoring versions and contains a unique contiguous rank plus rationale. The command cannot partially prioritize the portfolio and cannot accept research-required opportunities. System rank, the three axes, evidence sufficiency, eligibility and Conditions to Win remain unchanged and queryable beside expert priority. Any later Slice 5 or membership change makes the prior set stale; it is never edited in place. Slice 7 separately owns selection/commitment/governance and Slice 8 owns Channel Strategy activation.
+# ADR-062 — Selection and commitment are separate permanent facts
+
+**Decision:** record `SELECTED_PENDING_COMMITMENT` before `COMMITTED`, in separate append-only ledgers bound to the active Slice 6 priority and Slice 5 evidence/scoring lineage. A commitment command without the latest active selection fails closed. Commitment does not activate Channel Strategy; Slice 8 owns that mutation.
+
+**Reason:** governance intent must be independently reviewable, versioned and reversible without rewriting evidence or conflating commitment with downstream execution.

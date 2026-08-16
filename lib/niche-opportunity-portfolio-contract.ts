@@ -233,7 +233,7 @@ const commandContracts: NicheCommandContract[] = [
   command: command as NicheCommand,
   autonomy: autonomy as NicheCommandContract["autonomy"],
   authority: authority as NicheCommandContract["authority"],
-  activation: command === "SUBMIT_NICHE_HYPOTHESIS" ? "ROUTED_ZERO_SPEND" as const : "DECLARED_NOT_ROUTED" as const,
+  activation: ["SUBMIT_NICHE_HYPOTHESIS", "SELECT_NICHE_FOR_COMMITMENT", "COMMIT_NICHE"].includes(String(command)) ? "ROUTED_ZERO_SPEND" as const : "DECLARED_NOT_ROUTED" as const,
   preconditions: preconditions as string[],
   ceilings: { maximumLogicalAttempts: 1, providerRequests: 0, spendUsd: 0 },
 }));

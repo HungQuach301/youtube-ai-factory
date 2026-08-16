@@ -5,6 +5,7 @@ import { nichePortfolioProjection } from "../lib/niche-portfolio-projection";
 import { NicheEvidenceCommandError, submitNicheEvidenceCommand } from "../lib/niche-evidence-command";
 import { NicheScoringCommandError, submitNicheScoringCommand } from "../lib/niche-scoring-command";
 import { NichePriorityCommandError, submitNichePriorityCommand } from "../lib/niche-priority-command";
+import { NicheGovernanceCommandError, submitNicheGovernanceCommand } from "../lib/niche-governance-command";
 import { NicheHypothesisCommandError, submitNicheHypothesis } from "../lib/niche-hypothesis-command";
 import { NicheDecisionCommandError, submitNicheExpertDecision } from "../lib/niche-expert-decision-command";
 import { ChannelNotFoundError, channelProjection, portfolioProjection } from "../lib/portfolio-projection";
@@ -114,6 +115,10 @@ const tables: Record<string, Row[]> = {
   niche_expert_priority_sets: [],
   niche_expert_priority_items: [],
   niche_expert_priority_audits: [],
+  niche_portfolio_selections: [],
+  niche_portfolio_selection_audits: [],
+  niche_portfolio_commitments: [],
+  niche_portfolio_commitment_audits: [],
 };
 
 function queryRows(query: string, bindings: unknown[]) {
@@ -145,6 +150,8 @@ function queryRows(query: string, bindings: unknown[]) {
   if (normalized.includes("order by evidence_version desc")) result.sort((a, b) => Number(b.evidence_version || 0) - Number(a.evidence_version || 0));
   if (normalized.includes("order by scoring_version desc")) result.sort((a, b) => Number(b.scoring_version || 0) - Number(a.scoring_version || 0));
   if (normalized.includes("order by priority_version desc")) result.sort((a, b) => Number(b.priority_version || 0) - Number(a.priority_version || 0));
+  if (normalized.includes("order by selection_version desc")) result.sort((a, b) => Number(b.selection_version || 0) - Number(a.selection_version || 0));
+  if (normalized.includes("order by commitment_version desc")) result.sort((a, b) => Number(b.commitment_version || 0) - Number(a.commitment_version || 0));
   if (normalized.includes("order by expert_priority")) result.sort((a, b) => Number(a.expert_priority || 0) - Number(b.expert_priority || 0));
   if (normalized.includes("order by plan_version desc")) result.sort((a, b) => Number(b.plan_version || 0) - Number(a.plan_version || 0));
   return result;
@@ -232,6 +239,16 @@ function executeMutation(item: Statement) {
     const columns = ["id", "priority_set_id", "portfolio_id", "actor_email", "idempotency_key", "request_hash", "correlation_id", "causation_id", "evidence_lineage_id", "created_at"];
     const row = Object.fromEntries(columns.map((column, index) => [column, values[index]])); Object.assign(row, { event_type: "NICHE_EXPERT_PRIORITY_SET_RECORDED", actor_role: "OWNER_EXPERT" }); tables.niche_expert_priority_audits.push(row); return { meta: { changes: 1 } };
   }
+  if (normalized.startsWith("insert into niche_portfolio_selections")) {
+    const columns = normalized.slice(normalized.indexOf("(") + 1, normalized.indexOf(")")).split(",").map((column) => column.trim()); const row = Object.fromEntries(columns.map((column, index) => [column, values[index]]));
+    if (tables.niche_portfolio_selections.some((item) => item.idempotency_key === row.idempotency_key || (item.portfolio_id === row.portfolio_id && item.selection_version === row.selection_version))) throw new Error("UNIQUE constraint failed"); tables.niche_portfolio_selections.push(row); return { meta: { changes: 1 } };
+  }
+  if (normalized.startsWith("insert into niche_portfolio_selection_audits")) { const columns = ["id", "selection_id", "portfolio_id", "actor_email", "idempotency_key", "request_hash", "correlation_id", "causation_id", "evidence_lineage_id", "created_at"]; const row = Object.fromEntries(columns.map((column, index) => [column, values[index]])); Object.assign(row, { event_type: "NICHE_SELECTED_PENDING_COMMITMENT", actor_role: "OWNER_EXPERT" }); tables.niche_portfolio_selection_audits.push(row); return { meta: { changes: 1 } }; }
+  if (normalized.startsWith("insert into niche_portfolio_commitments")) {
+    const columns = normalized.slice(normalized.indexOf("(") + 1, normalized.indexOf(")")).split(",").map((column) => column.trim()); const row = Object.fromEntries(columns.map((column, index) => [column, values[index]]));
+    if (tables.niche_portfolio_commitments.some((item) => item.idempotency_key === row.idempotency_key || (item.portfolio_id === row.portfolio_id && item.commitment_version === row.commitment_version))) throw new Error("UNIQUE constraint failed"); tables.niche_portfolio_commitments.push(row); return { meta: { changes: 1 } };
+  }
+  if (normalized.startsWith("insert into niche_portfolio_commitment_audits")) { const columns = ["id", "commitment_id", "portfolio_id", "actor_email", "idempotency_key", "request_hash", "correlation_id", "causation_id", "evidence_lineage_id", "created_at"]; const row = Object.fromEntries(columns.map((column, index) => [column, values[index]])); Object.assign(row, { event_type: "NICHE_COMMITTED", actor_role: "PORTFOLIO_GOVERNANCE" }); tables.niche_portfolio_commitment_audits.push(row); return { meta: { changes: 1 } }; }
   if (normalized.startsWith("insert into v7_evidence_lineage")) {
     const hypothesisLineage = values[3] === "NICHE_HYPOTHESIS";
     tables.v7_evidence_lineage.push({ id: values[0], program_id: values[1], project_id: values[2], entity_type: values[3], title: values[4], lifecycle_state: "FROZEN", upstream_evidence_id: hypothesisLineage ? null : values[5], artifact_key: hypothesisLineage ? values[5] : values[6], content_hash: hypothesisLineage ? values[6] : values[7], storage_state: "CANONICAL_D1", rights_state: "NOT_APPLICABLE", cost_state: "ZERO_SPEND", quarantine_state: "CLEAR", pipeline_version: 7, created_at: hypothesisLineage ? values[7] : values[8], updated_at: hypothesisLineage ? values[8] : values[9] });
@@ -296,7 +313,7 @@ assert.equal(nichePortfolio.comparison[0].winningCriteria.length, 1);
 assert.equal(nichePortfolio.comparison[0].expertPriority, null);
 assert.ok(nichePortfolio.comparison.every((item) => item.entityType === "NICHE_OPPORTUNITY" && item.provenance === "V2_SYSTEM_DISCOVERY"));
 assert.ok(nichePortfolio.comparison.every((item) => !stage01.candidates.some((topic) => topic.title === item.title)));
-assert.equal(nichePortfolio.authority.v2Commands, "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_SLICE_5_SCORING_AND_SLICE_6_PRIORITY_ZERO_SPEND");
+assert.equal(nichePortfolio.authority.v2Commands, "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_SLICE_5_SCORING_SLICE_6_PRIORITY_AND_SLICE_7_GOVERNANCE_ZERO_SPEND");
 assert.deepEqual({ providerRequests: nichePortfolio.authority.providerRequests, spendUsd: nichePortfolio.authority.spendUsd, scoringAssessment: nichePortfolio.authority.scoringAssessment, comparisonMutation: nichePortfolio.authority.comparisonMutation, expertPriorityMutation: nichePortfolio.authority.expertPriorityMutation, systemRankMutation: nichePortfolio.authority.systemRankMutation }, { providerRequests: 0, spendUsd: 0, scoringAssessment: true, comparisonMutation: true, expertPriorityMutation: true, systemRankMutation: false });
 assert.equal(nichePortfolio.downstreamGate.state, "BLOCKED");
 const stage01Artifact = tables.v7_intelligence_artifacts.find((row) => row.id === "artifact-01");
@@ -468,11 +485,28 @@ for (const item of prioritizedPortfolio.comparison.filter((opportunity) => oppor
   assert.equal(item.expertPriorityFact.state, "ACTIVE"); assert.equal(item.lifecycleState, "EXPERT_PRIORITIZED");
 }
 assert.equal(tables.channels[0].niche, "Hidden Systems Behind Money");
+const governanceActor = { email: "owner@example.com", displayName: "Portfolio Governor", role: "PORTFOLIO_GOVERNANCE" as const };
+await assert.rejects(() => submitNicheGovernanceCommand(database, { actor: governanceActor, idempotencyKey: "niche-commitment:direct-001", body: { action: "COMMIT_NICHE", expectedCommitmentVersion: 0, expectedSelectionVersion: 1, selectionId: "missing-selection", governance: { owner: "Portfolio Governance", rationale: "A direct commitment must remain impossible without a separately recorded selection fact.", riskAcceptance: "Accept only risks explicitly reviewed against current evidence.", reviewCadenceDays: 30, revisitTriggers: ["Evidence materially contradicts the niche thesis"], evidenceReviewed: true, priorityReviewed: true, noActivationAcknowledged: true } } }), (error: unknown) => error instanceof NicheGovernanceCommandError && error.code === "ACTIVE_SELECTION_REQUIRED");
+const selectedCandidate = prioritizedPortfolio.comparison.filter((item) => item.eligibility === "ELIGIBLE").sort((a, b) => (a.expertPriority ?? 999) - (b.expertPriority ?? 999))[0]; assert.ok(selectedCandidate);
+const beforeGovernance = { systemRank: selectedCandidate.systemRank, expertPriority: selectedCandidate.expertPriority, axes: structuredClone(selectedCandidate.axes), eligibility: selectedCandidate.eligibility, niche: tables.channels[0].niche };
+const selectionCommand = { actor: evidenceActor, idempotencyKey: "niche-selection:test-001", body: { action: "SELECT_NICHE_FOR_COMMITMENT" as const, expectedSelectionVersion: 0, expectedPriorityVersion: 1, expectedComparableSetHash: prioritizedPortfolio.priorityWorkspace.comparableSetHash, opportunityId: selectedCandidate.opportunityId, rationale: "Select the strongest expert-priority opportunity for an explicit governance review without changing evidence facts.", tradeoffs: ["Sequencing this niche defers learning from lower-priority opportunities"], commitmentConditions: ["Maintain every prerequisite in PASS state through governance review"] } };
+const selectedReceipt = await submitNicheGovernanceCommand(database, selectionCommand);
+assert.equal(selectedReceipt.state, "SELECTED_PENDING_COMMITMENT"); assert.equal(selectedReceipt.authority.nicheSelection, true); assert.equal(selectedReceipt.authority.nicheCommitment, false); assert.equal(selectedReceipt.authority.aggregateScore, null);
+assert.equal((await submitNicheGovernanceCommand(database, selectionCommand)).outcome, "IDEMPOTENT_REPLAY");
+await assert.rejects(() => submitNicheGovernanceCommand(database, { ...selectionCommand, body: { ...selectionCommand.body, rationale: `${selectionCommand.body.rationale} Changed.` } }), (error: unknown) => error instanceof NicheGovernanceCommandError && error.code === "IDEMPOTENCY_KEY_REUSED");
+const selectedPortfolio = await nichePortfolioProjection("channel-1", database); const selectedProjection = selectedPortfolio.comparison.find((item) => item.opportunityId === selectedCandidate.opportunityId); assert.ok(selectedProjection);
+assert.equal(selectedPortfolio.decisionState, "SELECTED_PENDING_COMMITMENT"); assert.equal(selectedProjection.lifecycleState, "SELECTED_PENDING_COMMITMENT"); assert.equal(selectedProjection.systemRank, beforeGovernance.systemRank); assert.equal(selectedProjection.expertPriority, beforeGovernance.expertPriority); assert.deepEqual(selectedProjection.axes, beforeGovernance.axes); assert.equal(selectedProjection.eligibility, beforeGovernance.eligibility); assert.equal(tables.channels[0].niche, beforeGovernance.niche);
+const commitmentCommand = { actor: governanceActor, idempotencyKey: "niche-commitment:test-001", body: { action: "COMMIT_NICHE" as const, expectedCommitmentVersion: 0, expectedSelectionVersion: 1, selectionId: selectedReceipt.selection.id, governance: { owner: "Portfolio Governance", rationale: "Commit the explicitly selected niche after reviewing current evidence, priority and prerequisite lineage.", riskAcceptance: "Accept format-learning risk while preserving factual-risk controls and revisit triggers.", reviewCadenceDays: 30, revisitTriggers: ["A prerequisite leaves PASS state", "Fresh contradictory evidence changes the niche thesis"], evidenceReviewed: true as const, priorityReviewed: true as const, noActivationAcknowledged: true as const } } };
+const committedReceipt = await submitNicheGovernanceCommand(database, commitmentCommand); assert.equal(committedReceipt.state, "COMMITTED"); assert.equal(committedReceipt.authority.nicheCommitment, true); assert.equal(committedReceipt.authority.channelStrategyActivation, false);
+assert.equal((await submitNicheGovernanceCommand(database, commitmentCommand)).outcome, "IDEMPOTENT_REPLAY");
+const committedPortfolio = await nichePortfolioProjection("channel-1", database); const committedProjection = committedPortfolio.comparison.find((item) => item.opportunityId === selectedCandidate.opportunityId); assert.ok(committedProjection);
+assert.equal(committedPortfolio.decisionState, "NICHE_COMMITTED"); assert.equal(committedPortfolio.governanceWorkspace.state, "COMMITTED"); assert.equal(committedProjection.lifecycleState, "COMMITTED"); assert.equal(committedProjection.systemRank, beforeGovernance.systemRank); assert.equal(committedProjection.expertPriority, beforeGovernance.expertPriority); assert.deepEqual(committedProjection.axes, beforeGovernance.axes); assert.equal(committedProjection.eligibility, beforeGovernance.eligibility); assert.equal(tables.channels[0].niche, beforeGovernance.niche); assert.equal(committedPortfolio.downstreamGate.state, "BLOCKED");
 const systemAssessment = tables.niche_scoring_assessments.find((row) => row.id === "score-1"); assert.ok(systemAssessment);
 tables.niche_scoring_assessments.push({ ...systemAssessment, id: "score-1-reassessment", scoring_version: 2, created_at: "2026-08-16T00:00:00.000Z" });
 const stalePriorities = await nichePortfolioProjection("channel-1", database);
 assert.equal(stalePriorities.priorityWorkspace.state, "STALE");
-assert.equal(stalePriorities.decisionState, "EXPERT_PRIORITIZATION_STALE");
+assert.equal(stalePriorities.decisionState, "GOVERNANCE_STALE");
+assert.equal(stalePriorities.governanceWorkspace.state, "STALE");
 assert.equal(stalePriorities.comparison.find((item) => item.opportunityId === "niche-money-systems")?.expertPriorityFact.state, "STALE");
 tables.niche_scoring_assessments.pop();
 

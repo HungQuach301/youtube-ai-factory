@@ -48,3 +48,6 @@ Documents 16, 19, 20, 21 and 22 are authoritative for the niche decision shape, 
 ## Protected scope
 
 Do not rerun source discovery, generate A/B/C again, rerun the composite tournament, rerun Stage 09, open the 10-shot pilot or dispatch full production.
+# Slice 7 checkpoint — 2026-08-16
+
+Permanent Niche Commitment & Governance is implemented over the active Slice 6 comparable portfolio. Selection and commitment are separate append-only facts with SIWC/allowlist authority, idempotency, optimistic versions, audit records and frozen lineage. Direct priority-to-commitment is rejected. Upstream changes make governance facts stale. No rank, axis, evidence sufficiency, eligibility, `channels.niche`, activation, provider request or spend is changed. Exact next action: Slice 8 permanent Channel Strategy Activation.
