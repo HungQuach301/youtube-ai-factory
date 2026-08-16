@@ -154,7 +154,8 @@ async function startCompilation(env: Env, stageKey: StageKey, idempotencyKey: st
   await env.DB!.prepare("INSERT INTO v7_sequential_provider_requests (id,program_id,queue_id,stage_key,provider,operation,lifecycle_state,idempotency_key,request_hash,rights_state,cost_usd,started_at) VALUES (?,?,?,?,?,'COMPILE_STAGE_BUNDLE','RUNNING',?,?,?,0,?)")
     .bind(requestId, context.program.id, context.queue.id, stageKey, "OPENAI", idempotencyKey, requestHash, stageKey === "01" || stageKey === "03" ? "PRIMARY_SOURCES_VERIFIED" : stageKey === "02" ? "REFERENCE_ANALYSIS_ONLY" : "CHANNEL_OWNED_ORIGINAL", startedAt).run();
   const tools = ["01", "02", "03"].includes(stageKey) ? [{ type: "web_search", return_token_budget: "unlimited" }] : undefined;
-  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": idempotencyKey }, body: JSON.stringify({ model, reasoning: { effort: "high" }, ...(tools ? { tools } : {}), background: true, store: true, max_output_tokens: stageKey === "06" ? 32000 : 22000, input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }], text: { format: { type: "json_schema", name: `sequential_stage_${stageKey.replace("A", "a").replace("B", "b")}_bundle`, strict: true, schema: bundleSchema } } }), signal: AbortSignal.timeout(30000) });
+  const maxOutputTokens = stageKey === "03" || stageKey === "06" ? 40000 : 24000;
+  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": idempotencyKey }, body: JSON.stringify({ model, reasoning: { effort: "high" }, ...(tools ? { tools } : {}), background: true, store: true, max_output_tokens: maxOutputTokens, input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }], text: { format: { type: "json_schema", name: `sequential_stage_${stageKey.replace("A", "a").replace("B", "b")}_bundle`, strict: true, schema: bundleSchema } } }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) {
     const detail = (await response.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 500);
     await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,completed_at=? WHERE id=?").bind(`OPENAI_${response.status}`, now(), requestId).run();
@@ -175,7 +176,11 @@ async function finalizeCompilation(env: Env, actor: SequentialActor, stageKey: S
   if (!response.ok) throw new SequentialCommandError("OPENAI_STAGE_STATUS_FAILED", 502, `OpenAI Stage ${stageKey} status failed (${response.status})`);
   const payload = await response.json() as Row, status = clean(payload.status);
   if (status !== "completed") {
-    if (["failed", "cancelled", "incomplete"].includes(status)) await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,completed_at=? WHERE id=?").bind(`OPENAI_${status.toUpperCase()}`, now(), providerRequestId).run();
+    if (["failed", "cancelled", "incomplete"].includes(status)) {
+      const errorCode = `OPENAI_${status.toUpperCase()}`;
+      await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,completed_at=? WHERE id=?").bind(errorCode, now(), providerRequestId).run();
+      return { outcome: "FAILED", stageKey, providerRequestId, providerStatus: status, errorCode, incompleteDetails: payload.incomplete_details || null };
+    }
     return { outcome: "PENDING", stageKey, providerRequestId, providerStatus: status };
   }
   const required = parseJson<string[]>(context.contract.required_artifacts_json, []), bundle = parseJson<Row>(outputText(payload), {}), artifacts = validateBundle(stageKey, required, bundle);
