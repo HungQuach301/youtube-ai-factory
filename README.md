@@ -8,7 +8,7 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 
 ## Current implementation checkpoint
 
-- Production functional baseline: Sites v313, commit `f7a125c2f101c3ee3dca23e6d4a080f747142c46`; final Content System FE asset repair and acceptance ledger target Sites v314.
+- Production functional baseline: Sites v334, commit `113fca882c5188205565dc01bb227a561ee6e685`; all four Production Engine V2 checkpoints are production-closed.
 - Product slices: Intelligence–Niche and Channel Strategy are production-closed; Content System & Planning is production-active across all eight slices: authority, content system, backlog, editorial plan, brief compiler, orchestrator, production FE and production QA.
 - Boundaries: all projections remain no-store/fail-closed with no demo fallback; activation is a separate zero-spend command that consumes only the latest active committed niche and never reruns or rewrites Slices 1–7.
 - Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only activation/audit/lineage. It creates the canonical Channel Strategy binding without mutating legacy `channels.niche` or any upstream decision fact.
@@ -25,7 +25,7 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 - Slice 8: `ACTIVATE_CHANNEL_STRATEGY` appends a versioned binding only from the latest active commitment. It freezes commitment/selection/priority/program/evidence/scoring lineage, projects stale instead of rewriting history, and makes Channel Studio consume the active binding while preserving the legacy compatibility field.
 - Product roadmap: Slices 4–8 are permanent product capabilities—Evidence Intelligence & Validation, Portfolio Comparison, Expert Prioritization, Niche Commitment & Governance, and Channel Strategy Activation—not one-time delivery tasks.
 - Content Autopilot production state: `FULL_AUTOPILOT` policy v5, run v5, 4 pillars, 8 series, 8 opportunities, 15 editorial items and 15 production-ready briefs; exact cadence reconciliation passed with zero planning spend. Publishing remains closed.
-- Production Engine V2 checkpoint 1: a greenfield, append-only foundation consumes only those 15 canonical briefs, compiles 15 production packages and 75 evidence-bound shot contracts, enforces a build-time legacy dependency firewall and keeps provider requests/spend at zero until production verification opens the bounded golden pilot.
+- Production Engine V2 checkpoints 1–4: greenfield foundation, golden pilot, full-video canary and controlled 2/4/8 scale are complete. Production reports 15/15 masters ready, 15/15 independent visual QA PASS, P0=0, P1=0, zero active requests, zero open exceptions, USD 79.28 reconciled spend and zero legacy sources. Automatic publishing remains disabled.
 
 Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–27 before continuing in a new chat.
 

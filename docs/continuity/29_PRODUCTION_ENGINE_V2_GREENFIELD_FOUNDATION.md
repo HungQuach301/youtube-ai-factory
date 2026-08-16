@@ -1,6 +1,6 @@
 # Production Engine V2 — Greenfield Foundation
 
-Status: checkpoint 1 implemented; production deployment and D1 read-back required for closure.
+Status: all four checkpoints production-closed on 2026-08-16. Production read-back: 15/15 masters ready, 15/15 independent visual reviews PASS, P0=0, P1=0, zero active requests, zero open exceptions and automatic publishing disabled.
 
 ## Authority and protected scope
 
@@ -33,6 +33,22 @@ Production Engine V2 consumes only the latest canonical Content Planning V2 brie
 - Commercial UI contract and control-plane regression include the new route, page, exact-coverage rules and publishing separation.
 - Agent preview route and navigation render; canonical data remains fail-closed when the local D1 simulator is not initialized. This preview limitation cannot substitute for production D1 read-back.
 
+## Production closure evidence
+
+- Checkpoint 1 — Greenfield foundation: 15 immutable packages, 75/75 valid contracts, complete traceability, zero legacy code/artifact bindings and a zero-spend foundation audit.
+- Checkpoint 2 — Golden pilot: the 30-second, ten-shot motion proof passed technical and perceptual admission before full-video work opened.
+- Checkpoint 3 — Full-video canary: episode 1 passed QA1, independent visual review and QA2 before scale waves opened.
+- Checkpoint 4 — Controlled scale: wave counts 2/4/8 all completed; all 15 twelve-minute masters are `READY_FOR_PUBLISHING`; every package has a three-frame visual sample and an OpenAI independent visual PASS with P0=0/P1=0.
+- Artifact read-back: all 15 master endpoints returned HTTP 200, `video/webm`, a size above 1 MB and a 64-character SHA-256 header. The latest master sizes range from 31,526,666 to 54,583,469 bytes.
+- Ledger reconciliation: 99 provider attempts, 10 failed/reconciled attempts retained for audit, zero active requests, USD 79.28 actual spend, zero open owner exceptions and zero legacy sources.
+- Publishing boundary: `auto_publish=false`; QA readiness never mutates publishing state.
+
+## Quality incident and permanent controls
+
+Independent visual QA blocked episode 9 because the generated heading “What the Network Earns For” was incomplete. The scene was corrected to “What the Network Earns”, a new immutable master revision was rendered, and QA1 + visual QA + QA2 were rerun successfully. The rejected evidence remains preserved.
+
+The production path now has retry-safe provider idempotency, replay-safe QA assessments and audits, immutable artifact revisions when bytes change, a typed stale-provider reconciliation command, and checkpoint-4 logic that cannot complete until all 15 visual reviews pass with P0=0/P1=0.
+
 ## Exact next action
 
-Deploy checkpoint 1, verify deployment success, read production V2 tables and API projection, and close only when production reports 15 packages, 75 valid contracts, zero legacy bindings, zero provider requests and USD 0 actual spend. Then implement the separately bounded golden-pilot execution service.
+Owner publishing review is the only downstream action. Production packages are complete and safe to inspect; publishing remains deliberately manual and outside Production Engine V2 authority.
