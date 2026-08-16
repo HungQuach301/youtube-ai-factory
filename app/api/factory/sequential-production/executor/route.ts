@@ -178,8 +178,9 @@ async function finalizeCompilation(env: Env, actor: SequentialActor, stageKey: S
   if (status !== "completed") {
     if (["failed", "cancelled", "incomplete"].includes(status)) {
       const errorCode = `OPENAI_${status.toUpperCase()}`;
-      await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,completed_at=? WHERE id=?").bind(errorCode, now(), providerRequestId).run();
-      return { outcome: "FAILED", stageKey, providerRequestId, providerStatus: status, errorCode, incompleteDetails: payload.incomplete_details || null };
+      const terminalUsage = measureOpenAIUsage(payload, env.OPENAI_QA_MODEL || MODEL);
+      await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,cost_usd=?,completed_at=? WHERE id=?").bind(errorCode, terminalUsage.actualUsd, now(), providerRequestId).run();
+      return { outcome: "FAILED", stageKey, providerRequestId, providerStatus: status, errorCode, incompleteDetails: payload.incomplete_details || null, usage: terminalUsage };
     }
     return { outcome: "PENDING", stageKey, providerRequestId, providerStatus: status };
   }
