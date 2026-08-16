@@ -260,6 +260,13 @@
       "when": 1786860500862,
       "tag": "0038_clean_dexter_bennett",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1786865437165,
+      "tag": "0039_fancy_legion",
+      "breakpoints": true
     }
   ]
 }

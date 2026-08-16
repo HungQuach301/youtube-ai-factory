@@ -34,9 +34,11 @@ const studioPage = await readFile(new URL("../app/channel-studio/page.tsx", impo
 const contentPlanningContract = await readFile(new URL("../app/content-planning-contract.ts", import.meta.url), "utf8");
 const contentAutopilotCommand = await readFile(new URL("../lib/content-autopilot-command.ts", import.meta.url), "utf8");
 const contentAutopilotRoute = await readFile(new URL("../app/api/factory/content-autopilot/route.ts", import.meta.url), "utf8");
+const contentAutopilotPreviewRoute = await readFile(new URL("../app/api/factory/content-autopilot/preview/route.ts", import.meta.url), "utf8");
 const contentPlanningProjection = await readFile(new URL("../lib/content-planning-projection.ts", import.meta.url), "utf8");
 const canonicalContentBootstrap = await readFile(new URL("../lib/canonical-content-autopilot-bootstrap.ts", import.meta.url), "utf8");
 const contentMigration = await readFile(new URL("../drizzle/0038_clean_dexter_bennett.sql", import.meta.url), "utf8");
+const contentV2Migration = await readFile(new URL("../drizzle/0039_fancy_legion.sql", import.meta.url), "utf8");
 
 test("the canonical shell is portfolio-first without replacing the protected production workspace", () => {
   assert.doesNotMatch(home, /export \{ default \} from "\.\/material-production\/page"/);
@@ -145,17 +147,18 @@ test("Channel Studio adds bounded Autopilot planning while preserving compatibil
   assert.match(studioProjection, /LEGACY_TEXT_LABEL/);
   assert.match(studioProjection, /SLICE_8_COMMITTED_OPPORTUNITY_BINDING/);
   assert.match(studioProjection, /contentPlanningProjection/);
-  assert.match(studioPage, /Build once\. Operate by exception/);
-  assert.match(studioPage, /Full Autopilot/);
-  assert.match(studioPage, /Exceptions only/);
-  assert.match(studioPage, /Expert review/);
-  assert.match(studioPage, /Priority without a total score/);
-  assert.match(studioPage, /SYSTEM_AUTOPILOT/);
+  assert.match(studioPage, /Plan the month\. Automate the routine/);
+  assert.match(studioPage, /Full automation/);
+  assert.match(studioPage, /Automation with exceptions/);
+  assert.match(studioPage, /Expert review required/);
+  assert.match(studioPage, /Monthly publishing target/);
+  assert.match(studioPage, /Apply changes &amp; rebuild plan/);
+  assert.match(studioPage, /Activity & system details/);
   assert.match(studioPage, /Emergency stop/);
   assert.match(studioPage, /Legacy topics and existing Video Engine portfolio/);
-  assert.match(portfolioCss, /\.cpControlGrid/);
-  assert.match(portfolioCss, /@media\(max-width:1180px\).*\.cpControlGrid/s);
-  assert.match(portfolioCss, /@media\(max-width:820px\).*\.cpPolicy form/s);
+  assert.match(portfolioCss, /\.ownerSettingsGrid/);
+  assert.match(portfolioCss, /@media\(max-width:1120px\).*\.ownerSettingsGrid/s);
+  assert.match(portfolioCss, /@media\(max-width:820px\).*\.ownerSettings form/s);
 });
 
 test("Content System and Planning closes eight slices inside an explicit authority envelope", () => {
@@ -167,6 +170,10 @@ test("Content System and Planning closes eight slices inside an explicit authori
   assert.match(contentAutopilotCommand, /ACTIVE_CHANNEL_STRATEGY_REQUIRED/);
   assert.match(contentAutopilotCommand, /POLICY_VERSION_CONFLICT/);
   assert.match(contentAutopilotCommand, /RUN_VERSION_CONFLICT/);
+  assert.match(contentAutopilotCommand, /APPLY_POLICY_AND_REBUILD_PLAN/);
+  assert.match(contentAutopilotCommand, /MONTHLY_BUDGET_INSUFFICIENT/);
+  assert.match(contentAutopilotCommand, /V2_EPISODE_CONCEPTS/);
+  assert.match(contentAutopilotCommand, /compileEpisodeConcepts/);
   assert.match(contentAutopilotCommand, /EMERGENCY_STOP/);
   assert.match(contentAutopilotCommand, /providerRequests: 0/);
   assert.match(contentAutopilotCommand, /channelStrategyMutation: false/);
@@ -176,15 +183,20 @@ test("Content System and Planning closes eight slices inside an explicit authori
   assert.match(contentPlanningProjection, /plannedCount === monthlyTarget/);
   assert.match(contentPlanningProjection, /briefsReady === monthlyTarget/);
   assert.match(contentPlanningProjection, /coverageComplete/);
-  assert.match(studioPage, /planning\.summary\.planned === planning\.policy\.cadencePerMonth/);
-  assert.match(studioPage, /briefsReady === planning\.policy\.cadencePerMonth/);
+  assert.match(studioPage, /planning\.coverage\.complete/);
+  assert.match(studioPage, /planning\.coverage\.planned/);
+  assert.match(studioPage, /planning\.coverage\.briefsReady/);
   assert.match(contentAutopilotRoute, /getChatGPTUser/);
   assert.match(contentAutopilotRoute, /FACTORY_EXPERT_EMAILS/);
   assert.match(contentAutopilotRoute, /idempotency-key/);
+  assert.match(contentAutopilotPreviewRoute, /getChatGPTUser/);
+  assert.match(contentAutopilotPreviewRoute, /mutation: false/);
+  assert.match(contentAutopilotPreviewRoute, /previewContentAutopilotImpact/);
   assert.match(canonicalContentBootstrap, /FULL_AUTOPILOT/);
   assert.match(canonicalContentBootstrap, /autoProduction: true/);
   assert.match(canonicalContentBootstrap, /autoPublish: false/);
   for (const table of ["content_automation_policies", "content_planning_runs", "content_pillars", "content_series", "content_opportunities", "editorial_plans", "editorial_plan_items", "production_briefs_v1", "content_planning_exceptions", "content_planning_audits"]) assert.match(contentMigration, new RegExp("CREATE TABLE `" + table + "`"));
+  for (const table of ["content_episode_concepts_v2", "editorial_plan_items_v2", "production_briefs_v2"]) assert.match(contentV2Migration, new RegExp("CREATE TABLE `" + table + "`"));
 });
 
 test("operator state is a bounded canonical projection", () => {

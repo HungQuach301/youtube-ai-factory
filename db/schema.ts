@@ -1256,6 +1256,68 @@ export const productionBriefsV1 = sqliteTable("production_briefs_v1", {
   id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => contentPlanningRuns.id), planItemId: text("plan_item_id").notNull().references(() => editorialPlanItems.id), opportunityId: text("opportunity_id").notNull().references(() => contentOpportunities.id), briefVersion: integer("brief_version").notNull().default(1), viewerPayoff: text("viewer_payoff").notNull(), hook: text("hook").notNull(), narrativeStructureJson: text("narrative_structure_json").notNull(), claimsJson: text("claims_json").notNull(), evidenceRequirementsJson: text("evidence_requirements_json").notNull(), visualOpportunitiesJson: text("visual_opportunities_json").notNull(), riskControlsJson: text("risk_controls_json").notNull(), targetDurationSeconds: integer("target_duration_seconds").notNull(), costCeilingUsd: real("cost_ceiling_usd").notNull(), lifecycleState: text("lifecycle_state").notNull().default("READY_FOR_PRODUCTION"), contentHash: text("content_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("production_brief_plan_item_uq").on(table.planItemId), index("production_brief_run_idx").on(table.runId, table.createdAt)]);
 
+// Content Planning V2 separates a reusable market opportunity from a concrete
+// episode concept. This lets a monthly cadence contain multiple distinct
+// episodes inside one opportunity without weakening uniqueness or evidence
+// lineage. V1 tables remain immutable compatibility history.
+export const contentEpisodeConceptsV2 = sqliteTable("content_episode_concepts_v2", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull().references(() => contentPlanningRuns.id),
+  opportunityId: text("opportunity_id").notNull().references(() => contentOpportunities.id),
+  seriesId: text("series_id").notNull().references(() => contentSeries.id),
+  channelId: text("channel_id").notNull(),
+  sequence: integer("sequence").notNull(),
+  title: text("title").notNull(),
+  coreQuestion: text("core_question").notNull(),
+  angle: text("angle").notNull(),
+  evidenceRefsJson: text("evidence_refs_json").notNull(),
+  estimatedCostUsd: real("estimated_cost_usd").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("APPROVED_FOR_PLAN"),
+  contentHash: text("content_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("content_episode_concept_run_sequence_uq").on(table.runId, table.sequence),
+  uniqueIndex("content_episode_concept_run_hash_uq").on(table.runId, table.contentHash),
+  index("content_episode_concept_opportunity_idx").on(table.opportunityId, table.createdAt),
+]);
+
+export const editorialPlanItemsV2 = sqliteTable("editorial_plan_items_v2", {
+  id: text("id").primaryKey(),
+  planId: text("plan_id").notNull().references(() => editorialPlans.id),
+  episodeConceptId: text("episode_concept_id").notNull().references(() => contentEpisodeConceptsV2.id),
+  sequence: integer("sequence").notNull(),
+  publishOffsetDays: integer("publish_offset_days").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("PLANNED"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("editorial_plan_item_v2_sequence_uq").on(table.planId, table.sequence),
+  uniqueIndex("editorial_plan_item_v2_episode_uq").on(table.planId, table.episodeConceptId),
+]);
+
+export const productionBriefsV2 = sqliteTable("production_briefs_v2", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull().references(() => contentPlanningRuns.id),
+  planItemId: text("plan_item_id").notNull().references(() => editorialPlanItemsV2.id),
+  episodeConceptId: text("episode_concept_id").notNull().references(() => contentEpisodeConceptsV2.id),
+  briefVersion: integer("brief_version").notNull().default(1),
+  viewerPayoff: text("viewer_payoff").notNull(),
+  hook: text("hook").notNull(),
+  narrativeStructureJson: text("narrative_structure_json").notNull(),
+  claimsJson: text("claims_json").notNull(),
+  evidenceRequirementsJson: text("evidence_requirements_json").notNull(),
+  visualOpportunitiesJson: text("visual_opportunities_json").notNull(),
+  riskControlsJson: text("risk_controls_json").notNull(),
+  targetDurationSeconds: integer("target_duration_seconds").notNull(),
+  costCeilingUsd: real("cost_ceiling_usd").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("READY_FOR_PRODUCTION"),
+  contentHash: text("content_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("production_brief_v2_plan_item_uq").on(table.planItemId),
+  uniqueIndex("production_brief_v2_episode_uq").on(table.episodeConceptId),
+  index("production_brief_v2_run_idx").on(table.runId, table.createdAt),
+]);
+
 export const contentPlanningExceptions = sqliteTable("content_planning_exceptions", {
   id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => contentPlanningRuns.id), channelId: text("channel_id").notNull(), exceptionType: text("exception_type").notNull(), severity: text("severity").notNull(), lifecycleState: text("lifecycle_state").notNull().default("OPEN"), title: text("title").notNull(), detail: text("detail").notNull(), owningAuthority: text("owning_authority").notNull(), resolution: text("resolution"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), resolvedAt: text("resolved_at"),
 }, (table) => [index("content_planning_exception_state_idx").on(table.channelId, table.lifecycleState, table.createdAt)]);
