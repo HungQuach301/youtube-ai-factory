@@ -14,7 +14,7 @@ const MODEL = "gpt-5.6";
 const CONTRACT = "V7_V23_4_V281";
 const CHANNEL_ID = "channel-hidden-systems";
 const MAX_BODY_BYTES = 64_000;
-const STAGE_KEYS = ["01", "02", "03", "04", "05", "06", "07A", "07B"] as const;
+const STAGE_KEYS = ["01", "02", "03", "04", "05", "06", "07A", "07B", "08"] as const;
 type StageKey = typeof STAGE_KEYS[number];
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null>; run(): Promise<{ meta?: { changes?: number } }> };
@@ -100,6 +100,28 @@ const bundleSchema = {
   required: ["stageKey", "artifactCount", "artifacts", "stageQuality"],
 };
 
+const shotRecordSchema = {
+  type: "object", additionalProperties: false,
+  properties: {
+    shotId: { type: "string" }, startSeconds: { type: "number", minimum: 0 }, endSeconds: { type: "number", minimum: 0 }, durationSeconds: { type: "number", minimum: 2, maximum: 16 },
+    narrationExcerpt: { type: "string" }, claimIds: { type: "array", items: { type: "string" } }, assetMode: { type: "string", enum: ["SOURCE", "MAKE", "HYBRID"] },
+    sourceQuery: { type: "string" }, visualIntent: { type: "string" }, onScreenText: { type: "string" }, sceneProgram: { type: "string" },
+    entryState: { type: "string" }, midpointState: { type: "string" }, exitState: { type: "string" }, rightsRequirement: { type: "string" }, qaTests: { type: "array", minItems: 3, items: { type: "string" } },
+  },
+  required: ["shotId", "startSeconds", "endSeconds", "durationSeconds", "narrationExcerpt", "claimIds", "assetMode", "sourceQuery", "visualIntent", "onScreenText", "sceneProgram", "entryState", "midpointState", "exitState", "rightsRequirement", "qaTests"],
+};
+
+const stage08BundleSchema = {
+  type: "object", additionalProperties: false,
+  properties: {
+    stageKey: { type: "string", enum: ["08"] }, artifactCount: { type: "integer", enum: [3] },
+    artifacts: { type: "array", minItems: 3, maxItems: 3, items: artifactSchema },
+    productionRecords: { type: "array", minItems: 84, maxItems: 84, items: shotRecordSchema },
+    stageQuality: (bundleSchema.properties as Row).stageQuality,
+  },
+  required: ["stageKey", "artifactCount", "artifacts", "productionRecords", "stageQuality"],
+};
+
 const stageDirective: Record<StageKey, string> = {
   "01": "Use fresh web research to define the US/en-US audience job, episode opportunity, differentiated viewer promise, demand signals, competitive bar and risks for the exact episode. Cite current public URLs in every evidence item.",
   "02": "Use fresh web research to analyze proven, recent and outlier documentary/explainer references. Extract parity patterns and explicit anti-copy constraints. References are analysis-only; never reproduce protected expression.",
@@ -109,10 +131,11 @@ const stageDirective: Record<StageKey, string> = {
   "06": "Write and lock a complete natural US-English narration for an 8–12 minute faceless documentary explainer, plus a terminology ledger and script critic evidence. The locked narration must be production-ready, precise, non-repetitive and claim-safe.",
   "07A": "Design one consistent narrator identity, objective take-tournament rules and a detailed music/SFX/silence soundscape contract. This is design only; do not synthesize audio. Bind to one locked ElevenLabs voice for later Stage 10 execution.",
   "07B": "Define the visual grammar, SOURCE/MAKE/HYBRID routing and provider tournament. Prefer real-world checkout/payment stock where truth matters; use channel-owned diagrams, charts, maps, UI and receipts where explanation matters. No legacy assets and no AI branding.",
+  "08": "Compile exactly 84 contiguous shot contracts spanning a 600-second target. Every shot must bind narration, claim IDs, SOURCE/MAKE/HYBRID mode, a precise scene program, on-screen text limits, rights requirement, QA tests and distinct ENTRY/MIDPOINT/EXIT states. Use SOURCE for observable real-world environments, MAKE for explanatory diagrams/charts/maps/UI/receipts, and HYBRID only when both layers are necessary. No shot may be generic filler.",
 };
 
 const contextStages: Record<StageKey, string[]> = {
-  "01": ["00"], "02": ["01"], "03": ["01", "02"], "04": ["03"], "05": ["03", "04"], "06": ["03", "05"], "07A": ["03", "06"], "07B": ["06", "07A"],
+  "01": ["00"], "02": ["01"], "03": ["01", "02"], "04": ["03"], "05": ["03", "04"], "06": ["03", "05"], "07A": ["03", "06"], "07B": ["06", "07A"], "08": ["06", "07A", "07B"],
 };
 
 function validateBundle(stageKey: StageKey, required: string[], bundle: Row) {
@@ -124,6 +147,17 @@ function validateBundle(stageKey: StageKey, required: string[], bundle: Row) {
     const quality = artifact.quality && typeof artifact.quality === "object" ? artifact.quality as Row : {};
     const provenance = artifact.provenance && typeof artifact.provenance === "object" ? artifact.provenance as Row : {};
     if (Number(quality.score) < 92 || Number(quality.criticalScore) < 90 || Number(quality.dimensionFloor) < 86 || Number(quality.p0Count) !== 0 || Number(quality.p1Count) !== 0 || Number(provenance.legacySources) !== 0) throw new SequentialCommandError("STAGE_BUNDLE_QUALITY_FAILED", 409, "Provider bundle failed the V7 quality or legacy-source firewall");
+  }
+  if (stageKey === "08") {
+    const records = Array.isArray(bundle.productionRecords) ? bundle.productionRecords as Row[] : [];
+    if (records.length !== 84) throw new SequentialCommandError("SHOT_CONTRACT_COUNT_INVALID", 409, "Stage 08 requires exactly 84 shot contracts");
+    const ordered = [...records].sort((a, b) => Number(a.startSeconds) - Number(b.startSeconds));
+    if (Math.abs(Number(ordered[0]?.startSeconds || 0)) > 0.01 || Math.abs(Number(ordered.at(-1)?.endSeconds || 0) - 600) > 0.25) throw new SequentialCommandError("SHOT_TIMELINE_COVERAGE_INVALID", 409, "Stage 08 shot contracts must cover 0–600 seconds");
+    for (let index = 0; index < ordered.length; index += 1) {
+      const record = ordered[index], prior = ordered[index - 1];
+      if (prior && Math.abs(Number(prior.endSeconds) - Number(record.startSeconds)) > 0.05) throw new SequentialCommandError("SHOT_TIMELINE_GAP_INVALID", 409, "Stage 08 shot contracts must be contiguous");
+      if (!clean(record.entryState) || !clean(record.midpointState) || !clean(record.exitState) || !["SOURCE", "MAKE", "HYBRID"].includes(clean(record.assetMode))) throw new SequentialCommandError("SHOT_CONTRACT_FIELDS_INVALID", 409, "Every Stage 08 shot requires typed motion states and routing");
+    }
   }
   return artifacts;
 }
@@ -148,14 +182,18 @@ async function startCompilation(env: Env, stageKey: StageKey, idempotencyKey: st
   const existing = await first(env.DB!, "SELECT * FROM v7_sequential_provider_requests WHERE idempotency_key=? LIMIT 1", idempotencyKey);
   if (existing) return { outcome: "IDEMPOTENT_REPLAY", providerRequestId: existing.id, providerResponseId: existing.provider_response_id, providerStatus: existing.lifecycle_state, stageKey };
   const required = parseJson<string[]>(context.contract.required_artifacts_json, []);
+  if (stageKey === "08") {
+    const plan = await first(env.DB!, "SELECT * FROM v7_sequential_budget_plans WHERE queue_id=? AND lifecycle_state='APPROVED' ORDER BY version DESC LIMIT 1", context.queue.id);
+    if (!plan || !parseJson<string[]>(plan.stage_scope_json, []).includes("08")) throw new SequentialCommandError("APPROVED_BUDGET_PLAN_REQUIRED", 409, "Stage 08 provider execution requires an approved cost and rights plan");
+  }
   const parentDigest = context.parentArtifacts.map((artifact) => ({ id: artifact.id, stageKey: artifact.stage_key, artifactType: artifact.artifact_type, content: parseJson<Row>(artifact.content_json, {}) }));
   const prompt = `You are the greenfield production compiler for YouTube AI Factory contract ${CONTRACT}.\n\nCreate Stage ${stageKey} for video #1, title: ${clean(context.queue.title)}. Market US. Language en-US. Format faceless premium documentary explainer, 16:9, 8–12 minutes. Never mention AI in audience-facing output.\n\nMANDATORY: use no legacy dossier, prompt, script, storyboard, media, master or artifact. Only the CURRENT FROZEN PARENT ARTIFACTS below are eligible. Produce exactly these artifact types, preserving spelling: ${required.join(" | ")}.\n\nStage directive: ${stageDirective[stageKey]}\n\nQuality release floors: overall >=92, critical >=90, every dimension >=86, P0=0, material P1=0. Do not claim PASS unless the actual deliverable meets those floors. Every artifact must be detailed enough to execute without guessing. documentMarkdown is the substantive deliverable, not a short summary.\n\nCURRENT FROZEN PARENT ARTIFACTS:\n${JSON.stringify(parentDigest)}\n\nReturn only the strict structured bundle.`;
   const requestId = makeId("seq-provider"), requestHash = await digest(prompt), startedAt = now(), model = env.OPENAI_QA_MODEL || MODEL;
   await env.DB!.prepare("INSERT INTO v7_sequential_provider_requests (id,program_id,queue_id,stage_key,provider,operation,lifecycle_state,idempotency_key,request_hash,rights_state,cost_usd,started_at) VALUES (?,?,?,?,?,'COMPILE_STAGE_BUNDLE','RUNNING',?,?,?,0,?)")
     .bind(requestId, context.program.id, context.queue.id, stageKey, "OPENAI", idempotencyKey, requestHash, stageKey === "01" || stageKey === "03" ? "PRIMARY_SOURCES_VERIFIED" : stageKey === "02" ? "REFERENCE_ANALYSIS_ONLY" : "CHANNEL_OWNED_ORIGINAL", startedAt).run();
   const tools = ["01", "02", "03"].includes(stageKey) ? [{ type: "web_search", return_token_budget: "unlimited" }] : undefined;
-  const maxOutputTokens = stageKey === "03" || stageKey === "06" ? 40000 : 24000;
-  const responseSchema = structuredClone(bundleSchema) as Row;
+  const maxOutputTokens = stageKey === "08" ? 64000 : stageKey === "03" || stageKey === "06" ? 40000 : 24000;
+  const responseSchema = structuredClone(stageKey === "08" ? stage08BundleSchema : bundleSchema) as Row;
   const artifactsSchema = (responseSchema.properties as Row).artifacts as Row;
   const artifactItemSchema = artifactsSchema.items as Row;
   const artifactProperties = artifactItemSchema.properties as Row;
@@ -203,7 +241,7 @@ async function finalizeCompilation(env: Env, actor: SequentialActor, stageKey: S
   const rightsState = stageKey === "01" || stageKey === "03" ? "PRIMARY_SOURCES_VERIFIED" : stageKey === "02" ? "REFERENCE_ANALYSIS_ONLY" : "CHANNEL_OWNED_ORIGINAL";
   const receipts = [];
   for (const [index, artifact] of artifacts.entries()) {
-    const content = { schemaVersion: "V7_V23_4_V281_ARTIFACT_V1", stageKey, videoSequence: 1, sourceBriefHash: clean(context.queue.source_brief_hash), evidence: { items: artifact.evidence, providerResponseId: clean(request.provider_response_id), currentFrozenParentArtifactIds: parentArtifactIds, legacySources: 0 }, quality: artifact.quality, title: artifact.title, executiveSummary: artifact.executiveSummary, documentMarkdown: artifact.documentMarkdown, decisions: artifact.decisions, acceptanceTests: artifact.acceptanceTests, risks: artifact.risks, provenance: artifact.provenance };
+    const content = { schemaVersion: "V7_V23_4_V281_ARTIFACT_V1", stageKey, videoSequence: 1, sourceBriefHash: clean(context.queue.source_brief_hash), evidence: { items: artifact.evidence, providerResponseId: clean(request.provider_response_id), currentFrozenParentArtifactIds: parentArtifactIds, legacySources: 0 }, quality: artifact.quality, title: artifact.title, executiveSummary: artifact.executiveSummary, documentMarkdown: artifact.documentMarkdown, decisions: artifact.decisions, acceptanceTests: artifact.acceptanceTests, risks: artifact.risks, provenance: artifact.provenance, ...(stageKey === "08" && clean(artifact.artifactType) === "shot contracts" ? { productionRecords: bundle.productionRecords } : {}) };
     const produced = await submitSequentialCommand({ DB: env.DB!, BUCKET: env.BUCKET! }, { body: { action: "PRODUCE_ARTIFACT", channelId: CHANNEL_ID, sequence: 1, stageKey, expectedStageState: "RUNNING", artifactType: clean(artifact.artifactType), content, parentArtifactIds, rightsState, costState: "WITHIN_APPROVED_PLAN", provider: "OPENAI", providerRequestId }, actor, idempotencyKey: `${providerRequestId}:produce:${index + 1}` });
     const verified = await submitSequentialCommand({ DB: env.DB!, BUCKET: env.BUCKET! }, { body: { action: "VERIFY_ARTIFACT", channelId: CHANNEL_ID, sequence: 1, stageKey, expectedStageState: "RUNNING", artifactId: produced.artifactId || "", verification: { deterministic: true, providerResponseId: clean(request.provider_response_id), usageMeasured: true, qualityPolicy: "overall>=92;critical>=90;dimension>=86;P0=0;P1=0", legacySources: 0 } }, actor, idempotencyKey: `${providerRequestId}:verify:${index + 1}` });
     receipts.push({ artifactType: artifact.artifactType, artifactId: produced.artifactId, produceOutcome: produced.outcome, verifyOutcome: verified.outcome });
@@ -220,7 +258,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null) as Row | null;
     if (!body) return failure("EXECUTOR_JSON_INVALID", "The request body is not valid JSON", 400);
     const action = clean(body.action).toUpperCase(), stageKey = clean(body.stageKey).toUpperCase() as StageKey;
-    if (!STAGE_KEYS.includes(stageKey)) return failure("EXECUTOR_STAGE_INVALID", "Executor supports only Stage 01–07B", 400);
+    if (!STAGE_KEYS.includes(stageKey)) return failure("EXECUTOR_STAGE_INVALID", "Executor supports Stage 01–08", 400);
     if (action === "START_COMPILATION") {
       const idempotencyKey = clean(request.headers.get("idempotency-key"));
       if (idempotencyKey.length < 16 || !/^[A-Za-z0-9._:-]+$/.test(idempotencyKey)) return failure("IDEMPOTENCY_KEY_INVALID", "A stable 16–200 character Idempotency-Key is required", 400);

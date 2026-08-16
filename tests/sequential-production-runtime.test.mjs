@@ -59,3 +59,15 @@ test("Stage 01–07B executor is greenfield, metered and mutates state only thro
   assert.match(executor, /action:\s*"FREEZE_STAGE"/);
   assert.doesNotMatch(executor, /UPDATE v7_sequential_stage_runs SET lifecycle_state='FROZEN'/);
 });
+
+test("Stage 08 requires an approved bounded cost-rights plan and exact shot contracts", () => {
+  const executor = read("app/api/factory/sequential-production/executor/route.ts");
+  const plan = read("app/api/factory/sequential-production/plan/route.ts");
+  assert.match(executor, /APPROVED_BUDGET_PLAN_REQUIRED/);
+  assert.match(executor, /minItems:\s*84,\s*maxItems:\s*84/);
+  assert.match(executor, /SHOT_TIMELINE_COVERAGE_INVALID/);
+  assert.match(plan, /APPROVE_COST_RIGHTS_PLAN/);
+  assert.match(plan, /PER_VIDEO_HARD_CAP_USD = 40/);
+  assert.match(plan, /NON_FREE_COMMERCIAL_PLAN_VERIFIED_BEFORE_SYNTHESIS/);
+  assert.match(plan, /LEGACY_ASSET_REUSE/);
+});
