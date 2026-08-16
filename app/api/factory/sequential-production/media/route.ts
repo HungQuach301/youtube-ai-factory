@@ -46,7 +46,7 @@ async function produceShot(env: Env, ctx: Awaited<ReturnType<typeof context>>, r
     await env.DB!.prepare("INSERT INTO v7_sequential_media_assets (id,program_id,queue_id,shot_id,asset_mode,provider,storage_key,mime_type,byte_size,sha256,rights_state,cost_usd,metadata_json) VALUES (?,?,?,?,?,'INTERNAL_ORIGINAL',?,?,?,?, 'CHANNEL_OWNED_ORIGINAL',0,?)").bind(assetId, ctx.program.id, ctx.queue.id, shotId, assetMode, storageKey, "image/svg+xml", stored.byteSize, stored.hash, json({ record, readbackVerified: true, generatedBy: "DETERMINISTIC_SVG_COMPILER" })).run();
     return { shotId, outcome: "CREATED", provider: "INTERNAL_ORIGINAL", byteSize: stored.byteSize };
   }
-  const requestId = makeId("seq-provider"), requestKey = `stage09:${clean(ctx.queue.id)}:${shotId}:pexels:v1`, startedAt = now(), requestHash = await sha256(json({ query: record.sourceQuery, shotId }));
+  const requestId = makeId("seq-provider"), requestKey = `stage09:${clean(ctx.queue.id)}:${shotId}:pexels:${crypto.randomUUID()}`, startedAt = now(), requestHash = await sha256(json({ query: record.sourceQuery, shotId }));
   await env.DB!.prepare("INSERT INTO v7_sequential_provider_requests (id,program_id,queue_id,stage_key,provider,operation,lifecycle_state,idempotency_key,request_hash,rights_state,cost_usd,started_at) VALUES (?,?,?,'09','PEXELS','SEARCH_AND_DOWNLOAD','RUNNING',?,?,'COMMERCIAL_LICENSE_VERIFIED',0,?)").bind(requestId, ctx.program.id, ctx.queue.id, requestKey, requestHash, startedAt).run();
   try {
     const search = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(clean(record.sourceQuery) || "credit card checkout")}&orientation=landscape&per_page=5`, { headers: { authorization: env.PEXELS_API_KEY }, signal: AbortSignal.timeout(20000) });
@@ -58,7 +58,22 @@ async function produceShot(env: Env, ctx: Awaited<ReturnType<typeof context>>, r
       env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='COMPLETED',provider_response_id=?,response_hash=?,completed_at=? WHERE id=?").bind(clean(photo.id), responseHash, now(), requestId),
     ]);
     return { shotId, outcome: "DOWNLOADED", provider: "PEXELS", providerAssetId: photo.id, byteSize: stored.byteSize };
-  } catch (error) { await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,completed_at=? WHERE id=?").bind(error instanceof Error ? error.message.slice(0, 120) : "PEXELS_FAILED", now(), requestId).run(); throw error; }
+  } catch (error) {
+    await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,completed_at=? WHERE id=?").bind(error instanceof Error ? error.message.slice(0, 120) : "PEXELS_FAILED", now(), requestId).run();
+    if (!env.PIXABAY_API_KEY) throw error;
+    const fallbackId = makeId("seq-provider"), fallbackKey = `stage09:${clean(ctx.queue.id)}:${shotId}:pixabay:${crypto.randomUUID()}`;
+    await env.DB!.prepare("INSERT INTO v7_sequential_provider_requests (id,program_id,queue_id,stage_key,provider,operation,lifecycle_state,idempotency_key,request_hash,rights_state,cost_usd,started_at) VALUES (?,?,?,'09','PIXABAY','FALLBACK_SEARCH_AND_DOWNLOAD','RUNNING',?,?,'COMMERCIAL_LICENSE_VERIFIED',0,?)").bind(fallbackId, ctx.program.id, ctx.queue.id, fallbackKey, requestHash, now()).run();
+    try {
+      const search = await fetch(`https://pixabay.com/api/?key=${encodeURIComponent(env.PIXABAY_API_KEY)}&q=${encodeURIComponent(clean(record.sourceQuery) || "credit card checkout")}&image_type=photo&orientation=horizontal&per_page=5&safesearch=true`, { signal: AbortSignal.timeout(20000) }); if (!search.ok) throw new Error(`PIXABAY_SEARCH_${search.status}`);
+      const payload = await search.json() as Row, hits = Array.isArray(payload.hits) ? payload.hits as Row[] : [], hit = hits[index % Math.max(1, hits.length)]; if (!hit) throw new Error("PIXABAY_NO_RESULT"); const source = clean(hit.largeImageURL || hit.webformatURL); const download = await fetch(source, { signal: AbortSignal.timeout(30000) }); if (!download.ok) throw new Error(`PIXABAY_DOWNLOAD_${download.status}`); const bytes = new Uint8Array(await download.arrayBuffer()); if (bytes.byteLength < 10_000 || bytes.byteLength > 12_000_000) throw new Error("PIXABAY_BYTES_OUT_OF_RANGE");
+      const storageKey = `${keyBase}.jpg`, stored = await storeBytes(env.BUCKET!, storageKey, bytes, "image/jpeg"), assetId = makeId("seq-media"), responseHash = await sha256(json(payload));
+      await env.DB!.batch([
+        env.DB!.prepare("INSERT INTO v7_sequential_media_assets (id,program_id,queue_id,shot_id,asset_mode,provider,provider_asset_id,provider_request_id,storage_key,mime_type,byte_size,sha256,source_url,license_url,rights_state,cost_usd,metadata_json) VALUES (?,?,?,?,?,'PIXABAY',?,?,?,?,?,?,?,?, 'COMMERCIAL_LICENSE_VERIFIED',0,?)").bind(assetId, ctx.program.id, ctx.queue.id, shotId, assetMode, clean(hit.id), fallbackId, storageKey, "image/jpeg", stored.byteSize, stored.hash, clean(hit.pageURL), "https://pixabay.com/service/license-summary/", json({ record, user: hit.user, userUrl: hit.userImageURL, readbackVerified: true, fallbackFrom: "PEXELS" })),
+        env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='COMPLETED',provider_response_id=?,response_hash=?,completed_at=? WHERE id=?").bind(clean(hit.id), responseHash, now(), fallbackId),
+      ]);
+      return { shotId, outcome: "DOWNLOADED_FALLBACK", provider: "PIXABAY", providerAssetId: hit.id, byteSize: stored.byteSize };
+    } catch (fallbackError) { await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,completed_at=? WHERE id=?").bind(fallbackError instanceof Error ? fallbackError.message.slice(0, 120) : "PIXABAY_FAILED", now(), fallbackId).run(); throw fallbackError; }
+  }
 }
 
 async function runStage09Batch(env: Env, batchIndex: number) {
