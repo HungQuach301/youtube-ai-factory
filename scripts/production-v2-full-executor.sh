@@ -18,7 +18,7 @@ ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i "$out/scenes.txt" -i
 
 probe="$(ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of json "$out/master.webm")"
 duration="$(jq -r '.format.duration|tonumber' <<<"$probe")"; width="$(jq -r '[.streams[]|select(.codec_type=="video")][0].width' <<<"$probe")"; height="$(jq -r '[.streams[]|select(.codec_type=="video")][0].height' <<<"$probe")"; rate="$(jq -r '[.streams[]|select(.codec_type=="video")][0].r_frame_rate' <<<"$probe")"; fps="$(awk -F/ '{if($2==0)print 0;else printf "%.3f",$1/$2}' <<<"$rate")"; video_codec="$(jq -r '[.streams[]|select(.codec_type=="video")][0].codec_name' <<<"$probe")"; audio_codec="$(jq -r '[.streams[]|select(.codec_type=="audio")][0].codec_name' <<<"$probe")"
-scene_changes="$(ffmpeg -hide_banner -i "$out/master.webm" -vf "select='gt(scene,0.10)',showinfo" -an -f null - 2>&1 | grep -c 'showinfo.*pts_time' || true)"
+scene_changes="$(ffmpeg -hide_banner -i "$out/master.webm" -vf "select='gt(scene,0.07)',showinfo" -an -f null - 2>&1 | grep -c 'showinfo.*pts_time' || true)"
 loudness_log="$(ffmpeg -hide_banner -nostats -i "$out/master.webm" -filter_complex ebur128=peak=true -f null - 2>&1 || true)"; loudness_i="$(awk '/I:/{value=$2} END{print value+0}' <<<"$loudness_log")"; true_peak="$(awk '/Peak:/{value=$2} END{print value+0}' <<<"$loudness_log")"; sha="$(sha256sum "$out/master.webm" | awk '{print $1}')"
 for second in 72 360 648; do ffmpeg -hide_banner -loglevel error -y -ss "$second" -i "$out/master.webm" -frames:v 1 -q:v 2 "$out/frames/frame-${second}.jpg"; done
 frame_hashes="$(for frame in "$out"/frames/*.jpg; do sha256sum "$frame" | awk '{print $1}'; done | jq -Rsc 'split("\n")|map(select(length>0))')"
