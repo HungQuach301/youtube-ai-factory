@@ -19,7 +19,7 @@ async function digest(value: ArrayBuffer | Uint8Array | string) {
   return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", input))).map((part) => part.toString(16).padStart(2, "0")).join("");
 }
 async function rows(db: ProductionV2CommandDB, query: string, ...values: unknown[]) { return (await db.prepare(query).bind(...values).all<Row>()).results ?? []; }
-async function exec(db: ProductionV2CommandDB, query: string, ...values: unknown[]) { return db.prepare(query).bind(...values).run(); }
+async function exec(db: ProductionV2CommandDB, query: string, ...values: unknown[]) { return db.prepare(query).bind(...values.map((value) => value === undefined ? null : value)).run(); }
 function escapeXml(value: string) { return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[character] || character); }
 function wrap(value: string, max = 42) {
   const words = value.split(/\s+/); const lines: string[] = []; let line = "";
