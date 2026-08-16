@@ -1,6 +1,6 @@
 # Production Engine V2 — Greenfield Foundation
 
-Status: all four checkpoints production-closed on 2026-08-16. Production read-back: 15/15 masters ready, 15/15 independent visual reviews PASS, P0=0, P1=0, zero active requests, zero open exceptions and automatic publishing disabled.
+Status: **superseded for release on 2026-08-16**. All four checkpoints remain immutable historical execution evidence, but the owner rejected all 15 masters for poor perceived quality. Their package state is `REJECTED_QUALITY`; none may be published, reused or treated as a quality reference. Document 30 defines the active V7 → V23.4 → V281 sequential rebuild.
 
 ## Authority and protected scope
 

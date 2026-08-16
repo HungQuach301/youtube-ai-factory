@@ -208,7 +208,7 @@ test("Content System and Planning closes eight slices inside an explicit authori
   assert.match(contentCadenceReconciliation, /autoProduction.*true.*autoPublish.*false/);
 });
 
-test("Production Engine V2 starts from a greenfield, exact and zero-spend foundation", () => {
+test("Production Engine V2 history remains preserved beneath the sequential rebuild control", () => {
   for (const table of ["production_v2_policies", "production_v2_packages", "production_v2_shot_contracts", "production_v2_jobs", "production_v2_artifacts", "production_v2_provider_requests", "production_v2_quality_assessments", "production_v2_repair_packages", "production_v2_scale_waves", "production_v2_audits"]) assert.match(productionV2Migration, new RegExp("CREATE TABLE `" + table + "`"));
   assert.match(productionV2Migration, /ZERO_CODE_ZERO_ARTIFACT/);
   assert.match(productionV2Migration, /PRODUCTION_ENGINE_V2_GREENFIELD/);
@@ -220,9 +220,9 @@ test("Production Engine V2 starts from a greenfield, exact and zero-spend founda
   assert.match(productionV2Projection, /PUBLISHING_CLOSED/);
   assert.match(productionV2Route, /cache-control": "no-store"/);
   assert.match(productionV2Route, /CANONICAL_DATABASE_UNAVAILABLE/);
-  assert.match(productionV2Workspace, /Turn approved briefs into release evidence/);
-  assert.match(productionV2Workspace, /Start controlled pilot/);
-  assert.match(productionV2Workspace, /AUTO PUBLISH/);
+  assert.match(productionV2Workspace, /One excellent video before the next one starts/);
+  assert.match(productionV2Workspace, /ONE VIDEO AT A TIME/);
+  assert.match(productionV2Workspace, /AUTO-PUBLISH/);
 });
 
 test("operator state is a bounded canonical projection", () => {

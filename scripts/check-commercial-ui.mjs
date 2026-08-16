@@ -32,6 +32,9 @@ const files = Object.fromEntries(await Promise.all([
   ["productionV2Route", "app/api/factory/production-v2/route.ts"],
   ["productionV2Projection", "lib/production-v2-projection.ts"],
   ["productionV2Contract", "app/production-v2-contract.ts"],
+  ["sequentialProductionProjection", "lib/sequential-production-projection.ts"],
+  ["sequentialProductionContract", "app/production-control-contract.ts"],
+  ["sequentialProductionMigration", "drizzle/0042_flashy_black_tarantula.sql"],
   ["css", "app/portfolio.css"],
 ].map(async ([key, file]) => [key, await readFile(file, "utf8")])));
 
@@ -106,15 +109,15 @@ const checks = [
   ["Content Autopilot system actor", files.contentPlanningContract.includes("SYSTEM_AUTOPILOT") && files.contentAutopilotCommand.includes("'SYSTEM_AUTOPILOT'") && files.contentPlanningProjection.includes('actorType: run ? "SYSTEM_AUTOPILOT" : null')],
   ["Content Autopilot production boundary remains separate", files.contentPlanningProjection.includes("productionDispatchAuthorized") && files.contentPlanningProjection.includes("publishingAuthorized") && files.canonicalContentBootstrap.includes("autoProduction: true") && files.canonicalContentBootstrap.includes("autoPublish: false")],
   ["Content Autopilot responsive production workspace", files.css.includes(".ownerSettingsGrid") && files.css.includes("@media(max-width:1120px)") && files.css.includes("@media(max-width:820px)") && files.css.includes("@media(max-width:520px)")],
-  ["Production V2 owner-first navigation", files.shell.includes('production: "/video-engine"') && files.productionV2Page.includes("Turn approved briefs into release evidence")],
-  ["Production V2 five-view workspace", ["Overview", "Production packages", "Quality & exceptions", "Cost & activity", "System details"].every((label) => files.productionV2Page.includes(label))],
-  ["Production V2 completed videos are the default completed-state view", files.productionV2Page.includes('complete ? "Production packages" : "Overview"') && files.productionV2Page.includes("Completed videos (${ready})")],
-  ["Production V2 direct master review action", files.productionV2Page.includes("Watch completed video") && files.productionV2Page.includes('target="_blank"') && files.productionV2Page.includes("owner review only")],
-  ["Production V2 owner-readable completion copy", files.productionV2Page.includes("Your 15 completed videos are ready") && files.productionV2Page.includes("These are completed master videos—not plans or briefs")],
-  ["Production V2 fail-closed projection", files.productionV2Route.includes("CANONICAL_DATABASE_UNAVAILABLE") && files.productionV2Route.includes("fallback: false") && files.productionV2Projection.includes("LEGACY_FIREWALL")],
-  ["Production V2 exact package and shot coverage", files.productionV2Projection.includes("compiled === 15") && files.productionV2Projection.includes("validContracts === 75")],
-  ["Production V2 separate publishing authority", files.productionV2Page.includes("autoPublish") && files.productionV2Page.includes("AUTO PUBLISH") && files.productionV2Projection.includes("PUBLISHING_CLOSED")],
-  ["Production V2 responsive workspace", files.productionV2Page.includes(".pv2Hero") && files.productionV2Page.includes(".pv2Packages") && files.productionV2Page.includes("@media(max-width:700px)")],
+  ["Sequential production owner-first navigation", files.shell.includes('production: "/video-engine"') && files.productionV2Page.includes("One excellent video before the next one starts")],
+  ["Sequential production five-view workspace", ["Current video", "Production process", "Technical design", "15-video queue", "Rejected evidence"].every((label) => files.productionV2Page.includes(label))],
+  ["Sequential production defaults to current video", files.productionV2Page.includes('view as Tab : "Current video"')],
+  ["Sequential production exact exclusive lease", files.sequentialProductionContract.includes("ONE_VIDEO_AT_A_TIME") && files.sequentialProductionProjection.includes("Exactly one active video")],
+  ["Sequential production blocks video N plus one", files.sequentialProductionProjection.includes("Video N+1 receives no production lease") && files.sequentialProductionMigration.includes("BLOCKED_PREVIOUS_VIDEO")],
+  ["Prior masters are rejected but preserved", files.sequentialProductionMigration.includes("lifecycle_state='REJECTED_QUALITY'") && !files.sequentialProductionMigration.includes("DELETE FROM `production_v2_artifacts`")],
+  ["V7 V23.4 V281 quality firewall", files.productionV2Page.includes("V7 → V23.4 → V281") && files.productionV2Page.includes("Eight independent critics") && files.sequentialProductionProjection.includes("Zero P0 and zero unresolved material P1")],
+  ["Sequential production separate publishing authority", files.productionV2Page.includes("autoPublish") && files.productionV2Page.includes("AUTO-PUBLISH") && files.sequentialProductionProjection.includes("publishing remains separate")],
+  ["Sequential production responsive workspace", files.productionV2Page.includes(".seqHead") && files.productionV2Page.includes(".seqQueue") && files.productionV2Page.includes("@media(max-width:680px)")],
 ];
 
 const failures = checks.filter(([, passed]) => !passed);

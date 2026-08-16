@@ -1987,3 +1987,99 @@ export const productionV2Audits = sqliteTable("production_v2_audits", {
   uniqueIndex("production_v2_audit_entity_event_uq").on(table.entityId, table.eventType),
   index("production_v2_audit_channel_idx").on(table.channelId, table.createdAt),
 ]);
+
+export const v7SequentialPrograms = sqliteTable("v7_sequential_programs", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id").notNull(),
+  contractVersion: text("contract_version").notNull().default("V7_V23_4_V281"),
+  lifecycleState: text("lifecycle_state").notNull().default("ACTIVE"),
+  executionMode: text("execution_mode").notNull().default("ONE_VIDEO_AT_A_TIME"),
+  targetVideos: integer("target_videos").notNull().default(15),
+  currentSequence: integer("current_sequence").notNull().default(1),
+  overallFloor: integer("overall_floor").notNull().default(92),
+  criticalFloor: integer("critical_floor").notNull().default(90),
+  dimensionFloor: integer("dimension_floor").notNull().default(86),
+  p0Tolerance: integer("p0_tolerance").notNull().default(0),
+  p1Tolerance: integer("p1_tolerance").notNull().default(0),
+  maximumRepairLoops: integer("maximum_repair_loops").notNull().default(2),
+  ownerGate: text("owner_gate").notNull().default("OWNER_READY_REQUIRED"),
+  historicalMasterPolicy: text("historical_master_policy").notNull().default("REJECTED_HISTORICAL_EVIDENCE"),
+  autoDispatch: integer("auto_dispatch", { mode: "boolean" }).notNull().default(true),
+  autoPublish: integer("auto_publish", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_sequential_program_channel_uq").on(table.channelId)]);
+
+export const v7SequentialQueue = sqliteTable("v7_sequential_queue", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  packageId: text("package_id").notNull(),
+  sequence: integer("sequence").notNull(),
+  title: text("title").notNull(),
+  lifecycleState: text("lifecycle_state").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(false),
+  sourceBriefHash: text("source_brief_hash").notNull(),
+  priorMasterState: text("prior_master_state").notNull().default("REJECTED_QUALITY"),
+  releaseAssessmentId: text("release_assessment_id"),
+  ownerReadyAt: text("owner_ready_at"),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("v7_sequential_queue_program_sequence_uq").on(table.programId, table.sequence),
+  uniqueIndex("v7_sequential_queue_package_uq").on(table.packageId),
+  index("v7_sequential_queue_state_idx").on(table.programId, table.lifecycleState),
+]);
+
+export const v7SequentialStageRuns = sqliteTable("v7_sequential_stage_runs", {
+  id: text("id").primaryKey(),
+  queueId: text("queue_id").notNull(),
+  stageKey: text("stage_key").notNull(),
+  sequence: integer("sequence").notNull(),
+  stageName: text("stage_name").notNull(),
+  ownerPlane: text("owner_plane").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("BLOCKED_UPSTREAM"),
+  gateVersion: text("gate_version").notNull(),
+  requiredArtifactsJson: text("required_artifacts_json").notNull().default("[]"),
+  evidenceSummary: text("evidence_summary").notNull().default("No verified artifact"),
+  attempt: integer("attempt").notNull().default(0),
+  blocker: text("blocker"),
+  frozenAt: text("frozen_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("v7_sequential_stage_queue_key_uq").on(table.queueId, table.stageKey),
+  index("v7_sequential_stage_state_idx").on(table.queueId, table.lifecycleState),
+]);
+
+export const v7SequentialReleaseAssessments = sqliteTable("v7_sequential_release_assessments", {
+  id: text("id").primaryKey(),
+  queueId: text("queue_id").notNull(),
+  masterArtifactId: text("master_artifact_id").notNull(),
+  evaluationNumber: integer("evaluation_number").notNull(),
+  lifecycleState: text("lifecycle_state").notNull(),
+  overallScore: integer("overall_score").notNull(),
+  criticalFloor: integer("critical_floor").notNull(),
+  dimensionFloor: integer("dimension_floor").notNull(),
+  p0Count: integer("p0_count").notNull().default(0),
+  p1Count: integer("p1_count").notNull().default(0),
+  criticResultsJson: text("critic_results_json").notNull(),
+  findingsJson: text("findings_json").notNull().default("[]"),
+  evidenceHash: text("evidence_hash").notNull(),
+  independentActor: text("independent_actor").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("v7_sequential_release_master_eval_uq").on(table.masterArtifactId, table.evaluationNumber),
+  index("v7_sequential_release_queue_idx").on(table.queueId, table.createdAt),
+]);
+
+export const v7SequentialEvents = sqliteTable("v7_sequential_events", {
+  id: text("id").primaryKey(),
+  programId: text("program_id").notNull(),
+  queueId: text("queue_id"),
+  eventType: text("event_type").notNull(),
+  actorType: text("actor_type").notNull(),
+  detailJson: text("detail_json").notNull(),
+  evidenceHash: text("evidence_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [index("v7_sequential_events_program_idx").on(table.programId, table.createdAt)]);

@@ -2,6 +2,24 @@
 
 Last reconciled: 2026-08-16 (Asia/Bangkok)
 
+## Sequential production correction — 2026-08-16
+
+```text
+ACTIVE_PRODUCTION_CONTRACT = V7_V23_4_V281
+EXECUTION_MODE = ONE_VIDEO_AT_A_TIME
+ACTIVE_VIDEO = 1_OF_15
+ACTIVE_VIDEO_STATE = DESIGN_REQUIRED
+VIDEO_02_TO_15 = BLOCKED_PREVIOUS_VIDEO
+PRIOR_PRODUCTION_V2_MASTERS = 15_REJECTED_QUALITY
+PRIOR_ARTIFACTS = IMMUTABLE_HISTORICAL_EVIDENCE
+RELEASE_FLOORS = OVERALL_92_CRITICAL_90_DIMENSION_86_P0_0_P1_0
+MAXIMUM_ROOT_CAUSE_REPAIR_LOOPS = 2
+AUTO_PUBLISH = FALSE
+NEXT_ACTION = COMPILE_AND_FREEZE_VIDEO_01_STAGE_00_TO_07B
+```
+
+Document 30 is authoritative for the restored V7 → V23.4 → V281 technical architecture, per-video business process, exclusive production lease and release firewall. The earlier Production Engine V2 completion statements below are preserved only as historical state and no longer confer release authority.
+
 ```text
 BASELINE = PRODUCTION_V7_GREENFIELD
 CURRENT_STAGE = 09
