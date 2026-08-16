@@ -211,6 +211,14 @@ function validateArtifactContent(body: SequentialCommandBody, context: Context, 
     if (clean(artifact.artifact_type) === "canonical brief hash" && clean(content.canonicalBriefHash) !== clean(context.queue.source_brief_hash)) failures.push("canonicalBriefHash");
     if (clean(artifact.artifact_type) === "exclusive lease" && (clean(content.queueId) !== clean(context.queue.id) || content.video2Blocked !== true)) failures.push("exclusiveLease");
   } else if (score < 92 || p0 !== 0) failures.push("qualityFloor");
+  if (body.stageKey === "09" && clean(artifact.artifact_type) === "stored source bytes") {
+    const assets = Array.isArray(content.assets) ? content.assets as Row[] : [];
+    if (assets.length !== 84 || assets.some((asset) => !clean(asset.storageKey) || !clean(asset.sha256) || Number(asset.byteSize || 0) <= 0 || asset.readbackVerified !== true)) failures.push("storedMediaAssets");
+  }
+  if (body.stageKey === "10" && clean(artifact.artifact_type) === "audio stems") {
+    const stems = Array.isArray(content.stems) ? content.stems as Row[] : [];
+    if (stems.length < 3 || stems.some((stem) => !clean(stem.storageKey) || !clean(stem.sha256) || Number(stem.byteSize || 0) <= 0 || stem.readbackVerified !== true)) failures.push("storedAudioStems");
+  }
   if (failures.length) throw new SequentialCommandError("ARTIFACT_VERIFICATION_FAILED", 409, `Artifact failed deterministic checks: ${failures.join(", ")}`);
   return { score: body.stageKey === "00" ? 100 : score, p0Count: p0, deterministicChecks: "PASS" };
 }

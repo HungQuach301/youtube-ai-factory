@@ -71,3 +71,18 @@ test("Stage 08 requires an approved bounded cost-rights plan and exact shot cont
   assert.match(plan, /NON_FREE_COMMERCIAL_PLAN_VERIFIED_BEFORE_SYNTHESIS/);
   assert.match(plan, /LEGACY_ASSET_REUSE/);
 });
+
+test("Stage 09–10 executor stores real media/audio bytes with rights and measured evidence", () => {
+  const media = read("app/api/factory/sequential-production/media/route.ts");
+  const command = read("lib/sequential-production-command.ts");
+  assert.match(media, /RUN_STAGE_09_BATCH/);
+  assert.match(media, /api\.pexels\.com\/v1\/search/);
+  assert.match(media, /PEXELS.*COMMERCIAL_LICENSE_VERIFIED/s);
+  assert.match(media, /MEDIA_HASH_MISMATCH/);
+  assert.match(media, /output_format=pcm_24000/);
+  assert.match(media, /ELEVENLABS_COMMERCIAL_RIGHTS_REQUIRED/);
+  assert.match(media, /peakDbfs/);
+  assert.match(media, /audio\/wav/);
+  assert.match(command, /storedMediaAssets/);
+  assert.match(command, /storedAudioStems/);
+});

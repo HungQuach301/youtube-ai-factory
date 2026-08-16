@@ -2208,3 +2208,20 @@ export const v7SequentialBudgetPlans = sqliteTable("v7_sequential_budget_plans",
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("v7_sequential_budget_queue_version_uq").on(table.queueId, table.version)]);
+
+export const v7SequentialMediaAssets = sqliteTable("v7_sequential_media_assets", {
+  id: text("id").primaryKey(), programId: text("program_id").notNull(), queueId: text("queue_id").notNull(), shotId: text("shot_id").notNull(),
+  assetMode: text("asset_mode").notNull(), provider: text("provider").notNull(), providerAssetId: text("provider_asset_id"), providerRequestId: text("provider_request_id"),
+  storageKey: text("storage_key").notNull(), mimeType: text("mime_type").notNull(), byteSize: integer("byte_size").notNull(), sha256: text("sha256").notNull(),
+  sourceUrl: text("source_url"), licenseUrl: text("license_url"), rightsState: text("rights_state").notNull(), costUsd: real("cost_usd").notNull().default(0),
+  metadataJson: text("metadata_json").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_sequential_media_queue_shot_uq").on(table.queueId, table.shotId), index("v7_sequential_media_queue_provider_idx").on(table.queueId, table.provider)]);
+
+export const v7SequentialAudioAssets = sqliteTable("v7_sequential_audio_assets", {
+  id: text("id").primaryKey(), programId: text("program_id").notNull(), queueId: text("queue_id").notNull(), stemType: text("stem_type").notNull(),
+  provider: text("provider").notNull(), providerVoiceId: text("provider_voice_id"), providerRequestId: text("provider_request_id"), storageKey: text("storage_key").notNull(),
+  mimeType: text("mime_type").notNull(), byteSize: integer("byte_size").notNull(), sha256: text("sha256").notNull(), sampleRate: integer("sample_rate").notNull(),
+  channels: integer("channels").notNull(), sampleCount: integer("sample_count").notNull(), durationSeconds: real("duration_seconds").notNull(), peakDbfs: real("peak_dbfs").notNull(),
+  rmsDbfs: real("rms_dbfs").notNull(), silenceRatio: real("silence_ratio").notNull(), rightsState: text("rights_state").notNull(), costUsd: real("cost_usd").notNull().default(0),
+  metadataJson: text("metadata_json").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_sequential_audio_queue_stem_uq").on(table.queueId, table.stemType), index("v7_sequential_audio_queue_provider_idx").on(table.queueId, table.provider)]);
