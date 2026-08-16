@@ -36,6 +36,9 @@ node --import tsx "${script_dir}/check-niche-opportunity-portfolio-v2.ts"
 echo "Checking canonical Channel Strategy bootstrap contract..."
 node --import tsx "${script_dir}/check-canonical-channel-strategy-bootstrap.ts"
 
+echo "Checking Content System & Planning executable contract..."
+node --import tsx "${script_dir}/check-content-system-planning.ts"
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \

@@ -31,6 +31,11 @@ const studioProjection = await readFile(new URL("../lib/channel-studio-projectio
 const marketPage = await readFile(new URL("../app/market-intelligence/page.tsx", import.meta.url), "utf8");
 const nichePage = await readFile(new URL("../app/niche-discovery/page.tsx", import.meta.url), "utf8");
 const studioPage = await readFile(new URL("../app/channel-studio/page.tsx", import.meta.url), "utf8");
+const contentPlanningContract = await readFile(new URL("../app/content-planning-contract.ts", import.meta.url), "utf8");
+const contentAutopilotCommand = await readFile(new URL("../lib/content-autopilot-command.ts", import.meta.url), "utf8");
+const contentAutopilotRoute = await readFile(new URL("../app/api/factory/content-autopilot/route.ts", import.meta.url), "utf8");
+const canonicalContentBootstrap = await readFile(new URL("../lib/canonical-content-autopilot-bootstrap.ts", import.meta.url), "utf8");
+const contentMigration = await readFile(new URL("../drizzle/0038_clean_dexter_bennett.sql", import.meta.url), "utf8");
 
 test("the canonical shell is portfolio-first without replacing the protected production workspace", () => {
   assert.doesNotMatch(home, /export \{ default \} from "\.\/material-production\/page"/);
@@ -132,13 +137,48 @@ test("intelligence and niche discovery keep evidence readiness separate from exp
   assert.match(strategyActivationCommand, /legacyChannelNicheMutation: false/);
 });
 
-test("Channel Studio preserves compatibility provenance and blocks production commands", () => {
+test("Channel Studio adds bounded Autopilot planning while preserving compatibility provenance", () => {
   assert.match(studioRoute, /cache-control": "no-store"/);
   assert.doesNotMatch(studioRoute, /export async function (POST|PATCH|DELETE)/);
   assert.match(studioProjection, /CHANNEL_FIELD_COMPATIBILITY_ONLY/);
   assert.match(studioProjection, /LEGACY_TEXT_LABEL/);
-  assert.match(studioProjection, /COMMAND_NOT_AUTHORIZED/);
   assert.match(studioProjection, /SLICE_8_COMMITTED_OPPORTUNITY_BINDING/);
+  assert.match(studioProjection, /contentPlanningProjection/);
+  assert.match(studioPage, /Build once\. Operate by exception/);
+  assert.match(studioPage, /Full Autopilot/);
+  assert.match(studioPage, /Exceptions only/);
+  assert.match(studioPage, /Expert review/);
+  assert.match(studioPage, /Priority without a total score/);
+  assert.match(studioPage, /SYSTEM_AUTOPILOT/);
+  assert.match(studioPage, /Emergency stop/);
+  assert.match(studioPage, /Legacy topics and existing Video Engine portfolio/);
+  assert.match(portfolioCss, /\.cpControlGrid/);
+  assert.match(portfolioCss, /@media\(max-width:1180px\).*\.cpControlGrid/s);
+  assert.match(portfolioCss, /@media\(max-width:820px\).*\.cpPolicy form/s);
+});
+
+test("Content System and Planning closes eight slices inside an explicit authority envelope", () => {
+  assert.match(contentPlanningContract, /FULL_AUTOPILOT.*EXCEPTIONS_ONLY.*EXPERT_REVIEW/);
+  assert.match(contentPlanningContract, /SYSTEM_AUTOPILOT/);
+  assert.match(contentPlanningContract, /READY_FOR_PRODUCTION/);
+  assert.match(contentPlanningContract, /productionDispatchAuthorized/);
+  assert.match(contentPlanningContract, /publishingAuthorized/);
+  assert.match(contentAutopilotCommand, /ACTIVE_CHANNEL_STRATEGY_REQUIRED/);
+  assert.match(contentAutopilotCommand, /POLICY_VERSION_CONFLICT/);
+  assert.match(contentAutopilotCommand, /RUN_VERSION_CONFLICT/);
+  assert.match(contentAutopilotCommand, /EMERGENCY_STOP/);
+  assert.match(contentAutopilotCommand, /providerRequests: 0/);
+  assert.match(contentAutopilotCommand, /channelStrategyMutation: false/);
+  assert.match(contentAutopilotCommand, /providerDispatch: false/);
+  assert.match(contentAutopilotCommand, /productionMutation: false/);
+  assert.match(contentAutopilotCommand, /publishingMutation: false/);
+  assert.match(contentAutopilotRoute, /getChatGPTUser/);
+  assert.match(contentAutopilotRoute, /FACTORY_EXPERT_EMAILS/);
+  assert.match(contentAutopilotRoute, /idempotency-key/);
+  assert.match(canonicalContentBootstrap, /FULL_AUTOPILOT/);
+  assert.match(canonicalContentBootstrap, /autoProduction: true/);
+  assert.match(canonicalContentBootstrap, /autoPublish: false/);
+  for (const table of ["content_automation_policies", "content_planning_runs", "content_pillars", "content_series", "content_opportunities", "editorial_plans", "editorial_plan_items", "production_briefs_v1", "content_planning_exceptions", "content_planning_audits"]) assert.match(contentMigration, new RegExp("CREATE TABLE `" + table + "`"));
 });
 
 test("operator state is a bounded canonical projection", () => {

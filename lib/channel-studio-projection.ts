@@ -1,5 +1,6 @@
 import type { ChannelStudioProjection, ContentBand } from "@/app/channel-studio-contract";
 import { nichePortfolioProjection } from "@/lib/niche-portfolio-projection";
+import { contentPlanningProjection } from "@/lib/content-planning-projection";
 import { ChannelNotFoundError } from "@/lib/portfolio-projection";
 
 type Statement = { bind: (...values: unknown[]) => Statement; all: <T>() => Promise<{ results?: T[] }> };
@@ -55,10 +56,11 @@ export async function channelStudioProjection(channelId?: string | null, databas
   const pillarCounts = new Map<string, number>();
   for (const item of portfolio) pillarCounts.set(item.pillar || "Unassigned", (pillarCounts.get(item.pillar || "Unassigned") || 0) + 1);
   const nichePortfolio = effectiveId ? await nichePortfolioProjection(effectiveId, db) : null;
+  const contentPlanning = effectiveId ? await contentPlanningProjection(effectiveId, db) : null;
   const activatedOpportunity = nichePortfolio?.comparison.find((item) => item.channelStrategyActivationFact.state === "ACTIVE") || null;
   const staleActivation = !activatedOpportunity && nichePortfolio?.activationWorkspace.state === "STALE";
   const activation = activatedOpportunity?.channelStrategyActivationFact || null;
-  const gaps = [...(!activation ? [staleActivation ? "The canonical Channel Strategy activation is stale." : "Canonical Channel Strategy activation is not recorded."] : []), "Approved content-pillar and series identities are not implemented.", "Editorial calendar persistence is not implemented."];
+  const gaps = [...(!activation ? [staleActivation ? "The canonical Channel Strategy activation is stale." : "Canonical Channel Strategy activation is not recorded."] : []), ...(!contentPlanning?.summary.pillars ? ["Canonical Content Autopilot has not compiled pillars and series."] : []), ...(!contentPlanning?.editorialPlan.id ? ["A versioned editorial plan has not been created."] : [])];
   const notes: string[] = [];
   if (selected && !programId) notes.push("Selected channel has no mapped canonical V7 program.");
   if (summary.UNKNOWN) notes.push(`${summary.UNKNOWN} project status value(s) require lifecycle reconciliation.`);
@@ -77,8 +79,9 @@ export async function channelStudioProjection(channelId?: string | null, databas
     contentResearchChampion,
     portfolio,
     summary,
-    editorialQueue: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED", compatibilityItems: portfolio.filter((item) => item.band === "PLANNED" || item.band === "PRODUCTION").length },
-    productionHandoff: { state: "COMMAND_NOT_AUTHORIZED", eligibleCompatibilityItems: portfolio.filter((item) => item.band === "PLANNED" && item.score >= 85).length, blockers: ["No approved canonical strategy version", "No approved editorial-item identity", "Production intake command is outside this read slice"] },
+    editorialQueue: { state: contentPlanning?.editorialPlan.id ? "ACTIVE" : "CANONICAL_AGGREGATE_NOT_IMPLEMENTED", compatibilityItems: portfolio.filter((item) => item.band === "PLANNED" || item.band === "PRODUCTION").length },
+    productionHandoff: { state: contentPlanning?.handoff.state === "READY_FOR_PRODUCTION" ? "READY_FOR_PRODUCTION" : "COMMAND_NOT_AUTHORIZED", eligibleCompatibilityItems: contentPlanning?.handoff.eligibleBriefs || 0, blockers: contentPlanning?.handoff.blockers || ["Content System & Planning is unavailable"] },
+    contentPlanning,
     integrity: { state: notes.length ? "RECONCILIATION_REQUIRED" : "READY", notes },
   };
 }

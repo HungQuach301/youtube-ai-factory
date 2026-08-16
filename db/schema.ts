@@ -1170,6 +1170,100 @@ export const channelStrategyActivationAudits = sqliteTable("channel_strategy_act
   index("channel_strategy_activation_audits_created_idx").on(table.channelId, table.createdAt),
 ]);
 
+// Content System & Planning V1. These append-only records consume one active
+// Channel Strategy binding. Planning autonomy never inherits provider,
+// production, publishing or spend authority from strategy activation.
+export const contentAutomationPolicies = sqliteTable("content_automation_policies", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id").notNull(),
+  policyVersion: integer("policy_version").notNull(),
+  strategyActivationId: text("strategy_activation_id").notNull().references(() => channelStrategyActivations.id),
+  strategyVersion: integer("strategy_version").notNull(),
+  mode: text("mode").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("ACTIVE"),
+  dailyBudgetUsd: real("daily_budget_usd").notNull().default(0),
+  monthlyBudgetUsd: real("monthly_budget_usd").notNull().default(0),
+  perVideoCostCeilingUsd: real("per_video_cost_ceiling_usd").notNull().default(0),
+  cadencePerMonth: integer("cadence_per_month").notNull().default(8),
+  repairLimit: integer("repair_limit").notNull().default(1),
+  riskTolerance: text("risk_tolerance").notNull().default("LOW"),
+  autoProduction: integer("auto_production", { mode: "boolean" }).notNull().default(false),
+  autoPublish: integer("auto_publish", { mode: "boolean" }).notNull().default(false),
+  escalationRulesJson: text("escalation_rules_json").notNull(),
+  actorEmail: text("actor_email").notNull(),
+  actorDisplayName: text("actor_display_name").notNull(),
+  actorRole: text("actor_role").notNull().default("CHANNEL_OWNER"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  supersedesPolicyId: text("supersedes_policy_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("content_automation_policy_channel_version_uq").on(table.channelId, table.policyVersion),
+  uniqueIndex("content_automation_policy_idempotency_uq").on(table.idempotencyKey),
+  index("content_automation_policy_state_idx").on(table.channelId, table.lifecycleState, table.createdAt),
+]);
+
+export const contentPlanningRuns = sqliteTable("content_planning_runs", {
+  id: text("id").primaryKey(),
+  channelId: text("channel_id").notNull(),
+  runVersion: integer("run_version").notNull(),
+  policyId: text("policy_id").notNull().references(() => contentAutomationPolicies.id),
+  policyVersion: integer("policy_version").notNull(),
+  strategyActivationId: text("strategy_activation_id").notNull().references(() => channelStrategyActivations.id),
+  strategyVersion: integer("strategy_version").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("COMPLETE"),
+  horizonDays: integer("horizon_days").notNull().default(30),
+  pillarCount: integer("pillar_count").notNull(),
+  seriesCount: integer("series_count").notNull(),
+  opportunityCount: integer("opportunity_count").notNull(),
+  planItemCount: integer("plan_item_count").notNull(),
+  briefCount: integer("brief_count").notNull(),
+  exceptionCount: integer("exception_count").notNull().default(0),
+  providerRequests: integer("provider_requests").notNull().default(0),
+  spendUsd: real("spend_usd").notNull().default(0),
+  actorType: text("actor_type").notNull().default("SYSTEM_AUTOPILOT"),
+  policySnapshotJson: text("policy_snapshot_json").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("content_planning_run_channel_version_uq").on(table.channelId, table.runVersion),
+  uniqueIndex("content_planning_run_idempotency_uq").on(table.idempotencyKey),
+  index("content_planning_run_strategy_idx").on(table.strategyActivationId, table.createdAt),
+]);
+
+export const contentPillars = sqliteTable("content_pillars", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => contentPlanningRuns.id), channelId: text("channel_id").notNull(), position: integer("position").notNull(), title: text("title").notNull(), purpose: text("purpose").notNull(), audienceNeed: text("audience_need").notNull(), differentiation: text("differentiation").notNull(), evidenceRequirement: text("evidence_requirement").notNull(), winningCriteriaJson: text("winning_criteria_json").notNull(), lifecycleState: text("lifecycle_state").notNull().default("ACTIVE"), contentHash: text("content_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("content_pillar_run_position_uq").on(table.runId, table.position), index("content_pillar_channel_idx").on(table.channelId, table.createdAt)]);
+
+export const contentSeries = sqliteTable("content_series", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => contentPlanningRuns.id), pillarId: text("pillar_id").notNull().references(() => contentPillars.id), channelId: text("channel_id").notNull(), position: integer("position").notNull(), title: text("title").notNull(), format: text("format").notNull(), repeatablePromise: text("repeatable_promise").notNull(), cadenceWeight: integer("cadence_weight").notNull(), lifecycleState: text("lifecycle_state").notNull().default("ACTIVE"), contentHash: text("content_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("content_series_run_position_uq").on(table.runId, table.position), index("content_series_pillar_idx").on(table.pillarId, table.createdAt)]);
+
+export const contentOpportunities = sqliteTable("content_opportunities", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => contentPlanningRuns.id), seriesId: text("series_id").notNull().references(() => contentSeries.id), channelId: text("channel_id").notNull(), systemRank: integer("system_rank").notNull(), title: text("title").notNull(), audienceProblem: text("audience_problem").notNull(), coreQuestion: text("core_question").notNull(), evidenceRefsJson: text("evidence_refs_json").notNull(), strategyFit: integer("strategy_fit").notNull(), audienceDemand: integer("audience_demand").notNull(), differentiation: integer("differentiation").notNull(), evidenceReadiness: integer("evidence_readiness").notNull(), productionComplexity: text("production_complexity").notNull(), estimatedCostUsd: real("estimated_cost_usd").notNull(), lifecycleState: text("lifecycle_state").notNull().default("PRIORITIZED"), rationale: text("rationale").notNull(), contentHash: text("content_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("content_opportunity_run_rank_uq").on(table.runId, table.systemRank), index("content_opportunity_series_idx").on(table.seriesId, table.createdAt)]);
+
+export const editorialPlans = sqliteTable("editorial_plans", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => contentPlanningRuns.id), channelId: text("channel_id").notNull(), planVersion: integer("plan_version").notNull(), horizonDays: integer("horizon_days").notNull(), cadencePerMonth: integer("cadence_per_month").notNull(), lifecycleState: text("lifecycle_state").notNull().default("AUTO_APPROVED"), rationale: text("rationale").notNull(), contentHash: text("content_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("editorial_plan_channel_version_uq").on(table.channelId, table.planVersion), uniqueIndex("editorial_plan_run_uq").on(table.runId)]);
+
+export const editorialPlanItems = sqliteTable("editorial_plan_items", {
+  id: text("id").primaryKey(), planId: text("plan_id").notNull().references(() => editorialPlans.id), opportunityId: text("opportunity_id").notNull().references(() => contentOpportunities.id), sequence: integer("sequence").notNull(), publishOffsetDays: integer("publish_offset_days").notNull(), lifecycleState: text("lifecycle_state").notNull().default("PLANNED"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("editorial_plan_item_sequence_uq").on(table.planId, table.sequence), uniqueIndex("editorial_plan_item_opportunity_uq").on(table.planId, table.opportunityId)]);
+
+export const productionBriefsV1 = sqliteTable("production_briefs_v1", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => contentPlanningRuns.id), planItemId: text("plan_item_id").notNull().references(() => editorialPlanItems.id), opportunityId: text("opportunity_id").notNull().references(() => contentOpportunities.id), briefVersion: integer("brief_version").notNull().default(1), viewerPayoff: text("viewer_payoff").notNull(), hook: text("hook").notNull(), narrativeStructureJson: text("narrative_structure_json").notNull(), claimsJson: text("claims_json").notNull(), evidenceRequirementsJson: text("evidence_requirements_json").notNull(), visualOpportunitiesJson: text("visual_opportunities_json").notNull(), riskControlsJson: text("risk_controls_json").notNull(), targetDurationSeconds: integer("target_duration_seconds").notNull(), costCeilingUsd: real("cost_ceiling_usd").notNull(), lifecycleState: text("lifecycle_state").notNull().default("READY_FOR_PRODUCTION"), contentHash: text("content_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("production_brief_plan_item_uq").on(table.planItemId), index("production_brief_run_idx").on(table.runId, table.createdAt)]);
+
+export const contentPlanningExceptions = sqliteTable("content_planning_exceptions", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => contentPlanningRuns.id), channelId: text("channel_id").notNull(), exceptionType: text("exception_type").notNull(), severity: text("severity").notNull(), lifecycleState: text("lifecycle_state").notNull().default("OPEN"), title: text("title").notNull(), detail: text("detail").notNull(), owningAuthority: text("owning_authority").notNull(), resolution: text("resolution"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), resolvedAt: text("resolved_at"),
+}, (table) => [index("content_planning_exception_state_idx").on(table.channelId, table.lifecycleState, table.createdAt)]);
+
+export const contentPlanningAudits = sqliteTable("content_planning_audits", {
+  id: text("id").primaryKey(), channelId: text("channel_id").notNull(), entityType: text("entity_type").notNull(), entityId: text("entity_id").notNull(), eventType: text("event_type").notNull(), actorType: text("actor_type").notNull(), actorEmail: text("actor_email"), policyVersion: integer("policy_version").notNull(), strategyVersion: integer("strategy_version").notNull(), idempotencyKey: text("idempotency_key").notNull(), requestHash: text("request_hash").notNull(), detailJson: text("detail_json").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("content_planning_audit_event_uq").on(table.entityId, table.eventType), index("content_planning_audit_channel_idx").on(table.channelId, table.createdAt)]);
+
 export const v7FoundationAudits = sqliteTable("v7_foundation_audits", {
   id: text("id").primaryKey(),
   programId: text("program_id").notNull(),

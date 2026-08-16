@@ -124,6 +124,16 @@ const tables: Record<string, Row[]> = {
   niche_portfolio_commitment_audits: [],
   channel_strategy_activations: [],
   channel_strategy_activation_audits: [],
+  content_automation_policies: [],
+  content_planning_runs: [],
+  content_pillars: [],
+  content_series: [],
+  content_opportunities: [],
+  editorial_plans: [],
+  editorial_plan_items: [],
+  production_briefs_v1: [],
+  content_planning_exceptions: [],
+  content_planning_audits: [],
 };
 
 function queryRows(query: string, bindings: unknown[]) {

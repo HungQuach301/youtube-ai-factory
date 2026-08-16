@@ -98,6 +98,13 @@ assert(unauthenticatedActivation.headers.get("cache-control") === "no-store", "C
 assert(unauthenticatedActivationPayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "Channel Strategy activation must expose a typed authentication failure");
 assert(unauthenticatedActivationPayload.providerRequests === 0 && unauthenticatedActivationPayload.spendUsd === 0 && unauthenticatedActivationPayload.aggregateScore === null && unauthenticatedActivationPayload.channelStrategyBindingMutation === false && unauthenticatedActivationPayload.channelStrategyActivation === false, "Channel Strategy activation authentication failure must preserve zero-spend and authority boundaries");
 
+const unauthenticatedContentAutopilot = await worker.fetch(new Request("http://localhost/api/factory/content-autopilot", { method: "POST", headers: { accept: "application/json", "content-type": "application/json", "idempotency-key": "rendered-content-autopilot:001" }, body: "{}" }), env, ctx);
+const unauthenticatedContentAutopilotPayload = await unauthenticatedContentAutopilot.json();
+assert(unauthenticatedContentAutopilot.status === 401, "Content Autopilot must reject a missing SIWC identity");
+assert(unauthenticatedContentAutopilot.headers.get("cache-control") === "no-store", "Content Autopilot authentication failure must be no-store");
+assert(unauthenticatedContentAutopilotPayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "Content Autopilot must expose a typed authentication failure");
+assert(unauthenticatedContentAutopilotPayload.providerRequests === 0 && unauthenticatedContentAutopilotPayload.spendUsd === 0 && unauthenticatedContentAutopilotPayload.channelStrategyMutation === false && unauthenticatedContentAutopilotPayload.providerDispatch === false && unauthenticatedContentAutopilotPayload.productionMutation === false && unauthenticatedContentAutopilotPayload.publishingMutation === false, "Content Autopilot authentication failure must preserve planning-only authority boundaries");
+
 const slowest = timings.reduce((current, item) => item.milliseconds > current.milliseconds ? item : current);
 assert(slowest.milliseconds <= 500, `${slowest.route} server-render ${slowest.milliseconds.toFixed(1)}ms exceeds the 500ms lab budget`);
-console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 7 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);
+console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 8 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);

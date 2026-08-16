@@ -22,6 +22,11 @@ const files = Object.fromEntries(await Promise.all([
   ["activationRoute", "app/api/factory/channel-strategy-activations/route.ts"],
   ["activationCommand", "lib/channel-strategy-activation-command.ts"],
   ["decisionRoute", "app/api/factory/niche-decisions/route.ts"],
+  ["contentPlanningContract", "app/content-planning-contract.ts"],
+  ["contentAutopilotRoute", "app/api/factory/content-autopilot/route.ts"],
+  ["contentAutopilotCommand", "lib/content-autopilot-command.ts"],
+  ["contentPlanningProjection", "lib/content-planning-projection.ts"],
+  ["canonicalContentBootstrap", "lib/canonical-content-autopilot-bootstrap.ts"],
   ["css", "app/portfolio.css"],
 ].map(async ([key, file]) => [key, await readFile(file, "utf8")])));
 
@@ -51,7 +56,7 @@ const checks = [
   ["V2 bounded hypothesis intake", files.nichePortfolioView.includes("Submit a niche hypothesis for verification") && files.hypothesisRoute.includes("submitNicheHypothesis")],
   ["V2 assumptions are not evidence", files.nichePortfolioView.includes("EXPERT INPUT · NOT EVIDENCE") && files.nichePortfolioProjection.includes("Stage 01 hypothesis only; Slice 5 evidence assessment not recorded")],
   ["niche identity boundary", files.nichePortfolioProjection.includes("stage01.nicheOpportunities") && files.nichePortfolioProjection.includes('entityType: "NICHE_OPPORTUNITY"') && !files.nichePortfolioProjection.includes("CANONICAL_V1_CANDIDATE_ORDER")],
-  ["legacy topics remain content planning", files.studio.includes("Video topic candidates") && files.channelStudioProjection.includes('entityType: "VIDEO_TOPIC_CANDIDATE"') && files.channelStudioProjection.includes("LEGACY_V1_VIDEO_TOPIC_CANDIDATE")],
+  ["legacy topics remain content planning", files.studio.includes("LEGACY V1 · VIDEO TOPICS") && files.studio.includes("Preserved, never promoted into a niche") && files.channelStudioProjection.includes('entityType: "VIDEO_TOPIC_CANDIDATE"') && files.channelStudioProjection.includes("LEGACY_V1_VIDEO_TOPIC_CANDIDATE")],
   ["V2 hypothesis zero-spend authority", files.hypothesisCommand.includes("providerRequests: 0") && files.hypothesisCommand.includes("comparisonEligibility: false") && files.hypothesisCommand.includes("channelStrategyActivation: false")],
   ["SIWC hypothesis authentication", files.hypothesisRoute.includes("getChatGPTUser") && files.hypothesisRoute.includes("SIWC_AUTHENTICATION_REQUIRED")],
   ["server-side hypothesis authorization", files.hypothesisRoute.includes("FACTORY_EXPERT_EMAILS") && files.hypothesisRoute.includes("OWNER_EXPERT_AUTHORIZATION_REQUIRED")],
@@ -83,6 +88,18 @@ const checks = [
   ["SIWC decision authentication", files.decisionRoute.includes("getChatGPTUser") && files.decisionRoute.includes("SIWC_AUTHENTICATION_REQUIRED")],
   ["server-side expert authorization", files.decisionRoute.includes("FACTORY_EXPERT_EMAILS") && files.decisionRoute.includes("OWNER_EXPERT_AUTHORIZATION_REQUIRED")],
   ["idempotent decision boundary", files.decisionRoute.includes('request.headers.get("idempotency-key")')],
+  ["Content Autopilot selectable participation", files.studio.includes("Full Autopilot") && files.studio.includes("Exceptions only") && files.studio.includes("Expert review") && files.contentPlanningContract.includes('"FULL_AUTOPILOT" | "EXCEPTIONS_ONLY" | "EXPERT_REVIEW"')],
+  ["Content Autopilot owner exception surface", files.studio.includes("Owner attention only when needed") && files.studio.includes("No owner intervention required") && files.studio.includes("Autopilot activity timeline")],
+  ["Content Autopilot eight-slice FE", ["AUTOMATION POLICY & AUTHORITY", "CONTENT SYSTEM COMPILER", "CONTENT OPPORTUNITY BACKLOG", "EDITORIAL PLANNING", "PRODUCTION BRIEF COMPILER", "AUTOPILOT ORCHESTRATOR", "Production FE", "Production QA"].every((label) => files.studio.includes(label))],
+  ["Content opportunity independent axes", files.studio.includes("Priority without a total score") && files.studio.includes("Strategy fit") && files.studio.includes("Demand") && files.studio.includes("Differentiate") && files.studio.includes("Evidence")],
+  ["Content Autopilot strategy binding", files.contentAutopilotCommand.includes("ACTIVE_CHANNEL_STRATEGY_REQUIRED") && files.contentPlanningProjection.includes("strategy_activation_id")],
+  ["Content Autopilot versioned recovery controls", files.contentAutopilotCommand.includes("POLICY_VERSION_CONFLICT") && files.contentAutopilotCommand.includes("RUN_VERSION_CONFLICT") && files.studio.includes("Emergency stop") && files.studio.includes("Resume")],
+  ["Content Autopilot zero-spend authority", files.contentAutopilotCommand.includes("providerRequests: 0") && files.contentAutopilotCommand.includes("spendUsd: 0") && files.contentAutopilotCommand.includes("channelStrategyMutation: false") && files.contentAutopilotCommand.includes("providerDispatch: false") && files.contentAutopilotCommand.includes("productionMutation: false") && files.contentAutopilotCommand.includes("publishingMutation: false")],
+  ["Content Autopilot SIWC owner authorization", files.contentAutopilotRoute.includes("getChatGPTUser") && files.contentAutopilotRoute.includes("FACTORY_EXPERT_EMAILS") && files.contentAutopilotRoute.includes("CHANNEL_OWNER_AUTHORIZATION_REQUIRED")],
+  ["Content Autopilot idempotent command boundary", files.contentAutopilotRoute.includes('request.headers.get("idempotency-key")') && files.contentAutopilotCommand.includes("IDEMPOTENT_REPLAY")],
+  ["Content Autopilot system actor", files.contentPlanningContract.includes("SYSTEM_AUTOPILOT") && files.contentAutopilotCommand.includes("'SYSTEM_AUTOPILOT'") && files.contentPlanningProjection.includes('actorType: run ? "SYSTEM_AUTOPILOT" : null')],
+  ["Content Autopilot production boundary remains separate", files.contentPlanningProjection.includes("productionDispatchAuthorized") && files.contentPlanningProjection.includes("publishingAuthorized") && files.canonicalContentBootstrap.includes("autoProduction: true") && files.canonicalContentBootstrap.includes("autoPublish: false")],
+  ["Content Autopilot responsive production workspace", files.css.includes(".cpControlGrid") && files.css.includes("@media(max-width:1180px)") && files.css.includes("@media(max-width:820px)") && files.css.includes("@media(max-width:560px)")],
 ];
 
 const failures = checks.filter(([, passed]) => !passed);

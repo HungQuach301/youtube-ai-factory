@@ -1,3 +1,5 @@
+import type { ContentPlanningProjection } from "./content-planning-contract";
+
 export type ContentBand = "OPPORTUNITY" | "BACKLOG" | "PLANNED" | "PRODUCTION" | "TERMINAL" | "UNKNOWN";
 
 export type ChannelStudioProjection = {
@@ -15,7 +17,8 @@ export type ChannelStudioProjection = {
   contentResearchChampion: { title: string; provenance: "LEGACY_V1_VIDEO_TOPIC_CHAMPION" } | null;
   portfolio: Array<{ id: string; title: string; pillar: string; rawStatus: string; band: ContentBand; score: number; progress: number; nextAction: string; updatedAt: string }>;
   summary: Record<ContentBand, number>;
-  editorialQueue: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED"; compatibilityItems: number };
-  productionHandoff: { state: "COMMAND_NOT_AUTHORIZED"; eligibleCompatibilityItems: number; blockers: string[] };
+  editorialQueue: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED" | "ACTIVE"; compatibilityItems: number };
+  productionHandoff: { state: "COMMAND_NOT_AUTHORIZED" | "READY_FOR_PRODUCTION"; eligibleCompatibilityItems: number; blockers: string[] };
+  contentPlanning: ContentPlanningProjection | null;
   integrity: { state: "READY" | "RECONCILIATION_REQUIRED"; notes: string[] };
 };

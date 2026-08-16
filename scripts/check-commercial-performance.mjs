@@ -20,12 +20,14 @@ const largestCss = Math.max(...css.map((asset) => asset.gzipBytes));
 const largestPageJs = Math.max(...pageJs.map((asset) => asset.gzipBytes));
 const totalJsCss = assets.reduce((sum, asset) => sum + asset.gzipBytes, 0);
 const budgets = {
-  largestCss: 60_000,
+  // Content System & Planning adds the complete eight-slice, responsive operating
+  // surface without lifting the stricter per-page JavaScript ceiling.
+  largestCss: 62_000,
   largestPageJs: 50_000,
   // The catalog-wide total covers every route-split asset, not a single user journey.
-  // Reserve 5 KB for the production Intelligence–Niche decision UI while keeping
-  // the user-facing per-page JS and shared CSS ceilings unchanged.
-  totalJsCss: 305_000,
+  // Reserve 5 KB for Intelligence–Niche and a further 5 KB for the production
+  // Content Autopilot workspace. This remains a catalog-wide cap across all routes.
+  totalJsCss: 310_000,
 };
 
 const failures = [

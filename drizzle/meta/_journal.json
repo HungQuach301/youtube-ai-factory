@@ -253,6 +253,13 @@
       "when": 1786852800000,
       "tag": "0037_intelligence_niche_bridge",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1786860500862,
+      "tag": "0038_clean_dexter_bennett",
+      "breakpoints": true
     }
   ]
 }
