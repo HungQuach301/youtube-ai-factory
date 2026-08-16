@@ -58,7 +58,7 @@ Selection sets only `nicheSelection`; commitment sets only `nicheCommitment`. `c
 
 ## Exact next action
 
-After the Slice 7 production checkpoint and recovery-tested capsule, implement Slice 8 as permanent Channel Strategy Activation. Slice 8 must consume an active committed niche through a new versioned activation command, explicitly mutate the Channel Strategy binding, preserve every upstream fact, and remain idempotent, audited and fail-closed. Do not make commitment itself activate strategy.
+Slice 8 is implemented as Document 24. It consumes only the latest active committed niche through a separate versioned activation command, explicitly mutates only the Channel Strategy binding, preserves every upstream fact, and remains idempotent, audited and fail-closed. Commitment itself still does not activate strategy.
 
 ## Protected scope
 

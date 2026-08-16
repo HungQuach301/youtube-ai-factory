@@ -44,3 +44,9 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** record `SELECTED_PENDING_COMMITMENT` before `COMMITTED`, in separate append-only ledgers bound to the active Slice 6 priority and Slice 5 evidence/scoring lineage. A commitment command without the latest active selection fails closed. Commitment does not activate Channel Strategy; Slice 8 owns that mutation.
 
 **Reason:** governance intent must be independently reviewable, versioned and reversible without rewriting evidence or conflating commitment with downstream execution.
+
+# ADR-063 — Channel Strategy activation is a commitment-bound versioned binding
+
+**Decision:** Slice 8 appends a canonical Channel Strategy binding only through `ACTIVATE_CHANNEL_STRATEGY` and only when the supplied commitment is the latest active Slice 7 commitment. The activation freezes commitment, selection, priority, program, evidence and scoring lineage; uses global and per-channel optimistic versions; and becomes stale rather than rewriting history when an upstream fact changes.
+
+**Reason:** commitment records portfolio governance intent, while activation explicitly authorizes a downstream strategy binding. Keeping them separate prevents selection, ranking or a legacy `channels.niche` value from silently becoming operational strategy. Channel Studio may consume the active binding, but activation has no provider-dispatch, spend, upstream mutation or Content System authority.

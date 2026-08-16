@@ -76,7 +76,7 @@ async function first(db: NicheGovernanceDB, query: string, ...values: unknown[])
 async function all(db: NicheGovernanceDB, query: string, ...values: unknown[]) { return (await db.prepare(query).bind(...values).all<Row>()).results || []; }
 async function sha256(value: string) { const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)); return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join(""); }
 
-async function activePriority(db: NicheGovernanceDB) {
+export async function resolveActiveNichePriority(db: NicheGovernanceDB) {
   const prioritySet = await first(db, "SELECT * FROM niche_expert_priority_sets WHERE portfolio_id=? ORDER BY priority_version DESC LIMIT 1", PORTFOLIO_ID);
   if (!prioritySet) throw new NicheGovernanceCommandError("ACTIVE_PRIORITY_REQUIRED", 409, "Record an active Slice 6 expert-priority set before selection");
   const priorityItems = await all(db, "SELECT * FROM niche_expert_priority_items WHERE priority_set_id=? ORDER BY expert_priority,id", clean(prioritySet.id));
@@ -111,7 +111,7 @@ async function selectNiche(db: NicheGovernanceDB, command: NicheGovernanceComman
   const replay = await first(db, "SELECT * FROM niche_portfolio_selections WHERE idempotency_key=? LIMIT 1", idempotencyKey); if (replay) { if (clean(replay.request_hash) !== requestHash) throw new NicheGovernanceCommandError("IDEMPOTENCY_KEY_REUSED", 409, "The idempotency key is already bound to a different selection"); return selectionReceipt(replay, true); }
   const latestSelection = await first(db, "SELECT * FROM niche_portfolio_selections WHERE portfolio_id=? ORDER BY selection_version DESC LIMIT 1", PORTFOLIO_ID);
   if (Number(latestSelection?.selection_version || 0) !== command.body.expectedSelectionVersion) throw new NicheGovernanceCommandError("SELECTION_VERSION_CONFLICT", 409, "A newer selection version exists; reload before submitting");
-  const active = await activePriority(db);
+  const active = await resolveActiveNichePriority(db);
   if (Number(active.prioritySet.priority_version) !== command.body.expectedPriorityVersion || active.comparableSetHash !== command.body.expectedComparableSetHash) throw new NicheGovernanceCommandError("PRIORITY_VERSION_CONFLICT", 409, "The active Slice 6 priority set changed; reload before selecting");
   const item = active.priorityItems.find((row) => clean(row.opportunity_id) === command.body.opportunityId), assessment = active.latestScoring.get(command.body.opportunityId);
   if (!item || !assessment) throw new NicheGovernanceCommandError("PRIORITIZED_OPPORTUNITY_REQUIRED", 409, "Selection must reference an opportunity in the active priority set");
@@ -133,7 +133,7 @@ async function commitNiche(db: NicheGovernanceDB, command: NicheGovernanceComman
   if (Number(latestCommitment?.commitment_version || 0) !== command.body.expectedCommitmentVersion) throw new NicheGovernanceCommandError("COMMITMENT_VERSION_CONFLICT", 409, "A newer commitment version exists; reload before submitting");
   const selection = await first(db, "SELECT * FROM niche_portfolio_selections WHERE portfolio_id=? ORDER BY selection_version DESC LIMIT 1", PORTFOLIO_ID);
   if (!selection || clean(selection.id) !== command.body.selectionId || Number(selection.selection_version) !== command.body.expectedSelectionVersion) throw new NicheGovernanceCommandError("ACTIVE_SELECTION_REQUIRED", 409, "Commitment requires the latest explicit selection; direct priority-to-commitment is forbidden");
-  const active = await activePriority(db), opportunityId = clean(selection.opportunity_id), item = active.priorityItems.find((row) => clean(row.opportunity_id) === opportunityId), assessment = active.latestScoring.get(opportunityId);
+  const active = await resolveActiveNichePriority(db), opportunityId = clean(selection.opportunity_id), item = active.priorityItems.find((row) => clean(row.opportunity_id) === opportunityId), assessment = active.latestScoring.get(opportunityId);
   if (!item || !assessment || clean(selection.priority_set_id) !== clean(active.prioritySet.id) || Number(selection.priority_version) !== Number(active.prioritySet.priority_version) || clean(selection.comparable_set_hash) !== active.comparableSetHash || Number(selection.aggregate_version) !== Number(item.aggregate_version) || Number(selection.evidence_version) !== Number(item.evidence_version) || Number(selection.scoring_version) !== Number(item.scoring_version)) throw new NicheGovernanceCommandError("ACTIVE_SELECTION_STALE", 409, "The selection is stale against the active priority and evidence lineage; select again before commitment");
   if (clean(assessment.comparison_eligibility) !== "ELIGIBLE") throw new NicheGovernanceCommandError("PREREQUISITE_GATE_BLOCKED", 409, "Commitment is blocked because a prerequisite is not passed");
   const commitmentVersion = command.body.expectedCommitmentVersion + 1, commitmentId = `niche-commitment:${crypto.randomUUID()}`, auditId = `${commitmentId}:audit`, lineageId = `${commitmentId}:lineage`, now = new Date().toISOString(), correlationId = command.correlationId ? text(command.correlationId, "X-Correlation-Id", 1, 256) : `niche-commitment:${idempotencyKey}`, causationId = command.causationId ? text(command.causationId, "X-Causation-Id", 1, 256) : selection.id;

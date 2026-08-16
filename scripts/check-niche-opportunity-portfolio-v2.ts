@@ -84,8 +84,8 @@ assert.ok(duplicated.errors.includes("DUPLICATE_OPPORTUNITY_ID"));
 assert.equal(duplicated.comparison.length, 0);
 
 assert.equal(comparable.commandContracts.find((command) => command.command === "SUBMIT_NICHE_HYPOTHESIS")?.activation, "ROUTED_ZERO_SPEND");
-assert.ok(comparable.commandContracts.filter((command) => ["SUBMIT_NICHE_HYPOTHESIS", "SELECT_NICHE_FOR_COMMITMENT", "COMMIT_NICHE"].includes(command.command)).every((command) => command.activation === "ROUTED_ZERO_SPEND"));
-assert.ok(comparable.commandContracts.filter((command) => !["SUBMIT_NICHE_HYPOTHESIS", "SELECT_NICHE_FOR_COMMITMENT", "COMMIT_NICHE"].includes(command.command)).every((command) => command.activation === "DECLARED_NOT_ROUTED"));
+assert.ok(comparable.commandContracts.filter((command) => ["SUBMIT_NICHE_HYPOTHESIS", "SELECT_NICHE_FOR_COMMITMENT", "COMMIT_NICHE", "ACTIVATE_CHANNEL_STRATEGY"].includes(command.command)).every((command) => command.activation === "ROUTED_ZERO_SPEND"));
+assert.ok(comparable.commandContracts.filter((command) => !["SUBMIT_NICHE_HYPOTHESIS", "SELECT_NICHE_FOR_COMMITMENT", "COMMIT_NICHE", "ACTIVATE_CHANNEL_STRATEGY"].includes(command.command)).every((command) => command.activation === "DECLARED_NOT_ROUTED"));
 assert.ok(comparable.commandContracts.every((command) => command.ceilings.providerRequests === 0 && command.ceilings.spendUsd === 0));
 assert.equal(isNicheOpportunityTransitionAllowed("COMPARABLE", "EXPERT_PRIORITIZED"), true);
 assert.equal(isNicheOpportunityTransitionAllowed("EXPERT_PRIORITIZED", "COMMITTED"), false);

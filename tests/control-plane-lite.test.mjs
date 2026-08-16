@@ -20,6 +20,8 @@ const nicheScoringRoute = await readFile(new URL("../app/api/factory/niche-scori
 const nicheScoringCommand = await readFile(new URL("../lib/niche-scoring-command.ts", import.meta.url), "utf8");
 const nichePriorityRoute = await readFile(new URL("../app/api/factory/niche-priorities/route.ts", import.meta.url), "utf8");
 const nichePriorityCommand = await readFile(new URL("../lib/niche-priority-command.ts", import.meta.url), "utf8");
+const strategyActivationRoute = await readFile(new URL("../app/api/factory/channel-strategy-activations/route.ts", import.meta.url), "utf8");
+const strategyActivationCommand = await readFile(new URL("../lib/channel-strategy-activation-command.ts", import.meta.url), "utf8");
 const intelligenceNicheWorkflow = await readFile(new URL("../lib/intelligence-niche-workflow-contract.ts", import.meta.url), "utf8");
 const nichePortfolioV2 = await readFile(new URL("../lib/niche-opportunity-portfolio-contract.ts", import.meta.url), "utf8");
 const studioRoute = await readFile(new URL("../app/api/factory/channel-studio/route.ts", import.meta.url), "utf8");
@@ -77,7 +79,7 @@ test("intelligence and niche discovery keep evidence readiness separate from exp
   assert.match(nichePortfolioV2, /Prerequisites are hard gates/);
   assert.match(nichePortfolioV2, /SELECTED_PENDING_COMMITMENT/);
   assert.match(nichePortfolioV2, /ACTIVATE_CHANNEL_STRATEGY/);
-  assert.match(nichePortfolioV2, /activation: "DECLARED_NOT_ROUTED"/);
+  assert.match(nichePortfolioV2, /ACTIVATE_CHANNEL_STRATEGY/);
   assert.match(nichePortfolioRoute, /cache-control": "no-store"/);
   assert.doesNotMatch(nichePortfolioRoute, /export async function (POST|PATCH|DELETE)/);
   assert.match(nichePortfolioProjection, /NICHE_OPPORTUNITY_ONLY_WITH_EXPERT_HYPOTHESIS_APPEND/);
@@ -112,6 +114,11 @@ test("intelligence and niche discovery keep evidence readiness separate from exp
   assert.match(nichePriorityCommand, /eligibilityMutation: false/);
   assert.match(nichePriorityCommand, /nicheSelection: false/);
   assert.match(nichePriorityCommand, /nicheCommitment: false/);
+  assert.match(strategyActivationRoute, /getChatGPTUser/);
+  assert.match(strategyActivationRoute, /FACTORY_EXPERT_EMAILS/);
+  assert.match(strategyActivationCommand, /ACTIVE_COMMITMENT_REQUIRED/);
+  assert.match(strategyActivationCommand, /channelStrategyBindingMutation: true/);
+  assert.match(strategyActivationCommand, /legacyChannelNicheMutation: false/);
 });
 
 test("Channel Studio preserves compatibility provenance and blocks production commands", () => {
@@ -120,7 +127,7 @@ test("Channel Studio preserves compatibility provenance and blocks production co
   assert.match(studioProjection, /CHANNEL_FIELD_COMPATIBILITY_ONLY/);
   assert.match(studioProjection, /LEGACY_TEXT_LABEL/);
   assert.match(studioProjection, /COMMAND_NOT_AUTHORIZED/);
-  assert.match(studioProjection, /CANONICAL_AGGREGATE_NOT_IMPLEMENTED/);
+  assert.match(studioProjection, /SLICE_8_COMMITTED_OPPORTUNITY_BINDING/);
 });
 
 test("operator state is a bounded canonical projection", () => {

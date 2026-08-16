@@ -1055,6 +1055,78 @@ export const nichePortfolioCommitmentAudits = sqliteTable("niche_portfolio_commi
   index("niche_commitment_audits_created_idx").on(table.portfolioId, table.createdAt),
 ]);
 
+// Slice 8 activates a canonical Channel Strategy binding from one current
+// Slice 7 commitment. The legacy channels.niche field remains compatibility
+// evidence and is never overwritten by this append-only activation ledger.
+export const channelStrategyActivations = sqliteTable("channel_strategy_activations", {
+  id: text("id").primaryKey(),
+  portfolioId: text("portfolio_id").notNull(),
+  activationVersion: integer("activation_version").notNull(),
+  channelStrategyVersion: integer("channel_strategy_version").notNull(),
+  action: text("action").notNull().default("ACTIVATE_CHANNEL_STRATEGY"),
+  lifecycleState: text("lifecycle_state").notNull().default("ACTIVATED"),
+  commitmentId: text("commitment_id").notNull().references(() => nichePortfolioCommitments.id),
+  commitmentVersion: integer("commitment_version").notNull(),
+  selectionId: text("selection_id").notNull().references(() => nichePortfolioSelections.id),
+  selectionVersion: integer("selection_version").notNull(),
+  prioritySetId: text("priority_set_id").notNull().references(() => nicheExpertPrioritySets.id),
+  priorityVersion: integer("priority_version").notNull(),
+  comparableSetHash: text("comparable_set_hash").notNull(),
+  channelId: text("channel_id").notNull(),
+  programId: text("program_id").notNull(),
+  opportunityId: text("opportunity_id").notNull(),
+  opportunityOrigin: text("opportunity_origin").notNull(),
+  aggregateVersion: integer("aggregate_version").notNull(),
+  evidenceVersion: integer("evidence_version").notNull(),
+  scoringVersion: integer("scoring_version").notNull(),
+  systemRankAtActivation: integer("system_rank_at_activation").notNull(),
+  expertPriorityAtActivation: integer("expert_priority_at_activation").notNull(),
+  strategyOwner: text("strategy_owner").notNull(),
+  rationale: text("rationale").notNull(),
+  viewerPromise: text("viewer_promise").notNull(),
+  differentiation: text("differentiation").notNull(),
+  audienceFocus: text("audience_focus").notNull(),
+  contentBoundariesJson: text("content_boundaries_json").notNull(),
+  successMeasuresJson: text("success_measures_json").notNull(),
+  reviewCadenceDays: integer("review_cadence_days").notNull(),
+  commitmentReviewed: integer("commitment_reviewed", { mode: "boolean" }).notNull().default(false),
+  activationAcknowledged: integer("activation_acknowledged", { mode: "boolean" }).notNull().default(false),
+  actorEmail: text("actor_email").notNull(),
+  actorDisplayName: text("actor_display_name").notNull(),
+  actorRole: text("actor_role").notNull().default("PORTFOLIO_GOVERNANCE"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  supersedesActivationId: text("supersedes_activation_id"),
+  supersedesChannelStrategyId: text("supersedes_channel_strategy_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("channel_strategy_activation_portfolio_version_uq").on(table.portfolioId, table.activationVersion),
+  uniqueIndex("channel_strategy_activation_channel_version_uq").on(table.channelId, table.channelStrategyVersion),
+  uniqueIndex("channel_strategy_activation_idempotency_uq").on(table.idempotencyKey),
+  index("channel_strategy_activation_commitment_created_idx").on(table.commitmentId, table.createdAt),
+]);
+
+export const channelStrategyActivationAudits = sqliteTable("channel_strategy_activation_audits", {
+  id: text("id").primaryKey(),
+  activationId: text("activation_id").notNull().references(() => channelStrategyActivations.id),
+  portfolioId: text("portfolio_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  eventType: text("event_type").notNull().default("CHANNEL_STRATEGY_ACTIVATED"),
+  actorEmail: text("actor_email").notNull(),
+  actorRole: text("actor_role").notNull().default("PORTFOLIO_GOVERNANCE"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  correlationId: text("correlation_id").notNull(),
+  causationId: text("causation_id"),
+  evidenceLineageId: text("evidence_lineage_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("channel_strategy_activation_audits_activation_uq").on(table.activationId),
+  index("channel_strategy_activation_audits_created_idx").on(table.channelId, table.createdAt),
+]);
+
 export const v7FoundationAudits = sqliteTable("v7_foundation_audits", {
   id: text("id").primaryKey(),
   programId: text("program_id").notNull(),

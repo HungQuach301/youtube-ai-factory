@@ -91,6 +91,13 @@ assert(unauthenticatedGovernance.headers.get("cache-control") === "no-store", "n
 assert(unauthenticatedGovernancePayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "niche governance must expose a typed authentication failure");
 assert(unauthenticatedGovernancePayload.providerRequests === 0 && unauthenticatedGovernancePayload.spendUsd === 0 && unauthenticatedGovernancePayload.aggregateScore === null && unauthenticatedGovernancePayload.selection === false && unauthenticatedGovernancePayload.commitment === false && unauthenticatedGovernancePayload.channelStrategyActivation === false, "niche governance authentication failure must preserve zero-spend and downstream boundaries");
 
+const unauthenticatedActivation = await worker.fetch(new Request("http://localhost/api/factory/channel-strategy-activations", { method: "POST", headers: { accept: "application/json", "content-type": "application/json", "idempotency-key": "rendered-activation:001" }, body: "{}" }), env, ctx);
+const unauthenticatedActivationPayload = await unauthenticatedActivation.json();
+assert(unauthenticatedActivation.status === 401, "Channel Strategy activation must reject a missing SIWC identity");
+assert(unauthenticatedActivation.headers.get("cache-control") === "no-store", "Channel Strategy activation authentication failure must be no-store");
+assert(unauthenticatedActivationPayload.error?.code === "SIWC_AUTHENTICATION_REQUIRED", "Channel Strategy activation must expose a typed authentication failure");
+assert(unauthenticatedActivationPayload.providerRequests === 0 && unauthenticatedActivationPayload.spendUsd === 0 && unauthenticatedActivationPayload.aggregateScore === null && unauthenticatedActivationPayload.channelStrategyBindingMutation === false && unauthenticatedActivationPayload.channelStrategyActivation === false, "Channel Strategy activation authentication failure must preserve zero-spend and authority boundaries");
+
 const slowest = timings.reduce((current, item) => item.milliseconds > current.milliseconds ? item : current);
 assert(slowest.milliseconds <= 500, `${slowest.route} server-render ${slowest.milliseconds.toFixed(1)}ms exceeds the 500ms lab budget`);
-console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 6 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);
+console.log(`Commercial rendered contract passed ${pageRoutes.length} pages, ${recoveryRoutes.length} fail-closed read APIs and 7 SIWC-protected zero-spend commands; slowest server render ${slowest.route} ${slowest.milliseconds.toFixed(1)}ms/500ms.`);

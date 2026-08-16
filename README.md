@@ -8,11 +8,11 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 
 ## Current implementation checkpoint
 
-- Production baseline before the current Slice 7 checkpoint: Sites v305, commit `3ca86a28596fe87d3d361f0208181d41c8bf7674`.
-- Product slices: Canonical Shell, Channel Detail, Intelligence/Niche and Channel Studio (`RECONSTRUCTED_V1`), governed expert decision, typed niche portfolio, expert hypothesis intake, strict niche/topic identity, Slice 4 Evidence Intelligence & Validation, Slice 5 evidence-sufficient three-axis comparison, Slice 6 permanent Expert Prioritization and Slice 7 permanent Niche Commitment & Governance.
-- Boundaries: all projections remain no-store/fail-closed with no demo fallback; bounded zero-spend commands now include explicit selection and commitment while Channel Strategy activation remains blocked for Slice 8.
-- Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only decision/audit/lineage. It does not mutate `channels.niche` or activate Channel Strategy.
-- Verification: 36/36 async API boundaries, 52/52 commercial UI contracts, production build/artifact/render/performance validation, 10/10 Niche V2 groups and 8 Intelligence/Niche lifecycle paths.
+- Production baseline before the current Slice 8 checkpoint: Sites v306, commit `9497c720d265dae7e3c805e99a207f9fae9720c1`.
+- Product slices: Canonical Shell, Channel Detail, Intelligence/Niche and Channel Studio (`RECONSTRUCTED_V1`), governed expert decision, typed niche portfolio, expert hypothesis intake, strict niche/topic identity, Slice 4 Evidence Intelligence & Validation, Slice 5 evidence-sufficient three-axis comparison, Slice 6 permanent Expert Prioritization, Slice 7 permanent Niche Commitment & Governance and Slice 8 permanent Channel Strategy Activation.
+- Boundaries: all projections remain no-store/fail-closed with no demo fallback; activation is a separate zero-spend command that consumes only the latest active committed niche and never reruns or rewrites Slices 1–7.
+- Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only activation/audit/lineage. It creates the canonical Channel Strategy binding without mutating legacy `channels.niche` or any upstream decision fact.
+- Verification: 37/37 async API boundaries, 57/57 commercial UI contracts, build/artifact/render/performance validation, 10/10 Niche V2 groups, 8 Intelligence/Niche lifecycle paths and 95/95 regressions.
 - Readiness truth: candidate labels, workflow authority and decision-command visibility now share one seven-criterion evidence assessment with explicit typed gaps.
 - Niche Portfolio V2 Slice 1: the executable contract now requires a comparable list of opportunities, symmetric system/expert hypothesis validation, independent Market Attractiveness / Ability to Win / Evidence Confidence axes, hard prerequisites and explicit Conditions to Win. All V2 commands remain unrouted and zero-spend.
 - Niche Portfolio V2 Slice 2: `/niche-discovery` provides a side-by-side portfolio matrix and expandable market, audience, competitor, evidence and Conditions to Win dossiers. Missing V2 facts remain explicitly `Not recorded`; no legacy score is silently converted into a V2 axis.
@@ -22,10 +22,11 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 - Slice 5: an authorized expert records a latest-evidence-bound assessment with independent Market Attractiveness, Ability to Win and Evidence Confidence, assessed prerequisites and winning criteria. The server computes sufficiency and ranks sufficient opportunities lexicographically without a total score. Expert priority, selection, commitment and Channel Strategy activation remain blocked for Slices 6–8.
 - Slice 6: an authorized expert records one atomic, append-only ordering of every current comparable opportunity with portfolio and opportunity rationales. Each priority version binds the current program/evidence/scoring versions; changed Slice 5 facts make the set stale instead of rewriting it. System rank, axes, sufficiency and eligibility remain unchanged. Selection, commitment and Channel Strategy activation remain blocked for Slices 7–8.
 - Slice 7: selection and commitment are separate append-only ledgers. Selection requires an active Slice 6 set and an eligible niche; commitment requires the latest active selection. Direct priority-to-commitment is forbidden. Upstream changes project governance facts as stale, and neither command mutates rank, evidence, eligibility, `channels.niche` or Channel Strategy.
+- Slice 8: `ACTIVATE_CHANNEL_STRATEGY` appends a versioned binding only from the latest active commitment. It freezes commitment/selection/priority/program/evidence/scoring lineage, projects stale instead of rewriting history, and makes Channel Studio consume the active binding while preserving the legacy compatibility field.
 - Product roadmap: Slices 4–8 are permanent product capabilities—Evidence Intelligence & Validation, Portfolio Comparison, Expert Prioritization, Niche Commitment & Governance, and Channel Strategy Activation—not one-time delivery tasks.
 - Commercial UI/UX acceptance remains pending for the canonically blocked decision-form browser/assistive/Web Vitals evidence listed in Document 11. Production now reports 6/7 readiness criteria passed; only `CONTRADICTIONS_REVIEWED` is missing.
 
-Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–23 before continuing in a new chat.
+Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–24 before continuing in a new chat.
 
 ## Runtime foundation
 

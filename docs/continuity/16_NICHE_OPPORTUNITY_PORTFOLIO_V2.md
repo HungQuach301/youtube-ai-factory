@@ -2,7 +2,7 @@
 
 **Contract:** `NICHE_OPPORTUNITY_PORTFOLIO_V2`  
 **Policy:** `NICHE_OPPORTUNITY_POLICY_V2`  
-**Status:** `SLICE_6_EXPERT_PRIORITIZATION_IMPLEMENTED_ACCEPTANCE_GREEN`
+**Status:** `SLICE_8_CHANNEL_STRATEGY_ACTIVATION_IMPLEMENTED_ACCEPTANCE_GREEN`
 **Date:** 2026-08-15 (Asia/Bangkok)
 **Contract deployment:** Sites v295 / `022f72f4ee06703225e4520bcf83983f887fade4` / succeeded
 **Latest combined deployment:** Sites v301 / `89b9a9ebcb152a498a60ba991debeca3ae43f236` / succeeded
@@ -89,7 +89,7 @@ Declared V2 commands:
 | `COMMIT_NICHE` | Portfolio Governance |
 | `ACTIVATE_CHANNEL_STRATEGY` | separate Portfolio Governance command |
 
-`SUBMIT_NICHE_HYPOTHESIS`, `SELECT_NICHE_FOR_COMMITMENT` and `COMMIT_NICHE` are now `ROUTED_ZERO_SPEND`. Channel Strategy activation remains `DECLARED_NOT_ROUTED`; provider requests and spend remain zero. The V1 expert-decision POST remains a compatibility boundary and is not V2 selection or commitment.
+`SUBMIT_NICHE_HYPOTHESIS`, `SELECT_NICHE_FOR_COMMITMENT`, `COMMIT_NICHE` and `ACTIVATE_CHANNEL_STRATEGY` are `ROUTED_ZERO_SPEND`. Activation consumes only an active commitment and mutates only the canonical Channel Strategy binding; provider requests and spend remain zero. The V1 expert-decision POST remains a compatibility boundary and is not V2 selection, commitment or activation.
 
 ## Portfolio comparison policy
 
@@ -128,8 +128,8 @@ No threshold, weight, policy, autonomy or spend ceiling promotes automatically. 
 | 4 | Evidence Intelligence & Validation capability | implemented |
 | 5 | Evidence-backed Niche Portfolio Comparison capability | implemented |
 | 6 | Expert Prioritization Workspace capability | implemented |
-| 7 | Niche Commitment & Governance capability | pending |
-| 8 | Channel Strategy Activation capability | pending |
+| 7 | Niche Commitment & Governance capability | implemented |
+| 8 | Channel Strategy Activation capability | implemented |
 
 Slices 4–8 are permanent, operator-facing capabilities of the commercial tool. They require durable data contracts, APIs/domain services, commercial UI, audit/evidence lineage, automation boundaries, expert authority, metrics and governed continuous-improvement signals. They are not one-time project activities, documents or manual acceptance steps.
 
@@ -150,12 +150,12 @@ Continuous gate: `npm run check:niche-portfolio-v2`, executed by every verified 
 
 ## Exact next action
 
-After the Slice 7 production checkpoint and recovery-tested capsule, implement Slice 8 as permanent Channel Strategy Activation. It must consume only an active committed niche through a separate versioned command and preserve every upstream fact.
+After the Slice 8 production checkpoint, production acceptance and recovery-tested capsule, define a separate Content System & Planning handoff contract. It may consume an active strategy binding but must not give Slice 8 provider-dispatch, spend or content-production authority.
 
 ## Protected scope
 
-- Only hypothesis intake and the Slice 7 selection/commitment commands are routed; strategy activation remains blocked.
-- The only new mutation is the append-only hypothesis/audit/lineage write from migration 0031.
+- Hypothesis, evidence, scoring, priority, selection, commitment and activation mutations remain separate typed commands.
+- Slice 8 mutates only append-only activation/audit/frozen-lineage records from migration 0036.
 - No provider request or spend.
 - No replacement or reinterpretation of historical V1 records.
 - No single-winner yes/no UI for V2.

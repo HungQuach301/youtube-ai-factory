@@ -6,6 +6,7 @@ import { NicheEvidenceCommandError, submitNicheEvidenceCommand } from "../lib/ni
 import { NicheScoringCommandError, submitNicheScoringCommand } from "../lib/niche-scoring-command";
 import { NichePriorityCommandError, submitNichePriorityCommand } from "../lib/niche-priority-command";
 import { NicheGovernanceCommandError, submitNicheGovernanceCommand } from "../lib/niche-governance-command";
+import { ChannelStrategyActivationError, submitChannelStrategyActivation } from "../lib/channel-strategy-activation-command";
 import { NicheHypothesisCommandError, submitNicheHypothesis } from "../lib/niche-hypothesis-command";
 import { NicheDecisionCommandError, submitNicheExpertDecision } from "../lib/niche-expert-decision-command";
 import { ChannelNotFoundError, channelProjection, portfolioProjection } from "../lib/portfolio-projection";
@@ -119,6 +120,8 @@ const tables: Record<string, Row[]> = {
   niche_portfolio_selection_audits: [],
   niche_portfolio_commitments: [],
   niche_portfolio_commitment_audits: [],
+  channel_strategy_activations: [],
+  channel_strategy_activation_audits: [],
 };
 
 function queryRows(query: string, bindings: unknown[]) {
@@ -152,6 +155,8 @@ function queryRows(query: string, bindings: unknown[]) {
   if (normalized.includes("order by priority_version desc")) result.sort((a, b) => Number(b.priority_version || 0) - Number(a.priority_version || 0));
   if (normalized.includes("order by selection_version desc")) result.sort((a, b) => Number(b.selection_version || 0) - Number(a.selection_version || 0));
   if (normalized.includes("order by commitment_version desc")) result.sort((a, b) => Number(b.commitment_version || 0) - Number(a.commitment_version || 0));
+  if (normalized.includes("order by activation_version desc")) result.sort((a, b) => Number(b.activation_version || 0) - Number(a.activation_version || 0));
+  if (normalized.includes("order by channel_strategy_version desc")) result.sort((a, b) => Number(b.channel_strategy_version || 0) - Number(a.channel_strategy_version || 0));
   if (normalized.includes("order by expert_priority")) result.sort((a, b) => Number(a.expert_priority || 0) - Number(b.expert_priority || 0));
   if (normalized.includes("order by plan_version desc")) result.sort((a, b) => Number(b.plan_version || 0) - Number(a.plan_version || 0));
   return result;
@@ -249,6 +254,8 @@ function executeMutation(item: Statement) {
     if (tables.niche_portfolio_commitments.some((item) => item.idempotency_key === row.idempotency_key || (item.portfolio_id === row.portfolio_id && item.commitment_version === row.commitment_version))) throw new Error("UNIQUE constraint failed"); tables.niche_portfolio_commitments.push(row); return { meta: { changes: 1 } };
   }
   if (normalized.startsWith("insert into niche_portfolio_commitment_audits")) { const columns = ["id", "commitment_id", "portfolio_id", "actor_email", "idempotency_key", "request_hash", "correlation_id", "causation_id", "evidence_lineage_id", "created_at"]; const row = Object.fromEntries(columns.map((column, index) => [column, values[index]])); Object.assign(row, { event_type: "NICHE_COMMITTED", actor_role: "PORTFOLIO_GOVERNANCE" }); tables.niche_portfolio_commitment_audits.push(row); return { meta: { changes: 1 } }; }
+  if (normalized.startsWith("insert into channel_strategy_activations")) { const columns = normalized.slice(normalized.indexOf("(") + 1, normalized.indexOf(")")).split(",").map((column) => column.trim()); const row = Object.fromEntries(columns.map((column, index) => [column, values[index]])); if (tables.channel_strategy_activations.some((item) => item.idempotency_key === row.idempotency_key || (item.portfolio_id === row.portfolio_id && item.activation_version === row.activation_version) || (item.channel_id === row.channel_id && item.channel_strategy_version === row.channel_strategy_version))) throw new Error("UNIQUE constraint failed"); tables.channel_strategy_activations.push(row); return { meta: { changes: 1 } }; }
+  if (normalized.startsWith("insert into channel_strategy_activation_audits")) { const columns = ["id", "activation_id", "portfolio_id", "channel_id", "actor_email", "idempotency_key", "request_hash", "correlation_id", "causation_id", "evidence_lineage_id", "created_at"]; const row = Object.fromEntries(columns.map((column, index) => [column, values[index]])); Object.assign(row, { event_type: "CHANNEL_STRATEGY_ACTIVATED", actor_role: "PORTFOLIO_GOVERNANCE" }); tables.channel_strategy_activation_audits.push(row); return { meta: { changes: 1 } }; }
   if (normalized.startsWith("insert into v7_evidence_lineage")) {
     const hypothesisLineage = values[3] === "NICHE_HYPOTHESIS";
     tables.v7_evidence_lineage.push({ id: values[0], program_id: values[1], project_id: values[2], entity_type: values[3], title: values[4], lifecycle_state: "FROZEN", upstream_evidence_id: hypothesisLineage ? null : values[5], artifact_key: hypothesisLineage ? values[5] : values[6], content_hash: hypothesisLineage ? values[6] : values[7], storage_state: "CANONICAL_D1", rights_state: "NOT_APPLICABLE", cost_state: "ZERO_SPEND", quarantine_state: "CLEAR", pipeline_version: 7, created_at: hypothesisLineage ? values[7] : values[8], updated_at: hypothesisLineage ? values[8] : values[9] });
@@ -313,7 +320,7 @@ assert.equal(nichePortfolio.comparison[0].winningCriteria.length, 1);
 assert.equal(nichePortfolio.comparison[0].expertPriority, null);
 assert.ok(nichePortfolio.comparison.every((item) => item.entityType === "NICHE_OPPORTUNITY" && item.provenance === "V2_SYSTEM_DISCOVERY"));
 assert.ok(nichePortfolio.comparison.every((item) => !stage01.candidates.some((topic) => topic.title === item.title)));
-assert.equal(nichePortfolio.authority.v2Commands, "SUBMIT_HYPOTHESIS_SLICE_4_EVIDENCE_SLICE_5_SCORING_SLICE_6_PRIORITY_AND_SLICE_7_GOVERNANCE_ZERO_SPEND");
+assert.equal(nichePortfolio.authority.v2Commands, "SLICE_3_TO_8_ROUTED_ZERO_SPEND");
 assert.deepEqual({ providerRequests: nichePortfolio.authority.providerRequests, spendUsd: nichePortfolio.authority.spendUsd, scoringAssessment: nichePortfolio.authority.scoringAssessment, comparisonMutation: nichePortfolio.authority.comparisonMutation, expertPriorityMutation: nichePortfolio.authority.expertPriorityMutation, systemRankMutation: nichePortfolio.authority.systemRankMutation }, { providerRequests: 0, spendUsd: 0, scoringAssessment: true, comparisonMutation: true, expertPriorityMutation: true, systemRankMutation: false });
 assert.equal(nichePortfolio.downstreamGate.state, "BLOCKED");
 const stage01Artifact = tables.v7_intelligence_artifacts.find((row) => row.id === "artifact-01");
@@ -500,13 +507,23 @@ const commitmentCommand = { actor: governanceActor, idempotencyKey: "niche-commi
 const committedReceipt = await submitNicheGovernanceCommand(database, commitmentCommand); assert.equal(committedReceipt.state, "COMMITTED"); assert.equal(committedReceipt.authority.nicheCommitment, true); assert.equal(committedReceipt.authority.channelStrategyActivation, false);
 assert.equal((await submitNicheGovernanceCommand(database, commitmentCommand)).outcome, "IDEMPOTENT_REPLAY");
 const committedPortfolio = await nichePortfolioProjection("channel-1", database); const committedProjection = committedPortfolio.comparison.find((item) => item.opportunityId === selectedCandidate.opportunityId); assert.ok(committedProjection);
-assert.equal(committedPortfolio.decisionState, "NICHE_COMMITTED"); assert.equal(committedPortfolio.governanceWorkspace.state, "COMMITTED"); assert.equal(committedProjection.lifecycleState, "COMMITTED"); assert.equal(committedProjection.systemRank, beforeGovernance.systemRank); assert.equal(committedProjection.expertPriority, beforeGovernance.expertPriority); assert.deepEqual(committedProjection.axes, beforeGovernance.axes); assert.equal(committedProjection.eligibility, beforeGovernance.eligibility); assert.equal(tables.channels[0].niche, beforeGovernance.niche); assert.equal(committedPortfolio.downstreamGate.state, "BLOCKED");
+  assert.equal(committedPortfolio.decisionState, "NICHE_COMMITTED"); assert.equal(committedPortfolio.governanceWorkspace.state, "COMMITTED"); assert.equal(committedProjection.lifecycleState, "COMMITTED"); assert.equal(committedProjection.systemRank, beforeGovernance.systemRank); assert.equal(committedProjection.expertPriority, beforeGovernance.expertPriority); assert.deepEqual(committedProjection.axes, beforeGovernance.axes); assert.equal(committedProjection.eligibility, beforeGovernance.eligibility); assert.equal(tables.channels[0].niche, beforeGovernance.niche); assert.equal(committedPortfolio.downstreamGate.state, "BLOCKED");
+  await assert.rejects(() => submitChannelStrategyActivation(database, { actor: governanceActor, idempotencyKey: "channel-strategy:missing-commitment", body: { action: "ACTIVATE_CHANNEL_STRATEGY", expectedActivationVersion: 0, expectedChannelStrategyVersion: 0, expectedCommitmentVersion: 1, commitmentId: "missing-commitment", strategy: { owner: "Portfolio Governance", rationale: "Activation must fail without the latest current explicit commitment record.", viewerPromise: "Understand the invisible system before making a costly money decision.", differentiation: "Primary-source system maps reveal cross-party incentives end to end.", audienceFocus: "Time-poor financially curious professionals making consequential choices.", contentBoundaries: ["Evidence-led system explanations only"], successMeasures: ["Viewer comprehension meets the approved target"], reviewCadenceDays: 30, commitmentReviewed: true, activationAcknowledged: true } } }), (error: unknown) => error instanceof ChannelStrategyActivationError && error.code === "ACTIVE_COMMITMENT_REQUIRED");
+  const activationCommand = { actor: governanceActor, idempotencyKey: "channel-strategy:test-001", body: { action: "ACTIVATE_CHANNEL_STRATEGY" as const, expectedActivationVersion: 0, expectedChannelStrategyVersion: 0, expectedCommitmentVersion: 1, commitmentId: committedReceipt.commitment!.id, strategy: { owner: "Portfolio Governance", rationale: "Activate the committed niche as the canonical Channel Strategy binding while preserving every upstream decision fact.", viewerPromise: "Understand the invisible system before making a costly money decision.", differentiation: "Primary-source system maps reveal cross-party incentives end to end.", audienceFocus: "Time-poor financially curious professionals making consequential choices.", contentBoundaries: ["Evidence-led system explanations only", "No unsupported personalized financial advice"], successMeasures: ["Viewer comprehension meets the approved target", "Every factual claim passes the source-control gate"], reviewCadenceDays: 30, commitmentReviewed: true as const, activationAcknowledged: true as const } } };
+  const activationReceipt = await submitChannelStrategyActivation(database, activationCommand); assert.equal(activationReceipt.state, "CHANNEL_STRATEGY_ACTIVATED"); assert.equal(activationReceipt.authority.channelStrategyBindingMutation, true); assert.equal(activationReceipt.authority.legacyChannelNicheMutation, false); assert.equal(activationReceipt.authority.aggregateScore, null);
+  assert.equal((await submitChannelStrategyActivation(database, activationCommand)).outcome, "IDEMPOTENT_REPLAY");
+  await assert.rejects(() => submitChannelStrategyActivation(database, { ...activationCommand, body: { ...activationCommand.body, strategy: { ...activationCommand.body.strategy, rationale: `${activationCommand.body.strategy.rationale} Changed.` } } }), (error: unknown) => error instanceof ChannelStrategyActivationError && error.code === "IDEMPOTENCY_KEY_REUSED");
+  await assert.rejects(() => submitChannelStrategyActivation(database, { ...activationCommand, idempotencyKey: "channel-strategy:stale-version", body: { ...activationCommand.body, expectedActivationVersion: 0 } }), (error: unknown) => error instanceof ChannelStrategyActivationError && error.code === "ACTIVATION_VERSION_CONFLICT");
+  const activatedPortfolio = await nichePortfolioProjection("channel-1", database), activatedProjection = activatedPortfolio.comparison.find((item) => item.opportunityId === selectedCandidate.opportunityId); assert.ok(activatedProjection);
+  assert.equal(activatedPortfolio.decisionState, "CHANNEL_STRATEGY_ACTIVATED"); assert.equal(activatedPortfolio.activationWorkspace.state, "ACTIVE"); assert.equal(activatedPortfolio.downstreamGate.state, "ACTIVATED"); assert.equal(activatedProjection.lifecycleState, "CHANNEL_STRATEGY_ACTIVATED"); assert.equal(activatedProjection.channelStrategyActivationFact.state, "ACTIVE"); assert.equal(activatedProjection.systemRank, beforeGovernance.systemRank); assert.equal(activatedProjection.expertPriority, beforeGovernance.expertPriority); assert.deepEqual(activatedProjection.axes, beforeGovernance.axes); assert.equal(activatedProjection.eligibility, beforeGovernance.eligibility); assert.equal(tables.channels[0].niche, beforeGovernance.niche); assert.equal(tables.channel_strategy_activation_audits.length, 1); assert.equal(tables.v7_evidence_lineage.filter((row) => row.entity_type === "CHANNEL_STRATEGY_ACTIVATION").length, 1);
+  const activatedStudio = await channelStudioProjection("channel-1", database); assert.equal(activatedStudio.strategy.state, "ACTIVE"); assert.equal(activatedStudio.nicheDecision.provenance, "SLICE_8_COMMITTED_OPPORTUNITY_BINDING"); assert.equal(activatedStudio.strategy.viewerPromise, activationCommand.body.strategy.viewerPromise);
 const systemAssessment = tables.niche_scoring_assessments.find((row) => row.id === "score-1"); assert.ok(systemAssessment);
 tables.niche_scoring_assessments.push({ ...systemAssessment, id: "score-1-reassessment", scoring_version: 2, created_at: "2026-08-16T00:00:00.000Z" });
 const stalePriorities = await nichePortfolioProjection("channel-1", database);
 assert.equal(stalePriorities.priorityWorkspace.state, "STALE");
-assert.equal(stalePriorities.decisionState, "GOVERNANCE_STALE");
+assert.equal(stalePriorities.decisionState, "ACTIVATION_STALE");
 assert.equal(stalePriorities.governanceWorkspace.state, "STALE");
+assert.equal(stalePriorities.activationWorkspace.state, "STALE");
 assert.equal(stalePriorities.comparison.find((item) => item.opportunityId === "niche-money-systems")?.expertPriorityFact.state, "STALE");
 tables.niche_scoring_assessments.pop();
 
@@ -558,7 +575,7 @@ const studio = await channelStudioProjection("channel-1", database);
 assert.equal(studio.contract, "CHANNEL_STUDIO_PROJECTION_V1");
 assert.equal(studio.summary.PLANNED, 1);
 assert.equal(studio.summary.TERMINAL, 1);
-assert.equal(studio.strategy.state, "CANONICAL_AGGREGATE_NOT_IMPLEMENTED");
+assert.equal(studio.strategy.state, "ACTIVE");
 assert.equal(studio.productionHandoff.state, "COMMAND_NOT_AUTHORIZED");
 assert.equal(studio.legacyTopicCandidates.length, 2);
 assert.ok(studio.legacyTopicCandidates.every((item) => item.entityType === "VIDEO_TOPIC_CANDIDATE" && item.provenance === "LEGACY_V1_VIDEO_TOPIC_CANDIDATE"));

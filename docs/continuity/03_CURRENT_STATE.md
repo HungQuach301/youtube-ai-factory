@@ -21,7 +21,7 @@ NEXT_ACTION = CONTINUITY_HARDENING_THEN_MOTION_PROOF
 
 ```text
 NICHE_PORTFOLIO_PROGRAM = V2
-NICHE_PORTFOLIO_SLICE = 06_VERSIONED_EXPERT_PRIORITIZATION
+NICHE_PORTFOLIO_SLICE = 08_CHANNEL_STRATEGY_ACTIVATION
 NICHE_PORTFOLIO_SLICE_01 = IMPLEMENTED_NOT_ROUTED
 NICHE_PORTFOLIO_SLICE_02 = IMPLEMENTED_READ_ONLY
 NICHE_PORTFOLIO_SLICE_03 = IMPLEMENTED_ZERO_SPEND_APPEND
@@ -29,10 +29,12 @@ NICHE_PORTFOLIO_SLICE_03_1 = PRODUCTION_DEPLOYED
 NICHE_PORTFOLIO_SLICE_04 = IMPLEMENTED_ACCEPTANCE_GREEN
 NICHE_PORTFOLIO_SLICE_05 = IMPLEMENTED_ACCEPTANCE_GREEN
 NICHE_PORTFOLIO_SLICE_06 = IMPLEMENTED_ACCEPTANCE_GREEN
-NICHE_PORTFOLIO_NEXT = SLICE_06_PRODUCTION_CHECKPOINT_CAPSULE_THEN_SLICE_07_COMMITMENT_GOVERNANCE
+NICHE_PORTFOLIO_SLICE_07 = IMPLEMENTED_PRODUCTION_GREEN
+NICHE_PORTFOLIO_SLICE_08 = IMPLEMENTED_ACCEPTANCE_GREEN
+NICHE_PORTFOLIO_NEXT = SLICE_08_PRODUCTION_CHECKPOINT_TEST_CAPSULE
 V2_PROVIDER_REQUESTS = 0
 V2_SPEND_USD = 0
-CHANNEL_STRATEGY_GATE = BLOCKED
+CHANNEL_STRATEGY_GATE = VERSIONED_COMMITMENT_BOUND_ACTIVATION
 ```
 
 Documents 16, 19, 20, 21 and 22 are authoritative for the niche decision shape, entity boundary, evidence workflow, evidence-bound comparison and versioned expert priority. Legacy Stage 01 candidates are video-topic compatibility evidence and must not be mistaken for niche opportunities or V2 expert prioritization. Slices 4–8 are permanent product capabilities, not one-time implementation steps.
@@ -51,3 +53,7 @@ Do not rerun source discovery, generate A/B/C again, rerun the composite tournam
 # Slice 7 checkpoint — 2026-08-16
 
 Permanent Niche Commitment & Governance is implemented over the active Slice 6 comparable portfolio. Selection and commitment are separate append-only facts with SIWC/allowlist authority, idempotency, optimistic versions, audit records and frozen lineage. Direct priority-to-commitment is rejected. Upstream changes make governance facts stale. No rank, axis, evidence sufficiency, eligibility, `channels.niche`, activation, provider request or spend is changed. Exact next action: Slice 8 permanent Channel Strategy Activation.
+
+# Slice 8 checkpoint — 2026-08-16
+
+Permanent Channel Strategy Activation is implemented as a separate append-only command over only the latest active Slice 7 commitment. The binding is globally and per-channel versioned, SIWC/allowlist authorized, idempotent, concurrency guarded, audited and frozen-lineage bound. Channel Studio consumes the active binding; upstream changes project it as stale. Rank, expert priority, selection, commitment, axes, evidence sufficiency, eligibility and legacy `channels.niche` remain unchanged. Actual provider requests and spend remain zero. Exact next action after production acceptance and capsule: define the separately authorized Content System & Planning handoff without giving activation provider-dispatch authority.

@@ -1,4 +1,5 @@
 import type { ChannelStudioProjection, ContentBand } from "@/app/channel-studio-contract";
+import { nichePortfolioProjection } from "@/lib/niche-portfolio-projection";
 import { ChannelNotFoundError } from "@/lib/portfolio-projection";
 
 type Statement = { bind: (...values: unknown[]) => Statement; all: <T>() => Promise<{ results?: T[] }> };
@@ -53,7 +54,11 @@ export async function channelStudioProjection(channelId?: string | null, databas
   const summary = Object.fromEntries(bands.map((key) => [key, portfolio.filter((item) => item.band === key).length])) as Record<ContentBand, number>;
   const pillarCounts = new Map<string, number>();
   for (const item of portfolio) pillarCounts.set(item.pillar || "Unassigned", (pillarCounts.get(item.pillar || "Unassigned") || 0) + 1);
-  const gaps = ["Canonical channel-strategy aggregate is not implemented.", "Approved content-pillar and series identities are not implemented.", "Editorial calendar persistence is not implemented."];
+  const nichePortfolio = effectiveId ? await nichePortfolioProjection(effectiveId, db) : null;
+  const activatedOpportunity = nichePortfolio?.comparison.find((item) => item.channelStrategyActivationFact.state === "ACTIVE") || null;
+  const staleActivation = !activatedOpportunity && nichePortfolio?.activationWorkspace.state === "STALE";
+  const activation = activatedOpportunity?.channelStrategyActivationFact || null;
+  const gaps = [...(!activation ? [staleActivation ? "The canonical Channel Strategy activation is stale." : "Canonical Channel Strategy activation is not recorded."] : []), "Approved content-pillar and series identities are not implemented.", "Editorial calendar persistence is not implemented."];
   const notes: string[] = [];
   if (selected && !programId) notes.push("Selected channel has no mapped canonical V7 program.");
   if (summary.UNKNOWN) notes.push(`${summary.UNKNOWN} project status value(s) require lifecycle reconciliation.`);
@@ -64,8 +69,8 @@ export async function channelStudioProjection(channelId?: string | null, databas
     scope: { mode: channelId ? "CHANNEL" : "PORTFOLIO", channelId: channelId || null },
     channels: channels.map((channel) => ({ id: text(channel.id), name: text(channel.name), market: text(channel.market), language: text(channel.language), niche: text(channel.niche) })),
     selectedChannel: selected ? { id: text(selected.id), name: text(selected.name), market: text(selected.market), language: text(selected.language), niche: text(selected.niche) } : null,
-    nicheDecision: { currentNiche: text(selected?.niche) || null, provenance: "CHANNEL_FIELD_COMPATIBILITY_ONLY", decisionAuthority: "OWNER_EXPERT_REQUIRED" },
-    strategy: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED", viewerPromise: null, differentiation: null, gaps },
+    nicheDecision: activation && activatedOpportunity ? { currentNiche: activatedOpportunity.title, provenance: "SLICE_8_COMMITTED_OPPORTUNITY_BINDING", decisionAuthority: "PORTFOLIO_GOVERNANCE_ACTIVATED" } : { currentNiche: text(selected?.niche) || null, provenance: "CHANNEL_FIELD_COMPATIBILITY_ONLY", decisionAuthority: "OWNER_EXPERT_REQUIRED" },
+    strategy: { state: activation ? "ACTIVE" : staleActivation ? "STALE" : "CANONICAL_AGGREGATE_NOT_IMPLEMENTED", version: activation?.channelStrategyVersion || nichePortfolio?.activationWorkspace.channelStrategyVersion || 0, activationId: activation?.activationId || null, owner: activation?.owner || null, viewerPromise: activation?.viewerPromise || null, differentiation: activation?.differentiation || null, audienceFocus: activation?.audienceFocus || null, contentBoundaries: activation?.contentBoundaries || [], successMeasures: activation?.successMeasures || [], gaps },
     pillars: [...pillarCounts.entries()].map(([label, itemCount]) => ({ label, itemCount, provenance: "LEGACY_TEXT_LABEL" as const })),
     series: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED", items: [] },
     legacyTopicCandidates,

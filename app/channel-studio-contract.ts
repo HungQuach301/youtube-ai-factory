@@ -7,8 +7,8 @@ export type ChannelStudioProjection = {
   scope: { mode: "PORTFOLIO" | "CHANNEL"; channelId: string | null };
   channels: Array<{ id: string; name: string; market: string; language: string; niche: string }>;
   selectedChannel: { id: string; name: string; market: string; language: string; niche: string } | null;
-  nicheDecision: { currentNiche: string | null; provenance: "CHANNEL_FIELD_COMPATIBILITY_ONLY"; decisionAuthority: "OWNER_EXPERT_REQUIRED" };
-  strategy: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED"; viewerPromise: string | null; differentiation: string | null; gaps: string[] };
+  nicheDecision: { currentNiche: string | null; provenance: "CHANNEL_FIELD_COMPATIBILITY_ONLY" | "SLICE_8_COMMITTED_OPPORTUNITY_BINDING"; decisionAuthority: "OWNER_EXPERT_REQUIRED" | "PORTFOLIO_GOVERNANCE_ACTIVATED" };
+  strategy: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED" | "ACTIVE" | "STALE"; version: number; activationId: string | null; owner: string | null; viewerPromise: string | null; differentiation: string | null; audienceFocus: string | null; contentBoundaries: string[]; successMeasures: string[]; gaps: string[] };
   pillars: Array<{ label: string; provenance: "LEGACY_TEXT_LABEL"; itemCount: number }>;
   series: { state: "CANONICAL_AGGREGATE_NOT_IMPLEMENTED"; items: never[] };
   legacyTopicCandidates: Array<{ id: string; entityType: "VIDEO_TOPIC_CANDIDATE"; title: string; centralQuestion: string | null; viewerPromise: string | null; score: number; provenance: "LEGACY_V1_VIDEO_TOPIC_CANDIDATE" }>;

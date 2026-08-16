@@ -65,3 +65,14 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - `db/schema.ts` and `drizzle/0035_massive_celestials.sql`: append-only governance ledgers.
 - `lib/niche-portfolio-projection.ts`: active/stale governance projection.
 - `docs/continuity/23_NICHE_COMMITMENT_GOVERNANCE.md`: authoritative Slice 7 handoff.
+
+# Slice 8 artifacts
+
+- `lib/channel-strategy-activation-command.ts`: commitment-bound activation contract and atomic append-only mutation.
+- `app/api/factory/channel-strategy-activations/route.ts`: SIWC-protected JSON/native-form zero-spend route.
+- `db/schema.ts` and `drizzle/0036_colossal_master_mold.sql`: activation and audit ledgers.
+- `lib/niche-portfolio-projection.ts`: active/stale activation projection and downstream gate.
+- `lib/channel-studio-projection.ts`: read-only consumer of the active canonical binding.
+- `docs/continuity/24_CHANNEL_STRATEGY_ACTIVATION.md`: authoritative Slice 8 handoff.
+- Continuous evidence: 37/37 async boundaries, 57/57 commercial UI, 10/10 V2 groups, 8 lifecycle paths, rendered fail-closed checks, client-budget gate and 95/95 regressions.
+- Authority: only the Channel Strategy binding mutates; all upstream facts and legacy `channels.niche` remain immutable; provider requests `0`, spend USD `0`, aggregate score `null`.

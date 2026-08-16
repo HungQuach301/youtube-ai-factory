@@ -30,8 +30,8 @@ function Studio() {
       {data.selectedChannel ? <>
         <section className="pfStudioIdentity"><span className="pfAvatar">{data.selectedChannel.name.slice(0, 2).toUpperCase()}</span><div><small>{data.selectedChannel.id}</small><h2>{data.selectedChannel.name}</h2><p>{data.selectedChannel.market} · {data.selectedChannel.language}</p></div><StatusPill tone={data.integrity.state === "READY" ? "good" : "warn"}>{data.integrity.state}</StatusPill></section>
         <section className="pfStrategyThread">
-          <article><small>NICHE STATE</small><h3>{data.nicheDecision.currentNiche || "Unbound"}</h3><p>{data.nicheDecision.provenance.replaceAll("_", " ")}</p><span>Typed niche commitment still required</span></article>
-          <article><small>CHANNEL STRATEGY</small><h3>{data.strategy.state.replaceAll("_", " ")}</h3><p>No viewer promise or differentiation is inferred.</p><span>Typed niche commitment required</span></article>
+          <article><small>NICHE STATE</small><h3>{data.nicheDecision.currentNiche || "Unbound"}</h3><p>{data.nicheDecision.provenance.replaceAll("_", " ")}</p><span>{data.nicheDecision.decisionAuthority.replaceAll("_", " ")}</span></article>
+          <article><small>CHANNEL STRATEGY</small><h3>{data.strategy.state.replaceAll("_", " ")}</h3><p>{data.strategy.viewerPromise || "No viewer promise is inferred."}</p><span>{data.strategy.state === "ACTIVE" ? `Version ${data.strategy.version} · ${data.strategy.owner}` : "Slice 8 activation required"}</span></article>
           <article><small>CONTENT SYSTEM</small><h3>{data.pillars.length} pillar label(s) · {data.legacyTopicCandidates.length} topic candidate(s)</h3><p>Series aggregate: {data.series.state.replaceAll("_", " ")}</p><span>Legacy content stays below niche strategy</span></article>
           <article><small>PRODUCTION HANDOFF</small><h3>{data.productionHandoff.state.replaceAll("_", " ")}</h3><p>{data.productionHandoff.eligibleCompatibilityItems} compatibility item(s) score-ready</p><span>No intake command is exposed</span></article>
         </section>
