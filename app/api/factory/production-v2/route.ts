@@ -1,6 +1,6 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { ProductionV2CommandError, readArtifact, startGoldenPilot, storePilotUpload, type ProductionV2Bucket, type ProductionV2CommandDB } from "@/lib/production-v2-command";
-import { prepareFullVideo, storeFullEvidence } from "@/lib/production-v2-scale";
+import { prepareFullVideo, reconcileStaleProviderRequests, storeFullEvidence } from "@/lib/production-v2-scale";
 import { productionV2Projection, type ProductionV2DB } from "@/lib/production-v2-projection";
 
 export const dynamic = "force-dynamic";
@@ -66,9 +66,10 @@ export async function POST(request: Request) {
     const context = await authorizedRuntime(request);
     if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) return failure("JSON_CONTENT_TYPE_REQUIRED", "Content-Type must be application/json", 415);
     const body = await request.json() as { action?: string; sequence?: number };
-    if (body.action !== "START_GOLDEN_PILOT" && body.action !== "PREPARE_FULL_VIDEO") return failure("COMMAND_UNSUPPORTED", "Unsupported Production V2 command", 400);
+    if (body.action !== "START_GOLDEN_PILOT" && body.action !== "PREPARE_FULL_VIDEO" && body.action !== "RECONCILE_STALE_PROVIDER_REQUESTS") return failure("COMMAND_UNSUPPORTED", "Unsupported Production V2 command", 400);
     const key = request.headers.get("idempotency-key")?.trim(); if (!key || key.length < 16 || key.length > 160) return failure("IDEMPOTENCY_KEY_INVALID", "A 16–160 character idempotency-key is required", 400);
     if (body.action === "PREPARE_FULL_VIDEO") { const sequence = Number(body.sequence); if (!Number.isInteger(sequence) || sequence < 1 || sequence > 15) return failure("SEQUENCE_INVALID", "Full-video sequence must be 1–15", 400); return Response.json(await prepareFullVideo(context.runtime, sequence, context.user.email, key), { status: 201, headers: NO_STORE }); }
+    if (body.action === "RECONCILE_STALE_PROVIDER_REQUESTS") return Response.json(await reconcileStaleProviderRequests(context.runtime, context.user.email, key), { status: 201, headers: NO_STORE });
     return Response.json(await startGoldenPilot(context.runtime, context.user.email, key), { status: 201, headers: NO_STORE });
   } catch (error) {
     if (error instanceof ProductionV2CommandError) return failure(error.code, error.message, error.status);

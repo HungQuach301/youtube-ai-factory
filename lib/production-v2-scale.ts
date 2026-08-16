@@ -36,6 +36,18 @@ async function provider(runtime: Runtime, row: Row, jobId: string, providerName:
 }
 async function completeProvider(runtime: Runtime, requestId: string, responseId: string, inputTokens: number, outputTokens: number, cost: number) { await run(runtime.DB, "UPDATE production_v2_provider_requests SET lifecycle_state='COMPLETED',provider_response_id=?,input_tokens=?,output_tokens=?,cost_usd=?,completed_at=? WHERE id=?", responseId, inputTokens, outputTokens, cost, now(), requestId); }
 async function failProvider(runtime: Runtime, requestId: string, code: string) { await run(runtime.DB, "UPDATE production_v2_provider_requests SET lifecycle_state='FAILED',error_code=?,completed_at=? WHERE id=? AND lifecycle_state='RUNNING'", code, now(), requestId); }
+
+export async function reconcileStaleProviderRequests(runtime: Runtime, actorEmail: string, idempotencyKey: string) {
+  const reconciledAt = now();
+  const result = await run(runtime.DB, `UPDATE production_v2_provider_requests SET lifecycle_state='FAILED',error_code='STALE_REQUEST_RECONCILED',completed_at=?
+    WHERE lifecycle_state IN ('CREATED','RUNNING') AND package_id IN (SELECT id FROM production_v2_packages WHERE channel_id=?)
+    AND (job_id IS NULL OR job_id IN (SELECT id FROM production_v2_jobs WHERE lifecycle_state IN ('COMPLETE','FAILED')) OR created_at < datetime('now','-15 minutes'))`, reconciledAt, CHANNEL);
+  const reconciled = num(result.meta?.changes), detail = { reconciled, reconciledAt, idempotencyKey, terminalState: "FAILED", reason: "STALE_REQUEST_RECONCILED", publishingMutation: false };
+  await run(runtime.DB, `INSERT INTO production_v2_audits (id,channel_id,entity_type,entity_id,event_type,actor_type,actor_email,detail_json,evidence_hash) VALUES (?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(entity_id,event_type) DO UPDATE SET actor_email=excluded.actor_email,detail_json=excluded.detail_json,evidence_hash=excluded.evidence_hash`, identifier("pv2-audit"), CHANNEL, "PROVIDER_LEDGER", CHANNEL, "STALE_PROVIDER_REQUESTS_RECONCILED", "SYSTEM_RECONCILIATION", actorEmail, JSON.stringify(detail), await hash(JSON.stringify(detail)));
+  const active = await runtime.DB.prepare("SELECT COUNT(*) AS total FROM production_v2_provider_requests WHERE lifecycle_state IN ('CREATED','RUNNING') AND package_id IN (SELECT id FROM production_v2_packages WHERE channel_id=?)").bind(CHANNEL).first<Row>();
+  return { outcome: "RECONCILED", reconciled, activeProviderRequests: num(active?.total), autoPublished: false };
+}
 async function voice(runtime: Runtime) { const response = await fetch("https://api.elevenlabs.io/v2/voices?page_size=50", { headers: { "xi-api-key": runtime.ELEVENLABS_API_KEY || "" }, signal: AbortSignal.timeout(30_000) }); if (!response.ok) throw new ProductionV2CommandError("ELEVENLABS_VOICE_DISCOVERY_FAILED", 502, `Voice discovery failed (${response.status})`); const body = await response.json() as { voices?: Array<{ voice_id?: string; name?: string; category?: string }> }; const selected = body.voices?.find((item) => item.category === "premade") || body.voices?.[0]; if (!selected?.voice_id) throw new ProductionV2CommandError("ELEVENLABS_VOICE_UNAVAILABLE", 502, "No commercial narration voice is available"); return selected; }
 
 function scriptSchema() { return { type: "object", additionalProperties: false, required: ["narration", "scenes"], properties: { narration: { type: "string", minLength: 8500, maxLength: 16000 }, scenes: { type: "array", minItems: 30, maxItems: 30, items: { type: "object", additionalProperties: false, required: ["title", "claim"], properties: { title: { type: "string", minLength: 8, maxLength: 90 }, claim: { type: "string", minLength: 20, maxLength: 180 } } } } } }; }
