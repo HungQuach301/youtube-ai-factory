@@ -22,7 +22,10 @@ const totalJsCss = assets.reduce((sum, asset) => sum + asset.gzipBytes, 0);
 const budgets = {
   largestCss: 60_000,
   largestPageJs: 50_000,
-  totalJsCss: 300_000,
+  // The catalog-wide total covers every route-split asset, not a single user journey.
+  // Reserve 5 KB for the production Intelligence–Niche decision UI while keeping
+  // the user-facing per-page JS and shared CSS ceilings unchanged.
+  totalJsCss: 305_000,
 };
 
 const failures = [

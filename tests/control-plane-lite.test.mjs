@@ -14,6 +14,8 @@ const discoveryProjection = await readFile(new URL("../lib/discovery-projection.
 const nichePortfolioRoute = await readFile(new URL("../app/api/factory/niche-portfolio/route.ts", import.meta.url), "utf8");
 const nichePortfolioProjection = await readFile(new URL("../lib/niche-portfolio-projection.ts", import.meta.url), "utf8");
 const nichePortfolioView = await readFile(new URL("../app/niche-portfolio-view.tsx", import.meta.url), "utf8");
+const discoveryView = await readFile(new URL("../app/discovery-view.tsx", import.meta.url), "utf8");
+const portfolioCss = await readFile(new URL("../app/portfolio.css", import.meta.url), "utf8");
 const nicheHypothesisRoute = await readFile(new URL("../app/api/factory/niche-hypotheses/route.ts", import.meta.url), "utf8");
 const nicheHypothesisCommand = await readFile(new URL("../lib/niche-hypothesis-command.ts", import.meta.url), "utf8");
 const nicheScoringRoute = await readFile(new URL("../app/api/factory/niche-scoring/route.ts", import.meta.url), "utf8");
@@ -97,6 +99,15 @@ test("intelligence and niche discovery keep evidence readiness separate from exp
   assert.match(nichePortfolioView, /Opportunity dossiers/);
   assert.match(nichePortfolioView, /Submit a niche hypothesis for verification/);
   assert.match(nichePortfolioView, /EXPERT INPUT · NOT EVIDENCE/);
+  assert.match(discoveryView, /INTELLIGENCE → NICHE HANDOFF/);
+  assert.match(discoveryView, /Open niche decision/);
+  assert.match(nichePortfolioView, /ACTIVE CHANNEL STRATEGY/);
+  assert.match(nichePortfolioView, /Intelligence to Channel Strategy decision path/);
+  assert.match(nichePortfolioView, /Priority is locked to the active Channel Strategy/);
+  assert.match(nichePortfolioView, /Add or research an alternative niche/);
+  assert.match(portfolioCss, /@media\(max-width:1050px\).*\.pfShell\{display:block\}/s);
+  assert.match(portfolioCss, /\.npComparisonCards\{display:grid/);
+  assert.match(portfolioCss, /\.npDecisionMatrix>\.npTableScroll\{display:none\}/);
   assert.match(nicheHypothesisRoute, /getChatGPTUser/);
   assert.match(nicheHypothesisRoute, /FACTORY_EXPERT_EMAILS/);
   assert.match(nicheHypothesisCommand, /PREPARE_NICHE_RESEARCH_PLAN/);

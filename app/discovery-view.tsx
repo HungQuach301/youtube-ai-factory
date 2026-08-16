@@ -1,11 +1,28 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DiscoveryProjection } from "./discovery-contract";
 import { FactoryShell, ProjectionState, StatusPill } from "./factory-shell";
 
 function field(item: Record<string, unknown>, key: string) { return String(item[key] ?? ""); }
+function excerpt(value: string, limit = 360) { return value.length > limit ? `${value.slice(0, limit).trimEnd()}…` : value; }
+
+function IntelligenceDomain({ eyebrow, title, count, items, kind }: { eyebrow: string; title: string; count: number; items: Array<Record<string, unknown> | string>; kind: "market" | "audience" | "competitor" }) {
+  const render = (item: Record<string, unknown> | string, index: number) => {
+    if (typeof item === "string") return <article key={`${item}:${index}`}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item}</strong></article>;
+    const heading = kind === "market" ? field(item, "name") : field(item, "segment");
+    const primary = kind === "market" ? field(item, "demandSignal") : field(item, "tension");
+    const secondary = kind === "market" ? field(item, "competitionGap") : field(item, "desiredPayoff");
+    return <article key={heading || index}><span>{String(index + 1).padStart(2, "0")}</span><strong>{heading}</strong>{primary && <p>{primary}</p>}{secondary && <em>{secondary}</em>}</article>;
+  };
+  return <section className={`miDomain ${kind}`}>
+    <header><div><small>{eyebrow}</small><h2>{title}</h2></div><strong>{count}</strong></header>
+    <div>{items.slice(0, 3).map(render)}</div>
+    {items.length > 3 && <details><summary>View all {items.length} findings <span aria-hidden="true">↓</span></summary><div>{items.slice(3).map((item, index) => render(item, index + 3))}</div></details>}
+  </section>;
+}
 
 export function DiscoveryView({ mode }: { mode: "intelligence" | "niches" }) {
   const params = useSearchParams();
@@ -66,12 +83,15 @@ export function DiscoveryView({ mode }: { mode: "intelligence" | "niches" }) {
       <header className="pfTop"><div><p>{mode === "intelligence" ? "MARKET · USER · COMPETITOR INTELLIGENCE" : "NICHE DISCOVERY · EXPERT GATE"}</p><h1>{mode === "intelligence" ? "Evidence before positioning." : "Rank broadly. Commit deliberately."}</h1><span>{mode === "intelligence" ? "Separate market demand, audience tension and competitor patterns before a niche is committed." : "Automation organizes and ranks evidence; the owner retains the irreversible niche decision."}</span></div><label className="pfSelect"><span>CHANNEL SCOPE</span><select value={scope} onChange={(event) => changeScope(event.target.value)}><option value="">Portfolio</option>{data.channels.map((channel) => <option value={channel.id} key={channel.id}>{channel.name}</option>)}</select></label></header>
       <section className="pfEvidenceBar"><div><small>ARTIFACTS</small><strong>{data.evidence.artifactCount}</strong></div><div><small>VERIFIED SOURCES</small><strong>{data.evidence.verifiedSources}</strong></div><div><small>PRIMARY SOURCES</small><strong>{data.evidence.primarySources}</strong></div><div><small>CLAIMS / P0</small><strong>{data.evidence.claims} / {data.evidence.p0Claims}</strong></div><StatusPill tone={data.integrity.state === "READY" ? "good" : "warn"}>{data.integrity.state}</StatusPill></section>
       {mode === "intelligence" ? <>
-        <section className="pfHeroPanel"><small>MARKET THESIS</small><h2>{data.market.thesis || "No evidence-backed market thesis is available."}</h2><p>{data.market.targetMarket || "Unbound market"} · {data.market.targetLanguage || "Unbound language"}</p></section>
-        <div className="pfThreeCol">
-          <section className="pfSection"><header><div><p>MARKET</p><h2>Opportunity clusters</h2></div><span>{data.market.clusters.length}</span></header><div className="pfCompactList">{data.market.clusters.map((item, index) => <article key={field(item, "name") || index}><strong>{field(item, "name")}</strong><p>{field(item, "demandSignal")}</p><span>{field(item, "competitionGap")}</span></article>)}</div></section>
-          <section className="pfSection"><header><div><p>USER</p><h2>Audience tensions</h2></div><span>{data.audience.segments.length}</span></header><div className="pfCompactList">{data.audience.segments.map((item, index) => <article key={field(item, "segment") || index}><strong>{field(item, "segment")}</strong><p>{field(item, "tension")}</p><span>{field(item, "desiredPayoff")}</span></article>)}</div></section>
-          <section className="pfSection"><header><div><p>COMPETITOR</p><h2>Patterns and gaps</h2></div><span>{data.competitors.references.length} refs</span></header><div className="pfCompactList">{data.competitors.patterns.slice(0, 6).map((pattern) => <article key={pattern}><strong>{pattern}</strong></article>)}{data.competitors.gaps && <article className="accent"><small>GAP STATEMENT</small><p>{data.competitors.gaps}</p></article>}</div></section>
+        <section className="miJourney" aria-label="Intelligence to strategy journey"><div className="complete"><span>01</span><strong>Evidence frozen</strong><small>{data.evidence.verifiedSources} verified sources</small></div><div className="complete"><span>02</span><strong>Opportunity space</strong><small>{data.market.clusters.length} market clusters</small></div><div className="complete"><span>03</span><strong>Audience and gaps</strong><small>{data.audience.segments.length} audience tensions</small></div><div className="active"><span>04</span><strong>Niche portfolio</strong><small>Compare and commit</small></div><Link href="/niche-discovery">Open niche decision →</Link></section>
+        <section className="miThesis"><div><small>MARKET THESIS · FROZEN EVIDENCE</small><h2>{excerpt(data.market.thesis || "No evidence-backed market thesis is available.")}</h2><p>{data.market.targetMarket || "Unbound market"} · {data.market.targetLanguage || "Unbound language"}</p></div>{(data.market.thesis || "").length > 360 && <details><summary>Read the complete thesis</summary><p>{data.market.thesis}</p></details>}</section>
+        <div className="miDomainGrid">
+          <IntelligenceDomain eyebrow="MARKET" title="Opportunity clusters" count={data.market.clusters.length} items={data.market.clusters} kind="market" />
+          <IntelligenceDomain eyebrow="USER" title="Audience tensions" count={data.audience.segments.length} items={data.audience.segments} kind="audience" />
+          <IntelligenceDomain eyebrow="COMPETITOR" title="Patterns that reveal the gap" count={data.competitors.patterns.length} items={data.competitors.patterns} kind="competitor" />
         </div>
+        <section className="miHandoff"><div><small>INTELLIGENCE → NICHE HANDOFF</small><h2>Evidence is ready to become comparable opportunity.</h2><p>Market demand, audience tension and competitor gaps remain source facts. Niche Discovery binds those facts into opportunity-level dossiers, scores three independent axes and preserves expert judgment as a separate versioned decision.</p></div><div><article><strong>{data.market.clusters.length}</strong><span>market clusters</span></article><article><strong>{data.audience.segments.length}</strong><span>audience tensions</span></article><article><strong>{data.competitors.references.length}</strong><span>competitor references</span></article><Link href="/niche-discovery">Review niche portfolio →</Link></div></section>
+        <details className="miEvidenceDrawer"><summary><span><strong>Evidence integrity and lineage</strong><small>{data.integrity.state} · {data.evidence.artifactCount} frozen artifacts · {data.evidence.claims} claims</small></span><b aria-hidden="true">+</b></summary><div><p>{data.competitors.gaps || "No canonical competitor gap statement is available."}</p><dl><div><dt>Frozen Stage 01</dt><dd>{data.evidence.frozenStage01 ? "Yes" : "No"}</dd></div><div><dt>Primary sources</dt><dd>{data.evidence.primarySources}</dd></div><div><dt>Lineage records</dt><dd>{data.evidence.lineageIds.length}</dd></div><div><dt>Integrity</dt><dd>{data.integrity.state}</dd></div></dl></div></details>
       </> : <>
         <section className="pfDecisionBand"><div><small>CURRENT CHANNEL NICHE</small><strong>{data.niche.currentNiche || "No committed niche in this scope"}</strong><span>Existing channel state</span></div><div><small>RESEARCH CHAMPION</small><strong>{data.niche.researchChampion || "No champion artifact"}</strong><span>Recommendation only</span></div><div><small>READY FOR EXPERT DECISION</small><strong>{ready}</strong><span>No automatic commitment</span></div></section>
         <section className={`pfWorkflowGate ${data.workflow.result?.downstreamGate.state === "READY_FOR_TYPED_HANDOFF" ? "ready" : "blocked"}`}>
