@@ -42,6 +42,9 @@ node --import tsx "${script_dir}/check-content-system-planning.ts"
 echo "Checking Production Engine V2 legacy dependency firewall..."
 node "${script_dir}/check-production-v2-firewall.mjs"
 
+echo "Checking sequential production runtime contract..."
+node --test "${SITES_PROJECT_ROOT}/tests/sequential-production-control.test.mjs" "${SITES_PROJECT_ROOT}/tests/sequential-production-runtime.test.mjs"
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \
