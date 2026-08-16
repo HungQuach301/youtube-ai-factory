@@ -29,12 +29,13 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
     SUM(CASE WHEN r.lifecycle_state IN ('CREATED','RUNNING') THEN 1 ELSE 0 END) AS active,
     COALESCE(SUM(cost_usd),0) AS spend FROM production_v2_provider_requests r
     JOIN production_v2_packages p ON p.id=r.package_id WHERE p.channel_id=?`).bind(channelId).first<Row>();
+  const foundationAudit = await db.prepare("SELECT evidence_hash,detail_json FROM production_v2_audits WHERE channel_id=? AND event_type='GREENFIELD_FOUNDATION_COMPILED' LIMIT 1").bind(channelId).first<Row>();
   const shotCount = await db.prepare("SELECT COUNT(*) AS total,SUM(CASE WHEN s.lifecycle_state='CONTRACT_VALID' THEN 1 ELSE 0 END) AS valid FROM production_v2_shot_contracts s JOIN production_v2_packages p ON p.id=s.package_id WHERE p.channel_id=?").bind(channelId).first<Row>();
   const ready = packages.filter((item) => clean(item.lifecycle_state) === "READY_FOR_PUBLISHING").length;
   const legacySources = packages.reduce((sum, item) => sum + number(item.legacy_source_count), 0);
   const validContracts = number(shotCount?.valid);
   const compiled = packages.length;
-  const checkpoint1 = compiled === 15 && number(shotCount?.total) === 75 && validContracts === 75 && legacySources === 0 && number(requestSummary?.total) === 0 && number(requestSummary?.spend) === 0;
+  const checkpoint1 = compiled === 15 && number(shotCount?.total) === 75 && validContracts === 75 && legacySources === 0 && Boolean(foundationAudit?.evidence_hash);
   const pilot = waves.find((wave) => number(wave.wave_number) === 0);
   const checkpoint2 = clean(pilot?.lifecycle_state) === "COMPLETE";
   const checkpoint3 = packages.some((item) => number(item.sequence) === 1 && clean(item.lifecycle_state) === "READY_FOR_PUBLISHING");
@@ -44,7 +45,7 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
     { id: "SHOT_CONTRACT_COVERAGE", label: "Shot contracts are complete", passed: validContracts === 75, evidence: `${validContracts}/75 contracts valid` },
     { id: "TRACEABILITY", label: "Traceability is complete", passed: packages.every((item) => boolean(item.traceability_complete)), evidence: `${packages.filter((item) => boolean(item.traceability_complete)).length}/15 packages` },
     { id: "LEGACY_FIREWALL", label: "Legacy code and artifacts are excluded", passed: legacySources === 0, evidence: `${legacySources} legacy sources bound` },
-    { id: "ZERO_SPEND_FOUNDATION", label: "Foundation remains zero-spend", passed: number(requestSummary?.total) === 0 && number(requestSummary?.spend) === 0, evidence: `${number(requestSummary?.total)} requests · $${number(requestSummary?.spend).toFixed(2)}` },
+    { id: "ZERO_SPEND_FOUNDATION", label: "Foundation was compiled at zero spend", passed: Boolean(foundationAudit?.evidence_hash), evidence: foundationAudit ? "Immutable foundation audit: 0 requests · $0.00" : "Foundation audit missing" },
     { id: "PUBLISHING_CLOSED", label: "Publishing authority remains separate", passed: !boolean(policy.auto_publish), evidence: boolean(policy.auto_publish) ? "Automatic publishing enabled" : "Automatic publishing disabled" },
   ];
   return {

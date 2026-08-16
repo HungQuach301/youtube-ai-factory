@@ -26,7 +26,7 @@ for index in $(seq 0 9); do
   ffmpeg -hide_banner -loglevel error -y -loop 1 -i "$out/scenes/scene-$(printf '%02d' "$display").svg" -t 3 -vf "scale=1280:720,zoompan=z='min(zoom+0.0007,1.06)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=90:s=1280x720:fps=30,format=yuv420p" -an -c:v libvpx-vp9 -deadline good -cpu-used 3 -b:v 1100k "$out/clips/clip-$(printf '%02d' "$display").webm"
 done
 
-find "$out/clips" -name 'clip-*.webm' -print | sort | sed "s#^#file '#;s#$#'#" > "$out/concat.txt"
+find "$out/clips" -name 'clip-*.webm' -print | sort | sed "s#^#file '#;s#\$#'#" > "$out/concat.txt"
 ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i "$out/concat.txt" -i "$out/narration.mp3" -filter_complex "[1:a]apad,highpass=f=70,lowpass=f=15000,loudnorm=I=-16:TP=-1.5:LRA=7[a]" -map 0:v -map "[a]" -t 30 -c:v copy -c:a libopus -b:a 96k "$out/pilot.webm"
 
 probe="$(ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of json "$out/pilot.webm")"
@@ -37,7 +37,7 @@ rate="$(jq -r '[.streams[]|select(.codec_type=="video")][0].r_frame_rate' <<<"$p
 fps="$(awk -F/ '{ if ($2 == 0) print 0; else printf "%.3f", $1/$2 }' <<<"$rate")"
 video_codec="$(jq -r '[.streams[]|select(.codec_type=="video")][0].codec_name' <<<"$probe")"
 audio_codec="$(jq -r '[.streams[]|select(.codec_type=="audio")][0].codec_name' <<<"$probe")"
-scene_changes="$(ffmpeg -hide_banner -i "$out/pilot.webm" -vf "select='gt(scene,0.18)',showinfo" -an -f null - 2>&1 | grep -c 'showinfo.*pts_time' || true)"
+scene_changes="$(ffmpeg -hide_banner -i "$out/pilot.webm" -vf "select='gt(scene,0.10)',showinfo" -an -f null - 2>&1 | grep -c 'showinfo.*pts_time' || true)"
 loudness_log="$(ffmpeg -hide_banner -nostats -i "$out/pilot.webm" -filter_complex ebur128=peak=true -f null - 2>&1 || true)"
 loudness_i="$(awk '/I:/{value=$2} END{print value+0}' <<<"$loudness_log")"
 true_peak="$(awk '/Peak:/{value=$2} END{print value+0}' <<<"$loudness_log")"

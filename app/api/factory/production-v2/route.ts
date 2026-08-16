@@ -1,10 +1,11 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { ProductionV2CommandError, readArtifact, startGoldenPilot, storePilotUpload, type ProductionV2Bucket, type ProductionV2CommandDB } from "@/lib/production-v2-command";
+import { prepareFullVideo, storeFullEvidence } from "@/lib/production-v2-scale";
 import { productionV2Projection, type ProductionV2DB } from "@/lib/production-v2-projection";
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "cache-control": "no-store" };
-type RuntimeEnv = { DB?: ProductionV2DB & ProductionV2CommandDB; BUCKET?: ProductionV2Bucket; ELEVENLABS_API_KEY?: string; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; PRODUCTION_V2_EXECUTOR_TOKEN?: string };
+type RuntimeEnv = { DB?: ProductionV2DB & ProductionV2CommandDB; BUCKET?: ProductionV2Bucket; OPENAI_API_KEY?: string; ELEVENLABS_API_KEY?: string; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; PRODUCTION_V2_EXECUTOR_TOKEN?: string };
 async function runtime() { const { env } = await import("cloudflare:workers"); return env as unknown as RuntimeEnv; }
 function failure(code: string, message: string, status: number) {
   return Response.json({ error: { code, message }, fallback: false }, { status, headers: NO_STORE });
@@ -44,16 +45,17 @@ async function authorizedRuntime(request: Request) {
   if (!user) throw new ProductionV2CommandError("SIWC_AUTHENTICATION_REQUIRED", 401, "Sign in with ChatGPT or present the scoped Production V2 executor credential");
   const allowlist = new Set(String(env.FACTORY_EXPERT_EMAILS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
   if (!allowlist.size || !allowlist.has(user.email.trim().toLowerCase())) throw new ProductionV2CommandError("CHANNEL_OWNER_AUTHORIZATION_REQUIRED", 403, "This identity is not authorized to control Production V2");
-  return { user, env, runtime: { DB: env.DB, BUCKET: env.BUCKET, ELEVENLABS_API_KEY: env.ELEVENLABS_API_KEY } };
+  return { user, env, runtime: { DB: env.DB, BUCKET: env.BUCKET, OPENAI_API_KEY: env.OPENAI_API_KEY, ELEVENLABS_API_KEY: env.ELEVENLABS_API_KEY } };
 }
 
 export async function POST(request: Request) {
   try {
     const context = await authorizedRuntime(request);
     if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) return failure("JSON_CONTENT_TYPE_REQUIRED", "Content-Type must be application/json", 415);
-    const body = await request.json() as { action?: string };
-    if (body.action !== "START_GOLDEN_PILOT") return failure("COMMAND_UNSUPPORTED", "Unsupported Production V2 command", 400);
+    const body = await request.json() as { action?: string; sequence?: number };
+    if (body.action !== "START_GOLDEN_PILOT" && body.action !== "PREPARE_FULL_VIDEO") return failure("COMMAND_UNSUPPORTED", "Unsupported Production V2 command", 400);
     const key = request.headers.get("idempotency-key")?.trim(); if (!key || key.length < 16 || key.length > 160) return failure("IDEMPOTENCY_KEY_INVALID", "A 16–160 character idempotency-key is required", 400);
+    if (body.action === "PREPARE_FULL_VIDEO") { const sequence = Number(body.sequence); if (!Number.isInteger(sequence) || sequence < 1 || sequence > 15) return failure("SEQUENCE_INVALID", "Full-video sequence must be 1–15", 400); return Response.json(await prepareFullVideo(context.runtime, sequence, context.user.email, key), { status: 201, headers: NO_STORE }); }
     return Response.json(await startGoldenPilot(context.runtime, context.user.email, key), { status: 201, headers: NO_STORE });
   } catch (error) {
     if (error instanceof ProductionV2CommandError) return failure(error.code, error.message, error.status);
@@ -64,10 +66,11 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const context = await authorizedRuntime(request), url = new URL(request.url), packageId = url.searchParams.get("package")?.trim(), kind = url.searchParams.get("kind");
-    if (!packageId || (kind !== "PILOT_VIDEO" && kind !== "PILOT_QA")) return failure("UPLOAD_SCOPE_INVALID", "A valid package and pilot upload kind are required", 400);
-    const declared = Number(request.headers.get("content-length") || 0); if (declared > 25_000_000) return failure("UPLOAD_TOO_LARGE", "Production V2 pilot evidence exceeds 25 MB", 413);
+    const allowed = new Set(["PILOT_VIDEO", "PILOT_QA", "FULL_VIDEO", "FULL_QA1", "FULL_QA2"]); if (!packageId || !kind || !allowed.has(kind)) return failure("UPLOAD_SCOPE_INVALID", "A valid package and Production V2 evidence kind are required", 400);
+    const declared = Number(request.headers.get("content-length") || 0); if (declared > 90_000_000) return failure("UPLOAD_TOO_LARGE", "Production V2 evidence exceeds 90 MB", 413);
     const value = new Uint8Array(await request.arrayBuffer());
-    return Response.json(await storePilotUpload(context.runtime, packageId, kind, value, context.user.email), { status: 201, headers: NO_STORE });
+    if (kind === "FULL_VIDEO" || kind === "FULL_QA1" || kind === "FULL_QA2") return Response.json(await storeFullEvidence(context.runtime, packageId, kind, value, context.user.email), { status: 201, headers: NO_STORE });
+    return Response.json(await storePilotUpload(context.runtime, packageId, kind as "PILOT_VIDEO" | "PILOT_QA", value, context.user.email), { status: 201, headers: NO_STORE });
   } catch (error) {
     if (error instanceof ProductionV2CommandError) return failure(error.code, error.message, error.status);
     return failure("PRODUCTION_V2_UPLOAD_FAILED", error instanceof Error ? error.message : "Production V2 evidence upload failed", 503);
