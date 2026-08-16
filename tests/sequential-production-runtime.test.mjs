@@ -46,3 +46,16 @@ test("sequential command route is owner-bound and keeps publishing separate", ()
   assert.match(command, /publishingMutation: false/);
   assert.doesNotMatch(command, /UPDATE\s+.*auto_publish/i);
 });
+
+test("Stage 01–07B executor is greenfield, metered and mutates state only through typed commands", () => {
+  const executor = read("app/api/factory/sequential-production/executor/route.ts");
+  assert.match(executor, /CURRENT FROZEN PARENT ARTIFACTS/);
+  assert.match(executor, /legacySources:\s*0/);
+  assert.match(executor, /v7_sequential_provider_requests/);
+  assert.match(executor, /measureOpenAIUsage/);
+  assert.match(executor, /background:\s*true/);
+  assert.match(executor, /action:\s*"PRODUCE_ARTIFACT"/);
+  assert.match(executor, /action:\s*"VERIFY_ARTIFACT"/);
+  assert.match(executor, /action:\s*"FREEZE_STAGE"/);
+  assert.doesNotMatch(executor, /UPDATE v7_sequential_stage_runs SET lifecycle_state='FROZEN'/);
+});
