@@ -174,8 +174,9 @@ export async function submitNicheEvidenceCommand(db: NicheEvidenceDB, command: N
   if (!program) throw new NicheEvidenceCommandError("CROSS_CHANNEL_PROGRAM_REFERENCE", 409, "The selected program does not belong to this channel");
   if (Number(program.version) !== body.expectedAggregateVersion) throw new NicheEvidenceCommandError("AGGREGATE_VERSION_CONFLICT", 409, "The channel aggregate changed; reload before submitting");
   const expert = await first(db, "SELECT id FROM niche_hypotheses WHERE id=? AND channel_id=? AND program_id=? LIMIT 1", body.opportunityId, body.channelId, body.programId);
-  const artifact = expert ? null : await first(db, "SELECT id,content_json FROM v7_intelligence_artifacts WHERE program_id=? AND stage_key='01' ORDER BY updated_at DESC,id LIMIT 1", body.programId);
-  const resolvedOrigin: NicheEvidenceOrigin | null = expert ? "EXPERT_SEEDED" : parseArtifactOpportunity(artifact, body.opportunityId) ? "SYSTEM_DISCOVERED" : null;
+  const bridged = expert ? null : await first(db, "SELECT id FROM niche_intelligence_opportunities WHERE id=? AND channel_id=? AND program_id=? LIMIT 1", body.opportunityId, body.channelId, body.programId);
+  const artifact = expert || bridged ? null : await first(db, "SELECT id,content_json FROM v7_intelligence_artifacts WHERE program_id=? AND stage_key='01' ORDER BY updated_at DESC,id LIMIT 1", body.programId);
+  const resolvedOrigin: NicheEvidenceOrigin | null = expert ? "EXPERT_SEEDED" : bridged || parseArtifactOpportunity(artifact, body.opportunityId) ? "SYSTEM_DISCOVERED" : null;
   if (!resolvedOrigin) throw new NicheEvidenceCommandError("NICHE_OPPORTUNITY_NOT_FOUND", 404, "The typed niche opportunity is not available in this channel program");
   if (resolvedOrigin !== body.opportunityOrigin) throw new NicheEvidenceCommandError("OPPORTUNITY_ORIGIN_CONFLICT", 409, "The opportunity origin does not match its canonical identity");
 

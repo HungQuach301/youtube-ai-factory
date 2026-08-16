@@ -106,6 +106,8 @@ const tables: Record<string, Row[]> = {
   niche_expert_decision_audits: [],
   niche_hypotheses: [],
   niche_hypothesis_audits: [],
+  niche_intelligence_bridge_runs: [],
+  niche_intelligence_opportunities: [],
   niche_evidence_workflow_events: [],
   niche_evidence_workflow_audits: [],
   niche_scoring_assessments: [

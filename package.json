@@ -13,6 +13,7 @@
     "check:commercial-primary": "node --import tsx scripts/check-commercial-primary.ts",
     "check:intelligence-niche-contract": "node --import tsx scripts/check-intelligence-niche-contract.ts",
     "check:niche-portfolio-v2": "node --import tsx scripts/check-niche-opportunity-portfolio-v2.ts",
+    "check:channel-strategy-bootstrap": "node --import tsx scripts/check-canonical-channel-strategy-bootstrap.ts",
     "check:commercial-rendered": "node scripts/check-commercial-rendered.mjs",
     "check:commercial-performance": "node scripts/check-commercial-performance.mjs",
     "build": "bash scripts/build-verified.sh",

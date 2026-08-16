@@ -741,6 +741,49 @@ export const nicheHypothesisAudits = sqliteTable("niche_hypothesis_audits", {
   index("niche_hypothesis_audits_program_created_idx").on(table.programId, table.createdAt),
 ]);
 
+// Intelligence-to-Niche is an explicit, append-only bridge. Frozen Stage 01
+// research remains immutable; this capability records typed NICHE_OPPORTUNITY
+// aggregates with source lineage instead of reclassifying video-topic rows.
+export const nicheIntelligenceBridgeRuns = sqliteTable("niche_intelligence_bridge_runs", {
+  id: text("id").primaryKey(),
+  portfolioId: text("portfolio_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  programId: text("program_id").notNull(),
+  bridgeVersion: integer("bridge_version").notNull(),
+  sourceArtifactId: text("source_artifact_id").notNull(),
+  sourceArtifactHash: text("source_artifact_hash").notNull(),
+  opportunityCount: integer("opportunity_count").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("FROZEN"),
+  actorEmail: text("actor_email").notNull(),
+  actorRole: text("actor_role").notNull().default("PORTFOLIO_GOVERNANCE"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  requestHash: text("request_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("niche_intelligence_bridge_program_version_uq").on(table.programId, table.bridgeVersion),
+  uniqueIndex("niche_intelligence_bridge_idempotency_uq").on(table.idempotencyKey),
+  index("niche_intelligence_bridge_channel_created_idx").on(table.channelId, table.createdAt),
+]);
+
+export const nicheIntelligenceOpportunities = sqliteTable("niche_intelligence_opportunities", {
+  id: text("id").primaryKey(),
+  bridgeRunId: text("bridge_run_id").notNull().references(() => nicheIntelligenceBridgeRuns.id),
+  portfolioId: text("portfolio_id").notNull(),
+  channelId: text("channel_id").notNull(),
+  programId: text("program_id").notNull(),
+  origin: text("origin").notNull().default("SYSTEM_DISCOVERED"),
+  lifecycleState: text("lifecycle_state").notNull().default("EVIDENCE_GATHERING"),
+  title: text("title").notNull(),
+  contentJson: text("content_json").notNull(),
+  contentHash: text("content_hash").notNull(),
+  sourceArtifactId: text("source_artifact_id").notNull(),
+  sourceRefsJson: text("source_refs_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("niche_intelligence_opportunities_program_created_idx").on(table.programId, table.createdAt),
+  index("niche_intelligence_opportunities_bridge_idx").on(table.bridgeRunId),
+]);
+
 // Slice 4 owns an append-only evidence workflow shared by system-discovered
 // opportunities and expert-seeded hypotheses. Planning, validation approval and
 // expert review are evidence facts only: none of them may mutate comparison,

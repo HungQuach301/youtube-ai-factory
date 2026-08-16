@@ -151,10 +151,11 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
   const programs = selectedChannels.map((channel) => latestPrograms.get(text(channel.id))).filter((item): item is Row => Boolean(item));
   const programIds = programs.map((program) => text(program.id));
   const placeholders = programIds.map(() => "?").join(",");
-  const [artifacts, sources, claims, hypotheses, evidenceEvents, scoringAssessments, prioritySets, priorityItems, selections, commitments, activations] = programIds.length ? await Promise.all([
+  const [artifacts, sources, claims, bridgedOpportunities, hypotheses, evidenceEvents, scoringAssessments, prioritySets, priorityItems, selections, commitments, activations] = programIds.length ? await Promise.all([
     rows(db, `SELECT id,program_id,stage_key,lifecycle_state,content_json,updated_at FROM v7_intelligence_artifacts WHERE program_id IN (${placeholders}) ORDER BY updated_at DESC,id`, ...programIds),
     rows(db, `SELECT id,program_id,stage_key,authority_tier,verification_state FROM v7_intelligence_sources WHERE program_id IN (${placeholders})`, ...programIds),
     rows(db, `SELECT id,program_id,risk_level,status FROM v7_claim_nodes WHERE program_id IN (${placeholders})`, ...programIds),
+    rows(db, `SELECT id,bridge_run_id,program_id,source_artifact_id,lifecycle_state,content_json,content_hash,created_at FROM niche_intelligence_opportunities WHERE program_id IN (${placeholders}) ORDER BY created_at,id`, ...programIds),
     rows(db, `SELECT * FROM niche_hypotheses WHERE program_id IN (${placeholders}) ORDER BY created_at,id`, ...programIds),
     rows(db, `SELECT * FROM niche_evidence_workflow_events WHERE program_id IN (${placeholders}) ORDER BY evidence_version,id`, ...programIds),
     rows(db, `SELECT * FROM niche_scoring_assessments WHERE program_id IN (${placeholders}) ORDER BY scoring_version,id`, ...programIds),
@@ -163,7 +164,7 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
     rows(db, "SELECT * FROM niche_portfolio_selections WHERE portfolio_id='CANONICAL_PORTFOLIO' ORDER BY selection_version DESC,id"),
     rows(db, "SELECT * FROM niche_portfolio_commitments WHERE portfolio_id='CANONICAL_PORTFOLIO' ORDER BY commitment_version DESC,id"),
     rows(db, "SELECT * FROM channel_strategy_activations WHERE portfolio_id='CANONICAL_PORTFOLIO' ORDER BY activation_version DESC,id"),
-  ]) : [[], [], [], [], [], [], [], [], [], [], []];
+  ]) : [[], [], [], [], [], [], [], [], [], [], [], []];
 
   const comparison: NicheOpportunityProjection[] = [];
   const notes: string[] = [];
@@ -182,13 +183,27 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
     const contradictionRows = objects(stage01.contradictions);
     const contradictionsReviewed = stage01.contradictionsReviewed === true || (contradictionRows.length > 0 && contradictionRows.every((item) => resolvedClaim(item.status)));
     excludedLegacyContentTopics += objects(stage01.candidates).length;
-    const declaredNicheOpportunities = objects(stage01.nicheOpportunities);
-    const validNicheOpportunities = declaredNicheOpportunities.filter((candidate) => isTypedNicheOpportunity(candidate, stage01));
+    const artifactCandidates = objects(stage01.nicheOpportunities).map((candidate) => ({
+      candidate, artifactId: text(stage01Row.id), artifactState: text(stage01Row.lifecycle_state),
+    }));
+    const bridgeCandidates = bridgedOpportunities
+      .filter((item) => text(item.program_id) === text(program.id))
+      .map((item) => {
+        try {
+          const candidate = JSON.parse(text(item.content_json));
+          return candidate && typeof candidate === "object" && !Array.isArray(candidate)
+            ? { candidate: candidate as Row, artifactId: text(item.source_artifact_id), artifactState: text(item.lifecycle_state) || "FROZEN" }
+            : null;
+        } catch { return null; }
+      })
+      .filter((item): item is { candidate: Row; artifactId: string; artifactState: string } => Boolean(item));
+    const declaredNicheOpportunities = [...artifactCandidates, ...bridgeCandidates];
+    const validNicheOpportunities = declaredNicheOpportunities.filter(({ candidate }) => isTypedNicheOpportunity(candidate, stage01));
     if (validNicheOpportunities.length !== declaredNicheOpportunities.length) notes.push(`Program ${text(program.id)} contains ${declaredNicheOpportunities.length - validNicheOpportunities.length} invalid niche-opportunity record(s); they were excluded fail-closed.`);
     const sortedCandidates = validNicheOpportunities
-      .map((candidate, originalIndex) => ({ candidate, originalIndex }))
+      .map((item, originalIndex) => ({ ...item, originalIndex }))
       .sort((a, b) => (numberOrNull(nested(b.candidate, "scorecard", "marketAttractiveness", "score")) ?? -1) - (numberOrNull(nested(a.candidate, "scorecard", "marketAttractiveness", "score")) ?? -1) || a.originalIndex - b.originalIndex);
-    sortedCandidates.forEach(({ candidate }, index) => {
+    sortedCandidates.forEach(({ candidate, artifactId, artifactState }, index) => {
       const opportunityId = text(candidate.opportunityId) || text(candidate.id) || `${text(stage01Row.id)}:niche:${index + 1}`;
       const market = marketSignals(candidate, stage01);
       const audiences = objects(candidate.audienceSegments).map(audience);
@@ -230,7 +245,7 @@ export async function nichePortfolioProjection(channelId?: string | null, databa
         hypothesis: { version: null, rationale: null, audienceAssumptions: [], demandAssumptions: [], knownCompetitors: [], winningThesis: null, submittedBy: null, createdAt: null }, marketPotential: market,
         audiences, competitors, competitorPatterns: strings(candidate.competitorPatterns), competitorGap: text(candidate.competitorGap) || null, prerequisites, winningCriteria,
         risks: strings(candidate.risks), researchPlan: plan,
-        evidence: { artifactId: text(stage01Row.id), artifactState: text(stage01Row.lifecycle_state), verifiedSources, primarySources, unresolvedP0Claims, contradictionsReviewed },
+        evidence: { artifactId, artifactState, verifiedSources, primarySources, unresolvedP0Claims, contradictionsReviewed },
         evidenceWorkflow: workflow, scoringAssessment: scoring,
         coverage: {
           marketPotential: coverage(marketPresence, 4), audience: coverage(audiencePresence, 5), competitor: coverage(competitorPresence, 4),
