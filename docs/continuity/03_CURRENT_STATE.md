@@ -113,6 +113,37 @@ Documents 16, 19–27 are authoritative for the niche decision shape, entity bou
 ## Protected scope
 
 Do not rerun source discovery, generate A/B/C again, rerun the composite tournament, rerun Stage 09, open the 10-shot pilot or dispatch full production.
+
+## Sequential production checkpoint — 2026-08-16
+
+The legacy block above remains historical evidence only. The active production truth is the new `V7_V23_4_V281` namespace:
+
+```text
+SEQUENTIAL_RUNTIME = PRODUCTION_ACTIVE
+SITES_VERSION = 350
+STAGE_CONTRACTS = 18_OF_18
+TYPED_COMMANDS = START_PRODUCE_VERIFY_FREEZE_REOPEN
+VIDEO_01_STAGE_00_TO_10 = FROZEN
+VIDEO_01_ACTIVE_STAGE = 11_READY
+VIDEO_02_TO_15 = BLOCKED_PREVIOUS_VIDEO
+VIDEO_01_SHOT_CONTRACTS = 84_CONTIGUOUS_0_TO_600_SECONDS
+VIDEO_01_MEDIA_ASSETS = 84_OF_84_STORED_AND_READBACK
+VIDEO_01_AUDIO_STEMS = 3_OF_3_STORED_AND_READBACK
+VIDEO_01_NARRATION_SECONDS = 704.446958
+VIDEO_01_NARRATION_CONTRACT = PASS_480_TO_720_SECONDS
+ACTIVE_PROVIDER_REQUESTS = 0
+PROVIDER_REQUESTS_TOTAL = 31
+PROVIDER_FAILURES_RETAINED = 7
+ESTIMATED_OPENAI_USAGE_USD = 10.812573
+ELEVENLABS_BILLING_AMOUNT = NOT_RETURNED_BY_API
+LEGACY_ARTIFACT_ELIGIBILITY = NONE
+AUTO_PUBLISH = FALSE
+CURRENT_UI_LANGUAGE = ENGLISH
+MULTILINGUAL_UI = DEFERRED
+NEXT_ACTION = IMPLEMENT_STAGE_11_CLEAN_EDIT_AND_48KHZ_MIX
+```
+
+Documents 30–33 are authoritative for architecture, stage controls, the Stage 00–10 execution record and the Stage 11–16 implementation plan.
 # Slice 7 checkpoint — 2026-08-16
 
 Permanent Niche Commitment & Governance is implemented over the active Slice 6 comparable portfolio. Selection and commitment are separate append-only facts with SIWC/allowlist authority, idempotency, optimistic versions, audit records and frozen lineage. Direct priority-to-commitment is rejected. Upstream changes make governance facts stale. No rank, axis, evidence sufficiency, eligibility, `channels.niche`, activation, provider request or spend is changed. Exact next action: Slice 8 permanent Channel Strategy Activation.

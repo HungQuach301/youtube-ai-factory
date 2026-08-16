@@ -1,6 +1,6 @@
 # Stage Techniques, Tools, and Quality Controls
 
-Status: authoritative implementation specification for the `V7_V23_4_V281` sequential production contract. It records the required production method; it does not claim that the new video-01 artifacts have already been produced.
+Status: authoritative implementation and control specification for the `V7_V23_4_V281` sequential production contract. Stage 00–10 are implemented and frozen for video #1; Stage 11 is ready and Stage 12–16 remain blocked upstream.
 
 ## Product and language decisions
 
@@ -31,9 +31,9 @@ Status: authoritative implementation specification for the `V7_V23_4_V281` seque
 
 Current inventory:
 
-- **Available:** Cloudflare D1 and R2, Google Drive archive path, OpenAI model adapters, ElevenLabs, Pexels, Pixabay, Shutterstock, FFmpeg/ffprobe media executor, provider/cost ledgers, queue contracts, and the legacy dependency firewall.
-- **Partial:** stage-specific routes, renderer/compositor, media candidate tournament, and automated evaluators.
-- **Required:** executable Stage Contract Registry, typed sequential commands and eligibility engine, the full V281 eight-critic runtime, and YouTube Analytics learning ingestion.
+- **Available and bound:** Cloudflare D1/R2; the 18-stage registry; eligibility engine; all five typed commands; immutable command receipts; exclusive leases; OpenAI Stage 01–08 compiler; approved cost/rights plans; Pexels/Pixabay acquisition; deterministic channel-owned SVG construction; ElevenLabs synthesis; provider/cost ledger; SHA-256/read-back proof; legacy dependency firewall.
+- **Partial:** Google Drive archive handoff, renderer/compositor, FFmpeg/ffprobe execution in the new sequential namespace, media candidate tournament, and automated timeline evaluators.
+- **Required next:** Stage 11–13 clean edit, pre-master verification and immutable master runtime; Stage 14 V281 eight-critic assurance; Stage 15 owner-ready command; Stage 16 YouTube Analytics learning ingestion.
 
 ## Detailed 18-stage production specification
 
@@ -50,7 +50,7 @@ Current inventory:
 | 07B — Visual grammar and asset strategy | Define visual grammar and per-scene SOURCE / MAKE / HYBRID strategy; run provider and style tournaments within rights and budget limits. | Pexels, Pixabay, Shutterstock, OpenAI image generation, asset registry, OpenAI vision analysis. **Partial.** | Rights path exists before use; no generic AI-image fallback; visual system is coherent; duplicate target ≤2%; provider/style champion and prohibited patterns are frozen. |
 | 08 — Script-to-shot compilation | Compile locked narration into typed scene programs and shot contracts with entry, midpoint, and exit states. | Deterministic compiler, JSON schema validation, D1 shot-contract registry. **Required** for the new sequential namespace. | Every narration clause maps to a shot job, route, duration, required/prohibited evidence, and exact narration range; schema validation and narration checksum match are hard gates. |
 | 09 — Visual asset production | Source or generate real assets; store bytes; decode and inspect pixels; prove motion through entry–midpoint–exit states; bind only eligible candidates. | Approved stock/generation providers, FFmpeg/ffprobe, media executor, R2/Drive, OpenAI vision. **Partial.** | Actual bytes and decode proof required; rights and lineage complete; three distinct temporal-frame hashes for motion; source QA overall ≥90 and every dimension ≥86; maximum three bounded candidates per job; no blind retry. |
-| 10 — Voice, music, and SFX production | Synthesize the locked narration; create music/SFX/ambience stems; perform measured mix and timing alignment. | ElevenLabs/OpenAI TTS under the frozen route; FFmpeg and `ebur128`; waveform analysis. **Partial.** | One voice; 48 kHz audio; integrated loudness target −14 LUFS; true peak ≤−1 dBTP; A/V alignment ≤120 ms; stems, waveform evidence, and measured mix stored. |
+| 10 — Voice, music, and SFX production | Synthesize the locked narration; create music/SFX/ambience stems; perform measured waveform analysis and timing validation. | ElevenLabs under the frozen commercial route; deterministic PCM/WAV writer; waveform measurement; R2 read-back. **Implemented.** | One locked voice; narration duration 480–720 s; provider-native 24 kHz mono PCM is retained as the Stage 10 mezzanine; measured peak/RMS/silence and SHA-256 are required. Stage 11 must mix/resample at 48 kHz and Stage 13 must deliver 48 kHz distribution audio. |
 | 11 — Picture edit and audio composition | Compose the typed scene program; make every cut, motion, layer, and sound perform a narrative job; lock picture and clean audience render. | Custom renderer/compositor plus FFmpeg. **Partial.** | No unjustified static section over 7 seconds; captions target ≤5 words per display unit; no debug/template residue; duplicate visual content ≤2%; exact narration-to-scene constraints pass. |
 | 12 — Pre-master timeline verification | Inspect the entire timeline, mobile presentation, technical defects, safe zones, captions, and A/V sync before rendering the master. | FFmpeg/ffprobe including black, freeze, silence, clipping, and stream probes; deterministic timeline QA. **Partial.** | Zero black/drop/freeze/clipping defects; A/V sync ≤120 ms; mobile-legibility review at 25% scale; safe zones and full-timeline scan pass; failures return to the owning stage. |
 | 13 — Immutable master render | Render the frame-aligned distribution master; probe it; read it back from runtime and archive storage; reconcile checksums. | FFmpeg/ffprobe, R2, Google Drive archive, SHA-256. **Partial.** | Locked profile: 1920×1080, 30 fps, Rec.709, 48 kHz audio; duration within ±1 frame of contract; source/render/R2/archive checksums reconcile; master revision is immutable. |
@@ -71,17 +71,16 @@ The Stage 14 panel consists of Executive Producer, Story and Retention, Visual D
 
 ## Implementation truth and next delivery plan
 
-The migration, read-only contract/projection, owner UI, historical quarantine, and quality/data policy are implemented. The new sequential execution runtime is not yet complete: current legacy stage routes still write their older state namespaces, and no typed command currently advances `v7_sequential_stage_runs`.
+The Stage Contract Registry, eligibility engine, typed commands, command receipts, lease handling, cost/rights plans, OpenAI compilation, real-media acquisition/construction and audio synthesis are live in the new sequential namespace. Video #1 Stage 00–10 are frozen; Stage 11 is ready. The Stage 00 zero-spend proof, video-02 lock, legacy firewall, failed-attempt retention and Stage 10 root-cause repair have all been exercised against production state.
 
-The implementation order is therefore:
+The remaining order is:
 
-1. **Executable foundation:** create the Stage Contract Registry, artifact eligibility engine, and typed commands `START_STAGE`, `PRODUCE_ARTIFACT`, `VERIFY_ARTIFACT`, `FREEZE_STAGE`, and `REOPEN_ROOT_STAGE` with SIWC authority, idempotency, leases, lineage, cost, and audit controls.
-2. **Video-01 design package:** bind the active niche/strategy/brief versions and produce/freeze new Stage 00–07B artifacts. This phase remains zero media-provider spend until Stage 07B approves a bounded provider plan.
-3. **Shot and media runtime:** compile Stage 08 contracts; adapt the existing media executor and providers to the new sequential namespace; produce Stage 09–10 artifacts with real-byte and rights evidence.
-4. **Edit and master:** integrate the compositor, full-timeline verification, and immutable master workflow for Stages 11–13.
-5. **Independent assurance:** implement the eight-critic V281 runtime, root-cause repair router, and Stage 14 quality adjudication.
-6. **Owner gate:** implement the identity-bound owner-ready command and evidence/cost/rights reconciliation for Stage 15. Keep publication separate and OFF.
-7. **Learning:** only after separately authorized publication, implement Stage 16 YouTube Analytics ingestion and version-bound learning.
-8. **Sequential scale-out:** unlock video 2 only after video 1 is owner-ready; repeat the same contract through video 15 without parallel production.
+1. **Stage 11 — edit and mix:** create a deterministic 600-second edit decision list, compose all 84 shot programs, resample/mix audio at 48 kHz, run duplicate/static/debug-residue controls, and store a clean audience render.
+2. **Stage 12 — pre-master verification:** run full-timeline black/freeze/silence/clipping, mobile-legibility, safe-zone, caption and A/V-sync checks; route failures to their root stage.
+3. **Stage 13 — immutable master:** render 1920×1080/30 fps/Rec.709 with 48 kHz audio; read back R2 and archive copies; reconcile exact checksums.
+4. **Stage 14 — independent assurance:** perform uninterrupted full playback, three temporal samples per editorial shot, eight independent critics and fail-closed score adjudication.
+5. **Stage 15 — owner-ready:** reconcile rights, cost, checksums, frozen stages and critic evidence through an identity-bound command. Publishing remains separate and OFF.
+6. **Stage 16 — learning:** only after separately authorized publication, bind actual YouTube Analytics to the exact master and strategy versions.
+7. **Sequential scale-out:** video #2 unlocks only after video #1 is `OWNER_READY`; no parallel production.
 
-Immediate acceptance target: complete Step 1 and prove, with zero provider calls and zero production spend, that video #1 can advance from Stage 00 only through valid typed commands while video #2 remains blocked and all legacy artifacts remain ineligible.
+The detailed delivery slices and acceptance evidence are recorded in Document 33.

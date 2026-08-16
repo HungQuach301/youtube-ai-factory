@@ -74,3 +74,21 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** Content System & Planning supports `FULL_AUTOPILOT`, `EXCEPTIONS_ONLY` and `EXPERT_REVIEW`. Production uses `FULL_AUTOPILOT`: `SYSTEM_AUTOPILOT` compiles routine pillars, series, opportunities, editorial plans and briefs only while the latest Channel Strategy and Automation Policy are active and version-matched. Owner/expert authority configures budgets, cadence, risk, repair, downstream handoff and escalation rules, and retains pause/resume/emergency-stop control.
 
 **Reason:** minimum owner participation should mean high leverage, not absent governance. A versioned envelope and exception inbox give automation room to operate while preventing planning from inheriting strategy mutation, provider dispatch, spend, production or publishing authority.
+
+## ADR-068 — Sequential stage state changes only through five typed commands
+
+**Decision:** the `V7_V23_4_V281` runtime accepts only `START_STAGE`, `PRODUCE_ARTIFACT`, `VERIFY_ARTIFACT`, `FREEZE_STAGE`, and `REOPEN_ROOT_STAGE`. Every command is identity-bound, idempotent, expected-state guarded and recorded by immutable receipt. Stage freeze requires the exact verified artifact set and zero active provider requests.
+
+**Reason:** provider completion, a database row, a UI click or a stored file alone must never imply stage completion. A single command boundary makes state transition, evidence eligibility and audit authority inspectable and fail-closed.
+
+## ADR-069 — Cost/rights approval precedes Stage 08–10 provider dispatch
+
+**Decision:** Stage 08–10 require a versioned approved plan with stage scope, provider allowlist, request ceiling, spend ceiling, rights requirements and a whole-video hard cap. Failed attempts remain in request and cost reconciliation. Usage-derived estimates, provider usage and invoice evidence are reported separately.
+
+**Reason:** provider access is not spending authority, and a provider response is not billing proof. Pre-approval and scope-aware reconciliation prevent hidden retries, unbounded spend and unlicensed media from acquiring production eligibility.
+
+## ADR-070 — Stage 10 duration is a measured hard gate with immutable repair
+
+**Decision:** narration must measure 480–720 seconds before Stage 10 artifacts can verify. A technically valid 863.968-second revision was reopened rather than called PASS. Repair uses an attempt-specific R2 namespace, supersedes prior artifact rows, blocks downstream stages and preserves previous bytes/evidence. Provider-native 24 kHz stems are mezzanine inputs; Stage 11 owns 48 kHz mixing and Stage 13 owns the 48 kHz distribution master.
+
+**Reason:** script intent and provider success do not establish audience runtime or master format. Measuring actual PCM before freeze prevents a 14.4-minute output from bypassing the 8–12 minute product contract and prevents repair from rewriting history.

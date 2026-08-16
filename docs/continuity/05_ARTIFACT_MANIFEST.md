@@ -111,3 +111,20 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Authority: strategy mutation, provider dispatch, spend, production mutation and publishing mutation remain false; production handoff is separately authorized and publishing remains closed.
 - Continuous evidence: 40 async boundaries, 69/69 commercial UI checks, verified build, 96/96 regressions and bounded client budgets.
 - Production evidence: normal, emergency stop, resume, stale detection and recompile passed; Channel Strategy v1 lineage unchanged; integrity `READY`; handoff `READY_FOR_PRODUCTION`.
+
+# Sequential production Stage 00–10 artifacts
+
+- Architecture and data policy: `docs/continuity/30_V7_V23_4_V281_SEQUENTIAL_PRODUCTION.md`.
+- Per-stage techniques, tools and quality controls: `docs/continuity/31_STAGE_TECHNIQUES_TOOLS_QUALITY_CONTROLS.md`.
+- Video-01 production record: `docs/continuity/32_VIDEO_01_STAGE_00_10_EXECUTION_RECORD.md`.
+- Next implementation plan: `docs/continuity/33_STAGE_11_16_IMPLEMENTATION_PLAN.md`.
+- Registry/eligibility migration: `drizzle/0043_gorgeous_angel.sql`.
+- Media/audio migration: `drizzle/0044_adorable_skaar.sql`.
+- Typed command engine: `lib/sequential-production-command.ts`.
+- Owner/runtime route: `app/api/factory/sequential-production/route.ts`.
+- Stage 01–08 compiler: `app/api/factory/sequential-production/executor/route.ts`.
+- Cost/rights plan: `app/api/factory/sequential-production/plan/route.ts`.
+- Stage 09–10 media/audio execution: `app/api/factory/sequential-production/media/route.ts`.
+- Continuous contract tests: `tests/sequential-production-runtime.test.mjs`; 11/11 checks pass inside the verified build.
+- Production checkpoint: Sites v350, commit `8f566d0d89037594f6bc8feb608736809389043b`.
+- Current evidence: Stage 00–10 frozen, Stage 11 ready, 84 media assets, three audio stems, narration 704.447 seconds, 0 active provider requests, $10.812573 estimated OpenAI usage.

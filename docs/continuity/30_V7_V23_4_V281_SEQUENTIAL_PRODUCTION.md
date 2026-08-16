@@ -1,6 +1,6 @@
 # V7 → V23.4 → V281 Sequential Production Control
 
-Status: implemented for production checkpoint; provider dispatch remains gated by the active video contract.
+Status: executable production runtime deployed. Video #1 has newly produced and frozen Stage 00–10 evidence; Stage 11 is `READY`. Video #2 remains `BLOCKED_PREVIOUS_VIDEO`.
 
 ## Quality incident
 
@@ -66,6 +66,17 @@ Storage responsibility remains separated:
 
 The lineage is `active business facts → new episode package → new stage artifacts → verified/frozen bindings → new master/release evidence → post-publish learning`. Every repair creates a new immutable revision; no overwrite or legacy fallback is permitted.
 
+## Executed checkpoint — 2026-08-16
+
+- The Stage Contract Registry contains exactly 18 ordered contracts and the only five state-changing commands are `START_STAGE`, `PRODUCE_ARTIFACT`, `VERIFY_ARTIFACT`, `FREEZE_STAGE`, and `REOPEN_ROOT_STAGE`.
+- Stage 00 was proven at zero provider calls and zero spend. A Stage 00 command for video #2 was rejected with `VIDEO_BLOCKED_PREVIOUS_VIDEO`.
+- Stage 00–07B were compiled from the current frozen parent chain only. Every stage has exactly three newly stored, verified and frozen artifacts; `legacySources = 0` is a hard gate.
+- Stage 08 froze 84 typed, contiguous shot contracts covering 0–600 seconds with SOURCE/MAKE/HYBRID routing and ENTRY–MIDPOINT–EXIT states.
+- Stage 09 froze 84 newly stored visual assets: 73 channel-owned MAKE assets, 10 Pexels assets and one Pixabay fallback. Every row has bytes, SHA-256, read-back, rights state and shot binding.
+- Stage 10 froze three new audio stems. The final ElevenLabs narration uses the locked Adam voice on a commercial PAYG tier and measures 704.447 seconds, inside the 480–720 second contract. Music and SFX are channel-owned originals.
+- The first Stage 10 narration revision measured 863.968 seconds and was not accepted as a quality PASS. `REOPEN_ROOT_STAGE` preserved it as superseded evidence, blocked Stage 11–16, and attempt 2 stored new bytes under an attempt-specific key before verification and freeze.
+- Approved Stage 08–10 plan v3 caps the new phase at $29 and 100 provider requests inside a $40 whole-video hard cap. The execution ledger reports 31 requests, 0 active requests and $10.812573 estimated OpenAI usage. Stock-provider API calls cost $0. ElevenLabs monetary cost is not returned by the API and is therefore recorded as $0 in the internal usage ledger, not asserted as invoice evidence.
+
 ## Exact next action
 
-Document 31 is authoritative for the techniques, tools, control standards, and required evidence of every stage. First implement the executable Stage Contract Registry, artifact eligibility engine, and typed sequential commands. Then compile and freeze the complete Stage 00–07B design and evidence package for video 1. No provider dispatch, production spend, or video 2 activity may start before the video-1 contract permits it.
+Document 31 remains authoritative for techniques, tools, controls and required evidence per stage. Document 32 is the immutable video-01 execution record. Document 33 is the implementation plan for Stage 11–16. The next executable boundary is Stage 11 clean edit and composition; video #2 remains locked until video #1 reaches `OWNER_READY`. The operator UI remains English-only and localization stays deferred.
