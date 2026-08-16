@@ -26,7 +26,7 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
     WHERE p.channel_id=? ORDER BY c.sequence`, channelId);
   const waves = await rows(db, "SELECT * FROM production_v2_scale_waves WHERE channel_id=? ORDER BY wave_number", channelId);
   const requestSummary = await db.prepare(`SELECT COUNT(*) AS total,
-    SUM(CASE WHEN lifecycle_state IN ('CREATED','RUNNING') THEN 1 ELSE 0 END) AS active,
+    SUM(CASE WHEN r.lifecycle_state IN ('CREATED','RUNNING') THEN 1 ELSE 0 END) AS active,
     COALESCE(SUM(cost_usd),0) AS spend FROM production_v2_provider_requests r
     JOIN production_v2_packages p ON p.id=r.package_id WHERE p.channel_id=?`).bind(channelId).first<Row>();
   const shotCount = await db.prepare("SELECT COUNT(*) AS total,SUM(CASE WHEN s.lifecycle_state='CONTRACT_VALID' THEN 1 ELSE 0 END) AS valid FROM production_v2_shot_contracts s JOIN production_v2_packages p ON p.id=s.package_id WHERE p.channel_id=?").bind(channelId).first<Row>();
