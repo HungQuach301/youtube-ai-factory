@@ -9,6 +9,7 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 ## Current implementation checkpoint
 
 - Production functional baseline: the 15 Production Engine V2 masters were owner-rejected for perceived quality on 2026-08-16. The active replacement is the V7 → V23.4 → V281 sequential control: exactly one video may produce or spend at a time, and the next video remains blocked until the current master is owner-ready.
+- Sequential implementation specification: Documents 30–31 define the 18-stage architecture, prior-work reconciliation, data eligibility, storage, stage techniques, tools, quality controls, runtime gaps, and implementation order. The operator UI remains English-only for now; multilingual localization is deferred.
 - Product slices: Intelligence–Niche and Channel Strategy are production-closed; Content System & Planning is production-active across all eight slices: authority, content system, backlog, editorial plan, brief compiler, orchestrator, production FE and production QA.
 - Boundaries: all projections remain no-store/fail-closed with no demo fallback; activation is a separate zero-spend command that consumes only the latest active committed niche and never reruns or rewrites Slices 1–7.
 - Decision authority: SIWC identity, server allowlist, idempotency, optimistic concurrency, append-only activation/audit/lineage. It creates the canonical Channel Strategy binding without mutating legacy `channels.niche` or any upstream decision fact.

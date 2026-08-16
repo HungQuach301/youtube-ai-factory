@@ -68,4 +68,4 @@ The lineage is `active business facts → new episode package → new stage arti
 
 ## Exact next action
 
-Compile and freeze the complete Stage 00–07B design and evidence package for video 1. No provider dispatch or video 2 activity may start before the video-1 contract permits it.
+Document 31 is authoritative for the techniques, tools, control standards, and required evidence of every stage. First implement the executable Stage Contract Registry, artifact eligibility engine, and typed sequential commands. Then compile and freeze the complete Stage 00–07B design and evidence package for video 1. No provider dispatch, production spend, or video 2 activity may start before the video-1 contract permits it.

@@ -15,7 +15,9 @@ PRIOR_ARTIFACTS = IMMUTABLE_HISTORICAL_EVIDENCE
 RELEASE_FLOORS = OVERALL_92_CRITICAL_90_DIMENSION_86_P0_0_P1_0
 MAXIMUM_ROOT_CAUSE_REPAIR_LOOPS = 2
 AUTO_PUBLISH = FALSE
-NEXT_ACTION = COMPILE_AND_FREEZE_VIDEO_01_STAGE_00_TO_07B
+CURRENT_UI_LANGUAGE = ENGLISH
+MULTILINGUAL_UI = DEFERRED
+NEXT_ACTION = IMPLEMENT_SEQUENTIAL_STAGE_REGISTRY_COMMANDS_AND_ELIGIBILITY
 STAGE_HISTORY_CLASSIFICATION = 10_FOUNDATION_ONLY_5_REBUILD_REQUIRED_2_FINAL_GATES_NOT_ACHIEVED_1_NOT_STARTED
 OLD_DATA_STAGE_COMPLETION_AUTHORITY = NONE
 DATA_LEVERAGE = CURRENT_BUSINESS_FACTS_PLUS_VERSIONED_CONTROL_KNOWLEDGE
@@ -23,7 +25,7 @@ NEW_EPISODE_ARTIFACTS_REQUIRED = TRUE
 LEGACY_MEDIA_RUNTIME_ELIGIBILITY = FALSE
 ```
 
-Document 30 is authoritative for the restored V7 → V23.4 → V281 technical architecture, per-video business process, exclusive production lease and release firewall. The earlier Production Engine V2 completion statements below are preserved only as historical state and no longer confer release authority.
+Document 30 is authoritative for the restored V7 → V23.4 → V281 technical architecture, per-video business process, exclusive production lease and release firewall. Document 31 is authoritative for stage-by-stage techniques, tools, quality controls, runtime gaps, and implementation order. The operator UI is English-only for now; multilingual UI is deferred. The earlier Production Engine V2 completion statements below are preserved only as historical state and no longer confer release authority.
 
 ```text
 BASELINE = PRODUCTION_V7_GREENFIELD

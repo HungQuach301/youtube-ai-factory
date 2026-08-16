@@ -45,7 +45,7 @@ export type SequentialProductionProjection = {
     key: string;
     sequence: number;
     name: string;
-    nameVi: string;
+    displayName: string;
     plane: string;
     state: string;
     gateVersion: string;

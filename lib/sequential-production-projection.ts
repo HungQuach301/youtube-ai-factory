@@ -13,152 +13,152 @@ async function rows(db: SequentialProductionDB, query: string, ...values: unknow
 }
 
 const architecture: SequentialProductionProjection["architecture"] = [
-  { version: "V7", role: "Quản trị và quy trình nghiệp vụ sản xuất", controls: ["18 bước có quan hệ phụ thuộc", "Vòng đời artifact và bằng chứng", "Chi phí, quyền, lineage và dừng/tiếp tục", "Sửa đúng bước nguyên nhân gốc"] },
-  { version: "V23.4", role: "Sản xuất dựa trên artifact thật", controls: ["Job bounded, idempotent và có checkpoint", "Tuyến SOURCE / MAKE / HYBRID", "Lưu bytes và kiểm tra pixel thật", "Bằng chứng đầu–giữa–cuối; không fallback chung chung"] },
-  { version: "V281", role: "Rào chắn chất lượng cảm nhận", controls: ["Xem toàn bộ master", "Ba mẫu thời gian cho mỗi cảnh", "Tám critic độc lập", "Video sau chỉ mở khi video trước sẵn sàng để duyệt"] },
+  { version: "V7", role: "Production governance and business process", controls: ["18 dependency-ordered stages", "Artifact and evidence lifecycle", "Cost, rights, lineage, stop and resume", "Repair at the root-cause stage"] },
+  { version: "V23.4", role: "Real-artifact production", controls: ["Bounded, idempotent, checkpointed jobs", "SOURCE / MAKE / HYBRID routing", "Stored bytes and real-pixel verification", "Entry–midpoint–exit evidence; no generic fallback"] },
+  { version: "V281", role: "Perceived-quality release firewall", controls: ["Full-master playback", "Three temporal samples per shot", "Eight independent critics", "Unlock the next video only when the current one is owner-ready"] },
 ];
 
 const critics: SequentialProductionProjection["critics"] = [
-  { name: "Nhà sản xuất điều hành", job: "Video có phải một sản phẩm hoàn chỉnh, mạch lạc và cao cấp hay chỉ là file render được?", hardFloor: 90 },
-  { name: "Câu chuyện & giữ chân", job: "Đánh giá cao trào, vòng tò mò, nhịp và thay đổi nhận thức của người xem.", hardFloor: 90 },
-  { name: "Đạo diễn hình ảnh", job: "Bố cục, chuyển động, phân cấp, độ tinh xảo, khả năng đọc trên mobile và độ đa dạng.", hardFloor: 90 },
-  { name: "Khớp ngữ nghĩa", job: "Mỗi cảnh phải truyền đạt đúng lời dẫn và luận điểm đã khóa.", hardFloor: 90 },
-  { name: "Đạo diễn âm thanh", job: "Một giọng đọc, cách thể hiện, nhạc, ambience, SFX, loudness và dụng ý mix.", hardFloor: 90 },
-  { name: "Mô phỏng khán giả", job: "Mức hiểu, tin tưởng, mệt mỏi, hứng thú và payoff với khán giả Mỹ mục tiêu.", hardFloor: 90 },
-  { name: "Biên tập cạnh tranh", job: "Độ sâu, mật độ, độ hoàn thiện và khác biệt so với chuẩn tham chiếu.", hardFloor: 90 },
-  { name: "Sự thật & an toàn thương hiệu", job: "Luận điểm, điều kiện giới hạn, quyền, nguồn gốc và độ sạch trước khán giả.", hardFloor: 90 },
+  { name: "Executive producer", job: "Is this a coherent, premium finished product rather than merely a valid render?", hardFloor: 90 },
+  { name: "Story and retention", job: "Assess escalation, curiosity loops, pacing, payoff, and viewer-state change.", hardFloor: 90 },
+  { name: "Visual direction", job: "Assess composition, motion, hierarchy, polish, mobile legibility, and variety.", hardFloor: 90 },
+  { name: "Semantic alignment", job: "Every shot must communicate the locked narration and claim accurately.", hardFloor: 90 },
+  { name: "Audio direction", job: "Assess narrator consistency, performance, music, ambience, SFX, loudness, and mix intent.", hardFloor: 90 },
+  { name: "Audience simulation", job: "Assess comprehension, trust, fatigue, interest, and payoff for the target US audience.", hardFloor: 90 },
+  { name: "Competitive editor", job: "Compare depth, density, polish, and differentiation against the reference bar.", hardFloor: 90 },
+  { name: "Truth and brand safety", job: "Assess claims, qualifiers, rights, provenance, and audience-facing cleanliness.", hardFloor: 90 },
 ];
 
-const stageNamesVi: Record<string, string> = {
-  "00": "Xác nhận quyền sản xuất và nguồn gốc",
-  "01": "Nghiên cứu thị trường, khán giả và chủ đề",
-  "02": "Phân tích video tham chiếu",
-  "03": "Nghiên cứu sự thật và lập bản đồ luận điểm",
-  "04": "Chọn hướng sáng tạo",
-  "05": "Thiết kế mạch câu chuyện",
-  "06": "Viết và khóa kịch bản",
-  "07A": "Thiết kế giọng đọc và âm thanh",
-  "07B": "Thiết kế ngôn ngữ hình ảnh và cách tìm/tạo tư liệu",
-  "08": "Chuyển kịch bản thành kế hoạch từng cảnh",
-  "09": "Sản xuất tư liệu hình ảnh thật",
-  "10": "Sản xuất giọng đọc, nhạc nền và hiệu ứng",
-  "11": "Dựng hình và ghép âm thanh",
-  "12": "Kiểm tra bản dựng trước khi xuất master",
-  "13": "Xuất master bất biến",
-  "14": "Đánh giá độc lập toàn bộ video",
-  "15": "Sẵn sàng để chủ sở hữu duyệt",
-  "16": "Bàn giao dữ liệu học hỏi sau khi xuất bản",
+const stageDisplayNames: Record<string, string> = {
+  "00": "Production authority and lineage",
+  "01": "Market, audience, and topic intelligence",
+  "02": "Reference analysis",
+  "03": "Truth research and claim mapping",
+  "04": "Creative route selection",
+  "05": "Story architecture",
+  "06": "Script creation and lock",
+  "07A": "Voice and sound design",
+  "07B": "Visual grammar and asset strategy",
+  "08": "Script-to-shot compilation",
+  "09": "Visual asset production",
+  "10": "Voice, music, and SFX production",
+  "11": "Picture edit and audio composition",
+  "12": "Pre-master timeline verification",
+  "13": "Immutable master render",
+  "14": "Independent full-video assurance",
+  "15": "Owner-ready release gate",
+  "16": "Post-publish learning handoff",
 };
 
 type PriorWork = SequentialProductionProjection["stages"][number]["priorWork"];
 const priorWork = (stageKey: string): PriorWork => {
   if (["00", "01", "02", "03", "04", "05", "06", "07A", "07B", "08"].includes(stageKey)) return {
     classification: "FOUNDATION_AVAILABLE",
-    label: "Đã từng thực hiện — chỉ tận dụng nền tảng",
+    label: "Previously performed — foundation only",
     summary: stageKey === "00"
-      ? "Quyền sản xuất tuần tự và rào chắn không tự đăng đã được thiết lập."
-      : "Chuỗi V7/V23.4 trước đây đã đi qua bước này để có thể tiến tới sản xuất tư liệu.",
-    reusable: "Quy trình, tiêu chuẩn đầu ra, cấu trúc kiểm soát và bài học đã kiểm chứng.",
-    excluded: "Không dùng lại hồ sơ, prompt, script, storyboard, dữ liệu nghiên cứu hoặc artifact cũ để coi bước này là hoàn tất.",
-    currentRequirement: "Tạo và xác minh một bộ đầu ra mới, riêng cho video #1, trước khi đóng bước.",
+      ? "The sequential lease and no-auto-publish firewall are already established."
+      : "The earlier V7/V23.4 chain performed equivalent work before reaching media production.",
+    reusable: "Process design, output standards, control structures, and verified lessons.",
+    excluded: "Old dossiers, prompts, scripts, storyboards, research data, and artifacts cannot complete this stage.",
+    currentRequirement: "Create and verify a new video-01-specific output bundle before closing the stage.",
   };
   if (stageKey === "09") return {
     classification: "PARTIAL_REJECTED",
-    label: "Đã làm một phần — chưa đạt",
-    summary: "Đã từng sản xuất và kiểm tra pixel/motion, nhưng Stage 09 chưa được đóng băng và chất lượng cuối bị chủ sở hữu từ chối.",
-    reusable: "Failure taxonomy, kiến trúc job bounded, checksum, quyền sử dụng và ENTRY–MIDPOINT–EXIT proof.",
-    excluded: "Không dùng lại source bytes, frame, candidate, binding, hash hoặc master cũ.",
-    currentRequirement: "Sản xuất toàn bộ tư liệu mới từ brief và shot contract mới.",
+    label: "Partially performed — not accepted",
+    summary: "Pixel and motion work was produced previously, but Stage 09 was never frozen and the final quality was rejected.",
+    reusable: "Failure taxonomy, bounded-job architecture, checksums, rights controls, and entry–midpoint–exit proof.",
+    excluded: "Do not reuse old source bytes, frames, candidates, bindings, hashes, or masters.",
+    currentRequirement: "Produce every visual asset from the new brief and shot contracts.",
   };
   if (["10", "11", "12", "13"].includes(stageKey)) return {
     classification: "REJECTED_OUTPUT",
-    label: "Đã từng chạy — đầu ra bị loại",
-    summary: "Pipeline trước đã tạo audio, bản dựng, kiểm tra kỹ thuật và master; kết quả không đạt chất lượng nội dung/cảm nhận.",
-    reusable: "Hợp đồng kỹ thuật, đo âm thanh/hình ảnh, checksum, revision và cơ chế fail-closed.",
-    excluded: "Không dùng lại lớp âm thanh, timeline, master, điểm QA hoặc bản sửa cũ.",
-    currentRequirement: "Chạy lại từ artifact mới của video hiện tại và tạo revision hoàn toàn mới.",
+    label: "Previously executed — output rejected",
+    summary: "The previous pipeline created audio, edits, technical checks, and masters, but failed content and perceived-quality review.",
+    reusable: "Technical contracts, audio/video measurements, checksums, revision controls, and fail-closed behavior.",
+    excluded: "Do not reuse old stems, timelines, masters, QA scores, or repair revisions.",
+    currentRequirement: "Run from the current video's new artifacts and create an entirely new revision.",
   };
   if (stageKey === "14") return {
     classification: "STANDARD_NOT_MET",
-    label: "Chưa thực hiện đúng chuẩn V281",
-    summary: "QA cũ chủ yếu chứng minh file chạy được và một số khung hình; chưa có full playback cùng tám critic độc lập đúng chuẩn.",
-    reusable: "Rubric, ngưỡng và các lỗi QA đã bỏ sót để tăng độ chặt của đánh giá mới.",
-    excluded: "Không kế thừa kết luận PASS, điểm số hoặc contact sheet cũ.",
-    currentRequirement: "Đánh giá master mới bằng full playback, ba mẫu mỗi shot và tám critic độc lập.",
+    label: "Not performed to V281 standard",
+    summary: "Earlier QA mainly proved technical validity and sampled frames; it did not provide full playback with eight independent critics.",
+    reusable: "Rubrics, thresholds, and missed-defect evidence that make the new review stricter.",
+    excluded: "Do not inherit old PASS decisions, scores, or contact sheets.",
+    currentRequirement: "Review the new master through full playback, three samples per shot, and eight independent critics.",
   };
   if (stageKey === "15") return {
     classification: "OWNER_REJECTED",
-    label: "Chưa đạt — chủ sở hữu đã từ chối",
-    summary: "Mười lăm master cũ bị từ chối; chưa có video nào đạt điều kiện sẵn sàng để chủ sở hữu duyệt phát hành.",
-    reusable: "Quyền quyết định của chủ sở hữu và ngưỡng phát hành đã khóa.",
-    excluded: "Không dùng trạng thái READY_FOR_PUBLISHING hoặc QA cũ để vượt cổng này.",
-    currentRequirement: "Chỉ mở khi master mới vượt toàn bộ Stage 14 và không còn P0/P1.",
+    label: "Not achieved — owner rejected",
+    summary: "All fifteen earlier masters were rejected; no video has reached the owner-ready release condition.",
+    reusable: "The owner's decision authority and locked release thresholds.",
+    excluded: "Old READY_FOR_PUBLISHING state or QA cannot cross this gate.",
+    currentRequirement: "Open only after the new master passes all Stage 14 controls with no P0 or material P1 defects.",
   };
   return {
     classification: "NOT_STARTED",
-    label: "Chưa thực hiện",
-    summary: "Chưa xuất bản video đạt chuẩn nên chưa có dữ liệu hiệu suất thực để bàn giao.",
-    reusable: "Chỉ tận dụng cấu trúc learning contract và chỉ tiêu đo đã thiết kế.",
-    excluded: "Không dùng kết quả giả lập hoặc dữ liệu của master bị loại làm tín hiệu học hỏi thị trường.",
-    currentRequirement: "Chỉ chạy sau khi video được chủ sở hữu duyệt và được xuất bản bằng quyền riêng.",
+    label: "Not started",
+    summary: "No conforming video has been published, so there is no valid performance data to hand off.",
+    reusable: "Only the learning-contract structure and defined metrics.",
+    excluded: "Do not use simulated results or rejected-master data as market-learning signals.",
+    currentRequirement: "Run only after owner approval and a separately authorized publication.",
   };
 };
 
 const dataPolicy: SequentialProductionProjection["dataPolicy"] = [
   {
     id: "CURRENT_BUSINESS_FACTS",
-    title: "Dữ liệu nghiệp vụ hiện hành",
-    decision: "Được dùng làm đầu vào, nhưng phải chụp phiên bản và biên dịch lại cho từng video.",
-    examples: ["Niche đã cam kết", "Channel Strategy đang active", "định nghĩa khán giả", "15 canonical content briefs"],
-    howUsed: "Control Plane lấy đúng phiên bản đang active, đóng băng lineage rồi tạo episode package mới; không kéo theo script hay media cũ.",
-    storage: "D1 — bản ghi có version, trạng thái active và hash lineage.",
+    title: "Current business facts",
+    decision: "Eligible as input only after a versioned snapshot and per-video recompilation.",
+    examples: ["Committed niche", "active Channel Strategy", "audience definition", "15 canonical content briefs"],
+    howUsed: "The Control Plane freezes the active versions and lineage, then compiles a new episode package without importing old scripts or media.",
+    storage: "D1 — versioned records, active state, and lineage hashes.",
   },
   {
     id: "REUSABLE_KNOWLEDGE",
-    title: "Thiết kế và tri thức có thể tận dụng",
-    decision: "Được kế thừa như rule/standard, không phải dữ liệu sản xuất.",
-    examples: ["cơ chế V7/V23.4/V281", "phân loại lỗi", "ngưỡng 92/90/86", "kiểm soát nhà cung cấp/chi phí", "quy tắc quyền và nguồn gốc"],
-    howUsed: "Biên dịch thành policy, rubric và stage contract có version; mỗi lần thay đổi tạo phiên bản mới và regression gate.",
-    storage: "Source-controlled contracts + D1 policy/version registry.",
+    title: "Reusable design and control knowledge",
+    decision: "Inherited as rules and standards, never as episode production data.",
+    examples: ["V7/V23.4/V281 controls", "failure taxonomy", "92/90/86 thresholds", "provider and cost controls", "rights and provenance rules"],
+    howUsed: "Compile into versioned policies, rubrics, and stage contracts; every change creates a new version and regression gate.",
+    storage: "Source-controlled contracts plus the D1 policy/version registry.",
   },
   {
     id: "NEW_EPISODE_ARTIFACTS",
-    title: "Đầu ra phải tạo mới cho từng video",
-    decision: "Bắt buộc mới 100% và là nguồn duy nhất để đóng Stage.",
+    title: "New artifacts required for every video",
+    decision: "Must be newly created and are the only evidence that can complete a stage.",
     examples: ["research dossier", "claim graph", "script", "storyboard", "shot contract", "media/audio", "master", "release QA"],
-    howUsed: "Mỗi đầu ra có ID, phiên bản sửa, đầu ra cha, checksum, quyền, chi phí và QA riêng; sửa lỗi tạo phiên bản mới thay vì ghi đè.",
-    storage: "D1 lưu siêu dữ liệu/trạng thái; R2 lưu bytes; Google Drive lưu bản archive kèm manifest.",
+    howUsed: "Each artifact has its own ID, revision, parent, checksum, rights, cost, and QA; repairs create new revisions instead of overwriting.",
+    storage: "D1 stores metadata/state, R2 stores bytes, and Google Drive stores an archived copy with its manifest.",
   },
   {
     id: "AUDIT_ONLY",
-    title: "Dữ liệu cũ chỉ dùng để kiểm toán và học lỗi",
-    decision: "Giữ nguyên, đọc có kiểm soát, không được tham gia candidate hay release.",
-    examples: ["15 master bị loại", "QA cũ", "provider attempts", "cost ledger", "failure evidence"],
-    howUsed: "Chỉ dùng để truy vết sự cố, đối soát chi phí và trích xuất phân loại lỗi; không được cấp quyền tham gia sản xuất.",
-    storage: "D1/R2/Drive ở trạng thái immutable historical evidence.",
+    title: "Historical data for audit and failure learning only",
+    decision: "Preserved and access-controlled, with no candidate or release eligibility.",
+    examples: ["15 rejected masters", "prior QA", "provider attempts", "cost ledger", "failure evidence"],
+    howUsed: "Only for incident tracing, cost reconciliation, and failure-taxonomy extraction; it cannot receive production eligibility.",
+    storage: "D1, R2, and Drive as immutable historical evidence.",
   },
   {
     id: "PROHIBITED_INPUTS",
-    title: "Dữ liệu bị cấm đưa vào sản xuất mới",
-    decision: "Legacy Dependency Firewall chặn tuyệt đối.",
-    examples: ["bytes master cũ", "hash khung hình/tài sản cũ", "mẫu/liên kết cũ", "storyboard lỗi thời", "kết luận QA PASS cũ"],
-    howUsed: "Tìm kiếm ứng viên và bộ dựng chỉ đọc đầu ra có dòng nguồn gốc mới và đủ điều kiện sản xuất; phát hiện hash cũ sẽ dừng an toàn.",
-    storage: "Vẫn lưu để audit, nhưng namespace và quyền đọc tách khỏi runtime sản xuất.",
+    title: "Inputs prohibited from new production",
+    decision: "Blocked by the Legacy Dependency Firewall.",
+    examples: ["old master bytes", "old frame or asset hashes", "old templates or bindings", "stale storyboards", "old QA PASS decisions"],
+    howUsed: "Candidate search and rendering read only newly lineage-bound eligible artifacts; detection of a legacy hash fails closed.",
+    storage: "Retained for audit in a namespace and access path separated from production runtime.",
   },
 ];
 
 const storageDesign: SequentialProductionProjection["storageDesign"] = [
-  { layer: "D1", purpose: "Nguồn sự thật về trạng thái", stores: "lần chạy từng bước, siêu dữ liệu đầu ra, phiên bản, dòng nguồn gốc, quyền, sổ nhà cung cấp/chi phí, QA và sự kiện kiểm toán", authority: "Quyết định bước nào được chạy và đầu ra nào đủ điều kiện" },
-  { layer: "R2", purpose: "Kho bytes phục vụ runtime", stores: "ảnh, video, audio, contact sheet, master và evidence manifest", authority: "Chỉ artifact đọc lại đúng checksum mới được bind vào bước tiếp theo" },
-  { layer: "Google Drive", purpose: "Kho lưu trữ lâu dài do người dùng sở hữu", stores: "bản sao đầu ra đã xác minh và manifest để bàn giao/khôi phục", authority: "Không thay thế hàng đợi/trạng thái D1 và không tự cấp quyền sử dụng cho quá trình sản xuất" },
+  { layer: "D1", purpose: "Authoritative operational state", stores: "stage runs, artifact metadata, revisions, lineage, rights, provider/cost ledger, QA, and audit events", authority: "Decides which stage may run and which artifact is eligible" },
+  { layer: "R2", purpose: "Runtime byte store", stores: "image, video, audio, contact-sheet, master, and evidence-manifest bytes", authority: "Only checksum-verified read-back artifacts may bind to the next stage" },
+  { layer: "Google Drive", purpose: "User-owned long-term archive", stores: "verified output copies and manifests for handoff or recovery", authority: "Does not replace D1 queue/state and cannot grant production eligibility" },
 ];
 
 const lineageFlow: SequentialProductionProjection["lineageFlow"] = [
-  { step: 1, title: "Chụp dữ liệu nghiệp vụ đang active", detail: "Đóng băng niche, Channel Strategy, khán giả và canonical brief theo version/hash." },
-  { step: 2, title: "Biên dịch episode package mới", detail: "Tạo ID và lineage mới; không mang theo script, storyboard hay media cũ." },
-  { step: 3, title: "Tạo artifact mới qua từng Stage", detail: "Mỗi đầu ra có parent, revision, checksum, rights, cost và trạng thái xác minh." },
-  { step: 4, title: "Chỉ bind artifact đủ điều kiện", detail: "Bước sau chỉ đọc artifact mới đã VERIFIED/FROZEN; mọi fallback sang legacy đều bị chặn." },
-  { step: 5, title: "Đánh giá và học sau phát hành", detail: "QA mới quyết định owner-ready; dữ liệu hiệu suất chỉ quay lại sau khi được xuất bản hợp lệ." },
+  { step: 1, title: "Snapshot active business facts", detail: "Freeze the niche, Channel Strategy, audience, and canonical brief by version and hash." },
+  { step: 2, title: "Compile a new episode package", detail: "Create a new ID and lineage without importing old scripts, storyboards, or media." },
+  { step: 3, title: "Create new artifacts stage by stage", detail: "Every output records its parent, revision, checksum, rights, cost, and verification state." },
+  { step: 4, title: "Bind eligible artifacts only", detail: "Downstream stages read only new VERIFIED/FROZEN artifacts; every legacy fallback is blocked." },
+  { step: 5, title: "Assure quality, then learn after publication", detail: "New QA determines owner readiness; performance signals return only after an authorized publication." },
 ];
 
 export async function sequentialProductionProjection(channelId: string, db: SequentialProductionDB): Promise<SequentialProductionProjection> {
@@ -178,11 +178,11 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   const stageCoverage = stages.length === 18;
   const rejectedCount = number(rejected?.total);
   const checks = [
-    { label: "Chỉ một video đang được phép chạy", passed: activeCount === 1, evidence: `${activeCount} video có quyền sản xuất` },
-    { label: "Danh sách sản xuất đầy đủ", passed: queueCoverage, evidence: `${queue.length}/${number(program.target_videos)} video có hợp đồng` },
-    { label: "Đủ quy trình cho video hiện tại", passed: stageCoverage, evidence: `${stages.length}/18 bước cho video #${number(current.sequence)}` },
-    { label: "Master cũ đã được cách ly", passed: rejectedCount === number(program.target_videos), evidence: `${rejectedCount}/${number(program.target_videos)} master bị loại vì chất lượng cảm nhận` },
-    { label: "Không tự động đăng YouTube", passed: !boolean(program.auto_publish), evidence: "Quyền xuất bản vẫn thuộc chủ sở hữu" },
+    { label: "Exactly one video has an active lease", passed: activeCount === 1, evidence: `${activeCount} video authorized for production` },
+    { label: "The production queue is complete", passed: queueCoverage, evidence: `${queue.length}/${number(program.target_videos)} videos contracted` },
+    { label: "The current video has all stage contracts", passed: stageCoverage, evidence: `${stages.length}/18 stages for video #${number(current.sequence)}` },
+    { label: "Prior masters are quarantined", passed: rejectedCount === number(program.target_videos), evidence: `${rejectedCount}/${number(program.target_videos)} masters rejected for perceived quality` },
+    { label: "YouTube auto-publishing is disabled", passed: !boolean(program.auto_publish), evidence: "Publishing authority remains with the owner" },
   ];
   const ready = checks.every((check) => check.passed);
 
@@ -201,32 +201,32 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       id: text(current.id), packageId: text(current.package_id), sequence: number(current.sequence), title: text(current.title), state: text(current.lifecycle_state),
       sourceBriefHash: text(current.source_brief_hash), priorMasterState: text(current.prior_master_state), activeStageKey: text(activeStage?.stage_key),
       activeStageName: text(activeStage?.stage_name), activeStageState: text(activeStage?.lifecycle_state),
-      nextAction: activeStage?.stage_key === "00" ? "Hoàn thiện bộ thiết kế mới cho video #1 từ Stage 00 đến 07B; chỉ sau đó mới tạo shot và tư liệu." : text(activeStage?.blocker || "Tiếp tục bước đang hoạt động theo phạm vi đã khóa."),
+      nextAction: activeStage?.stage_key === "00" ? "Complete the new Stage 00–07B design package for video #1 before creating shots or media." : text(activeStage?.blocker || "Continue the active stage within its locked scope."),
     },
     stages: stages.map((stage) => {
       const key = text(stage.stage_key);
-      return { key, sequence: number(stage.sequence), name: text(stage.stage_name), nameVi: stageNamesVi[key] ?? text(stage.stage_name), plane: text(stage.owner_plane), state: text(stage.lifecycle_state), gateVersion: text(stage.gate_version), requiredArtifacts: json<string[]>(stage.required_artifacts_json, []), evidence: text(stage.evidence_summary), blocker: text(stage.blocker) || undefined, priorWork: priorWork(key) };
+      return { key, sequence: number(stage.sequence), name: text(stage.stage_name), displayName: stageDisplayNames[key] ?? text(stage.stage_name), plane: text(stage.owner_plane), state: text(stage.lifecycle_state), gateVersion: text(stage.gate_version), requiredArtifacts: json<string[]>(stage.required_artifacts_json, []), evidence: text(stage.evidence_summary), blocker: text(stage.blocker) || undefined, priorWork: priorWork(key) };
     }),
     queue: queue.map((item) => ({ id: text(item.id), sequence: number(item.sequence), title: text(item.title), state: text(item.lifecycle_state), active: boolean(item.active), priorMasterState: text(item.prior_master_state), ownerReady: Boolean(item.owner_ready_at) })),
     architecture, critics,
     historySummary: [
-      { label: "Đã từng thực hiện; chỉ tận dụng thiết kế", count: 10, description: "Stage 00–08. Tạo lại toàn bộ artifact cho video #1.", classification: "FOUNDATION_GROUP" },
-      { label: "Đã chạy nhưng phải làm mới", count: 5, description: "Stage 09–13. Output cũ không đạt và bị loại khỏi runtime.", classification: "REBUILD_GROUP" },
-      { label: "Chưa đạt cổng chất lượng cuối", count: 2, description: "Stage 14–15. Chưa có V281 PASS hay owner-ready.", classification: "FINAL_GROUP" },
-      { label: "Chưa thực hiện", count: 1, description: "Stage 16 chỉ chạy sau khi xuất bản hợp lệ.", classification: "NOT_STARTED" },
+      { label: "Previously performed; design only", count: 10, description: "Stages 00–08. Every artifact must be recreated for video #1.", classification: "FOUNDATION_GROUP" },
+      { label: "Previously run; full rebuild required", count: 5, description: "Stages 09–13. Prior outputs failed and are runtime-ineligible.", classification: "REBUILD_GROUP" },
+      { label: "Final quality gates not achieved", count: 2, description: "Stages 14–15. No V281 PASS or owner-ready result exists.", classification: "FINAL_GROUP" },
+      { label: "Not started", count: 1, description: "Stage 16 runs only after an authorized publication.", classification: "NOT_STARTED" },
     ],
     dataPolicy,
     storageDesign,
     lineageFlow,
     releaseRules: [
-      `Điểm tổng ≥ ${number(program.overall_floor)}; tiêu chí trọng yếu ≥ ${number(program.critical_floor)}; mọi chiều ≥ ${number(program.dimension_floor)}.`,
-      "P0=0 và không còn P1 trọng yếu; điểm trung bình không bù được lỗi hard gate.",
-      "Xem liên tục toàn bộ video và lấy ba mẫu thời gian cho mỗi cảnh biên tập.",
-      `Tối đa ${number(program.maximum_repair_loops)} vòng sửa theo nguyên nhân gốc; lần lỗi thứ ba phải escalation.`,
-      "Chỉ revision master mới, bất biến mới được chấm lại; artifact lỗi và bằng chứng critic vẫn được giữ.",
-      "Video N+1 không được chạy trước khi video N sẵn sàng để chủ sở hữu duyệt; quyền xuất bản là bước riêng.",
+      `Overall ≥ ${number(program.overall_floor)}; critical criteria ≥ ${number(program.critical_floor)}; every dimension ≥ ${number(program.dimension_floor)}.`,
+      "P0=0 and no unresolved material P1; averages cannot compensate for a failed hard gate.",
+      "Watch the full video continuously and inspect three temporal samples for every editorial shot.",
+      `At most ${number(program.maximum_repair_loops)} root-cause repair loops; a third failure requires escalation.`,
+      "Only a new immutable master revision may be rescored; failed artifacts and critic evidence remain preserved.",
+      "Video N+1 cannot run before video N is owner-ready; publishing authority is a separate gate.",
     ],
-    historical: { rejectedMasters: rejectedCount, preservedArtifacts: number(preserved?.total), policy: text(program.historical_master_policy), reason: "Chủ sở hữu từ chối các master cũ vì QA kỹ thuật không phản ánh chất lượng nội dung và cảm nhận thực tế." },
+    historical: { rejectedMasters: rejectedCount, preservedArtifacts: number(preserved?.total), policy: text(program.historical_master_policy), reason: "The owner rejected the prior masters because technical QA did not represent real content and perceived quality." },
     integrity: { state: ready ? "READY" : "BLOCKED", checks },
   };
 }
