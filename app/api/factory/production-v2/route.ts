@@ -4,7 +4,7 @@ import { productionV2Projection, type ProductionV2DB } from "@/lib/production-v2
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "cache-control": "no-store" };
-type RuntimeEnv = { DB?: ProductionV2DB & ProductionV2CommandDB; BUCKET?: ProductionV2Bucket; ELEVENLABS_API_KEY?: string; FACTORY_EXPERT_EMAILS?: string };
+type RuntimeEnv = { DB?: ProductionV2DB & ProductionV2CommandDB; BUCKET?: ProductionV2Bucket; ELEVENLABS_API_KEY?: string; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; PRODUCTION_V2_EXECUTOR_TOKEN?: string };
 async function runtime() { const { env } = await import("cloudflare:workers"); return env as unknown as RuntimeEnv; }
 function failure(code: string, message: string, status: number) {
   return Response.json({ error: { code, message }, fallback: false }, { status, headers: NO_STORE });
@@ -29,9 +29,19 @@ export async function GET(request: Request) {
   }
 }
 
-async function authorizedRuntime() {
-  const user = await getChatGPTUser(); if (!user) throw new ProductionV2CommandError("SIWC_AUTHENTICATION_REQUIRED", 401, "Sign in with ChatGPT before controlling Production V2");
+async function secretMatches(left: string, right: string) {
+  if (!left || !right) return false; const encode = (value: string) => new TextEncoder().encode(value);
+  const [a, b] = await Promise.all([crypto.subtle.digest("SHA-256", encode(left)), crypto.subtle.digest("SHA-256", encode(right))]);
+  const av = new Uint8Array(a), bv = new Uint8Array(b); let difference = av.length ^ bv.length; for (let index = 0; index < Math.min(av.length, bv.length); index += 1) difference |= av[index] ^ bv[index]; return difference === 0;
+}
+
+async function authorizedRuntime(request: Request) {
   const env = await runtime(); if (!env.DB || !env.BUCKET) throw new ProductionV2CommandError("PRODUCTION_RUNTIME_UNAVAILABLE", 503, "Production V2 requires canonical D1 and isolated R2 storage");
+  let user = await getChatGPTUser();
+  if (!user && await secretMatches(request.headers.get("x-production-v2-executor-token") || "", env.PRODUCTION_V2_EXECUTOR_TOKEN || "")) {
+    const email = String(env.FACTORY_AUTOMATION_ACTOR_EMAIL || "").trim(); if (email) user = { email, displayName: String(env.FACTORY_AUTOMATION_ACTOR_NAME || email), fullName: null };
+  }
+  if (!user) throw new ProductionV2CommandError("SIWC_AUTHENTICATION_REQUIRED", 401, "Sign in with ChatGPT or present the scoped Production V2 executor credential");
   const allowlist = new Set(String(env.FACTORY_EXPERT_EMAILS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
   if (!allowlist.size || !allowlist.has(user.email.trim().toLowerCase())) throw new ProductionV2CommandError("CHANNEL_OWNER_AUTHORIZATION_REQUIRED", 403, "This identity is not authorized to control Production V2");
   return { user, env, runtime: { DB: env.DB, BUCKET: env.BUCKET, ELEVENLABS_API_KEY: env.ELEVENLABS_API_KEY } };
@@ -39,7 +49,7 @@ async function authorizedRuntime() {
 
 export async function POST(request: Request) {
   try {
-    const context = await authorizedRuntime();
+    const context = await authorizedRuntime(request);
     if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) return failure("JSON_CONTENT_TYPE_REQUIRED", "Content-Type must be application/json", 415);
     const body = await request.json() as { action?: string };
     if (body.action !== "START_GOLDEN_PILOT") return failure("COMMAND_UNSUPPORTED", "Unsupported Production V2 command", 400);
@@ -53,7 +63,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const context = await authorizedRuntime(), url = new URL(request.url), packageId = url.searchParams.get("package")?.trim(), kind = url.searchParams.get("kind");
+    const context = await authorizedRuntime(request), url = new URL(request.url), packageId = url.searchParams.get("package")?.trim(), kind = url.searchParams.get("kind");
     if (!packageId || (kind !== "PILOT_VIDEO" && kind !== "PILOT_QA")) return failure("UPLOAD_SCOPE_INVALID", "A valid package and pilot upload kind are required", 400);
     const declared = Number(request.headers.get("content-length") || 0); if (declared > 25_000_000) return failure("UPLOAD_TOO_LARGE", "Production V2 pilot evidence exceeds 25 MB", 413);
     const value = new Uint8Array(await request.arrayBuffer());

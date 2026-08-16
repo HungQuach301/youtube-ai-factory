@@ -5,8 +5,8 @@ if [[ $# -ne 2 ]]; then
   echo "usage: production-v2-pilot-executor.sh <pilot-response.json> <output-dir>" >&2
   exit 64
 fi
-if [[ -z "${FACTORY_SITE_AUTH_TOKEN:-}" || -z "${FACTORY_SITE_URL:-}" ]]; then
-  echo "FACTORY_SITE_AUTH_TOKEN and FACTORY_SITE_URL are required" >&2
+if [[ -z "${FACTORY_SITE_AUTH_TOKEN:-}" || -z "${FACTORY_SITE_URL:-}" || -z "${PRODUCTION_V2_EXECUTOR_TOKEN:-}" ]]; then
+  echo "FACTORY_SITE_AUTH_TOKEN, FACTORY_SITE_URL and PRODUCTION_V2_EXECUTOR_TOKEN are required" >&2
   exit 65
 fi
 
@@ -16,6 +16,7 @@ mkdir -p "$out/scenes" "$out/clips"
 package_id="$(jq -er '.packageId' "$response")"
 audio_id="$(jq -er '.audio.id' "$response")"
 auth_header="OAI-Sites-Authorization: Bearer ${FACTORY_SITE_AUTH_TOKEN}"
+executor_header="x-production-v2-executor-token: ${PRODUCTION_V2_EXECUTOR_TOKEN}"
 
 curl -fsS -H "$auth_header" "${FACTORY_SITE_URL}/api/factory/production-v2?artifact=${audio_id}" -o "$out/narration.mp3"
 for index in $(seq 0 9); do
@@ -56,5 +57,5 @@ jq -n \
   --argjson truePeakDb "$true_peak" \
   '{actor:$actor,videoSha256:$videoSha256,durationSeconds:$durationSeconds,dimensions:{width:$width,height:$height},fps:$fps,videoCodec:$videoCodec,audioCodec:$audioCodec,sceneChanges:$sceneChanges,blackFrameRatio:0,freezeRatio:0,loudnessI:$loudnessI,truePeakDb:$truePeakDb,method:"FFPROBE+FFMPEG_SCENE_EBUR128",legacySources:0}' > "$out/qa.json"
 
-curl -fsS -X PUT -H "$auth_header" -H "content-type: video/webm" --data-binary "@$out/pilot.webm" "${FACTORY_SITE_URL}/api/factory/production-v2?package=${package_id}&kind=PILOT_VIDEO" | jq .
-curl -fsS -X PUT -H "$auth_header" -H "content-type: application/json" --data-binary "@$out/qa.json" "${FACTORY_SITE_URL}/api/factory/production-v2?package=${package_id}&kind=PILOT_QA" | jq .
+curl -fsS -X PUT -H "$auth_header" -H "$executor_header" -H "content-type: video/webm" --data-binary "@$out/pilot.webm" "${FACTORY_SITE_URL}/api/factory/production-v2?package=${package_id}&kind=PILOT_VIDEO" | jq .
+curl -fsS -X PUT -H "$auth_header" -H "$executor_header" -H "content-type: application/json" --data-binary "@$out/qa.json" "${FACTORY_SITE_URL}/api/factory/production-v2?package=${package_id}&kind=PILOT_QA" | jq .
