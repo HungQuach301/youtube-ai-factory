@@ -5,9 +5,11 @@ if [[ $# -ne 2 ]]; then echo "usage: production-v2-full-executor.sh <prepare-res
 if [[ -z "${FACTORY_SITE_AUTH_TOKEN:-}" || -z "${FACTORY_SITE_URL:-}" || -z "${PRODUCTION_V2_EXECUTOR_TOKEN:-}" ]]; then echo "Production V2 executor credentials are required" >&2; exit 65; fi
 
 response="$1"; out="$2"; mkdir -p "$out/scenes" "$out/frames"
-package_id="$(jq -er '.packageId' "$response")"; audio_id="$(jq -er '.audio.id' "$response")"
+package_id="$(jq -er '.packageId' "$response")"; audio_count="$(jq -er '.audioChunks|length' "$response")"
 auth="OAI-Sites-Authorization: Bearer ${FACTORY_SITE_AUTH_TOKEN}"; executor="x-production-v2-executor-token: ${PRODUCTION_V2_EXECUTOR_TOKEN}"
-curl -fsS -H "$auth" "${FACTORY_SITE_URL}/api/factory/production-v2?artifact=${audio_id}" -o "$out/narration.mp3"
+for index in $(seq 0 $((audio_count - 1))); do display=$((index + 1)); audio_id="$(jq -er ".audioChunks[$index].id" "$response")"; curl -fsS -H "$auth" "${FACTORY_SITE_URL}/api/factory/production-v2?artifact=${audio_id}" -o "$out/narration-$(printf '%02d' "$display").mp3"; done
+find "$out" -maxdepth 1 -name 'narration-*.mp3' -print | sort | sed "s#^#file '#;s#\$#'#" > "$out/audio.txt"
+ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i "$out/audio.txt" -c copy "$out/narration.mp3"
 for index in $(seq 0 29); do display=$((index + 1)); artifact="$(jq -er ".scenes[$index].id" "$response")"; curl -fsS -H "$auth" "${FACTORY_SITE_URL}/api/factory/production-v2?artifact=${artifact}" -o "$out/scenes/scene-$(printf '%02d' "$display").svg"; done
 find "$out/scenes" -name 'scene-*.svg' -print | sort | sed "s#^#file '#;s#\$#'#" > "$out/scenes.txt"
 audio_duration="$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$out/narration.mp3")"
