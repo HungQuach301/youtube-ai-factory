@@ -217,7 +217,8 @@ function validateArtifactContent(body: SequentialCommandBody, context: Context, 
   }
   if (body.stageKey === "10" && clean(artifact.artifact_type) === "audio stems") {
     const stems = Array.isArray(content.stems) ? content.stems as Row[] : [];
-    if (stems.length < 3 || stems.some((stem) => !clean(stem.storageKey) || !clean(stem.sha256) || Number(stem.byteSize || 0) <= 0 || stem.readbackVerified !== true)) failures.push("storedAudioStems");
+    const narration = stems.find((stem) => clean(stem.stemType) === "NARRATION");
+    if (stems.length < 3 || stems.some((stem) => !clean(stem.storageKey) || !clean(stem.sha256) || Number(stem.byteSize || 0) <= 0 || stem.readbackVerified !== true) || Number(narration?.durationSeconds || 0) < 480 || Number(narration?.durationSeconds || 0) > 720) failures.push("storedAudioStems");
   }
   if (failures.length) throw new SequentialCommandError("ARTIFACT_VERIFICATION_FAILED", 409, `Artifact failed deterministic checks: ${failures.join(", ")}`);
   return { score: body.stageKey === "00" ? 100 : score, p0Count: p0, deterministicChecks: "PASS" };
