@@ -108,10 +108,13 @@ const checks = [
   ["Content Autopilot responsive production workspace", files.css.includes(".ownerSettingsGrid") && files.css.includes("@media(max-width:1120px)") && files.css.includes("@media(max-width:820px)") && files.css.includes("@media(max-width:520px)")],
   ["Production V2 owner-first navigation", files.shell.includes('production: "/video-engine"') && files.productionV2Page.includes("Turn approved briefs into release evidence")],
   ["Production V2 five-view workspace", ["Overview", "Production packages", "Quality & exceptions", "Cost & activity", "System details"].every((label) => files.productionV2Page.includes(label))],
+  ["Production V2 completed videos are the default completed-state view", files.productionV2Page.includes('complete ? "Production packages" : "Overview"') && files.productionV2Page.includes("Completed videos (${ready})")],
+  ["Production V2 direct master review action", files.productionV2Page.includes("Watch completed video") && files.productionV2Page.includes('target="_blank"') && files.productionV2Page.includes("owner review only")],
+  ["Production V2 owner-readable completion copy", files.productionV2Page.includes("Your 15 completed videos are ready") && files.productionV2Page.includes("These are completed master videos—not plans or briefs")],
   ["Production V2 fail-closed projection", files.productionV2Route.includes("CANONICAL_DATABASE_UNAVAILABLE") && files.productionV2Route.includes("fallback: false") && files.productionV2Projection.includes("LEGACY_FIREWALL")],
   ["Production V2 exact package and shot coverage", files.productionV2Projection.includes("compiled === 15") && files.productionV2Projection.includes("validContracts === 75")],
   ["Production V2 separate publishing authority", files.productionV2Page.includes("autoPublish") && files.productionV2Page.includes("AUTO PUBLISH") && files.productionV2Projection.includes("PUBLISHING_CLOSED")],
-  ["Production V2 responsive workspace", files.css.includes(".pv2Hero") && files.css.includes(".pv2Packages") && files.css.includes("@media(max-width:620px)")],
+  ["Production V2 responsive workspace", files.productionV2Page.includes(".pv2Hero") && files.productionV2Page.includes(".pv2Packages") && files.productionV2Page.includes("@media(max-width:700px)")],
 ];
 
 const failures = checks.filter(([, passed]) => !passed);
