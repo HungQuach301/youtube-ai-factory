@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-const roots = ["app/video-engine", "app/api/factory/production-v2", "lib/production-v2-projection.ts", "app/production-v2-contract.ts"];
+const roots = ["app/video-engine", "app/api/factory/production-v2", "lib/production-v2-projection.ts", "lib/production-v2-command.ts", "app/production-v2-contract.ts"];
 async function files(path) {
   if (path.endsWith(".ts") || path.endsWith(".tsx")) return [path];
   const entries = await readdir(path, { withFileTypes: true });
