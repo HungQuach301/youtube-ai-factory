@@ -34,6 +34,7 @@ const studioPage = await readFile(new URL("../app/channel-studio/page.tsx", impo
 const contentPlanningContract = await readFile(new URL("../app/content-planning-contract.ts", import.meta.url), "utf8");
 const contentAutopilotCommand = await readFile(new URL("../lib/content-autopilot-command.ts", import.meta.url), "utf8");
 const contentAutopilotRoute = await readFile(new URL("../app/api/factory/content-autopilot/route.ts", import.meta.url), "utf8");
+const contentPlanningProjection = await readFile(new URL("../lib/content-planning-projection.ts", import.meta.url), "utf8");
 const canonicalContentBootstrap = await readFile(new URL("../lib/canonical-content-autopilot-bootstrap.ts", import.meta.url), "utf8");
 const contentMigration = await readFile(new URL("../drizzle/0038_clean_dexter_bennett.sql", import.meta.url), "utf8");
 
@@ -172,6 +173,11 @@ test("Content System and Planning closes eight slices inside an explicit authori
   assert.match(contentAutopilotCommand, /providerDispatch: false/);
   assert.match(contentAutopilotCommand, /productionMutation: false/);
   assert.match(contentAutopilotCommand, /publishingMutation: false/);
+  assert.match(contentPlanningProjection, /plannedCount === monthlyTarget/);
+  assert.match(contentPlanningProjection, /briefsReady === monthlyTarget/);
+  assert.match(contentPlanningProjection, /coverageComplete/);
+  assert.match(studioPage, /planning\.summary\.planned === planning\.policy\.cadencePerMonth/);
+  assert.match(studioPage, /briefsReady === planning\.policy\.cadencePerMonth/);
   assert.match(contentAutopilotRoute, /getChatGPTUser/);
   assert.match(contentAutopilotRoute, /FACTORY_EXPERT_EMAILS/);
   assert.match(contentAutopilotRoute, /idempotency-key/);

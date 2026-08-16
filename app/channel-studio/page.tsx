@@ -30,8 +30,9 @@ function AutopilotWorkspace({ data, refresh }: { data: ChannelStudioProjection; 
   const runReady = planning.strategy.state === "ACTIVE" && planning.policy.state === "ACTIVE";
   const productionFeComplete = planning.run.state === "COMPLETE"
     && planning.handoff.state === "READY_FOR_PRODUCTION"
-    && planning.handoff.eligibleBriefs > 0
-    && planning.handoff.eligibleBriefs === planning.summary.briefsReady
+    && planning.summary.planned === planning.policy.cadencePerMonth
+    && planning.summary.briefsReady === planning.policy.cadencePerMonth
+    && planning.handoff.eligibleBriefs === planning.policy.cadencePerMonth
     && planning.briefs.every((brief) => brief.state === "READY_FOR_PRODUCTION");
   const productionQaComplete = productionFeComplete
     && planning.integrity.state === "READY"
@@ -52,7 +53,7 @@ function AutopilotWorkspace({ data, refresh }: { data: ChannelStudioProjection; 
   ];
   return <>
     <section className="cpHero">
-      <div><small>CONTENT SYSTEM & PLANNING V1 · AUTOPILOT-FIRST</small><h2>{planning.handoff.state === "READY_FOR_PRODUCTION" ? `${planning.summary.briefsReady} briefs ready for production` : "Turn one active strategy into a repeatable publishing system."}</h2><p>{planning.strategy.viewerPromise || "An active strategy viewer promise is required."}</p><div className="cpHeroBadges"><StatusPill tone={planning.policy.state === "ACTIVE" ? "good" : "warn"}>{planning.policy.mode || "POLICY REQUIRED"}</StatusPill><span>Policy v{planning.policy.version}</span><span>Strategy v{planning.strategy.version}</span><span>Run v{planning.run.version}</span></div></div>
+      <div><small>CONTENT SYSTEM & PLANNING V1 · AUTOPILOT-FIRST</small><h2>{planning.handoff.state === "READY_FOR_PRODUCTION" ? `${planning.summary.briefsReady} briefs ready for production` : `${planning.summary.briefsReady} of ${planning.policy.cadencePerMonth || 0} briefs ready — ${Math.max(0, planning.policy.cadencePerMonth - planning.summary.briefsReady)} missing`}</h2><p>{planning.strategy.viewerPromise || "An active strategy viewer promise is required."}</p><div className="cpHeroBadges"><StatusPill tone={planning.policy.state === "ACTIVE" ? "good" : "warn"}>{planning.policy.mode || "POLICY REQUIRED"}</StatusPill><span>Policy v{planning.policy.version}</span><span>Strategy v{planning.strategy.version}</span><span>Run v{planning.run.version}</span></div></div>
       <aside><div><small>PILLARS</small><strong>{planning.summary.pillars}</strong></div><div><small>SERIES</small><strong>{planning.summary.series}</strong></div><div><small>OPPORTUNITIES</small><strong>{planning.summary.opportunities}</strong></div><div><small>BRIEFS READY</small><strong>{planning.summary.briefsReady}</strong></div><div><small>OPEN EXCEPTIONS</small><strong>{planning.summary.openExceptions}</strong></div><div><small>PLANNING SPEND</small><strong>${planning.summary.spendUsd.toFixed(2)}</strong></div></aside>
     </section>
     <section className="cpPath" aria-label="Content System and Planning slices">{["Authority", "Content system", "Backlog", "Editorial plan", "Brief compiler", "Orchestrator", "Production FE", "Production QA"].map((label, index) => <article className={["ACTIVE", "COMPLETE"].includes(sliceStates[index]) ? "done" : ""} key={label}><span>0{index + 1}</span><strong>{label}</strong><small>{sliceStates[index]}</small></article>)}</section>
