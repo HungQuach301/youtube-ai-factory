@@ -79,10 +79,10 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const context = await authorizedRuntime(request), url = new URL(request.url), packageId = url.searchParams.get("package")?.trim(), kind = url.searchParams.get("kind");
-    const allowed = new Set(["PILOT_VIDEO", "PILOT_QA", "FULL_VIDEO", "FULL_QA1", "FULL_QA2"]); if (!packageId || !kind || !allowed.has(kind)) return failure("UPLOAD_SCOPE_INVALID", "A valid package and Production V2 evidence kind are required", 400);
+    const allowed = new Set(["PILOT_VIDEO", "PILOT_QA", "FULL_VIDEO", "FULL_QA1", "FULL_QA_VISUAL", "FULL_QA2"]); if (!packageId || !kind || !allowed.has(kind)) return failure("UPLOAD_SCOPE_INVALID", "A valid package and Production V2 evidence kind are required", 400);
     const declared = Number(request.headers.get("content-length") || 0); if (declared > 90_000_000) return failure("UPLOAD_TOO_LARGE", "Production V2 evidence exceeds 90 MB", 413);
     const value = new Uint8Array(await request.arrayBuffer());
-    if (kind === "FULL_VIDEO" || kind === "FULL_QA1" || kind === "FULL_QA2") return Response.json(await storeFullEvidence(context.runtime, packageId, kind, value, context.user.email), { status: 201, headers: NO_STORE });
+    if (kind === "FULL_VIDEO" || kind === "FULL_QA1" || kind === "FULL_QA_VISUAL" || kind === "FULL_QA2") return Response.json(await storeFullEvidence(context.runtime, packageId, kind, value, context.user.email), { status: 201, headers: NO_STORE });
     return Response.json(await storePilotUpload(context.runtime, packageId, kind as "PILOT_VIDEO" | "PILOT_QA", value, context.user.email), { status: 201, headers: NO_STORE });
   } catch (error) {
     if (error instanceof ProductionV2CommandError) return failure(error.code, error.message, error.status);
