@@ -100,3 +100,14 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Continuous evidence: 38 async boundaries, 57/57 commercial UI checks, 8 Intelligence/Niche paths, 10/10 V2 groups, verified build, 95/95 regressions and bounded client budgets.
 - Production evidence: Intelligence, Niche Portfolio and Channel Studio integrity `READY`; decision `CHANNEL_STRATEGY_ACTIVATED`; downstream `ACTIVATED`; strategy `ACTIVE`; identical activation ID; all three pages HTTP 200; zero recent error-only Worker events.
 - Closure: `INTELLIGENCE_NICHE_STAGE=CLOSED_PRODUCTION_FE_QA`.
+
+# Content System & Planning Autopilot production artifact
+
+- Durable ledger: `docs/continuity/27_CONTENT_SYSTEM_PLANNING_AUTOPILOT_PRODUCTION_ACCEPTANCE.md`.
+- Contracts: `CONTENT_SYSTEM_PLANNING_PROJECTION_V1` and `CONTENT_AUTOPILOT_COMMAND_V1`.
+- Persistence: migration 0038; ten append-only/versioned policy, run, system, opportunity, plan, brief, exception and audit tables.
+- Commands: configure policy, run, pause, resume and emergency stop; SIWC/allowlist, idempotency and optimistic versions.
+- Production state: `FULL_AUTOPILOT` policy v3, complete run v2, 4 pillars, 8 series, 8 opportunities, 8 plan items, 8 ready briefs and zero open exceptions.
+- Authority: strategy mutation, provider dispatch, spend, production mutation and publishing mutation remain false; production handoff is separately authorized and publishing remains closed.
+- Continuous evidence: 40 async boundaries, 69/69 commercial UI checks, verified build, 96/96 regressions and bounded client budgets.
+- Production evidence: normal, emergency stop, resume, stale detection and recompile passed; Channel Strategy v1 lineage unchanged; integrity `READY`; handoff `READY_FOR_PRODUCTION`.

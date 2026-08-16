@@ -6,6 +6,8 @@
 .versionEvolution{margin-top:14px;border:1px solid rgba(155,215,188,.28);border-radius:12px;background:rgba(255,255,255,.045)}.versionEvolution>summary{padding:13px 15px;color:#9ee0c2;font-size:9px;font-weight:900;letter-spacing:.1em;cursor:pointer}.versionEvolution>p{margin:0;padding:0 15px 13px;color:#bdd8cc;font-size:11px;line-height:1.5}.versionEvolution>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:0 12px 12px}.versionEvolution article{padding:13px;border:1px solid rgba(155,215,188,.18);border-radius:10px;background:rgba(4,35,29,.58)}.versionEvolution article header{display:flex;justify-content:space-between;gap:8px}.versionEvolution article header strong{color:#fff;font:600 20px/1 Georgia,serif}.versionEvolution article header span{color:#85c9aa;font-size:8px;font-weight:800;text-align:right}.versionEvolution h3{margin:12px 0 5px;color:#9ee0c2;font-size:8px;letter-spacing:.08em;text-transform:uppercase}.versionEvolution article p,.versionEvolution li{color:#c5ddd2;font-size:9px;line-height:1.45}.versionEvolution article p{margin:0}.versionEvolution ul{margin:0;padding-left:15px}@media(max-width:900px){.versionEvolution>div{grid-template-columns:1fr 1fr}}@media(max-width:560px){.versionEvolution>div{grid-template-columns:1fr}}
 
 :root {
+  --font-geist-sans: Arial, Helvetica, sans-serif;
+  --font-geist-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --ink: #17201f;
   --muted: #687471;
   --line: #dfe5e2;

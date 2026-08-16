@@ -51,9 +51,23 @@ NICHE_PORTFOLIO_NEXT = CONTENT_SYSTEM_AND_PLANNING_HANDOFF_CONTRACT
 V2_PROVIDER_REQUESTS = 0
 V2_SPEND_USD = 0
 CHANNEL_STRATEGY_GATE = VERSIONED_COMMITMENT_BOUND_ACTIVATION
+CONTENT_SYSTEM_PLANNING_STAGE = CLOSED_PRODUCTION_FE_QA
+CONTENT_AUTOPILOT_MODE = FULL_AUTOPILOT
+CONTENT_AUTOMATION_POLICY_VERSION = 3
+CONTENT_PLANNING_RUN_VERSION = 2
+CONTENT_PILLARS = 4
+CONTENT_SERIES = 8
+CONTENT_OPPORTUNITIES = 8
+CONTENT_EDITORIAL_ITEMS = 8
+CONTENT_BRIEFS_READY = 8
+CONTENT_OPEN_EXCEPTIONS = 0
+CONTENT_HANDOFF = READY_FOR_PRODUCTION
+CONTENT_PROVIDER_REQUESTS = 0
+CONTENT_PLANNING_SPEND_USD = 0
+CONTENT_SYSTEM_NEXT = VIDEO_PRODUCTION_ENGINE_HANDOFF
 ```
 
-Documents 16, 19–26 are authoritative for the niche decision shape, entity boundary, evidence workflow, evidence-bound comparison, expert priority, commitment, activation, production state and production FE acceptance. Legacy Stage 01 candidates are video-topic compatibility evidence and must not be mistaken for niche opportunities or V2 expert prioritization. Slices 4–8 are permanent product capabilities, not one-time implementation steps. The Intelligence–Niche stage is closed; its active strategy must be consumed rather than reconstructed.
+Documents 16, 19–27 are authoritative for the niche decision shape, entity boundary, evidence workflow, evidence-bound comparison, expert priority, commitment, activation, production state, production FE acceptance and Content System & Planning closure. Legacy Stage 01 candidates are video-topic compatibility evidence and must not be mistaken for niche opportunities or V2 expert prioritization. Slices 4–8 are permanent product capabilities, not one-time implementation steps. Intelligence–Niche and Content System & Planning are closed; their active strategy and planning system must be consumed rather than reconstructed.
 
 ## Open evidence issues
 

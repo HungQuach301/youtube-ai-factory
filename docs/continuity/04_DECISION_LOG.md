@@ -68,3 +68,9 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** backend activation is necessary but not sufficient to close the Intelligence–Niche stage. Closure requires a decision-legible production UI, responsive behavior, canonical lineage visibility, automated regression and performance gates, live production read-back across Intelligence, Niche Portfolio and Channel Studio, successful route checks and a clean production error-log window. The closed stage must lead with the active decision; append-only history and alternative intake remain available but secondary.
 
 **Reason:** an active database binding that users cannot understand, compare or verify is not a completed product stage. Binding the definition of done to the production experience prevents backend state from being mistaken for operator-ready completion and prevents future sessions from rebuilding an already active decision chain.
+
+## ADR-067 — Content planning is Autopilot-first inside a versioned owner envelope
+
+**Decision:** Content System & Planning supports `FULL_AUTOPILOT`, `EXCEPTIONS_ONLY` and `EXPERT_REVIEW`. Production uses `FULL_AUTOPILOT`: `SYSTEM_AUTOPILOT` compiles routine pillars, series, opportunities, editorial plans and briefs only while the latest Channel Strategy and Automation Policy are active and version-matched. Owner/expert authority configures budgets, cadence, risk, repair, downstream handoff and escalation rules, and retains pause/resume/emergency-stop control.
+
+**Reason:** minimum owner participation should mean high leverage, not absent governance. A versioned envelope and exception inbox give automation room to operate while preventing planning from inheriting strategy mutation, provider dispatch, spend, production or publishing authority.
