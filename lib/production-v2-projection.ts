@@ -22,6 +22,8 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
     (SELECT COUNT(*) FROM production_v2_shot_contracts s WHERE s.package_id=p.id AND s.lifecycle_state='CONTRACT_VALID') AS valid_shots,
     (SELECT COUNT(*) FROM production_v2_artifacts a WHERE a.package_id=p.id) AS artifact_count,
     (SELECT COUNT(*) FROM production_v2_quality_assessments q WHERE q.package_id=p.id) AS qa_count,
+    (SELECT COUNT(*) FROM production_v2_artifacts a WHERE a.package_id=p.id AND a.artifact_type='FULL_QA_VISUAL_SAMPLE') AS visual_sample_count,
+    (SELECT COUNT(*) FROM production_v2_quality_assessments q WHERE q.package_id=p.id AND q.assessment_type='FULL_VIDEO_QA2' AND q.lifecycle_state='PASS' AND q.p0_count=0 AND q.p1_count=0 AND json_extract(q.dimensions_json,'$.visualReview.status')='PASS') AS visual_qa_pass,
     (SELECT COUNT(*) FROM production_v2_provider_requests r WHERE r.package_id=p.id) AS provider_request_total,
     (SELECT COUNT(*) FROM production_v2_provider_requests r WHERE r.package_id=p.id AND r.lifecycle_state='FAILED') AS provider_request_failed,
     (SELECT a.id FROM production_v2_artifacts a WHERE a.package_id=p.id AND a.artifact_type='FULL_VIDEO_MASTER' ORDER BY a.created_at DESC LIMIT 1) AS master_artifact_id
@@ -36,6 +38,7 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
   const foundationAudit = await db.prepare("SELECT evidence_hash,detail_json FROM production_v2_audits WHERE channel_id=? AND event_type='GREENFIELD_FOUNDATION_COMPILED' LIMIT 1").bind(channelId).first<Row>();
   const shotCount = await db.prepare("SELECT COUNT(*) AS total,SUM(CASE WHEN s.lifecycle_state='CONTRACT_VALID' THEN 1 ELSE 0 END) AS valid FROM production_v2_shot_contracts s JOIN production_v2_packages p ON p.id=s.package_id WHERE p.channel_id=?").bind(channelId).first<Row>();
   const ready = packages.filter((item) => clean(item.lifecycle_state) === "READY_FOR_PUBLISHING").length;
+  const visualQaPassed = packages.filter((item) => number(item.visual_qa_pass) > 0).length;
   const legacySources = packages.reduce((sum, item) => sum + number(item.legacy_source_count), 0);
   const validContracts = number(shotCount?.valid);
   const compiled = packages.length;
@@ -43,7 +46,7 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
   const pilot = waves.find((wave) => number(wave.wave_number) === 0);
   const checkpoint2 = clean(pilot?.lifecycle_state) === "COMPLETE";
   const checkpoint3 = packages.some((item) => number(item.sequence) === 1 && clean(item.lifecycle_state) === "READY_FOR_PUBLISHING");
-  const checkpoint4 = ready === 15 && waves.filter((wave) => number(wave.wave_number) > 0).every((wave) => clean(wave.lifecycle_state) === "COMPLETE");
+  const checkpoint4 = ready === 15 && visualQaPassed === 15 && waves.filter((wave) => number(wave.wave_number) > 0).every((wave) => clean(wave.lifecycle_state) === "COMPLETE");
   const checks = [
     { id: "EXACT_PACKAGE_COVERAGE", label: "Exact package coverage", passed: compiled === 15, evidence: `${compiled}/15 canonical briefs compiled` },
     { id: "SHOT_CONTRACT_COVERAGE", label: "Shot contracts are complete", passed: validContracts === 75, evidence: `${validContracts}/75 contracts valid` },
@@ -51,6 +54,7 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
     { id: "LEGACY_FIREWALL", label: "Legacy code and artifacts are excluded", passed: legacySources === 0, evidence: `${legacySources} legacy sources bound` },
     { id: "ZERO_SPEND_FOUNDATION", label: "Foundation was compiled at zero spend", passed: Boolean(foundationAudit?.evidence_hash), evidence: foundationAudit ? "Immutable foundation audit: 0 requests · $0.00" : "Foundation audit missing" },
     { id: "PUBLISHING_CLOSED", label: "Publishing authority remains separate", passed: !boolean(policy.auto_publish), evidence: boolean(policy.auto_publish) ? "Automatic publishing enabled" : "Automatic publishing disabled" },
+    { id: "VISUAL_RELEASE_QA", label: "Independent visual release QA", passed: visualQaPassed === 15, evidence: `${visualQaPassed}/15 visual reviews passed · P0=0 · P1=0` },
   ];
   return {
     contract: PRODUCTION_ENGINE_V2,
@@ -60,15 +64,15 @@ export async function productionV2Projection(channelId: string, db: ProductionV2
       dailyBudgetUsd: number(policy.daily_budget_usd), monthlyBudgetUsd: number(policy.monthly_budget_usd), perVideoBudgetUsd: number(policy.per_video_budget_usd),
       maxRemoteRequests: number(policy.max_remote_requests), maxRepairAttempts: number(policy.max_repair_attempts), autoDispatch: boolean(policy.auto_dispatch), autoPublish: boolean(policy.auto_publish), legacyReusePolicy: clean(policy.legacy_reuse_policy),
     },
-    summary: { targetVideos: 15, packagesCompiled: compiled, shotContracts: number(shotCount?.total), validShotContracts: validContracts, videosReady: ready, openExceptions: 0, providerRequests: number(requestSummary?.total), failedProviderRequests: number(requestSummary?.failed), activeProviderRequests: number(requestSummary?.active), spendUsd: number(requestSummary?.spend), legacySources },
+    summary: { targetVideos: 15, packagesCompiled: compiled, shotContracts: number(shotCount?.total), validShotContracts: validContracts, videosReady: ready, visualQaPassed, openExceptions: 0, providerRequests: number(requestSummary?.total), failedProviderRequests: number(requestSummary?.failed), activeProviderRequests: number(requestSummary?.active), spendUsd: number(requestSummary?.spend), legacySources },
     checkpoints: [
       { number: 1, label: "Greenfield foundation", state: checkpoint1 ? "COMPLETE" : "ACTIVE", evidence: checkpoint1 ? "15 packages · 75 contracts · zero legacy · $0" : "Foundation evidence incomplete" },
       { number: 2, label: "Golden pilot", state: checkpoint2 ? "COMPLETE" : checkpoint1 ? "ACTIVE" : "BLOCKED", evidence: checkpoint2 ? "10-shot and 30-second proof passed" : checkpoint1 ? "Ready for controlled pilot" : "Foundation required" },
       { number: 3, label: "Full-video canary", state: checkpoint3 ? "COMPLETE" : checkpoint2 ? "ACTIVE" : "BLOCKED", evidence: checkpoint3 ? "Canary QA2 passed" : "Golden pilot required" },
-      { number: 4, label: "Controlled scale", state: checkpoint4 ? "COMPLETE" : checkpoint3 ? "ACTIVE" : "BLOCKED", evidence: checkpoint4 ? "15/15 videos ready" : checkpoint3 ? `${ready}/15 ready · run controlled 2/4/8 waves` : "Canary required" },
+      { number: 4, label: "Controlled scale", state: checkpoint4 ? "COMPLETE" : checkpoint3 ? "ACTIVE" : "BLOCKED", evidence: checkpoint4 ? "15/15 masters · 15/15 visual QA · P0=0 · P1=0" : checkpoint3 ? `${ready}/15 masters ready · ${visualQaPassed}/15 visual QA passed` : "Canary required" },
     ],
     scaleWaves: waves.map((wave) => ({ number: number(wave.wave_number), state: clean(wave.lifecycle_state), packageCount: number(wave.package_count), completedCount: number(wave.completed_count), p0Count: number(wave.p0_count), p1Rate: number(wave.p1_rate), duplicateRate: number(wave.duplicate_rate), providerFailureRate: number(wave.provider_failure_rate), costVarianceRate: number(wave.cost_variance_rate) })),
-    packages: packages.map((item) => ({ id: clean(item.id), sequence: number(item.sequence), title: clean(item.title), state: clean(item.lifecycle_state) as ProductionV2State, targetDurationSeconds: number(item.target_duration_seconds), shotCount: number(item.shot_count), validShotContracts: number(item.valid_shots), artifacts: number(item.artifact_count), qaAssessments: number(item.qa_count), providerRequests: number(item.provider_request_total), failedProviderRequests: number(item.provider_request_failed), spendUsd: number(item.spend_usd), traceabilityComplete: boolean(item.traceability_complete), legacySourceCount: number(item.legacy_source_count), engineVersion: clean(item.engine_version), masterArtifactId: clean(item.master_artifact_id) || undefined })),
+    packages: packages.map((item) => ({ id: clean(item.id), sequence: number(item.sequence), title: clean(item.title), state: clean(item.lifecycle_state) as ProductionV2State, targetDurationSeconds: number(item.target_duration_seconds), shotCount: number(item.shot_count), validShotContracts: number(item.valid_shots), artifacts: number(item.artifact_count), qaAssessments: number(item.qa_count), visualSampleStored: number(item.visual_sample_count) > 0, visualQaPassed: number(item.visual_qa_pass) > 0, providerRequests: number(item.provider_request_total), failedProviderRequests: number(item.provider_request_failed), spendUsd: number(item.spend_usd), traceabilityComplete: boolean(item.traceability_complete), legacySourceCount: number(item.legacy_source_count), engineVersion: clean(item.engine_version), masterArtifactId: clean(item.master_artifact_id) || undefined })),
     integrity: { state: checks.every((check) => check.passed) ? "READY" : "BLOCKED", checks, nextAction: checkpoint4 ? "REVIEW_PUBLISHING_AUTHORITY" : checkpoint3 ? "RUN_CONTROLLED_WAVES" : checkpoint2 ? "RUN_FULL_VIDEO_CANARY" : checkpoint1 ? "START_GOLDEN_PILOT" : "REPAIR_FOUNDATION" },
   };
 }

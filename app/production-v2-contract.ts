@@ -22,6 +22,8 @@ export type ProductionV2Package = {
   validShotContracts: number;
   artifacts: number;
   qaAssessments: number;
+  visualSampleStored: boolean;
+  visualQaPassed: boolean;
   providerRequests: number;
   failedProviderRequests: number;
   spendUsd: number;
@@ -53,6 +55,7 @@ export type ProductionV2Projection = {
     shotContracts: number;
     validShotContracts: number;
     videosReady: number;
+    visualQaPassed: number;
     openExceptions: number;
     providerRequests: number;
     failedProviderRequests: number;
