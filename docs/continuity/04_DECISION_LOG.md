@@ -62,3 +62,9 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** use a server-secret, actor-bound route only for `ACTIVATE_CANONICAL_CHANNEL_STRATEGY`. The route composes the existing Slice 4–8 commands, retains all optimistic-version, idempotency, evidence, prerequisite and audit gates, and cannot accept custom candidates, scores or strategy mutations from the caller.
 
 **Reason:** production QA required a real state transition even when SIWC forwarding is unavailable to the agent runtime. Purpose-bounded authority is safer and more auditable than weakening every operator route or spoofing user identity.
+
+# ADR-066 — Intelligence–Niche completion includes production FE and production QA
+
+**Decision:** backend activation is necessary but not sufficient to close the Intelligence–Niche stage. Closure requires a decision-legible production UI, responsive behavior, canonical lineage visibility, automated regression and performance gates, live production read-back across Intelligence, Niche Portfolio and Channel Studio, successful route checks and a clean production error-log window. The closed stage must lead with the active decision; append-only history and alternative intake remain available but secondary.
+
+**Reason:** an active database binding that users cannot understand, compare or verify is not a completed product stage. Binding the definition of done to the production experience prevents backend state from being mistaken for operator-ready completion and prevents future sessions from rebuilding an already active decision chain.

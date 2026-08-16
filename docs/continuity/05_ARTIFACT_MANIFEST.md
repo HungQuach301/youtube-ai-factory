@@ -16,7 +16,7 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 
 - Durable ledger: `docs/continuity/11_COMMERCIAL_UI_UX_ACCEPTANCE.md`.
 - Classification: `RECONSTRUCTED_V1_INTELLIGENCE_NICHE_CONTRACT_GUARD`.
-- Current gate: `COMMERCIAL_UI_REVIEW_PENDING`.
+- Current gate: `SUPERSEDED_FOR_INTELLIGENCE_NICHE_BY_DOCUMENT_26`; the original site-wide commercial review remains historical evidence and does not block the scoped Intelligence–Niche production closure.
 - Passed evidence: targeted lint, 32/32 boundaries, production build, Sites artifact validation, 95/95 tests and built-worker semantic checks.
 - Continuous gates: 47/47 commercial UI static checks, canonical-data primary projections/command contracts, 4/4 rendered loading pages, 4/4 fail-closed recovery APIs, five SIWC-protected zero-spend command rejections, a 500 ms lab server-render ceiling and gzip client budgets are enforced by every verified build.
 - User evidence: responsive behavior manually confirmed on 2026-08-15.
@@ -89,3 +89,14 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Selected binding: `Everyday Payment and Pricing Infrastructure` for `channel-hidden-systems`.
 - Immutable controls: frozen Stage 01 hash preserved; 17 legacy topics excluded; provider requests `0`; spend `$0`; aggregate score `null`.
 - Acceptance ledger: `docs/continuity/25_INTELLIGENCE_TO_ACTIVE_CHANNEL_STRATEGY_PRODUCTION.md`.
+
+# Intelligence–Niche production FE acceptance artifact
+
+- Durable ledger: `docs/continuity/26_INTELLIGENCE_NICHE_FE_PRODUCTION_ACCEPTANCE.md`.
+- Functional source: Sites v311, commit `c292871bb210fc293327b01f82afb2253443b3fc`.
+- Intelligence surface: evidence summary, compact thesis, market/audience/competitor decision domains, lineage disclosure and explicit handoff to Niche Discovery.
+- Niche surface: active strategy summary, selected niche, responsive three-axis comparison cards, evidence dossiers, locked active priority and secondary governance/intake disclosures.
+- Optimization: `/niche-discovery` consumes one canonical API projection and performs no duplicate server-side D1 projection.
+- Continuous evidence: 38 async boundaries, 57/57 commercial UI checks, 8 Intelligence/Niche paths, 10/10 V2 groups, verified build, 95/95 regressions and bounded client budgets.
+- Production evidence: Intelligence, Niche Portfolio and Channel Studio integrity `READY`; decision `CHANNEL_STRATEGY_ACTIVATED`; downstream `ACTIVATED`; strategy `ACTIVE`; identical activation ID; all three pages HTTP 200; zero recent error-only Worker events.
+- Closure: `INTELLIGENCE_NICHE_STAGE=CLOSED_PRODUCTION_FE_QA`.

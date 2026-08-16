@@ -32,6 +32,12 @@ NICHE_PORTFOLIO_SLICE_06 = IMPLEMENTED_ACCEPTANCE_GREEN
 NICHE_PORTFOLIO_SLICE_07 = IMPLEMENTED_PRODUCTION_GREEN
 NICHE_PORTFOLIO_SLICE_08 = IMPLEMENTED_ACCEPTANCE_GREEN
 NICHE_INTELLIGENCE_BRIDGE = PRODUCTION_ACTIVE_V1
+INTELLIGENCE_NICHE_STAGE = CLOSED_PRODUCTION_FE_QA
+INTELLIGENCE_FE = DECISION_MAP_PRODUCTION
+NICHE_FE = DECISION_FIRST_PRODUCTION
+INTELLIGENCE_NICHE_FUNCTIONAL_VERSION = SITES_V311
+INTELLIGENCE_NICHE_FUNCTIONAL_COMMIT = c292871bb210fc293327b01f82afb2253443b3fc
+INTELLIGENCE_NICHE_PRODUCTION_QA = PASS
 NICHE_OPPORTUNITIES = 3
 NICHE_COMPARABLE = 2
 NICHE_ELIGIBLE = 2
@@ -47,7 +53,7 @@ V2_SPEND_USD = 0
 CHANNEL_STRATEGY_GATE = VERSIONED_COMMITMENT_BOUND_ACTIVATION
 ```
 
-Documents 16, 19–25 are authoritative for the niche decision shape, entity boundary, evidence workflow, evidence-bound comparison, expert priority, commitment, activation and production acceptance. Legacy Stage 01 candidates are video-topic compatibility evidence and must not be mistaken for niche opportunities or V2 expert prioritization. Slices 4–8 are permanent product capabilities, not one-time implementation steps.
+Documents 16, 19–26 are authoritative for the niche decision shape, entity boundary, evidence workflow, evidence-bound comparison, expert priority, commitment, activation, production state and production FE acceptance. Legacy Stage 01 candidates are video-topic compatibility evidence and must not be mistaken for niche opportunities or V2 expert prioritization. Slices 4–8 are permanent product capabilities, not one-time implementation steps. The Intelligence–Niche stage is closed; its active strategy must be consumed rather than reconstructed.
 
 ## Open evidence issues
 
@@ -71,3 +77,7 @@ Permanent Channel Strategy Activation is implemented as a separate append-only c
 # Production activation checkpoint — 2026-08-16
 
 Sites production v308 deployed commit `f534d5e4cb9c70f65d127b3522f7e400a681337f`. Migration 0037 recorded an append-only Intelligence-to-Niche bridge from the unchanged frozen Stage 01 artifact. Production E2E created three typed niche opportunities, assessed two as evidence-sufficient and eligible, recorded complete expert priority v1, selection v1, commitment v1 and Channel Strategy activation v1. Canonical read-back and reload both report `CHANNEL_STRATEGY_ACTIVATED` / `ACTIVE` with integrity `READY`. Replay returned the original activation ID. Invalid token and invalid action were rejected before mutation. Provider requests and spend were `0`; aggregate score remained `null`; all 17 legacy video topics remain excluded.
+
+# Intelligence–Niche FE production closure — 2026-08-16
+
+Sites production v311 deployed functional commit `c292871bb210fc293327b01f82afb2253443b3fc`. Intelligence now presents a compact evidence-to-opportunity handoff with lineage disclosure and an explicit Niche decision action. Niche Discovery is decision-first: the active strategy and selected niche lead the page, the three independent axes use responsive comparison cards, dossiers retain evidence detail, and historical governance plus alternative intake are secondary disclosures. The route reuses one canonical client projection rather than performing a duplicate D1 read. Full regression passed 95/95; production read-back kept the same activation ID across Niche Portfolio and Channel Studio, all three production routes returned HTTP 200, and recent error-only Worker logs contained zero events. Document 26 is the acceptance ledger.

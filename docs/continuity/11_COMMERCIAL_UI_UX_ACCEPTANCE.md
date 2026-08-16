@@ -3,10 +3,12 @@
 **Acceptance contract:** Document 27  
 **Run date:** 2026-08-15 (Asia/Bangkok)  
 **Source baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`  
-**Status:** `COMMERCIAL_UI_REVIEW_PENDING`  
+**Status:** `SUPERSEDED_FOR_INTELLIGENCE_NICHE_BY_DOCUMENT_26`
 **Deployment:** Sites v293 / `f61dc062617ab7107a5de5cd9e900c09d35220ae` / succeeded
 
 ## Scope
+
+This is the original site-wide baseline across multiple surfaces. Document 26 is authoritative for the later, scoped Intelligence–Niche production FE closure. That closure does not assert site-wide commercial readiness for unrelated Portfolio, Channel Detail or production-engine journeys.
 
 1. Canonical Shell / Portfolio.
 2. Channel Detail.
@@ -93,4 +95,4 @@ Reconcile the seven-criterion assessment in canonical production and resolve onl
 - No production command beyond the bounded expert-decision append; no provider request or dispatch.
 - No production QA, additional migration, delete or command-authority expansion.
 - Do not rerun already-passed semantic/static acceptance unless source changes.
-- Do not claim commercial readiness while `COMMERCIAL_UI_REVIEW_PENDING` remains open.
+- Do not use this historical gate to reopen the scoped Intelligence–Niche decision path accepted by Document 26. Any site-wide commercial-readiness claim for unrelated surfaces still requires its own current evidence.
