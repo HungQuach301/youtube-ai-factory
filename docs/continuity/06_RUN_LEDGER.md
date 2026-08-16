@@ -12,3 +12,27 @@ Required fields include request ID, idempotency key, provider response ID, stage
 4. Compare cost only within matched records.
 5. Preserve failed, incomplete, cancelled and wasted attempts.
 6. Never infer cancellation from a stopped chat or browser session.
+
+## 2026-08-16 — Canonical Channel Strategy activation run
+
+```text
+RUN = prod.hidden-systems.active-strategy.v1
+SOURCE = frozen Stage 01 Intelligence artifact
+BRIDGE_VERSION = 1
+TYPED_NICHE_OPPORTUNITIES = 3
+EVIDENCE_SUFFICIENT = 2
+ELIGIBLE = 2
+PRIORITY_VERSION = 1
+SELECTION_VERSION = 1
+COMMITMENT_VERSION = 1
+ACTIVATION_VERSION = 1
+CHANNEL_STRATEGY_VERSION = 1
+STATE = ACTIVE
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+AGGREGATE_SCORE = null
+REPLAY = IDEMPOTENT_SAME_ACTIVATION
+RELOAD_READBACK = PASS
+BOUNDARY_WRONG_TOKEN = 401_NO_MUTATION
+BOUNDARY_INVALID_ACTION = 400_NO_MUTATION
+```

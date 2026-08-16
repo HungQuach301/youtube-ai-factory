@@ -1,8 +1,8 @@
 # Chat Rollover Source Capsule
 
 **Policy version:** `SOURCE_CONTINUITY_CAPSULE_V1`
-**Current source classification:** `RECONSTRUCTED_V1`
-**Baseline:** Sites v289 / `87dae74fffc9d7388152e532efcbae6387cdaed5`
+**Current source classification:** `PRODUCTION_ACTIVE_V1`
+**Production-active baseline:** Sites v308 / `f534d5e4cb9c70f65d127b3522f7e400a681337f`
 
 Chat transcripts and project memory are discovery aids, not executable source control. A rollover is ready only when the active assistant has created and independently recovery-tested a source capsule.
 
@@ -35,7 +35,7 @@ If any gate fails, report `ROLLOVER BLOCKED`. Do not ask the user to locate an o
 ## Recovery order in a new chat
 
 1. Read `AGENTS.md`, this file and the capsule manifest.
-   For Niche Discovery work, also read Documents 16–23.
+   For Niche Discovery and Channel Strategy work, also read Documents 16–25.
 2. Verify Library/download checksums.
 3. Clone the bundle or apply the binary patch to the exact baseline.
 4. Verify recovered HEAD and clean worktree.

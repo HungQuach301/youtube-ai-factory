@@ -50,3 +50,15 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** Slice 8 appends a canonical Channel Strategy binding only through `ACTIVATE_CHANNEL_STRATEGY` and only when the supplied commitment is the latest active Slice 7 commitment. The activation freezes commitment, selection, priority, program, evidence and scoring lineage; uses global and per-channel optimistic versions; and becomes stale rather than rewriting history when an upstream fact changes.
 
 **Reason:** commitment records portfolio governance intent, while activation explicitly authorizes a downstream strategy binding. Keeping them separate prevents selection, ranking or a legacy `channels.niche` value from silently becoming operational strategy. Channel Studio may consume the active binding, but activation has no provider-dispatch, spend, upstream mutation or Content System authority.
+
+# ADR-064 — Intelligence-to-Niche is an append-only typed bridge
+
+**Decision:** keep the frozen Stage 01 Intelligence artifact byte-stable and materialize channel-level `NICHE_OPPORTUNITY` aggregates in a separate versioned bridge ledger with explicit source-artifact lineage. Legacy video-topic candidates are never copied or promoted into Niche Discovery.
+
+**Reason:** Intelligence contains market, audience and competitor evidence, while Niche Discovery owns comparable business territories. A separate aggregate boundary preserves evidence history, makes the relationship inspectable and prevents topic-level research from silently becoming strategy.
+
+# ADR-065 — Production bootstrap authority is bounded to one canonical zero-spend command
+
+**Decision:** use a server-secret, actor-bound route only for `ACTIVATE_CANONICAL_CHANNEL_STRATEGY`. The route composes the existing Slice 4–8 commands, retains all optimistic-version, idempotency, evidence, prerequisite and audit gates, and cannot accept custom candidates, scores or strategy mutations from the caller.
+
+**Reason:** production QA required a real state transition even when SIWC forwarding is unavailable to the agent runtime. Purpose-bounded authority is safer and more auditable than weakening every operator route or spoofing user identity.

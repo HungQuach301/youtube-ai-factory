@@ -26,7 +26,7 @@ V7/V23 remains the protected Video Production Engine beneath this portfolio arch
 - Product roadmap: Slices 4–8 are permanent product capabilities—Evidence Intelligence & Validation, Portfolio Comparison, Expert Prioritization, Niche Commitment & Governance, and Channel Strategy Activation—not one-time delivery tasks.
 - Commercial UI/UX acceptance remains pending for the canonically blocked decision-form browser/assistive/Web Vitals evidence listed in Document 11. Production now reports 6/7 readiness criteria passed; only `CONTRADICTIONS_REVIEWED` is missing.
 
-Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–24 before continuing in a new chat.
+Read `AGENTS.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and Documents 16–25 before continuing in a new chat.
 
 ## Runtime foundation
 

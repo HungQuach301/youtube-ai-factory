@@ -76,3 +76,16 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - `docs/continuity/24_CHANNEL_STRATEGY_ACTIVATION.md`: authoritative Slice 8 handoff.
 - Continuous evidence: 37/37 async boundaries, 57/57 commercial UI, 10/10 V2 groups, 8 lifecycle paths, rendered fail-closed checks, client-budget gate and 95/95 regressions.
 - Authority: only the Channel Strategy binding mutates; all upstream facts and legacy `channels.niche` remain immutable; provider requests `0`, spend USD `0`, aggregate score `null`.
+
+# Production Intelligence-to-Channel Strategy artifacts
+
+- `lib/canonical-channel-strategy-bootstrap.ts`: deterministic canonical bridge and existing-command orchestrator.
+- `app/api/factory/canonical-channel-strategy-bootstrap/route.ts`: secret-bound, single-action production automation boundary.
+- `db/schema.ts` and `drizzle/0037_intelligence_niche_bridge.sql`: append-only bridge run and typed niche ledgers.
+- `lib/niche-portfolio-projection.ts`: reads typed bridge opportunities beside expert-seeded hypotheses.
+- `scripts/check-canonical-channel-strategy-bootstrap.ts`: three-niche boundary, balanced evidence and no-topic-promotion contract.
+- Production source: Sites v308, commit `f534d5e4cb9c70f65d127b3522f7e400a681337f`.
+- Production outcome: three niches, two comparable/eligible, priority/selection/commitment/activation v1, strategy `ACTIVE`.
+- Selected binding: `Everyday Payment and Pricing Infrastructure` for `channel-hidden-systems`.
+- Immutable controls: frozen Stage 01 hash preserved; 17 legacy topics excluded; provider requests `0`; spend `$0`; aggregate score `null`.
+- Acceptance ledger: `docs/continuity/25_INTELLIGENCE_TO_ACTIVE_CHANNEL_STRATEGY_PRODUCTION.md`.

@@ -54,9 +54,13 @@ The activation ledger—not `channels.niche`—is the canonical Channel Strategy
 - SIWC failures remain no-store, authority-false and zero-spend.
 - Verified build enforces 37 API boundaries, 57 commercial UI checks, rendered fail-closed behavior and the 300 KB aggregate client budget; the regression suite passes 95/95.
 
+## Production acceptance
+
+Production v308 completed a real E2E transition on 2026-08-16. Two evidence-sufficient eligible niches formed the comparable set, the owner/expert priority set was recorded, the top niche was selected and committed, and Channel Strategy v1 was activated. Replay returned the same activation ID; independent Niche Portfolio and Channel Studio read-back plus reload both remained `ACTIVE`. Wrong-token and invalid-action boundary checks caused no mutation. Details are in Document 25.
+
 ## Exact next action
 
-Checkpoint and test Slice 8 on production, then create a recovery-tested source rollover capsule. After that, define the separately authorized Content System & Planning handoff contract. It may consume an active strategy binding, but it must not reinterpret activation as provider-dispatch or content-production authority.
+Create and verify the final source rollover capsule, then define the separately authorized Content System & Planning handoff contract. It may consume the active strategy binding, but it must not reinterpret activation as provider-dispatch or content-production authority.
 
 ## Protected scope
 

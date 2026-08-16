@@ -15,7 +15,7 @@ Record completed and incomplete work, artifact/version/hash, provider usage and 
 
 ## Current handoff
 
-For the multi-channel product surface, Documents 16–24 are authoritative. Slices 1–8 are implemented: contract, portfolio surface, append-only expert hypothesis intake, strict niche/topic isolation, Evidence Intelligence & Validation, evidence-sufficient three-axis comparison, expert prioritization, separate selection/commitment and commitment-bound Channel Strategy activation. Preserve Documents 12–15 as V1 compatibility evidence; never reinterpret V1 video-topic candidates, the V1 expert-decision POST or legacy `channels.niche` as a V2 niche, priority, commitment or active strategy binding.
+For the multi-channel product surface, Documents 16–25 are authoritative. Slices 1–8 are implemented and production-active: contract, portfolio surface, append-only expert hypothesis intake, strict niche/topic isolation, Intelligence-to-Niche bridge, Evidence Intelligence & Validation, evidence-sufficient three-axis comparison, expert prioritization, separate selection/commitment and commitment-bound Channel Strategy activation. Preserve Documents 12–15 as V1 compatibility evidence; never reinterpret V1 video-topic candidates, the V1 expert-decision POST or legacy `channels.niche` as a V2 niche, priority, commitment or active strategy binding.
 
 The protected production handoff remains `MOTION_PROOF_REQUIRED` for champion C only after the Continuity Hardening Gate is reconciled. Do not recreate Stage 09 source, candidates, the composite tournament or pilot.
 # Slice 7 continuation
@@ -24,4 +24,8 @@ Slice 7 adds explicit versioned selection and commitment over Slice 6. The curre
 
 # Slice 8 continuation
 
-Slice 8 adds the separate versioned Channel Strategy binding over only an active Slice 7 commitment. A new chat must read Documents 16–24, verify the recovery-tested Slice 8 capsule and must not rerun or reconstruct Slices 1–8. The next product boundary is a separately authorized Content System & Planning handoff; do not grant activation provider dispatch, spend or content-production authority.
+Slice 8 adds the separate versioned Channel Strategy binding over only an active Slice 7 commitment. A new chat must read Documents 16–25, verify the recovery-tested production-active capsule and must not rerun or reconstruct Slices 1–8. The next product boundary is a separately authorized Content System & Planning handoff; do not grant activation provider dispatch, spend or content-production authority.
+
+# Production-active continuation
+
+Document 25 records the production E2E acceptance. Channel Strategy v1 is active for `Everyday Payment and Pricing Infrastructure`; do not rerun the canonical bootstrap or create a replacement activation unless a separately approved governance change is required. The exact next boundary is Content System & Planning. It may read the active strategy, but it must add its own typed authority, data model and gates before planning, provider dispatch, production or spend.
