@@ -21,6 +21,7 @@ const median = (values: number[]) => {
   const ordered = [...values].sort((a, b) => a - b), middle = Math.floor(ordered.length / 2);
   return ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2;
 };
+const percentile = (values: number[], ratio: number) => { if (!values.length) return 0; const ordered = [...values].sort((a, b) => a - b), position = Math.min(ordered.length - 1, Math.max(0, Math.round((ordered.length - 1) * ratio))); return ordered[position]; };
 
 function pitchAt(pcm: Int16Array, sampleRate: number, start: number) {
   const size = Math.min(2048, pcm.length - start);
@@ -51,12 +52,12 @@ export function measurePcm16Mono(pcm: Int16Array, sampleRate: number): PcmMeasur
   for (let start = 0; start + 2048 < pcm.length; start += Math.max(2048, Math.floor(sampleRate * 0.25))) {
     const pitch = pitchAt(pcm, sampleRate, start); if (pitch >= 70 && pitch <= 320) pitches.push(pitch);
   }
-  const rms = Math.sqrt(sum / Math.max(1, pcm.length)), pitchLow = pitches.length ? Math.min(...pitches) : 0, pitchHigh = pitches.length ? Math.max(...pitches) : 0;
+  const rms = Math.sqrt(sum / Math.max(1, pcm.length)), pitchMedian = median(pitches), stablePitches = pitches.filter((pitch) => !pitchMedian || (pitch >= pitchMedian * .7 && pitch <= pitchMedian * 1.4)), pitchLow = percentile(stablePitches, .1), pitchHigh = percentile(stablePitches, .9);
   return {
     sampleRate, channels: 1, samples: pcm.length, durationSeconds: pcm.length / sampleRate,
     peakDbfs: db(peak), rmsDbfs: db(rms), integratedLufs: db(rms) - 0.7,
     truePeakDbtp: db(peak), silenceRatio: silent / Math.max(1, pcm.length), pauseCount: pauses.length,
-    medianPauseMs: median(pauses), estimatedMedianPitchHz: median(pitches),
+    medianPauseMs: median(pauses), estimatedMedianPitchHz: pitchMedian,
     pitchRangeSemitones: pitchLow && pitchHigh ? 12 * Math.log2(pitchHigh / pitchLow) : 0,
     corruptSampleRatio: corrupt / Math.max(1, pcm.length),
   };
@@ -76,8 +77,9 @@ export function evaluateVoiceAndMix(input: {
     { id: "PRONUNCIATION", pass: input.pronunciationFailures.length === 0, value: input.pronunciationFailures, hard: true },
     { id: "SEAMS", pass: input.seamDiscontinuities === 0, value: input.seamDiscontinuities, hard: true },
     { id: "CORRUPTION", pass: input.narration.corruptSampleRatio === 0, value: input.narration.corruptSampleRatio, hard: true },
-    { id: "WPM", pass: wpm >= 125 && wpm <= 170, value: wpm, hard: false },
-    { id: "PITCH_RANGE", pass: input.narration.pitchRangeSemitones >= 2 && input.narration.pitchRangeSemitones <= 12, value: input.narration.pitchRangeSemitones, hard: false },
+    { id: "WPM_RHYTHM", pass: wpm >= 125 && wpm <= 170, value: wpm, hard: true },
+    { id: "PITCH_PROSODY", pass: input.narration.pitchRangeSemitones >= 2 && input.narration.pitchRangeSemitones <= 12, value: input.narration.pitchRangeSemitones, hard: true },
+    { id: "PAUSE_PROFILE", pass: input.narration.pauseCount >= 1 && input.narration.medianPauseMs >= 80 && input.narration.medianPauseMs <= 1500, value: { count: input.narration.pauseCount, medianMs: input.narration.medianPauseMs }, hard: true },
     { id: "INTEGRATED_LOUDNESS", pass: input.mix.integratedLufs >= -15 && input.mix.integratedLufs <= -13, value: input.mix.integratedLufs, hard: true },
     { id: "TRUE_PEAK", pass: input.mix.truePeakDbtp <= -1, value: input.mix.truePeakDbtp, hard: true },
   ];
