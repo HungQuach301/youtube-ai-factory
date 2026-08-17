@@ -4,7 +4,7 @@
 **Current source classification:** `PRODUCTION_ACTIVE_V1`
 **Production-active functional baseline:** Sites v313 / `f7a125c2f101c3ee3dca23e6d4a080f747142c46`; final FE asset repair and acceptance ledger: Sites v314
 
-**Latest Video Excellence runtime:** Sites v359 / source checkpoint `41a28ef3edb778b0961fdc00d110d07065d47791`; Stage 08 is frozen at 98 adaptive shots over `704.4469583333333` seconds, but golden revision 2 is `REPAIR_REQUIRED` after a 46/100 independent audit with five P1 findings. The bounded plan consumed `40/40` provider requests and `12.471527595833333/20 USD`. Document 35 is the authoritative execution, audit and next-action ledger. Do not dispatch request 41 without new explicit authority; keep Stage 11 blocked.
+**Latest Video Excellence runtime:** Sites v369 / source checkpoint `6f1d55db01d3f881b222d0a55f9389ced39a3062`; Stage 08 is frozen at 98 adaptive shots over `704.4469583333333` seconds. Golden revision 8 is `PASS`: 80.244583 seconds, 33 real temporal PNGs, overall 94, factual 97, semantic 96, voice 98, visual 94, music/SFX 91, mobile 92, transaction-chain 95, P0/P1 `0/0`. The active plan ledger is `53/60` requests and `13.070514645833333/20 USD`, with zero active requests. The quality projection correctly resolves `13/18` hard standards; five full-video standards remain not evaluated, so Stage 11 stays blocked. Document 35 is authoritative.
 
 Chat transcripts and project memory are discovery aids, not executable source control. A rollover is ready only when the active assistant has created and independently recovery-tested a source capsule.
 

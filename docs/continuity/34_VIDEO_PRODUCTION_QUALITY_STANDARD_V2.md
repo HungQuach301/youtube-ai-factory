@@ -403,3 +403,20 @@ VIDEO_QUALITY_ELIGIBILITY = BLOCKED_VIDEO_STANDARD_V2
 STAGE_11 = BLOCKED
 PROVIDER_REQUESTS = 40_OF_40_AUTHORIZED
 ```
+
+## 11. Golden PASS addendum — 2026-08-17
+
+The repair loop completed under separately approved request ceilings while retaining the original score floors. Golden revision 8 passes deterministic and independent gates:
+
+```text
+GOLDEN_REVISION = 8
+GOLDEN_DURATION_SECONDS = 80.24458333333334
+GOLDEN_TEMPORAL_FRAMES = 33_REAL_PNG
+GOLDEN_AUDIO = PASS
+GOLDEN_INDEPENDENT_AUDIT = PASS_94
+GOLDEN_P0_P1 = 0_0
+```
+
+The passing visual system contains shot-specific gross/net, merchant-deduction, fee-ledger, Square, Stripe and covered-debit programs. ENTRY/MIDPOINT/EXIT evidence uses renderer-versioned immutable keys; audience text is structurally isolated from production instructions. Narration, music, SFX and audience mix share the exact TTS-reconciled timeline. Current-revision cue bindings and stored transcript bytes are checksum verified.
+
+Golden PASS closes step 8 of the implementation plan. It does not authorize Stage 11 for the full video. The full `704.4469583333333`-second lineage still lacks five required standards: M0 safety scope, M1 rights lineage, M2 hook pacing, M2 exception-path coverage and M2 episode-wide `$100 card` evidence. Stage 11 remains `BLOCKED_UPSTREAM` until all five pass.

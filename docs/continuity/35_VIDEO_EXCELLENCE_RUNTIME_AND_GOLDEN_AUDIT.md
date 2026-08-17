@@ -167,3 +167,71 @@ PRODUCTION_UI_READBACK = REPAIR_REQUIRED_6_OF_18_HARD_GATES_STAGE_11_BLOCKED
 ```
 
 Unused legacy `.topbar` and `.topActions` CSS was removed to keep the client catalog inside its unchanged performance ceiling. No quality, release or provider budget was weakened.
+
+## 10. Golden revisions 3–8 repair history
+
+The authorized repair loop preserved every prior revision and audit. No threshold was weakened.
+
+- Revision 3 repaired source-window selection, actual-TTS timing and real semantic PNG rendering; deterministic audio failed transcript/WPM gates.
+- Revision 4 moved voice pacing into range and upgraded transcription; transcript mismatch remained above 1%.
+- Revision 5 stored the provider transcript, canonicalized non-audible currency symbols and passed every audio hard gate after zero-provider byte reassessment.
+- Revision 6 replaced generic cards with shot-specific Square, Stripe, gross/net and covered-debit programs; audit reached 90 but found two P1 traceability gaps.
+- Revision 7 added the covered-debit calculation and current-revision cue bindings; audit exposed a missing `INTERCHANGE` label and low-contrast qualifiers.
+- Revision 8 corrected the mandatory label, made qualifiers high contrast at every state and exposed acquiring-side-to-issuer direction from ENTRY.
+
+Audio promotion between identical-narration revisions reused only checksum-verified current golden bytes. Metadata explicitly records `legacyAssetReuse=false`; music/SFX bindings were regenerated for the target revision.
+
+## 11. Golden revision 8 authoritative PASS
+
+```text
+GOLDEN_ID = golden-sequence-569c498c-f93a-440b-a2ba-91feeda6f52b
+REVISION = 8
+DURATION_SECONDS = 80.24458333333334
+SHOTS = 11
+TEMPORAL_PNG_FRAMES = 33
+RENDERER_VERSION = FOLLOW_FEE_PROGRAM_V4
+VOICE = ELEVENLABS_ADAM_PAYG
+TRANSCRIPTION_MODEL = GPT_4O_TRANSCRIBE
+TRANSCRIPT_MISMATCH_RATIO = 0.0053475935828877
+WPM = 131.59766754765377
+PITCH_RANGE_SEMITONES = 8.506009906599894
+PAUSE_COUNT = 22
+MEDIAN_PAUSE_MS = 380.9270833333333
+INTEGRATED_LOUDNESS_LUFS = -14.190724304029693
+TRUE_PEAK_DBTP = -1.1501502719143972
+TIMING_MAXIMUM_DELTA_SECONDS = 0
+AUDIT_HASH = d0d588ba25fdcb5f8d27ff792240cca0d66d5f271067f4c87645bad103847a39
+OVERALL = 94
+FACTUAL_SAFETY = 97
+SEMANTIC_ALIGNMENT = 96
+VOICE_EVIDENCE = 98
+VISUAL_DIRECTION = 94
+MUSIC_SOUND_DESIGN = 91
+MOBILE_LEGIBILITY = 92
+TRANSACTION_CHAIN = 95
+P0 = 0
+P1 = 0
+DECISION = PASS
+```
+
+The passing pixels show scoped Square and Stripe arithmetic, a qualified merchant contractual deduction, acquiring-side-to-issuer interchange direction, separate network/merchant-service categories, and the covered-debit build `$0.21 + $0.05 + up to $0.01 = up to $0.27` labeled as issuer interchange only and not total merchant acceptance cost.
+
+## 12. Budget, projection and remaining release gate
+
+```text
+PLAN_ID = seq-plan-ecd39187-a01e-494d-90ed-d930de1e2d4c
+PLAN_MAX_PROVIDER_REQUESTS = 60
+ACTUAL_PROVIDER_REQUESTS = 53
+PLAN_MAX_SPEND_USD = 20
+ACTUAL_ESTIMATED_SPEND_USD = 13.070514645833333
+ACTIVE_PROVIDER_REQUESTS = 0
+STANDARD_REGISTRY = 19_RESOLVED_18_HARD
+HARD_STANDARDS_PASSED = 13_OF_18
+GOLDEN_SEQUENCE_STATE = PASS
+VIDEO_QUALITY_ELIGIBILITY = BLOCKED_VIDEO_STANDARD_V2
+STAGE_11 = BLOCKED_UPSTREAM
+FULL_REGRESSION = 110_OF_110_PASS
+PRODUCTION_BUILD = PASS
+```
+
+The remaining gaps are full-video evidence, not golden defects: `VQ-M0-SAFETY-SCOPE`, `VQ-M1-RIGHTS-LINEAGE`, `VQ-M2-HOOK-PACING`, `VQ-M2-PILLAR-EXCEPTION` and `VQ-M2-EPISODE-100-CARD`. The next action is to satisfy those five standards across the complete current lineage; only then may Stage 11 start.

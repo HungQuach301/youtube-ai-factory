@@ -36,3 +36,23 @@ DECISION = REPAIR_REQUIRED
 ```
 
 Open root causes are semantic pixel mismatch, audience-visible production instructions, flow/state conflation, absent fee presentation, manifest/mix duration mismatch, insufficient shot-specific temporal evidence and missing cue-by-cue synchronization. Document 35 is the complete evidence and repair ledger. Stage 11 remains fail-closed.
+
+## Golden revision 8 closure — 2026-08-17
+
+```text
+GOLDEN_ID = golden-sequence-569c498c-f93a-440b-a2ba-91feeda6f52b
+AUDIT_HASH = d0d588ba25fdcb5f8d27ff792240cca0d66d5f271067f4c87645bad103847a39
+OVERALL = 94
+FACTUAL_SAFETY = 97
+SEMANTIC_ALIGNMENT = 96
+VOICE_EVIDENCE = 98
+VISUAL_DIRECTION = 94
+MUSIC_SOUND_DESIGN = 91
+MOBILE_LEGIBILITY = 92
+TRANSACTION_CHAIN = 95
+P0 = 0
+P1 = 0
+DECISION = PASS
+```
+
+The repair preserved all floors. It reconciled actual TTS timing, stored transcript evidence, exact financial arithmetic, acquiring-side-to-issuer direction, covered-debit qualifications, high-contrast mobile pixels, and current-revision music/SFX bindings. Golden PASS is complete. Five full-video standards remain not evaluated, so Stage 11 remains fail-closed.

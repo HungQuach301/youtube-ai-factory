@@ -143,3 +143,33 @@ NEXT_ACTION = NEW_BOUNDED_AUTHORITY_FOR_GOLDEN_REVISION_3_ROOT_CAUSE_REPAIR
 ```
 
 The authoritative findings, dimensions and repair contract are in Document 35. The plan is terminal at its request ceiling; dollar headroom does not authorize request 41.
+
+## 2026-08-17 — Golden revision 8 PASS and projection reconciliation
+
+```text
+RUN = prod.hidden-systems.video-01.video-excellence-golden.v8
+FUNCTIONAL_SITES_VERSION = 369
+QUALITY_CONTRACT = VIDEO_PRODUCTION_QUALITY_STANDARD_V2
+PLAN_ID = seq-plan-ecd39187-a01e-494d-90ed-d930de1e2d4c
+MAX_SPEND_USD = 20
+ACTUAL_ESTIMATED_SPEND_USD = 13.070514645833333
+MAX_PROVIDER_REQUESTS = 60
+ACTUAL_PROVIDER_REQUESTS = 53
+ACTIVE_PROVIDER_REQUESTS = 0
+GOLDEN_ID = golden-sequence-569c498c-f93a-440b-a2ba-91feeda6f52b
+GOLDEN_REVISION = 8
+GOLDEN_DURATION_SECONDS = 80.24458333333334
+GOLDEN_FRAMES = 33_REAL_PNG
+GOLDEN_AUDIO_ASSETS = 5_CHECKSUM_READBACK
+GOLDEN_AUDIT_OVERALL = 94
+GOLDEN_AUDIT_P0_P1 = 0_0
+GOLDEN_DECISION = PASS
+HARD_STANDARDS_PASSED = 13_OF_18
+VIDEO_QUALITY_ELIGIBILITY = BLOCKED_VIDEO_STANDARD_V2
+STAGE_11 = BLOCKED_UPSTREAM
+AUTO_PUBLISH = FALSE
+FULL_REGRESSION = 110_OF_110_PASS
+NEXT_ACTION = COMPLETE_REMAINING_FIVE_FULL_VIDEO_STANDARDS
+```
+
+Revisions 3–7 remain preserved failed evidence. Audio reassessment, byte promotion and PASS-evidence reconciliation used zero provider requests and required checksum read-back, identical narration and current-revision cue rebinding.

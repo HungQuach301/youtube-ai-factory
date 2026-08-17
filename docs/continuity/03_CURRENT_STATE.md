@@ -199,6 +199,43 @@ NEXT_ACTION = AUTHORIZE_SEPARATE_BOUNDED_GOLDEN_REVISION_3_ROOT_CAUSE_REPAIR_PLA
 ```
 
 The 98-shot count is a derived result, not a new fixed target. No further provider request is authorized under the exhausted 40-request plan. The failed revision and audit must remain immutable; thresholds may not be weakened.
+
+## Golden sequence closure — 2026-08-17
+
+The separately authorized repair loop completed without weakening any threshold. Golden revision 8 is the first PASS revision; prior revisions and audits remain immutable evidence.
+
+```text
+FUNCTIONAL_SITES_VERSION = 369
+SOURCE_CHECKPOINT = 6f1d55db01d3f881b222d0a55f9389ced39a3062
+GOLDEN_SEQUENCE_ID = golden-sequence-569c498c-f93a-440b-a2ba-91feeda6f52b
+GOLDEN_REVISION = 8
+GOLDEN_STATE = PASS
+GOLDEN_DURATION_SECONDS = 80.24458333333334
+GOLDEN_SHOTS = 11
+GOLDEN_TEMPORAL_PNG_FRAMES = 33
+GOLDEN_AUDIO_ASSETS = NARRATION_MUSIC_SFX_AUDIENCE_MIX_TRANSCRIPT
+GOLDEN_AUDIT_OVERALL = 94
+GOLDEN_AUDIT_DIMENSIONS = FACTUAL_97_SEMANTIC_96_VOICE_98_VISUAL_94_MUSIC_SFX_91_MOBILE_92_TRANSACTION_CHAIN_95
+GOLDEN_P0_P1 = 0_0
+TRANSCRIPT_MISMATCH_RATIO = 0.0053475935828877
+VOICE_WPM = 131.59766754765377
+VOICE_PITCH_RANGE_SEMITONES = 8.506009906599894
+VOICE_MEDIAN_PAUSE_MS = 380.9270833333333
+AUDIENCE_MIX_LUFS = -14.190724304029693
+AUDIENCE_MIX_TRUE_PEAK_DBTP = -1.1501502719143972
+STANDARD_REGISTRY = 19_RESOLVED_18_HARD
+HARD_STANDARDS_PASSED = 13_OF_18
+VIDEO_01_QUALITY_ELIGIBILITY = BLOCKED_VIDEO_STANDARD_V2
+REMAINING_FULL_VIDEO_GAPS = 5
+STAGE_11 = BLOCKED_UPSTREAM
+PLAN_PROVIDER_REQUESTS = 53_OF_60
+PLAN_ESTIMATED_SPEND_USD = 13.070514645833333_OF_20
+ACTIVE_PROVIDER_REQUESTS = 0
+AUTO_PUBLISH = FALSE
+NEXT_ACTION = COMPLETE_FIVE_FULL_VIDEO_STANDARDS_BEFORE_STAGE_11
+```
+
+Golden PASS proves the repaired 80.245-second sequence, not the entire 704.446958-second video. Stage 11 remains correctly blocked by safety scope, full rights lineage, hook pacing, exception-path and episode-wide `$100 card` evidence.
 # Slice 7 checkpoint — 2026-08-16
 
 Permanent Niche Commitment & Governance is implemented over the active Slice 6 comparable portfolio. Selection and commitment are separate append-only facts with SIWC/allowlist authority, idempotency, optimistic versions, audit records and frozen lineage. Direct priority-to-commitment is rejected. Upstream changes make governance facts stale. No rank, axis, evidence sufficiency, eligibility, `channels.niche`, activation, provider request or spend is changed. Exact next action: Slice 8 permanent Channel Strategy Activation.
