@@ -1,34 +1,83 @@
-type TemporalState = "ENTRY" | "MIDPOINT" | "EXIT";
+import { createElement as h, type ReactNode } from "react";
+import { ImageResponse } from "next/og";
 
-const GLYPHS: Record<string, string[]> = {
-  A:["01110","10001","10001","11111","10001","10001","10001"],B:["11110","10001","10001","11110","10001","10001","11110"],C:["01111","10000","10000","10000","10000","10000","01111"],D:["11110","10001","10001","10001","10001","10001","11110"],E:["11111","10000","10000","11110","10000","10000","11111"],F:["11111","10000","10000","11110","10000","10000","10000"],G:["01111","10000","10000","10111","10001","10001","01111"],H:["10001","10001","10001","11111","10001","10001","10001"],I:["11111","00100","00100","00100","00100","00100","11111"],J:["00111","00010","00010","00010","10010","10010","01100"],K:["10001","10010","10100","11000","10100","10010","10001"],L:["10000","10000","10000","10000","10000","10000","11111"],M:["10001","11011","10101","10101","10001","10001","10001"],N:["10001","11001","10101","10011","10001","10001","10001"],O:["01110","10001","10001","10001","10001","10001","01110"],P:["11110","10001","10001","11110","10000","10000","10000"],Q:["01110","10001","10001","10001","10101","10010","01101"],R:["11110","10001","10001","11110","10100","10010","10001"],S:["01111","10000","10000","01110","00001","00001","11110"],T:["11111","00100","00100","00100","00100","00100","00100"],U:["10001","10001","10001","10001","10001","10001","01110"],V:["10001","10001","10001","10001","10001","01010","00100"],W:["10001","10001","10001","10101","10101","11011","10001"],X:["10001","10001","01010","00100","01010","10001","10001"],Y:["10001","10001","01010","00100","00100","00100","00100"],Z:["11111","00001","00010","00100","01000","10000","11111"],
-  "0":["01110","10001","10011","10101","11001","10001","01110"],"1":["00100","01100","00100","00100","00100","00100","01110"],"2":["01110","10001","00001","00010","00100","01000","11111"],"3":["11110","00001","00001","01110","00001","00001","11110"],"4":["00010","00110","01010","10010","11111","00010","00010"],"5":["11111","10000","10000","11110","00001","00001","11110"],"6":["01110","10000","10000","11110","10001","10001","01110"],"7":["11111","00001","00010","00100","01000","01000","01000"],"8":["01110","10001","10001","01110","10001","10001","01110"],"9":["01110","10001","10001","01111","00001","00001","01110"],
-  "$": ["00100","01111","10100","01110","00101","11110","00100"], "-": ["00000","00000","00000","11111","00000","00000","00000"], ".": ["00000","00000","00000","00000","00000","00110","00110"], ":": ["00000","00110","00110","00000","00110","00110","00000"], "?": ["01110","10001","00001","00010","00100","00000","00100"], " ": ["00000","00000","00000","00000","00000","00000","00000"],
+type TemporalState = "ENTRY" | "MIDPOINT" | "EXIT";
+export type GoldenSceneKind = "APPROVAL_DECISION" | "STATE_LIFECYCLE" | "ROLE_MAP" | "FEE_LEDGER" | "COST_STACK" | "RATE_VARIATION" | "EXCEPTION_PATH";
+
+const SCENE_COPY: Record<GoldenSceneKind, [string, string]> = {
+  APPROVAL_DECISION: ["Approval is a decision", "Information now · money later"],
+  STATE_LIFECYCLE: ["Six distinct states", "Connected, not interchangeable"],
+  ROLE_MAP: ["Follow the jobs", "One firm may combine roles"],
+  FEE_LEDGER: ["Who pays. Who receives.", "Separate economic entries"],
+  COST_STACK: ["Start with a $100 sale", "Merchant net = $100 − acceptance cost"],
+  RATE_VARIATION: ["No universal fee split", "Actual pricing varies by contract"],
+  EXCEPTION_PATH: ["The path can branch", "Decline · reversal · dispute"],
 };
 
-const u32 = (value: number) => new Uint8Array([(value >>> 24) & 255, (value >>> 16) & 255, (value >>> 8) & 255, value & 255]);
-function join(parts: Uint8Array[]) { const length = parts.reduce((sum, part) => sum + part.length, 0), output = new Uint8Array(length); let offset = 0; for (const part of parts) { output.set(part, offset); offset += part.length; } return output; }
-function crc32(bytes: Uint8Array) { let crc = 0xffffffff; for (const byte of bytes) { crc ^= byte; for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1)); } return (crc ^ 0xffffffff) >>> 0; }
-function chunk(type: string, data: Uint8Array) { const name = new TextEncoder().encode(type), body = join([name, data]); return join([u32(data.length), body, u32(crc32(body))]); }
-function deflateStored(raw: Uint8Array) { const parts: Uint8Array[] = [new Uint8Array([0x78, 0x01])]; for (let offset = 0; offset < raw.length;) { const length = Math.min(65535, raw.length - offset), final = offset + length >= raw.length ? 1 : 0; parts.push(new Uint8Array([final, length & 255, (length >>> 8) & 255, (~length) & 255, ((~length) >>> 8) & 255]), raw.slice(offset, offset + length)); offset += length; } let a = 1, b = 0; for (const byte of raw) { a = (a + byte) % 65521; b = (b + a) % 65521; } parts.push(u32(((b << 16) | a) >>> 0)); return join(parts); }
+const baseCard = { display: "flex", flexDirection: "column", justifyContent: "space-between", borderRadius: 14, padding: "18px 20px", minHeight: 102 } as const;
+function card(title: string, subtitle: string, active: boolean, accent: string, width?: number | string) {
+  return h("div", { style: { ...baseCard, ...(width === undefined ? {} : { width }), opacity: active ? 1 : .32, color: active ? "#0b3029" : "#d7e4df", background: active ? "#f7f1df" : "#173d35", borderTop: `7px solid ${active ? accent : "#55766d"}` } },
+    h("div", { style: { display: "flex", fontSize: 25, lineHeight: 1.05, fontWeight: 750, letterSpacing: "-.02em" } }, title),
+    h("div", { style: { display: "flex", fontSize: 15, lineHeight: 1.15, color: active ? "#4b665e" : "#c1d2cc", textTransform: "uppercase", letterSpacing: ".04em" } }, subtitle),
+  );
+}
+function arrow(active: boolean, accent: string) { return h("div", { style: { display: "flex", width: 52, alignItems: "center", justifyContent: "center", color: active ? accent : "#55766d", fontSize: 34, fontWeight: 800 } }, "→"); }
+function sceneBody(scene: GoldenSceneKind, reveal: number, accent: string): ReactNode {
+  if (scene === "APPROVAL_DECISION") return h("div", { style: { display: "flex", alignItems: "center", width: "100%" } }, card("Checkout", "$100 request", true, accent, 230), arrow(reveal >= 2, accent), card("Issuer", "Credit decision", reveal >= 2, accent, 230), arrow(reveal >= 3, accent), card("Terminal", "Approved", reveal >= 3, accent, 230));
+  if (scene === "STATE_LIFECYCLE") {
+    const items = [["Requested","Start"],["Authorized","Decision"],["Captured","Confirm"],["Cleared","Reconcile"],["Settled","Funds"],["Paid out","Merchant"]];
+    return h("div", { style: { display: "flex", flexWrap: "wrap", gap: 12, width: "100%" } }, ...items.map(([title, subtitle], index) => card(title, subtitle, index < reveal * 2, accent, 278)));
+  }
+  if (scene === "ROLE_MAP") {
+    const roles = [["Merchant","Accepts"],["Acquirer","Merchant side"],["Network","Routes"],["Issuer","Decides"]];
+    return h("div", { style: { display: "flex", flexDirection: "column", gap: 18, width: "100%" } },
+      h("div", { style: { display: "flex", alignItems: "center", width: "100%" } }, ...roles.flatMap(([title, subtitle], index) => [card(title, subtitle, index <= reveal, accent, 185), ...(index < roles.length - 1 ? [arrow(index < reveal, accent)] : [])])),
+      h("div", { style: { display: "flex", justifyContent: "space-around", padding: "14px 20px", borderRadius: 12, background: "#143d34", fontSize: 16, fontWeight: 750, textTransform: "uppercase" } }, h("span", { style: { color: "#76e0bb" } }, "Message"), h("span", { style: { color: "#70b9ff" } }, "Money"), h("span", { style: { color: "#f6c85f" } }, "Fee"), h("span", { style: { color: "#ff967d" } }, "Risk")),
+    );
+  }
+  if (scene === "FEE_LEDGER") {
+    const recipients = [["Issuer side","Interchange"],["Network","Service fees"],["Processor / acquirer","Merchant pricing"]];
+    return h("div", { style: { display: "flex", alignItems: "stretch", gap: 22, width: "100%" } },
+      card("Merchant", "Pays acceptance cost", true, accent, 235),
+      h("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", width: 210, borderRadius: 14, background: "#342d17", color: accent, fontSize: 25, fontWeight: 800, textAlign: "center", textTransform: "uppercase" } }, "Acceptance cost"),
+      h("div", { style: { display: "flex", flexDirection: "column", gap: 9, flex: 1 } }, ...recipients.map(([title, subtitle], index) => card(title, subtitle, index < reveal, accent))),
+    );
+  }
+  if (scene === "COST_STACK") return h("div", { style: { display: "flex", flexDirection: "column", gap: 18, width: "100%" } },
+    h("div", { style: { display: "flex", alignItems: "center", width: "100%" } }, card("$100 sale", "Customer purchase", true, accent, 245), arrow(reveal >= 2, accent), card("Minus cost", "Merchant is billed", reveal >= 2, accent, 245), arrow(reveal >= 3, accent), card("Merchant net", "Varies by contract", reveal >= 3, accent, 245)),
+    h("div", { style: { display: "flex", justifyContent: "center", padding: 12, borderRadius: 12, background: "#3a3019", color: accent, fontSize: 20, fontWeight: 750, textTransform: "uppercase", letterSpacing: ".03em" } }, "Illustrative logic · not a typical rate"),
+  );
+  if (scene === "RATE_VARIATION") {
+    const factors = ["Card product","Merchant type","Channel","Authentication","Data quality","Contract"];
+    return h("div", { style: { display: "flex", flexWrap: "wrap", gap: 12, width: "100%" } }, ...factors.map((factor, index) => card(factor, "Can change price", index < reveal * 2, accent, 278)));
+  }
+  return h("div", { style: { display: "flex", alignItems: "center", width: "100%" } }, card("Request", "Checkout start", true, accent, 210), arrow(reveal >= 2, accent), h("div", { style: { display: "flex", flexDirection: "column", gap: 12, width: 245 } }, card("Approved", "Continue", reveal >= 2, accent), card("Declined", "Stop", reveal >= 2, accent)), arrow(reveal >= 3, accent), card("Later state", "Reversal or dispute", reveal >= 3, accent, 250));
+}
 
-export function renderTransactionChainFrame(input: { shotId: string; temporalState: TemporalState; phase: "AUTHORIZATION" | "CLEARING" | "SETTLEMENT" | "FEE" | "EXCEPTION"; headline: string; detail: string }) {
-  const width = 960, height = 540, pixels = new Uint8Array(width * height * 4);
-  const color = (hex: string) => [Number.parseInt(hex.slice(1, 3), 16), Number.parseInt(hex.slice(3, 5), 16), Number.parseInt(hex.slice(5, 7), 16), 255] as const;
-  const fill = (x: number, y: number, w: number, h: number, hex: string) => { const c = color(hex); for (let py = Math.max(0, y); py < Math.min(height, y + h); py += 1) for (let px = Math.max(0, x); px < Math.min(width, x + w); px += 1) pixels.set(c, (py * width + px) * 4); };
-  const text = (value: string, x: number, y: number, scale: number, hex: string, maximum = 38) => { const c = color(hex); let cx = x; const safe = value.toUpperCase().replace(/[^A-Z0-9$\-.: ]/g, " ").replace(/\s+/g, " ").trim().slice(0, maximum); for (const character of safe) { const glyph = GLYPHS[character] || GLYPHS["?"]; for (let gy = 0; gy < 7; gy += 1) for (let gx = 0; gx < 5; gx += 1) if (glyph[gy][gx] === "1") for (let sy = 0; sy < scale; sy += 1) for (let sx = 0; sx < scale; sx += 1) { const px = cx + gx * scale + sx, py = y + gy * scale + sy; if (px >= 0 && px < width && py >= 0 && py < height) pixels.set(c, (py * width + px) * 4); } cx += 6 * scale; } };
-  const line = (x1: number, y1: number, x2: number, y2: number, thickness: number, hex: string) => { const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)); for (let step = 0; step <= steps; step += 1) { const ratio = steps ? step / steps : 0; fill(Math.round(x1 + (x2 - x1) * ratio) - Math.floor(thickness / 2), Math.round(y1 + (y2 - y1) * ratio) - Math.floor(thickness / 2), thickness, thickness, hex); } };
-  const stateIndex = ["ENTRY", "MIDPOINT", "EXIT"].indexOf(input.temporalState), active = stateIndex;
-  fill(0, 0, width, height, "#061b18"); fill(0, 0, width, 12, input.phase === "EXCEPTION" ? "#e8a56d" : "#72d6ae");
-  text(input.phase, 52, 42, 3, "#72d6ae", 22); text(input.headline, 52, 86, 4, "#f4f7f5", 34); text(input.detail, 52, 132, 2, "#a8c8bc", 58);
-  const actors = ["MERCHANT", "PROCESSOR", "ACQUIRER", "NETWORK", "ISSUER"], xs = [38, 225, 412, 599, 786];
-  actors.forEach((actor, index) => { const reached = index <= active + 1; fill(xs[index], 232, 136, 116, reached ? "#f4edd7" : "#173d35"); fill(xs[index], 232, 136, 8, reached ? "#72d6ae" : "#31594e"); text(actor, xs[index] + 12, 278, actor.length > 8 ? 2 : 3, reached ? "#143f35" : "#8fa69d", 12); if (index < actors.length - 1) line(xs[index] + 136, 290, xs[index + 1], 290, 7, index <= active ? "#72d6ae" : "#31594e"); });
-  const flow = input.phase === "SETTLEMENT" ? "MONEY FLOW" : input.phase === "FEE" ? "FEE FLOW" : input.phase === "EXCEPTION" ? "LIABILITY PATH" : "MESSAGE FLOW";
-  fill(52, 390, 856, 82, "#0d3029"); text(flow, 74, 416, 3, input.phase === "EXCEPTION" ? "#e8a56d" : "#72d6ae", 22); text(input.temporalState, 690, 416, 3, "#f4edd7", 12);
-  [0, 1, 2].forEach((index) => fill(418 + index * 58, 504, 42, 7, index <= stateIndex ? "#72d6ae" : "#315447"));
-  const raw = new Uint8Array(height * (1 + width * 4)); for (let y = 0; y < height; y += 1) { const row = y * (1 + width * 4); raw[row] = 0; raw.set(pixels.subarray(y * width * 4, (y + 1) * width * 4), row + 1); }
-  const ihdr = new Uint8Array(13); ihdr.set(u32(width), 0); ihdr.set(u32(height), 4); ihdr.set([8, 6, 0, 0, 0], 8);
-  return { bytes: join([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", deflateStored(raw)), chunk("IEND", new Uint8Array())]), pixels, width, height };
+function frameElement(input: { shotIndex: number; temporalState: TemporalState; sceneKind: GoldenSceneKind }) {
+  const stateIndex = ["ENTRY", "MIDPOINT", "EXIT"].indexOf(input.temporalState), reveal = stateIndex + 1, accent = input.sceneKind === "EXCEPTION_PATH" ? "#ffb36b" : input.sceneKind === "FEE_LEDGER" || input.sceneKind === "COST_STACK" ? "#f6c85f" : "#76e0bb", copy = SCENE_COPY[input.sceneKind];
+  return h("div", { style: { display: "flex", flexDirection: "column", width: "100%", height: "100%", padding: "30px 38px 26px", color: "#f8f5e8", background: "#061b18", borderTop: `12px solid ${accent}`, fontFamily: "sans-serif" } },
+    h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } }, h("div", { style: { display: "flex", padding: "8px 13px", borderRadius: 8, color: accent, background: "#143d34", fontSize: 15, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase" } }, "Follow the Fee"), h("div", { style: { display: "flex", color: "#b7cec6", fontSize: 14, fontWeight: 700 } }, input.temporalState)),
+    h("div", { style: { display: "flex", flexDirection: "column", marginTop: 20, marginBottom: 24 } }, h("div", { style: { display: "flex", fontSize: 43, lineHeight: 1.02, fontWeight: 800, letterSpacing: "-.035em" } }, copy[0]), h("div", { style: { display: "flex", marginTop: 8, color: "#c7ddd5", fontSize: 19, fontWeight: 500 } }, copy[1])),
+    h("div", { style: { display: "flex", flex: 1, alignItems: "center" } }, sceneBody(input.sceneKind, reveal, accent)),
+    h("div", { style: { display: "flex", width: "100%", height: 10, marginTop: 22, borderRadius: 6, overflow: "hidden", background: "#173d35" } }, h("div", { style: { display: "flex", width: `${Math.min(96, 31 + stateIndex * 30 + input.shotIndex % 7)}%`, background: accent } })),
+  );
+}
+
+async function decodePng(bytes: Uint8Array) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength); let offset = 8, width = 0, height = 0, colorType = 6; const idat: Uint8Array[] = [];
+  while (offset + 12 <= bytes.length) { const length = view.getUint32(offset), type = new TextDecoder().decode(bytes.subarray(offset + 4, offset + 8)), data = bytes.subarray(offset + 8, offset + 8 + length); if (type === "IHDR") { const header = new DataView(data.buffer, data.byteOffset, data.byteLength); width = header.getUint32(0); height = header.getUint32(4); colorType = data[9]; } else if (type === "IDAT") idat.push(data); offset += 12 + length; if (type === "IEND") break; }
+  const compressedLength = idat.reduce((sum, part) => sum + part.length, 0), compressed = new Uint8Array(compressedLength); let cursor = 0; for (const part of idat) { compressed.set(part, cursor); cursor += part.length; }
+  const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate")), raw = new Uint8Array(await new Response(stream).arrayBuffer()), channels = colorType === 6 ? 4 : colorType === 2 ? 3 : 0; if (!width || !height || !channels) throw new Error(`Unsupported PNG color type ${colorType}`);
+  const stride = width * channels, decoded = new Uint8Array(height * stride); let rawOffset = 0;
+  const paeth = (a: number, b: number, c: number) => { const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c); return pa <= pb && pa <= pc ? a : pb <= pc ? b : c; };
+  for (let y = 0; y < height; y += 1) { const filter = raw[rawOffset++], row = y * stride; for (let x = 0; x < stride; x += 1) { const value = raw[rawOffset++], left = x >= channels ? decoded[row + x - channels] : 0, above = y ? decoded[row - stride + x] : 0, upperLeft = y && x >= channels ? decoded[row - stride + x - channels] : 0; decoded[row + x] = filter === 0 ? value : filter === 1 ? value + left : filter === 2 ? value + above : filter === 3 ? value + Math.floor((left + above) / 2) : value + paeth(left, above, upperLeft); } }
+  if (channels === 4) return { pixels: decoded, width, height }; const pixels = new Uint8Array(width * height * 4); for (let source = 0, target = 0; source < decoded.length; source += 3, target += 4) { pixels[target] = decoded[source]; pixels[target + 1] = decoded[source + 1]; pixels[target + 2] = decoded[source + 2]; pixels[target + 3] = 255; } return { pixels, width, height };
+}
+
+export async function renderTransactionChainFrame(input: { shotId: string; shotIndex: number; temporalState: TemporalState; sceneKind: GoldenSceneKind }) {
+  const response = new ImageResponse(frameElement(input), { width: 960, height: 540 }), bytes = new Uint8Array(await response.arrayBuffer()), decoded = await decodePng(bytes);
+  return { bytes, ...decoded, audienceCopy: { kicker: "Follow the Fee", headline: SCENE_COPY[input.sceneKind][0], qualifier: SCENE_COPY[input.sceneKind][1] }, semanticState: `${input.sceneKind}:${input.temporalState}` };
 }
 
 export function compareTemporalPixels(frames: Array<{ pixels: Uint8Array; width: number; height: number }>) {
