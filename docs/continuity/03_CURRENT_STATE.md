@@ -251,3 +251,9 @@ Sites production v308 deployed commit `f534d5e4cb9c70f65d127b3522f7e400a681337f`
 # Intelligence–Niche FE production closure — 2026-08-16
 
 Sites production v311 deployed functional commit `c292871bb210fc293327b01f82afb2253443b3fc`. Intelligence now presents a compact evidence-to-opportunity handoff with lineage disclosure and an explicit Niche decision action. Niche Discovery is decision-first: the active strategy and selected niche lead the page, the three independent axes use responsive comparison cards, dossiers retain evidence detail, and historical governance plus alternative intake are secondary disclosures. The route reuses one canonical client projection rather than performing a duplicate D1 read. Full regression passed 95/95; production read-back kept the same activation ID across Niche Portfolio and Channel Studio, all three production routes returned HTTP 200, and recent error-only Worker logs contained zero events. Document 26 is the acceptance ledger.
+
+# Golden master truth correction — 2026-08-17
+
+Revision 8's `PASS` was invalid: it proved 33 component PNGs and a 48 kHz mix, but no encoded audience master existed and the UI presented one PNG beside an audio element as if it were playback. Migration 0046 preserves that evidence, revokes its playback conclusion and changes the state to `MASTER_REQUIRED`.
+
+The scalable release path is now `render job → encoded master → storage read-back → full decoded scan → independent audit → observed human playback`. Only a real 1920×1080/30 fps VP9 + stereo 48 kHz Opus master may satisfy the playback standard. Duration, complete frame count, black/freeze limits, 33 unique semantic samples, A/V alignment, HTTP Range, seek/pause/resume, visible motion and natural completion are hard gates. Component PNG/WAV evidence can diagnose a failure but can never substitute for the master or restore `PASS`.

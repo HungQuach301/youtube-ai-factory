@@ -103,7 +103,7 @@ test("Video Production Quality Standard V2 is executable and Stage 11 fails clos
   assert.match(projection, /qualityEligibility/);
 });
 
-test("golden-sequence runtime uses real pixels, section voice, composed audio and independent audit", () => {
+test("golden-sequence runtime requires component evidence and a real audience master", () => {
   const quality = read("app/api/factory/sequential-production/quality/route.ts");
   const pixels = read("lib/video-quality-pixels.ts");
   const audio = read("lib/video-audio-quality.ts");
@@ -114,6 +114,10 @@ test("golden-sequence runtime uses real pixels, section voice, composed audio an
   assert.match(quality, /PROMOTE_VERIFIED_GOLDEN_AUDIO/);
   assert.match(quality, /RECONCILE_GOLDEN_PASS_EVIDENCE/);
   assert.match(quality, /AUDIT_GOLDEN_SEQUENCE/);
+  assert.match(quality, /REQUEST_GOLDEN_MASTER_RENDER/);
+  assert.match(quality, /GOLDEN_MASTER_VIDEO/);
+  assert.match(quality, /MASTER_QA_CONTACT_SHEET/);
+  assert.match(quality, /SUBMIT_GOLDEN_HUMAN_PLAYBACK/);
   assert.match(quality, /GOLDEN_TTS_SPEED = 1\.1/);
   assert.match(quality, /compileGoldenNarration/);
   assert.match(quality, /language_code:\s*"en"/);
@@ -142,6 +146,6 @@ test("golden-sequence runtime uses real pixels, section voice, composed audio an
   assert.match(quality, /SUPERSEDED_TEMPORAL_FRAME/);
   assert.match(quality, /instructionResidue: false/);
   assert.match(quality, /timingReconciliation/);
-  assert.match(quality, /distributedFrameSamples/);
+  assert.match(quality, /full-frame scan/);
   assert.match(quality, /universalSplit: false/);
 });

@@ -56,3 +56,7 @@ DECISION = PASS
 ```
 
 The repair preserved all floors. It reconciled actual TTS timing, stored transcript evidence, exact financial arithmetic, acquiring-side-to-issuer direction, covered-debit qualifications, high-contrast mobile pixels, and current-revision music/SFX bindings. Golden PASS is complete. Five full-video standards remain not evaluated, so Stage 11 remains fail-closed.
+
+## Golden revision 8 playback correction — 2026-08-17
+
+The score above remains historical component evidence, not a valid playback decision. No encoded master was audited and production displayed a single midpoint PNG plus an audio element. `VQ-M1-GOLDEN-PLAYBACK` is therefore reopened as `BLOCKED`; only `GOLDEN_MASTER_V1` evidence may close it. A provider audit may advance the state only to `AUDIT_PASS_PLAYBACK_REQUIRED`; final `PASS` requires an observed full native-video session with metadata, time progression, pause/resume, seek, audio track, visible motion and `ended=true`.

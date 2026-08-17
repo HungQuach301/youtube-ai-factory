@@ -235,3 +235,9 @@ PRODUCTION_BUILD = PASS
 ```
 
 The remaining gaps are full-video evidence, not golden defects: `VQ-M0-SAFETY-SCOPE`, `VQ-M1-RIGHTS-LINEAGE`, `VQ-M2-HOOK-PACING`, `VQ-M2-PILLAR-EXCEPTION` and `VQ-M2-EPISODE-100-CARD`. The next action is to satisfy those five standards across the complete current lineage; only then may Stage 11 start.
+
+## 13. Root-cause correction: component audit was not playback
+
+Production review exposed a category error in the QA architecture: the runtime stored and scored frame components, then the UI coupled one `MIDPOINT` PNG with a separate audio control and labeled the result as an 80-second video. The audit sampler could therefore report high semantic scores without proving continuity, native duration, motion, seeking or audience playback.
+
+The correction is systemic. Migration 0046 invalidates the false playback PASS without deleting its lineage. A reusable master-render job consumes all verified frame/audio inputs; the executor encodes the audience artifact; upload accepts only a contract-valid probe and full scan; read-back checksum and Range are mandatory; independent audit reviews decoded master contact sheets; and final PASS is reserved for a full observed native-video session. Production projection no longer exposes poster or mix URLs as a video fallback.

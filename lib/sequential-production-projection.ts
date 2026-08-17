@@ -184,7 +184,8 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
     db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
   ]);
-  const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND (role='AUDIENCE_MIX' OR (role='TEMPORAL_FRAME' AND temporal_state='MIDPOINT')) ORDER BY role,shot_id LIMIT 2", goldenSequence.id) : [];
+  const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
+  const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
   const goldenAssetUrl = (role: string) => { const asset = goldenAssets.find((item) => text(item.role) === role); return asset ? `/api/factory/sequential-production/quality?asset=${encodeURIComponent(text(asset.id))}` : undefined; };
   const registry = standardRows.map((item) => ({
     standardId: text(item.id), version: VIDEO_QUALITY_STANDARD_VERSION, scope: text(item.scope), scopeKey: text(item.scope_key), enforcementLevel: text(item.enforcement_level),
@@ -243,8 +244,9 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       passedHardStandards: qualityEligibility.passedHardStandards,
       goldenSequenceState: text(goldenSequence?.lifecycle_state) || "NOT_STARTED",
       goldenSequenceDurationSeconds: number(goldenSequence?.duration_seconds),
-      goldenPosterUrl: goldenAssetUrl("TEMPORAL_FRAME"),
-      goldenMixUrl: goldenAssetUrl("AUDIENCE_MIX"),
+      goldenMasterUrl: goldenAssetUrl("GOLDEN_MASTER_VIDEO"),
+      goldenMasterState: text(goldenMasterJob?.lifecycle_state) || "MASTER_REQUIRED",
+      goldenMasterProbe: goldenMasterJob?.probe_json ? json<Record<string, number>>(goldenMasterJob.probe_json, {}) : undefined,
       gaps: qualityEligibility.gaps.map((gap) => ({ standardId: gap.standardId, level: gap.level, owningStage: gap.owningStage, status: gap.status, evidenceRequired: gap.evidenceRequired })),
     },
     stages: stages.map((stage) => {

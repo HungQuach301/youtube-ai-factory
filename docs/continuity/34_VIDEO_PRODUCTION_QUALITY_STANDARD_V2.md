@@ -420,3 +420,9 @@ GOLDEN_P0_P1 = 0_0
 The passing visual system contains shot-specific gross/net, merchant-deduction, fee-ledger, Square, Stripe and covered-debit programs. ENTRY/MIDPOINT/EXIT evidence uses renderer-versioned immutable keys; audience text is structurally isolated from production instructions. Narration, music, SFX and audience mix share the exact TTS-reconciled timeline. Current-revision cue bindings and stored transcript bytes are checksum verified.
 
 Golden PASS closes step 8 of the implementation plan. It does not authorize Stage 11 for the full video. The full `704.4469583333333`-second lineage still lacks five required standards: M0 safety scope, M1 rights lineage, M2 hook pacing, M2 exception-path coverage and M2 episode-wide `$100 card` evidence. Stage 11 remains `BLOCKED_UPSTREAM` until all five pass.
+
+## 12. Encoded master amendment — 2026-08-17
+
+The addendum above is superseded for playback eligibility. PNG temporal evidence and a separate WAV mix are components, not an audience video. The generic `GOLDEN_MASTER_V1` contract now requires an immutable render job, verified source checksums, one encoded WebM master, storage read-back, byte checksum, HTTP Range support, ffprobe metadata, full decoded frame count, black/freeze scan, 33 unique semantic samples extracted from the encoded output, three decoded contact sheets and A/V duration agreement within one frame.
+
+Independent model review is deliberately non-final. It can only produce `AUDIT_PASS_PLAYBACK_REQUIRED`. A separate human playback gate owns the final transition to `PASS`; failed observations create findings and keep the control plane blocked. These requirements apply by contract to every future render, rather than being a one-off repair for the current video.

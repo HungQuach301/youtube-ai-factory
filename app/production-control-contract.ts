@@ -54,8 +54,9 @@ export type SequentialProductionProjection = {
     passedHardStandards: number;
     goldenSequenceState: string;
     goldenSequenceDurationSeconds: number;
-    goldenPosterUrl?: string;
-    goldenMixUrl?: string;
+    goldenMasterUrl?: string;
+    goldenMasterState: string;
+    goldenMasterProbe?: { width?: number; height?: number; durationSeconds?: number; averageFrameRate?: number; audioSampleRate?: number; audioChannels?: number };
     gaps: Array<{ standardId: string; level: string; owningStage: string; status: string; evidenceRequired: string[] }>;
   };
   stages: Array<{

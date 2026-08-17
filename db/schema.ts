@@ -2249,3 +2249,9 @@ export const v7GoldenSequenceAssets = sqliteTable("v7_golden_sequence_assets", {
   id: text("id").primaryKey(), goldenSequenceId: text("golden_sequence_id").notNull(), role: text("role").notNull(), shotId: text("shot_id"), temporalState: text("temporal_state"), storageKey: text("storage_key").notNull(),
   mimeType: text("mime_type").notNull(), byteSize: integer("byte_size").notNull(), sha256: text("sha256").notNull(), rightsState: text("rights_state").notNull(), metadataJson: text("metadata_json").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("v7_golden_sequence_asset_role_uq").on(table.goldenSequenceId, table.role, table.shotId, table.temporalState)]);
+
+export const v7GoldenMasterJobs = sqliteTable("v7_golden_master_jobs", {
+  id: text("id").primaryKey(), goldenSequenceId: text("golden_sequence_id").notNull(), revision: integer("revision").notNull(), lifecycleState: text("lifecycle_state").notNull(),
+  renderSpecJson: text("render_spec_json").notNull(), masterAssetId: text("master_asset_id"), probeJson: text("probe_json"), scanJson: text("scan_json"), playbackJson: text("playback_json"), errorCode: text("error_code"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_golden_master_job_sequence_uq").on(table.goldenSequenceId, table.revision), index("v7_golden_master_job_state_idx").on(table.lifecycleState, table.updatedAt)]);

@@ -163,7 +163,7 @@ GOLDEN_FRAMES = 33_REAL_PNG
 GOLDEN_AUDIO_ASSETS = 5_CHECKSUM_READBACK
 GOLDEN_AUDIT_OVERALL = 94
 GOLDEN_AUDIT_P0_P1 = 0_0
-GOLDEN_DECISION = PASS
+GOLDEN_DECISION = SUPERSEDED_MASTER_REQUIRED
 HARD_STANDARDS_PASSED = 13_OF_18
 VIDEO_QUALITY_ELIGIBILITY = BLOCKED_VIDEO_STANDARD_V2
 STAGE_11 = BLOCKED_UPSTREAM
@@ -173,3 +173,5 @@ NEXT_ACTION = COMPLETE_REMAINING_FIVE_FULL_VIDEO_STANDARDS
 ```
 
 Revisions 3–7 remain preserved failed evidence. Audio reassessment, byte promotion and PASS-evidence reconciliation used zero provider requests and required checksum read-back, identical narration and current-revision cue rebinding.
+
+The revision 8 component audit is retained for lineage, but its playback conclusion is revoked. The next valid decision must be issued against the encoded master plus decoded full-master evidence and a completed human playback observation; no PNG poster or standalone audio control is eligible.
