@@ -79,4 +79,4 @@ The lineage is `active business facts → new episode package → new stage arti
 
 ## Exact next action
 
-Document 31 remains authoritative for techniques, tools, controls and required evidence per stage. Document 32 is the immutable video-01 execution record. Document 33 is the implementation plan for Stage 11–16. The next executable boundary is Stage 11 clean edit and composition; video #2 remains locked until video #1 reaches `OWNER_READY`. The operator UI remains English-only and localization stays deferred.
+Document 31 remains authoritative for stage techniques and tools. Document 32 is the immutable video-01 execution record. Document 33 is the revised implementation plan. Document 34 is authoritative for audience-facing Video Excellence, route-specific standards and M0–M4 enforcement. The next implementation boundary is the Standard Registry, truthful quality projection and golden-sequence gate; Stage 11 is not executable while video #1 is quality-ineligible. Video #2 remains locked until video #1 reaches `OWNER_READY`. The operator UI remains English-only and localization stays deferred.

@@ -118,6 +118,7 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Per-stage techniques, tools and quality controls: `docs/continuity/31_STAGE_TECHNIQUES_TOOLS_QUALITY_CONTROLS.md`.
 - Video-01 production record: `docs/continuity/32_VIDEO_01_STAGE_00_10_EXECUTION_RECORD.md`.
 - Next implementation plan: `docs/continuity/33_STAGE_11_16_IMPLEMENTATION_PLAN.md`.
+- Video Production Quality Standard V2, content-route playbooks and M0–M4 enforcement registry: `docs/continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md`.
 - Registry/eligibility migration: `drizzle/0043_gorgeous_angel.sql`.
 - Media/audio migration: `drizzle/0044_adorable_skaar.sql`.
 - Typed command engine: `lib/sequential-production-command.ts`.
@@ -127,4 +128,5 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Stage 09–10 media/audio execution: `app/api/factory/sequential-production/media/route.ts`.
 - Continuous contract tests: `tests/sequential-production-runtime.test.mjs`; 11/11 checks pass inside the verified build.
 - Production checkpoint: Sites v350, commit `8f566d0d89037594f6bc8feb608736809389043b`.
-- Current evidence: Stage 00–10 frozen, Stage 11 ready, 84 media assets, three audio stems, narration 704.447 seconds, 0 active provider requests, $10.812573 estimated OpenAI usage.
+- Current control-state evidence: Stage 00–10 frozen, Stage 11 state-ready, 84 media assets, three audio stems, narration 704.447 seconds, 0 active provider requests, $10.812573 estimated OpenAI usage.
+- Current quality eligibility: `BLOCKED_VIDEO_STANDARD_V2`; Stage 08 covers only 0–600 seconds, Stage 09 motion proof is text rather than decoded temporal pixels, and Stage 10 lacks perceptual voice evidence, production music/SFX and a full-duration audience mix. Historical revisions remain immutable.

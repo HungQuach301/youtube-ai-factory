@@ -3,7 +3,9 @@
 Date: 2026-08-16  
 Contract: `V7_V23_4_V281`  
 Video: `What Really Happens to a $100 Card Purchase?`  
-Status: Stage 00–10 `FROZEN`; Stage 11 `READY`; videos 2–15 `BLOCKED_PREVIOUS_VIDEO`.
+Status: Stage 00–10 control-state `FROZEN`; Stage 11 control-state `READY` but `BLOCKED_VIDEO_STANDARD_V2`; videos 2–15 `BLOCKED_PREVIOUS_VIDEO`.
+
+Quality correction recorded 2026-08-17: Document 34 preserves this execution history but finds the current Stage 08–10 lineage ineligible for audience-facing composition. The execution facts below are immutable and must not be reinterpreted as Video Excellence proof.
 
 ## Acceptance result
 
@@ -17,6 +19,8 @@ The authorized checkpoint is complete. Every current-video stage transition was 
 | Stage 08 | 84 contiguous shot contracts over 0–600 s | typed scene program; SOURCE/MAKE/HYBRID route; ENTRY/MIDPOINT/EXIT; exact coverage/gap checks |
 | Stage 09 | 84/84 new media assets | real bytes, SHA-256, R2 read-back, shot binding, provider/license lineage |
 | Stage 10 | narration, music and SFX stems frozen | commercial voice tier, WAV bytes, SHA-256/read-back, duration/peak/RMS/silence measurements |
+
+The Stage 10 row proves stored bytes and the prior contract transition only. It does not prove natural voice performance, production music/SFX or a full-duration audience mix under Document 34.
 
 ## Command and eligibility model
 
@@ -88,10 +92,17 @@ Failed attempts are included in the request ledger and, where OpenAI returned us
 ## Current gate state
 
 - Stage 00–10: `FROZEN`, exact required artifact set 3/3 for each stage.
-- Stage 11: `READY` — clean edit and composition is the next permitted production action.
+- Stage 11 D1 state: `READY`; quality eligibility: `BLOCKED_VIDEO_STANDARD_V2`. It is not a permitted production action until the required root-stage repair is separately authorized and completed.
 - Stage 12–16: `BLOCKED_UPSTREAM`.
 - Video #2 and videos #3–15: `BLOCKED_PREVIOUS_VIDEO`.
 - Active provider requests: 0.
 - Automatic YouTube publishing: OFF.
 - UI language: English. Multilingual UI is intentionally deferred.
 
+## Document 34 eligibility assessment
+
+- Stage 08: 84 records are contiguous only over 0–600 seconds while narration is 704.446958 seconds; the revision cannot cover the canonical timeline.
+- Stage 09: the recorded `three-frame motion proof` contains declared entry/midpoint/exit text rather than decoded rendered temporal pixels.
+- Stage 10: narration speed is 1.2; chunking is materially larger than the new quality envelope; production music/SFX and a full-duration perceptually evaluated mix do not exist.
+- Quality values in the current Stage 10 artifact are metadata declarations, not independent listening scores.
+- Historical provider requests, costs, bytes, hashes and failures remain valid audit evidence and must not be deleted or overwritten.

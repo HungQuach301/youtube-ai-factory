@@ -92,3 +92,9 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** narration must measure 480–720 seconds before Stage 10 artifacts can verify. A technically valid 863.968-second revision was reopened rather than called PASS. Repair uses an attempt-specific R2 namespace, supersedes prior artifact rows, blocks downstream stages and preserves previous bytes/evidence. Provider-native 24 kHz stems are mezzanine inputs; Stage 11 owns 48 kHz mixing and Stage 13 owns the 48 kHz distribution master.
 
 **Reason:** script intent and provider success do not establish audience runtime or master format. Measuring actual PCM before freeze prevents a 14.4-minute output from bypassing the 8–12 minute product contract and prevents repair from rewriting history.
+
+## ADR-071 — Video Excellence eligibility is separate from control-state freeze
+
+**Decision:** effective 2026-08-17, Document 34 establishes the versioned video-quality hierarchy `Channel → Pillar → Series → Episode → Beat/Shot/Cue` and enforcement levels M0–M4. Control-state `FROZEN` remains immutable evidence that the active command contract completed. It does not, by itself, prove that audience-facing pixels, narration, music, SFX or a mix satisfy Video Excellence. Stage 11 must not start while the current lineage lacks exact narration-duration coverage, decoded motion proof, perceptual voice evidence, production music/SFX and a full-duration measured mix.
+
+**Reason:** the prior runtime could freeze artifacts from record counts, declared state descriptions and hard-coded quality metadata. Separating state history from current quality eligibility preserves audit truth while preventing a technically complete but perceptually weak artifact from acquiring release authority. A descendant content-route contract may tighten the universal standard but may not weaken its M0/M1 gates.

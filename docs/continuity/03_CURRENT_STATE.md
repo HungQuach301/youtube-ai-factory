@@ -144,6 +144,30 @@ NEXT_ACTION = IMPLEMENT_STAGE_11_CLEAN_EDIT_AND_48KHZ_MIX
 ```
 
 Documents 30–33 are authoritative for architecture, stage controls, the Stage 00–10 execution record and the Stage 11–16 implementation plan.
+
+## Video Production Quality Standard V2 correction — 2026-08-17
+
+Document 34 is authoritative for audience-facing video quality, standards inheritance, content-route playbooks and enforcement levels M0–M4. It preserves the Stage 00–10 control-state history but changes the current eligibility and next action:
+
+```text
+VIDEO_QUALITY_STANDARD = VIDEO_PRODUCTION_QUALITY_STANDARD_V2
+STANDARD_INHERITANCE = CHANNEL_TO_PILLAR_TO_SERIES_TO_EPISODE_TO_BEAT_SHOT_CUE
+ENFORCEMENT_LEVELS = M0_M1_M2_M3_M4
+VIDEO_01_CONTROL_STATE = STAGE_00_TO_10_FROZEN_STAGE_11_READY
+VIDEO_01_QUALITY_ELIGIBILITY = BLOCKED
+STAGE_08_GAP = 84_SHOTS_END_AT_600_SECONDS_VS_704_446958_SECONDS_NARRATION
+STAGE_09_GAP = TEXT_STATE_DESCRIPTIONS_NOT_DECODED_TEMPORAL_PIXEL_PROOF
+STAGE_10_GAP = SPEED_1_2_LARGE_CHUNKS_PLACEHOLDER_MUSIC_SFX_NO_FULL_DURATION_PERCEPTUAL_MIX
+UNIVERSAL_3_5_SECOND_SHOT_LIMIT = REJECTED
+ADAPTIVE_VISUAL_PACING = REQUIRED
+STAGE_11_EXECUTION = OPERATIONALLY_PAUSED
+NEXT_ACTION = IMPLEMENT_STANDARD_REGISTRY_TRUTHFUL_PROJECTION_AND_GOLDEN_SEQUENCE_GATES
+PROVIDER_DISPATCH = NOT_AUTHORIZED
+STAGE_REOPEN = NOT_AUTHORIZED
+DEPLOYMENT = NOT_AUTHORIZED
+```
+
+The status distinction is mandatory: `controlState` records immutable command history; `qualityEligibility` determines whether the current lineage may proceed. The UI must project both from one canonical operational projection and must not show Stage 11 as executable while quality eligibility is blocked.
 # Slice 7 checkpoint — 2026-08-16
 
 Permanent Niche Commitment & Governance is implemented over the active Slice 6 comparable portfolio. Selection and commitment are separate append-only facts with SIWC/allowlist authority, idempotency, optimistic versions, audit records and frozen lineage. Direct priority-to-commitment is rejected. Upstream changes make governance facts stale. No rank, axis, evidence sufficiency, eligibility, `channels.niche`, activation, provider request or spend is changed. Exact next action: Slice 8 permanent Channel Strategy Activation.
