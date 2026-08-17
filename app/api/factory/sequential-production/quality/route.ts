@@ -107,7 +107,23 @@ async function produceGoldenVisuals(env: Env, actor: string) {
   return { outcome: "VISUALS_READY", goldenSequenceId: golden.id, shots: shots.length, frames: evidence.length, evidenceHash };
 }
 
-function narrationChunks(text: string, minimum = 300, maximum = 800) { const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean), chunks: string[] = []; let current = ""; for (const sentence of sentences) { const next = current ? `${current} ${sentence}` : sentence; if (next.length > maximum && current.length >= minimum) { chunks.push(current); current = sentence; } else current = next; } if (current && chunks.length && current.length < minimum) chunks[chunks.length - 1] += ` ${current}`; else if (current) chunks.push(current); return chunks; }
+function narrationChunks(text: string, minimum = 300, maximum = 800) {
+  const units: string[] = [];
+  for (const sentence of text.split(/(?<=[.!?])\s+/).filter(Boolean)) {
+    const clauses = sentence.length <= maximum ? [sentence] : sentence.split(/(?<=[,;:—])\s+/).filter(Boolean);
+    for (const clause of clauses) {
+      if (clause.length <= maximum) { units.push(clause); continue; }
+      let wordPack = "";
+      for (const word of clause.split(/\s+/).filter(Boolean)) { const next = wordPack ? `${wordPack} ${word}` : word; if (next.length > maximum && wordPack) { units.push(wordPack); wordPack = word; } else wordPack = next; }
+      if (wordPack) units.push(wordPack);
+    }
+  }
+  const chunks: string[] = []; let current = "";
+  for (const unit of units) { const next = current ? `${current} ${unit}` : unit; if (next.length > maximum && current) { chunks.push(current); current = unit; } else current = next; }
+  if (current) chunks.push(current);
+  if (chunks.length > 1 && chunks.at(-1)!.length < minimum && chunks.at(-2)!.length + chunks.at(-1)!.length + 1 <= maximum) chunks.splice(-2, 2, `${chunks.at(-2)} ${chunks.at(-1)}`);
+  return chunks;
+}
 function wav(pcm: Int16Array, sampleRate: number) { const bytes = new Uint8Array(44 + pcm.byteLength), view = new DataView(bytes.buffer), write = (offset: number, value: string) => [...value].forEach((character, index) => view.setUint8(offset + index, character.charCodeAt(0))); write(0, "RIFF"); view.setUint32(4, 36 + pcm.byteLength, true); write(8, "WAVEfmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true); view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true); write(36, "data"); view.setUint32(40, pcm.byteLength, true); new Int16Array(bytes.buffer, 44).set(pcm); return bytes; }
 function resample2x(input: Int16Array) { const output = new Int16Array(input.length * 2); for (let index = 0; index < input.length - 1; index += 1) { output[index * 2] = input[index]; output[index * 2 + 1] = Math.round((input[index] + input[index + 1]) / 2); } output[output.length - 2] = input[input.length - 1]; output[output.length - 1] = input[input.length - 1]; return output; }
 function stitch(parts: Int16Array[], sampleRate: number) { const fade = Math.floor(sampleRate * 0.05), total = parts.reduce((sum, part) => sum + part.length, 0) - fade * Math.max(0, parts.length - 1), output = new Int16Array(total); let offset = 0; for (const [partIndex, part] of parts.entries()) { if (!partIndex) { output.set(part); offset = part.length; continue; } const start = offset - fade; for (let index = 0; index < fade; index += 1) { const ratio = index / fade; output[start + index] = Math.round(output[start + index] * (1 - ratio) + part[index] * ratio); } output.set(part.subarray(fade), offset); offset += part.length - fade; } return output; }
