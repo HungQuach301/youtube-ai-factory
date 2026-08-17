@@ -117,4 +117,5 @@ test("golden-sequence runtime uses real pixels, section voice, composed audio an
   assert.match(pixels, /meaningfulTemporalDelta/);
   assert.match(audio, /pitchRangeSemitones/);
   assert.doesNotMatch(quality, /generatedStem/);
+  assert.match(pixels, /active = stateIndex/);
 });
