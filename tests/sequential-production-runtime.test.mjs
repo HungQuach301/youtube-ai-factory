@@ -126,6 +126,8 @@ test("golden-sequence runtime uses real pixels, section voice, composed audio an
   assert.match(quality, /legacyAssetReuse: false/);
   assert.match(quality, /cueBindingsReconciledToRevision/);
   assert.match(pixels, /5 bps of \$100/);
+  assert.match(pixels, /Issuer interchange ceiling only/);
+  assert.match(pixels, /Acquiring side → issuer/);
   assert.match(quality, /golden\.id, "TRANSCRIPT"/);
   assert.match(quality, /CHANNEL_OWNED_DERIVATIVE/);
   assert.match(quality, /minimum = 300, maximum = 800/);
