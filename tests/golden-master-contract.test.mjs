@@ -38,3 +38,13 @@ test("production UI and audit are master-video-first", () => {
   assert.match(route, /SUBMIT_GOLDEN_HUMAN_PLAYBACK/);
   assert.match(route, /content-range/);
 });
+
+test("critical visual qualifications are governed by a reusable mobile-safe contract", () => {
+  const pixels = readFileSync(new URL("../lib/video-quality-pixels.ts", import.meta.url), "utf8");
+  assert.match(pixels, /FOLLOW_FEE_PROGRAM_V5_MOBILE_SAFE/);
+  assert.match(pixels, /minimumQualifierFontPx:\s*22/);
+  assert.match(pixels, /minimumCriticalLabelFontPx:\s*18/);
+  assert.match(pixels, /minimumInactiveOpacity:\s*\.78/);
+  assert.match(pixels, /qualificationRibbon/);
+  assert.doesNotMatch(pixels, /opacity:\s*reveal\s*>=\s*3\s*\?\s*1\s*:\s*\.34/);
+});
