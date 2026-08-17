@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { validateGoldenMaster, type GoldenMasterProbe, type GoldenMasterScan } from "../lib/golden-master-contract";
+import { allocateGoldenMasterFrames, validateGoldenMaster, type GoldenMasterProbe, type GoldenMasterScan } from "../lib/golden-master-contract";
 
 type Asset = { assetId: string; url: string; sha256: string; shotId?: string; temporalState?: string; durationSeconds?: number };
 type RenderSpec = { jobId: string; goldenSequenceId: string; revision: number; canonicalDurationSeconds: number; output: { width: number; height: number; fps: number }; frames: Asset[]; audio: Asset; expectedSemanticSamples: number };
@@ -39,11 +39,12 @@ function probe(path: string): GoldenMasterProbe & { audioDurationSeconds: number
 }
 
 function render(spec: RenderSpec, frames: string[], audio: string, output: string) {
-  const inputs = frames.flatMap((path, index) => ["-loop", "1", "-t", number(spec.frames[index].durationSeconds).toFixed(6), "-i", path]);
+  const { counts: frameCounts } = allocateGoldenMasterFrames(spec.frames.map((frame) => number(frame.durationSeconds)), spec.canonicalDurationSeconds, spec.output.fps);
+  const inputs = frames.flatMap((path) => ["-loop", "1", "-i", path]);
   inputs.push("-i", audio);
   const filters = frames.map((_, index) => {
-    const phase = index % 3, segmentDuration = Math.max(0.1, number(spec.frames[index].durationSeconds)), dx = phase === 0 ? `(iw-ow)*(0.15+0.20*t/${segmentDuration.toFixed(6)})` : phase === 1 ? "(iw-ow)*(0.50+0.16*sin(t*0.9))" : `(iw-ow)*(0.82-0.20*t/${segmentDuration.toFixed(6)})`, dy = phase === 1 ? "(ih-oh)*(0.45+0.12*cos(t*0.8))" : "(ih-oh)*0.5";
-    return `[${index}:v]scale=2048:1152:force_original_aspect_ratio=increase,crop=1920:1080:x='${dx}':y='${dy}',fps=${spec.output.fps},format=yuv420p,trim=duration=${number(spec.frames[index].durationSeconds).toFixed(6)},setpts=PTS-STARTPTS[v${index}]`;
+    const phase = index % 3, segmentDuration = frameCounts[index] / spec.output.fps, dx = phase === 0 ? `(iw-ow)*(0.15+0.20*t/${segmentDuration.toFixed(6)})` : phase === 1 ? "(iw-ow)*(0.50+0.16*sin(t*0.9))" : `(iw-ow)*(0.82-0.20*t/${segmentDuration.toFixed(6)})`, dy = phase === 1 ? "(ih-oh)*(0.45+0.12*cos(t*0.8))" : "(ih-oh)*0.5";
+    return `[${index}:v]scale=2048:1152:force_original_aspect_ratio=increase,crop=1920:1080:x='${dx}':y='${dy}',fps=${spec.output.fps},format=yuv420p,trim=end_frame=${frameCounts[index]},setpts=PTS-STARTPTS[v${index}]`;
   });
   const sequence = frames.map((_, index) => `[v${index}]`).join("");
   filters.push(`${sequence}concat=n=${frames.length}:v=1:a=0[outv]`);
@@ -90,7 +91,7 @@ try {
   const masterProbe = probe(masterPath), samplePaths: string[] = [], sampleHashes: string[] = []; let cursor = 0;
   for (const [index, frame] of spec.frames.entries()) { const duration = number(frame.durationSeconds), samplePath = join(work, `decoded-${String(index).padStart(2, "0")}.jpg`); sampleHashes.push(extract(masterPath, samplePath, cursor + duration / 2)); samplePaths.push(samplePath); cursor += duration; }
   const diagnostic = diagnose(masterPath), scan: GoldenMasterScan = { fullFrameScan: diagnostic.fullFrameScan, framesDecoded: masterProbe.videoFrames, blackFrameSeconds: diagnostic.blackFrameSeconds, maxFrozenFrameSeconds: diagnostic.maxFrozenFrameSeconds, decodedSemanticSamples: sampleHashes.length, uniqueSemanticSampleHashes: new Set(sampleHashes).size, expectedSemanticSamples: spec.expectedSemanticSamples, audioVideoDeltaSeconds: masterProbe.durationSeconds - masterProbe.audioDurationSeconds };
-  const validation = validateGoldenMaster(masterProbe, scan, spec.canonicalDurationSeconds, spec.output.fps); if (!validation.pass) throw new Error(`master validation failed · ${validation.failures.join(",")}`);
+  const validation = validateGoldenMaster(masterProbe, scan, spec.canonicalDurationSeconds, spec.output.fps); if (!validation.pass) throw new Error(`master validation failed · ${validation.failures.join(",")} · ${JSON.stringify({ probe: masterProbe, scan })}`);
   await uploadMaster(spec, masterPath, masterProbe, scan);
   for (let stateIndex = 0; stateIndex < 3; stateIndex++) { const indexes = spec.frames.map((_, index) => index).filter((index) => index % 3 === stateIndex), sheetPath = join(work, `sheet-${stateIndex + 1}.jpg`), state = ["ENTRY", "MIDPOINT", "EXIT"][stateIndex]; contactSheet(indexes.map((index) => samplePaths[index]), indexes.map((index) => `${spec.frames[index].shotId} ${state}`), sheetPath); await uploadSheet(spec, sheetPath, stateIndex + 1, state); }
   const outputDir = retainedOutput ? resolve(retainedOutput) : join(tmpdir(), "youtube-ai-factory-golden-master"); mkdirSync(outputDir, { recursive: true }); const retained = join(outputDir, `golden-r${spec.revision}.webm`); writeFileSync(retained, readFileSync(masterPath));

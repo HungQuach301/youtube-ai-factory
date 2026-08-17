@@ -25,6 +25,19 @@ export type GoldenMasterScan = {
 
 export type GoldenMasterValidation = { pass: boolean; failures: string[] };
 
+export function allocateGoldenMasterFrames(durationsSeconds: number[], canonicalDurationSeconds: number, fps = 30) {
+  const targetFrames = Math.round(canonicalDurationSeconds * fps), counts: number[] = []; let sourceCursor = 0, assigned = 0;
+  for (const [index, duration] of durationsSeconds.entries()) {
+    if (!Number.isFinite(duration) || duration <= 0) throw new Error(`Invalid render duration at segment ${index + 1}`);
+    sourceCursor += duration;
+    const boundary = index === durationsSeconds.length - 1 ? targetFrames : Math.round(sourceCursor * fps), count = boundary - assigned;
+    if (count < 1) throw new Error(`Render segment ${index + 1} has no frames`);
+    counts.push(count); assigned = boundary;
+  }
+  if (!counts.length || assigned !== targetFrames) throw new Error(`Frame allocation mismatch · ${assigned}/${targetFrames}`);
+  return { counts, targetFrames };
+}
+
 export function validateGoldenMaster(
   probe: GoldenMasterProbe,
   scan: GoldenMasterScan,

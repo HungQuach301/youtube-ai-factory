@@ -1,7 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { validateGoldenMaster, validateHumanPlayback } from "../lib/golden-master-contract.ts";
+import { allocateGoldenMasterFrames, validateGoldenMaster, validateHumanPlayback } from "../lib/golden-master-contract.ts";
+
+test("cumulative frame allocation preserves the exact canonical frame total", () => {
+  const result = allocateGoldenMasterFrames(Array.from({ length: 33 }, () => 80.24458333333334 / 33), 80.24458333333334, 30);
+  assert.equal(result.counts.length, 33);
+  assert.equal(result.counts.reduce((sum, count) => sum + count, 0), 2407);
+  assert.ok(result.counts.every((count) => count > 0));
+});
 
 const validProbe = { durationSeconds: 80.245, width: 1920, height: 1080, videoCodec: "vp9", averageFrameRate: 30, videoFrames: 2408, audioCodec: "opus", audioSampleRate: 48000, audioChannels: 2 };
 const validScan = { fullFrameScan: true, framesDecoded: 2408, blackFrameSeconds: 0, maxFrozenFrameSeconds: 0.4, decodedSemanticSamples: 33, uniqueSemanticSampleHashes: 33, expectedSemanticSamples: 33, audioVideoDeltaSeconds: 0.01 };
