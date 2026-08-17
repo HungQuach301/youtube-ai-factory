@@ -94,7 +94,7 @@ async function produceGoldenVisuals(env: Env, actor: string) {
     if (!comparison.meaningfulTemporalDelta) throw new SequentialCommandError("TEMPORAL_PIXEL_DELTA_FAILED", 409, `${shotId} did not produce meaningful pixel changes`);
     for (const [stateIndex, frame] of frames.entries()) {
       const temporalState = ["ENTRY", "MIDPOINT", "EXIT"][stateIndex], key = `sequential/${clean(ctx.program.id)}/${clean(ctx.queue.id)}/quality-v2/golden-r${golden.revision}/${shotId}-${temporalState.toLowerCase()}.png`, stored = await store(env, key, frame.bytes, "image/png"), assetId = makeId("golden-asset");
-      await env.DB!.prepare("INSERT INTO v7_golden_sequence_assets (id,golden_sequence_id,role,shot_id,temporal_state,storage_key,mime_type,byte_size,sha256,rights_state,metadata_json) VALUES (?,?,'TEMPORAL_FRAME',?,?,?,?,?,?,?,'CHANNEL_OWNED_ORIGINAL',?)")
+      await env.DB!.prepare("INSERT INTO v7_golden_sequence_assets (id,golden_sequence_id,role,shot_id,temporal_state,storage_key,mime_type,byte_size,sha256,rights_state,metadata_json) VALUES (?,?,'TEMPORAL_FRAME',?,?,?,?,?,?,'CHANNEL_OWNED_ORIGINAL',?)")
         .bind(assetId, golden.id, shotId, temporalState, key, "image/png", stored.byteSize, stored.sha256, json({ width: frame.width, height: frame.height, phase, sourceShotId: shot.shotId, pixelDecoded: true, meaningfulTemporalDelta: comparison.meaningfulTemporalDelta, changedRatios: comparison.changedRatios })).run();
       evidence.push({ assetId, shotId, temporalState, sha256: stored.sha256, byteSize: stored.byteSize });
     }
