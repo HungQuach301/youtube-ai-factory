@@ -241,3 +241,11 @@ The remaining gaps are full-video evidence, not golden defects: `VQ-M0-SAFETY-SC
 Production review exposed a category error in the QA architecture: the runtime stored and scored frame components, then the UI coupled one `MIDPOINT` PNG with a separate audio control and labeled the result as an 80-second video. The audit sampler could therefore report high semantic scores without proving continuity, native duration, motion, seeking or audience playback.
 
 The correction is systemic. Migration 0046 invalidates the false playback PASS without deleting its lineage. A reusable master-render job consumes all verified frame/audio inputs; the executor encodes the audience artifact; upload accepts only a contract-valid probe and full scan; read-back checksum and Range are mandatory; independent audit reviews decoded master contact sheets; and final PASS is reserved for a full observed native-video session. Production projection no longer exposes poster or mix URLs as a video fallback.
+
+## 14. Production execution result
+
+The production run found and fixed two additional scale defects rather than bypassing them. First, per-segment duration rounding under-produced frames; cumulative integer-frame allocation now guarantees the exact canonical total for any shot count. Second, `AUDIO_READY` was missing from the generic master-render transition; the state machine now supports `AUDIO_READY → MASTER_RENDERING` for every new revision.
+
+Revision 8 master QA then identified the actual audience defect: mobile legibility `76`, one P1. Renderer V5 raised and persisted critical text floors. Revision 9 produced master SHA-256 `d1bb546f224e4f787b0a7f8f77b32357324dec4f41af2d101378bc6c1bfb5055`, 1920×1080 at 30 fps, 2,407 decoded frames, 33 unique semantic samples, 0 black seconds, 0.3 s maximum freeze, Opus stereo 48 kHz, integrated loudness −13.3 LUFS and true peak −3.6 dBFS. Full 1× A/V decode and seeks at 10/40/75 seconds passed; production Range returned `206`.
+
+Independent audit passed at `94` with P0/P1 `0/0`, but the final state remains `AUDIT_PASS_PLAYBACK_REQUIRED`. The cloud browser policy blocked native playback from both Sites preview and its shared file. That environmental limitation is recorded as pending evidence; it was not converted into a false human PASS.

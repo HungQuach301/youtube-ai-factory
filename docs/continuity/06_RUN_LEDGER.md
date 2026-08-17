@@ -148,30 +148,32 @@ The authoritative findings, dimensions and repair contract are in Document 35. T
 
 ```text
 RUN = prod.hidden-systems.video-01.video-excellence-golden.v8
-FUNCTIONAL_SITES_VERSION = 369
+FUNCTIONAL_SITES_VERSION = 375
 QUALITY_CONTRACT = VIDEO_PRODUCTION_QUALITY_STANDARD_V2
 PLAN_ID = seq-plan-ecd39187-a01e-494d-90ed-d930de1e2d4c
 MAX_SPEND_USD = 20
-ACTUAL_ESTIMATED_SPEND_USD = 13.070514645833333
+ACTUAL_ESTIMATED_SPEND_USD = 13.217364645833333
 MAX_PROVIDER_REQUESTS = 60
-ACTUAL_PROVIDER_REQUESTS = 53
+ACTUAL_PROVIDER_REQUESTS = 55
 ACTIVE_PROVIDER_REQUESTS = 0
-GOLDEN_ID = golden-sequence-569c498c-f93a-440b-a2ba-91feeda6f52b
-GOLDEN_REVISION = 8
+GOLDEN_ID = golden-sequence-a217643d-8737-4f5a-80e9-991ae99e45ac
+GOLDEN_REVISION = 9
 GOLDEN_DURATION_SECONDS = 80.24458333333334
-GOLDEN_FRAMES = 33_REAL_PNG
+GOLDEN_FRAMES = 33_MOBILE_SAFE_PNG_PLUS_2407_FRAME_MASTER
 GOLDEN_AUDIO_ASSETS = 5_CHECKSUM_READBACK
 GOLDEN_AUDIT_OVERALL = 94
 GOLDEN_AUDIT_P0_P1 = 0_0
-GOLDEN_DECISION = SUPERSEDED_MASTER_REQUIRED
+GOLDEN_DECISION = AUDIT_PASS_PLAYBACK_REQUIRED
 HARD_STANDARDS_PASSED = 13_OF_18
 VIDEO_QUALITY_ELIGIBILITY = BLOCKED_VIDEO_STANDARD_V2
 STAGE_11 = BLOCKED_UPSTREAM
 AUTO_PUBLISH = FALSE
-FULL_REGRESSION = 110_OF_110_PASS
+FULL_REGRESSION = 115_OF_115_PASS
 NEXT_ACTION = COMPLETE_REMAINING_FIVE_FULL_VIDEO_STANDARDS
 ```
 
 Revisions 3–7 remain preserved failed evidence. Audio reassessment, byte promotion and PASS-evidence reconciliation used zero provider requests and required checksum read-back, identical narration and current-revision cue rebinding.
 
 The revision 8 component audit is retained for lineage, but its playback conclusion is revoked. The next valid decision must be issued against the encoded master plus decoded full-master evidence and a completed human playback observation; no PNG poster or standalone audio control is eligible.
+
+Revision 8 master audit failed mobile legibility at `76` with one P1. The root repair introduced renderer `FOLLOW_FEE_PROGRAM_V5_MOBILE_SAFE`, minimum 22 px critical qualifiers, minimum 18 px labels, minimum 0.78 inactive opacity and always-opaque qualification ribbons. Revision 9 then passed the independent master audit at `94`, with mobile legibility `91` and P0/P1 `0/0`. Its exact master SHA-256 is `d1bb546f224e4f787b0a7f8f77b32357324dec4f41af2d101378bc6c1bfb5055`; the master has 2,407/2,407 decoded frames, 33/33 unique semantic samples, 0 black seconds, 0.3 maximum frozen seconds, VP9/Opus stereo 48 kHz and working HTTP Range. Final human playback remains deliberately open because the QA cloud browser blocked both the Sites preview and shared local file; no playback PASS was fabricated.

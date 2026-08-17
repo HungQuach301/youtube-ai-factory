@@ -257,3 +257,7 @@ Sites production v311 deployed functional commit `c292871bb210fc293327b01f82afb2
 Revision 8's `PASS` was invalid: it proved 33 component PNGs and a 48 kHz mix, but no encoded audience master existed and the UI presented one PNG beside an audio element as if it were playback. Migration 0046 preserves that evidence, revokes its playback conclusion and changes the state to `MASTER_REQUIRED`.
 
 The scalable release path is now `render job → encoded master → storage read-back → full decoded scan → independent audit → observed human playback`. Only a real 1920×1080/30 fps VP9 + stereo 48 kHz Opus master may satisfy the playback standard. Duration, complete frame count, black/freeze limits, 33 unique semantic samples, A/V alignment, HTTP Range, seek/pause/resume, visible motion and natural completion are hard gates. Component PNG/WAV evidence can diagnose a failure but can never substitute for the master or restore `PASS`.
+
+# Golden master production QA — 2026-08-17
+
+Sites v375 is live. Revision 8's real master correctly failed mobile legibility; renderer V5 fixed the reusable visual contract and revision 9 passed deterministic master QA and independent audit (`94`, mobile `91`, P0/P1 `0/0`). Production Range, full 1× A/V decode and multi-position seek decode pass, and recent error-only Worker logs are empty. Current golden state is intentionally `AUDIT_PASS_PLAYBACK_REQUIRED`: Cloud Browser blocked both preview and shared-file native playback, so human playback is not claimed. Stage 11 and auto-publish remain blocked.

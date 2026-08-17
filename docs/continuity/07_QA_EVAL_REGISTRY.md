@@ -60,3 +60,9 @@ The repair preserved all floors. It reconciled actual TTS timing, stored transcr
 ## Golden revision 8 playback correction — 2026-08-17
 
 The score above remains historical component evidence, not a valid playback decision. No encoded master was audited and production displayed a single midpoint PNG plus an audio element. `VQ-M1-GOLDEN-PLAYBACK` is therefore reopened as `BLOCKED`; only `GOLDEN_MASTER_V1` evidence may close it. A provider audit may advance the state only to `AUDIT_PASS_PLAYBACK_REQUIRED`; final `PASS` requires an observed full native-video session with metadata, time progression, pause/resume, seek, audio track, visible motion and `ended=true`.
+
+## Encoded master audit and mobile-safe delta — 2026-08-17
+
+Revision 8's first real master passed deterministic media checks but failed independent QA: overall `89`, mobile legibility `76`, P0/P1 `0/1`. The P1 was the small, faint Square/Stripe caveat and covered-debit qualification text. Renderer V5 moved the fix into the reusable visual grammar rather than editing output pixels.
+
+Revision 9 passed: overall `94`; factual safety `96`; semantic alignment `95`; voice evidence `96`; visual direction `92`; music/sound design `93`; mobile legibility `91`; transaction chain `95`; P0/P1 `0/0`. Decision is `AUDIT_PASS_PLAYBACK_REQUIRED`, not final PASS. The production worker error log contained zero events after rendering, upload, Range and audit operations.

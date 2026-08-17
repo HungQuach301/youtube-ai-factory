@@ -426,3 +426,9 @@ Golden PASS closes step 8 of the implementation plan. It does not authorize Stag
 The addendum above is superseded for playback eligibility. PNG temporal evidence and a separate WAV mix are components, not an audience video. The generic `GOLDEN_MASTER_V1` contract now requires an immutable render job, verified source checksums, one encoded WebM master, storage read-back, byte checksum, HTTP Range support, ffprobe metadata, full decoded frame count, black/freeze scan, 33 unique semantic samples extracted from the encoded output, three decoded contact sheets and A/V duration agreement within one frame.
 
 Independent model review is deliberately non-final. It can only produce `AUDIT_PASS_PLAYBACK_REQUIRED`. A separate human playback gate owns the final transition to `PASS`; failed observations create findings and keep the control plane blocked. These requirements apply by contract to every future render, rather than being a one-off repair for the current video.
+
+## 13. Production proof and legibility floor
+
+The first encoded revision exposed a P1 that component QA missed: critical qualification copy was technically present but not reliably readable on mobile. `FOLLOW_FEE_PROGRAM_V5_MOBILE_SAFE` now makes this a renderer-level invariant: qualifier font ≥22 px at the 960×540 source canvas, critical labels ≥18 px, inactive information opacity ≥0.78, high-contrast colors, and critical qualification ribbons always opaque. Temporal change must come from state emphasis and borders, never by hiding required scope text.
+
+Revision 9 passed the decoded-master audit at `94` with mobile legibility `91` and no P0/P1. Its native master transport returns HTTP `206` and valid byte ranges. Human playback remains pending because the available cloud browser rejected the local/preview URL; the standard correctly refuses to infer playback from ffprobe, contact sheets or a real-time decoder run.
