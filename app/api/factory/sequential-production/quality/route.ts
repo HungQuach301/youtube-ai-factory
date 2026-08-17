@@ -1,7 +1,7 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { measureOpenAIUsage } from "@/lib/ai-usage";
 import { measurePcm16Mono, evaluateVoiceAndMix } from "@/lib/video-audio-quality";
-import { compareTemporalPixels, renderTransactionChainFrame, type GoldenSceneKind } from "@/lib/video-quality-pixels";
+import { compareTemporalPixels, GOLDEN_PIXEL_RENDERER_VERSION, renderTransactionChainFrame, type GoldenSceneKind } from "@/lib/video-quality-pixels";
 import { REQUIRED_GOLDEN_SEQUENCE_GATES, VIDEO_QUALITY_STANDARD_VERSION } from "@/lib/video-quality-standard";
 import { SequentialCommandError, type SequentialBucket, type SequentialCommandDB } from "@/lib/sequential-production-command";
 
@@ -109,17 +109,18 @@ async function produceGoldenVisuals(env: Env, actor: string) {
   const ctx = await context(env.DB!), golden = await first(env.DB!, "SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1", ctx.queue.id, VIDEO_QUALITY_STANDARD_VERSION);
   if (!golden || !["PLANNED", "VISUALS_READY"].includes(clean(golden.lifecycle_state))) throw new SequentialCommandError("GOLDEN_PLAN_REQUIRED", 409, "Create the golden-sequence plan first");
   const manifest = parseJson<Row>(golden.manifest_json, {}), shots = Array.isArray(manifest.shots) ? manifest.shots as Row[] : [], evidence: unknown[] = [];
-  const existingAssets = await rows(env.DB!, "SELECT shot_id,temporal_state,sha256,byte_size FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='TEMPORAL_FRAME'", golden.id), existingKeys = new Set(existingAssets.map((asset) => `${clean(asset.shot_id)}:${clean(asset.temporal_state)}`));
-  if (existingKeys.size === shots.length * 3) return { outcome: "IDEMPOTENT_REPLAY", goldenSequenceId: golden.id, frames: existingKeys.size };
+  let existingAssets = await rows(env.DB!, "SELECT shot_id,temporal_state,sha256,byte_size,metadata_json FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='TEMPORAL_FRAME'", golden.id), currentRenderer = existingAssets.length > 0 && existingAssets.every((asset) => clean(parseJson<Row>(asset.metadata_json, {}).rendererVersion) === GOLDEN_PIXEL_RENDERER_VERSION); let existingKeys = new Set(existingAssets.map((asset) => `${clean(asset.shot_id)}:${clean(asset.temporal_state)}`));
+  if (existingKeys.size === shots.length * 3 && currentRenderer) return { outcome: "IDEMPOTENT_REPLAY", goldenSequenceId: golden.id, frames: existingKeys.size, rendererVersion: GOLDEN_PIXEL_RENDERER_VERSION };
+  if (existingAssets.length && !currentRenderer) { await env.DB!.prepare("UPDATE v7_golden_sequence_assets SET role='SUPERSEDED_TEMPORAL_FRAME' WHERE golden_sequence_id=? AND role='TEMPORAL_FRAME'").bind(golden.id).run(); existingAssets = []; existingKeys = new Set(); }
   evidence.push(...existingAssets.map((asset) => ({ shotId: asset.shot_id, temporalState: asset.temporal_state, sha256: asset.sha256, byteSize: asset.byte_size, resumed: true })));
   for (const [shotIndex, shot] of shots.entries()) {
     const shotId = clean(shot.goldenShotId), sourceText = `${clean(shot.narrationExcerpt)} ${clean(shot.visualIntent)}`, sceneKind = sceneFor(sourceText), frames = await Promise.all((["ENTRY", "MIDPOINT", "EXIT"] as const).map((temporalState) => renderTransactionChainFrame({ shotId, shotIndex, temporalState, sceneKind }))), comparison = compareTemporalPixels(frames);
     if (!comparison.meaningfulTemporalDelta) throw new SequentialCommandError("TEMPORAL_PIXEL_DELTA_FAILED", 409, `${shotId} did not produce meaningful pixel changes`);
     for (const [stateIndex, frame] of frames.entries()) {
       const temporalState = ["ENTRY", "MIDPOINT", "EXIT"][stateIndex]; if (existingKeys.has(`${shotId}:${temporalState}`)) continue;
-      const key = `sequential/${clean(ctx.program.id)}/${clean(ctx.queue.id)}/quality-v2/golden-r${golden.revision}/${shotId}-${temporalState.toLowerCase()}.png`, stored = await store(env, key, frame.bytes, "image/png"), assetId = makeId("golden-asset");
+      const rendererKey = GOLDEN_PIXEL_RENDERER_VERSION.toLowerCase().replace(/[^a-z0-9]+/g, "-"), key = `sequential/${clean(ctx.program.id)}/${clean(ctx.queue.id)}/quality-v2/golden-r${golden.revision}/${shotId}-${temporalState.toLowerCase()}-${rendererKey}.png`, stored = await store(env, key, frame.bytes, "image/png"), assetId = makeId("golden-asset");
       await env.DB!.prepare("INSERT INTO v7_golden_sequence_assets (id,golden_sequence_id,role,shot_id,temporal_state,storage_key,mime_type,byte_size,sha256,rights_state,metadata_json) VALUES (?,?,'TEMPORAL_FRAME',?,?,?,?,?,?,'CHANNEL_OWNED_ORIGINAL',?)")
-        .bind(assetId, golden.id, shotId, temporalState, key, "image/png", stored.byteSize, stored.sha256, json({ width: frame.width, height: frame.height, sceneKind, sourceShotId: shot.shotId, sourceNarration: clean(shot.narrationExcerpt), audienceCopy: frame.audienceCopy, semanticState: frame.semanticState, instructionResidue: false, mobileContrast: "HIGH", pixelDecoded: true, meaningfulTemporalDelta: comparison.meaningfulTemporalDelta, changedRatios: comparison.changedRatios })).run();
+        .bind(assetId, golden.id, shotId, temporalState, key, "image/png", stored.byteSize, stored.sha256, json({ width: frame.width, height: frame.height, rendererVersion: frame.rendererVersion, sceneKind, sourceShotId: shot.shotId, sourceNarration: clean(shot.narrationExcerpt), audienceCopy: frame.audienceCopy, semanticState: frame.semanticState, instructionResidue: false, mobileContrast: "HIGH", pixelDecoded: true, meaningfulTemporalDelta: comparison.meaningfulTemporalDelta, changedRatios: comparison.changedRatios })).run();
       evidence.push({ assetId, shotId, temporalState, sha256: stored.sha256, byteSize: stored.byteSize });
     }
   }
