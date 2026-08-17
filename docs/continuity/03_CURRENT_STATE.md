@@ -168,6 +168,37 @@ DEPLOYMENT = NOT_AUTHORIZED
 ```
 
 The status distinction is mandatory: `controlState` records immutable command history; `qualityEligibility` determines whether the current lineage may proceed. The UI must project both from one canonical operational projection and must not show Stage 11 as executable while quality eligibility is blocked.
+
+## Video Excellence runtime and golden audit — 2026-08-17
+
+Document 35 records the authorized production implementation and independent golden-sequence audit. The Standard Registry, truthful UI projection, Stage 11 block, audio evaluators, real PNG evidence and adaptive Stage 08 recompilation are production-active. Golden revision 2 did not pass the independent audit.
+
+```text
+SITES_VERSION = 359
+SOURCE_CHECKPOINT = 41a28ef3edb778b0961fdc00d110d07065d47791
+STANDARD_REGISTRY = 19_RESOLVED_18_HARD
+HARD_STANDARDS_PASSED = 6_OF_18
+STAGE_08 = 98_ADAPTIVE_SHOTS_0_TO_704_4469583333333_SECONDS
+STAGE_08_GAPS = 0
+STAGE_08_OVERLAPS = 0
+GOLDEN_SEQUENCE_ID = golden-sequence-83539abb-71e8-411a-9fe5-95ee58ed39d2
+GOLDEN_REVISION = 2
+GOLDEN_MANIFEST_SECONDS = 85.330543
+GOLDEN_AUDIENCE_MIX_SECONDS = 64.59433333333334
+GOLDEN_TEMPORAL_PNG_FRAMES = 45
+GOLDEN_AUDIO_DETERMINISTIC_ASSESSMENT = PASS
+GOLDEN_INDEPENDENT_AUDIT = 46_REPAIR_REQUIRED
+GOLDEN_P0 = 0
+GOLDEN_P1 = 5
+VIDEO_01_QUALITY_ELIGIBILITY = BLOCKED_VIDEO_STANDARD_V2
+STAGE_11 = BLOCKED
+PLAN_ACTUAL_SPEND_USD = 12.471527595833333_OF_20
+PLAN_PROVIDER_REQUESTS = 40_OF_40
+ACTIVE_PROVIDER_REQUESTS = 0
+NEXT_ACTION = AUTHORIZE_SEPARATE_BOUNDED_GOLDEN_REVISION_3_ROOT_CAUSE_REPAIR_PLAN
+```
+
+The 98-shot count is a derived result, not a new fixed target. No further provider request is authorized under the exhausted 40-request plan. The failed revision and audit must remain immutable; thresholds may not be weakened.
 # Slice 7 checkpoint — 2026-08-16
 
 Permanent Niche Commitment & Governance is implemented over the active Slice 6 comparable portfolio. Selection and commitment are separate append-only facts with SIWC/allowlist authority, idempotency, optimistic versions, audit records and frozen lineage. Direct priority-to-commitment is rejected. Upstream changes make governance facts stale. No rank, axis, evidence sufficiency, eligibility, `channels.niche`, activation, provider request or spend is changed. Exact next action: Slice 8 permanent Channel Strategy Activation.

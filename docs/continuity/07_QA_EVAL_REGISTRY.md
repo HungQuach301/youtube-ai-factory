@@ -14,3 +14,25 @@ Every finding includes severity, exact evidence, affected artifact/hash, root st
 - Composite tournament pass does not substitute for motion or sequence proof.
 
 Rubrics and thresholds cannot be changed after failure without a new decision record.
+
+## Video Excellence golden sequence — 2026-08-17
+
+Golden revision 2 passed deterministic transcript, pronunciation, seam, corruption, WPM/rhythm, pitch/prosody, pause, integrated-loudness and true-peak checks. It failed independent audience-facing adjudication:
+
+```text
+GOLDEN_ID = golden-sequence-83539abb-71e8-411a-9fe5-95ee58ed39d2
+AUDIT_HASH = c6728b7db4383bf10f526537f9b7d3808bbb73d5e9d19071ab70578cb608e957
+OVERALL = 46
+FACTUAL_SAFETY = 72
+SEMANTIC_ALIGNMENT = 28
+VOICE_EVIDENCE = 68
+VISUAL_DIRECTION = 31
+MUSIC_SOUND_DESIGN = 70
+MOBILE_LEGIBILITY = 76
+TRANSACTION_CHAIN = 39
+P0 = 0
+P1 = 5
+DECISION = REPAIR_REQUIRED
+```
+
+Open root causes are semantic pixel mismatch, audience-visible production instructions, flow/state conflation, absent fee presentation, manifest/mix duration mismatch, insufficient shot-specific temporal evidence and missing cue-by-cue synchronization. Document 35 is the complete evidence and repair ledger. Stage 11 remains fail-closed.

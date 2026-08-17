@@ -388,3 +388,18 @@ The D1 stage history remains immutable: Stage 09 and Stage 10 were control-state
 10. Start Stage 11 only when the complete current lineage is `VIDEO_EXCELLENCE_ELIGIBLE`.
 
 Provider dispatch, production mutation, database migration, Stage reopen and deployment each require their own existing authority boundary. This document authorizes none of them.
+
+## 10. Production execution addendum — 2026-08-17
+
+Steps 1–8 above were executed under a separately approved bounded production plan. The Standard Registry, M0–M4 resolver, truthful projection/UI, Stage 11 release block, audio evaluators, real PNG evidence and adaptive Stage 08 compiler are deployed. Stage 08 now contains 98 derived shots covering `0–704.4469583333333` seconds with zero gaps and zero overlaps.
+
+The golden sequence did not pass. Revision 2 has 45 real temporal PNG frames and a deterministic audio assessment of PASS, but its 64.594333-second audience mix does not reconcile with its 85.330543-second manifest. Independent audit scored 46/100 with five P1 findings, including generic/repeated pixels, audience-visible production instructions, missing `Follow the Fee` semantics and insufficient audiovisual synchronization evidence.
+
+Document 35 is authoritative for exact measurements, scores, costs and the revision 3 root-cause repair contract. Current release state remains:
+
+```text
+GOLDEN_SEQUENCE = REPAIR_REQUIRED
+VIDEO_QUALITY_ELIGIBILITY = BLOCKED_VIDEO_STANDARD_V2
+STAGE_11 = BLOCKED
+PROVIDER_REQUESTS = 40_OF_40_AUTHORIZED
+```
