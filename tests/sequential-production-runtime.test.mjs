@@ -112,6 +112,7 @@ test("golden-sequence runtime uses real pixels, section voice, composed audio an
   assert.match(quality, /PRODUCE_GOLDEN_AUDIO/);
   assert.match(quality, /REASSESS_GOLDEN_AUDIO/);
   assert.match(quality, /PROMOTE_VERIFIED_GOLDEN_AUDIO/);
+  assert.match(quality, /RECONCILE_GOLDEN_PASS_EVIDENCE/);
   assert.match(quality, /AUDIT_GOLDEN_SEQUENCE/);
   assert.match(quality, /GOLDEN_TTS_SPEED = 1\.1/);
   assert.match(quality, /compileGoldenNarration/);
@@ -125,6 +126,7 @@ test("golden-sequence runtime uses real pixels, section voice, composed audio an
   assert.match(quality, /immutableByteReuse: true/);
   assert.match(quality, /legacyAssetReuse: false/);
   assert.match(quality, /cueBindingsReconciledToRevision/);
+  assert.match(quality, /reconciledAfterGoldenPass/);
   assert.match(pixels, /5 bps of \$100/);
   assert.match(pixels, /Issuer interchange ceiling only/);
   assert.match(pixels, /Acquiring side → issuer/);
