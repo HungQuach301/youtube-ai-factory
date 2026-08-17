@@ -111,7 +111,12 @@ test("golden-sequence runtime uses real pixels, section voice, composed audio an
   assert.match(quality, /PRODUCE_GOLDEN_VISUALS/);
   assert.match(quality, /PRODUCE_GOLDEN_AUDIO/);
   assert.match(quality, /AUDIT_GOLDEN_SEQUENCE/);
-  assert.match(quality, /speed:\s*1\.02/);
+  assert.match(quality, /GOLDEN_TTS_SPEED = 1\.1/);
+  assert.match(quality, /compileGoldenNarration/);
+  assert.match(quality, /language_code:\s*"en"/);
+  assert.match(quality, /GOLDEN_TRANSCRIPTION_MODEL = "gpt-4o-transcribe"/);
+  assert.match(quality, /form\.set\("language", "en"\)/);
+  assert.match(quality, /GOLDEN_TRANSCRIPTION_PROMPT/);
   assert.match(quality, /minimum = 300, maximum = 800/);
   assert.match(quality, /CHANNEL_COMPOSED_EVOLVING_BED/);
   assert.match(pixels, /meaningfulTemporalDelta/);
