@@ -35,6 +35,7 @@ test("production UI and audit are master-video-first", () => {
   assert.match(route, /GOLDEN_MASTER_VIDEO/);
   assert.match(route, /MASTER_QA_CONTACT_SHEET/);
   assert.match(route, /AUDIT_PASS_PLAYBACK_REQUIRED/);
+  assert.match(route, /\["AUDIO_READY","MASTER_REQUIRED","MASTER_RENDERING"/);
   assert.match(route, /SUBMIT_GOLDEN_HUMAN_PLAYBACK/);
   assert.match(route, /content-range/);
 });
