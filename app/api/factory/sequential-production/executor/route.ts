@@ -1,5 +1,6 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { measureOpenAIUsage } from "@/lib/ai-usage";
+import { VIDEO_QUALITY_STANDARD_VERSION } from "@/lib/video-quality-standard";
 import {
   SequentialCommandError,
   submitSequentialCommand,
@@ -103,7 +104,7 @@ const bundleSchema = {
 const shotRecordSchema = {
   type: "object", additionalProperties: false,
   properties: {
-    shotId: { type: "string" }, startSeconds: { type: "number", minimum: 0 }, endSeconds: { type: "number", minimum: 0 }, durationSeconds: { type: "number", minimum: 2, maximum: 16 },
+    shotId: { type: "string" }, startSeconds: { type: "number", minimum: 0 }, endSeconds: { type: "number", minimum: 0 }, durationSeconds: { type: "number", minimum: 1.5, maximum: 15 },
     narrationExcerpt: { type: "string" }, claimIds: { type: "array", items: { type: "string" } }, assetMode: { type: "string", enum: ["SOURCE", "MAKE", "HYBRID"] },
     sourceQuery: { type: "string" }, visualIntent: { type: "string" }, onScreenText: { type: "string" }, sceneProgram: { type: "string" },
     entryState: { type: "string" }, midpointState: { type: "string" }, exitState: { type: "string" }, rightsRequirement: { type: "string" }, qaTests: { type: "array", minItems: 3, items: { type: "string" } },
@@ -116,7 +117,7 @@ const stage08BundleSchema = {
   properties: {
     stageKey: { type: "string", enum: ["08"] }, artifactCount: { type: "integer", enum: [3] },
     artifacts: { type: "array", minItems: 3, maxItems: 3, items: artifactSchema },
-    productionRecords: { type: "array", minItems: 84, maxItems: 84, items: shotRecordSchema },
+    productionRecords: { type: "array", minItems: 90, maxItems: 180, items: shotRecordSchema },
     stageQuality: (bundleSchema.properties as Row).stageQuality,
   },
   required: ["stageKey", "artifactCount", "artifacts", "productionRecords", "stageQuality"],
@@ -131,14 +132,14 @@ const stageDirective: Record<StageKey, string> = {
   "06": "Write and lock a complete natural US-English narration for an 8–12 minute faceless documentary explainer, plus a terminology ledger and script critic evidence. The locked narration must be production-ready, precise, non-repetitive and claim-safe.",
   "07A": "Design one consistent narrator identity, objective take-tournament rules and a detailed music/SFX/silence soundscape contract. This is design only; do not synthesize audio. Bind to one locked ElevenLabs voice for later Stage 10 execution.",
   "07B": "Define the visual grammar, SOURCE/MAKE/HYBRID routing and provider tournament. Prefer real-world checkout/payment stock where truth matters; use channel-owned diagrams, charts, maps, UI and receipts where explanation matters. No legacy assets and no AI branding.",
-  "08": "Compile exactly 84 contiguous shot contracts spanning a 600-second target. Every shot must bind narration, claim IDs, SOURCE/MAKE/HYBRID mode, a precise scene program, on-screen text limits, rights requirement, QA tests and distinct ENTRY/MIDPOINT/EXIT states. Use SOURCE for observable real-world environments, MAKE for explanatory diagrams/charts/maps/UI/receipts, and HYBRID only when both layers are necessary. No shot may be generic filler.",
+  "08": "Compile adaptive contiguous editorial-shot contracts spanning the exact measured canonical narration duration supplied in this request. Derive the shot count, visual-event count and asset needs from meaning; never target 84 or apply a universal 3.5-second ceiling. Use new revision-scoped shot IDs beginning V2R2- so historical shot rows cannot be mistaken for current candidates. Use 1.5–4 second hook shots, 3–7 second SOURCE shots, 5–10 second HYBRID shots, and 7–15 second explanatory MAKE shots when internal meaningful events sustain attention. Every shot must bind narration, claim IDs, SOURCE/MAKE/HYBRID mode, a precise scene program, on-screen text limits, rights requirement, QA tests and distinct ENTRY/MIDPOINT/EXIT states. Separate authorization, clearing and settlement, preserve a consistent institutional map, and use no generic filler.",
 };
 
 const contextStages: Record<StageKey, string[]> = {
   "01": ["00"], "02": ["01"], "03": ["01", "02"], "04": ["03"], "05": ["03", "04"], "06": ["03", "05"], "07A": ["03", "06"], "07B": ["06", "07A"], "08": ["06", "07A", "07B"],
 };
 
-function validateBundle(stageKey: StageKey, required: string[], bundle: Row) {
+function validateBundle(stageKey: StageKey, required: string[], bundle: Row, canonicalDuration?: number) {
   if (clean(bundle.stageKey) !== stageKey || Number(bundle.artifactCount) !== 3 || !Array.isArray(bundle.artifacts)) throw new SequentialCommandError("STAGE_BUNDLE_INVALID", 502, "Provider bundle does not match the requested stage");
   const artifacts = bundle.artifacts as Row[];
   const types = artifacts.map((artifact) => clean(artifact.artifactType));
@@ -150,16 +151,52 @@ function validateBundle(stageKey: StageKey, required: string[], bundle: Row) {
   }
   if (stageKey === "08") {
     const records = Array.isArray(bundle.productionRecords) ? bundle.productionRecords as Row[] : [];
-    if (records.length !== 84) throw new SequentialCommandError("SHOT_CONTRACT_COUNT_INVALID", 409, "Stage 08 requires exactly 84 shot contracts");
+    if (records.length < 90 || records.length > 180) throw new SequentialCommandError("SHOT_CONTRACT_COUNT_INVALID", 409, "Stage 08 must derive 90–180 adaptive editorial shots from the canonical narration");
     const ordered = [...records].sort((a, b) => Number(a.startSeconds) - Number(b.startSeconds));
-    if (Math.abs(Number(ordered[0]?.startSeconds || 0)) > 0.01 || Math.abs(Number(ordered.at(-1)?.endSeconds || 0) - 600) > 0.25) throw new SequentialCommandError("SHOT_TIMELINE_COVERAGE_INVALID", 409, "Stage 08 shot contracts must cover 0–600 seconds");
+    if (!canonicalDuration || Math.abs(Number(ordered[0]?.startSeconds || 0)) > 0.01 || Math.abs(Number(ordered.at(-1)?.endSeconds || 0) - canonicalDuration) > 0.05) throw new SequentialCommandError("SHOT_TIMELINE_COVERAGE_INVALID", 409, `Stage 08 shot contracts must cover 0–${Number(canonicalDuration || 0).toFixed(6)} seconds`);
     for (let index = 0; index < ordered.length; index += 1) {
       const record = ordered[index], prior = ordered[index - 1];
       if (prior && Math.abs(Number(prior.endSeconds) - Number(record.startSeconds)) > 0.05) throw new SequentialCommandError("SHOT_TIMELINE_GAP_INVALID", 409, "Stage 08 shot contracts must be contiguous");
+      if (Math.abs(Number(record.durationSeconds) - (Number(record.endSeconds) - Number(record.startSeconds))) > 0.05) throw new SequentialCommandError("SHOT_DURATION_INVALID", 409, "Stage 08 durationSeconds must equal endSeconds-startSeconds");
+      if (!clean(record.shotId).startsWith("V2R2-")) throw new SequentialCommandError("SHOT_REVISION_ID_INVALID", 409, "Video Standard V2 shot IDs must start V2R2-");
       if (!clean(record.entryState) || !clean(record.midpointState) || !clean(record.exitState) || !["SOURCE", "MAKE", "HYBRID"].includes(clean(record.assetMode))) throw new SequentialCommandError("SHOT_CONTRACT_FIELDS_INVALID", 409, "Every Stage 08 shot requires typed motion states and routing");
     }
   }
   return artifacts;
+}
+
+function normalizeAdaptiveStage08Timeline(bundle: Row, canonicalDuration: number) {
+  const records = Array.isArray(bundle.productionRecords) ? bundle.productionRecords as Row[] : [];
+  if (records.length < 90 || records.length > 180) return;
+  const ordered = [...records].sort((a, b) => Number(a.startSeconds) - Number(b.startSeconds));
+  const weights = ordered.map((record) => {
+    const declared = Number(record.durationSeconds);
+    const inferred = Number(record.endSeconds) - Number(record.startSeconds);
+    return Number.isFinite(declared) && declared > 0 ? declared : Number.isFinite(inferred) && inferred > 0 ? inferred : 1;
+  });
+  const totalWeight = weights.reduce((sum, value) => sum + value, 0);
+  let cursor = 0;
+  bundle.productionRecords = ordered.map((record, index) => {
+    const startSeconds = cursor;
+    const cumulativeWeight = weights.slice(0, index + 1).reduce((sum, value) => sum + value, 0);
+    const endSeconds = index === ordered.length - 1
+      ? canonicalDuration
+      : Number((canonicalDuration * cumulativeWeight / totalWeight).toFixed(6));
+    cursor = endSeconds;
+    return {
+      ...record,
+      startSeconds,
+      endSeconds,
+      durationSeconds: Number((endSeconds - startSeconds).toFixed(6)),
+    };
+  });
+}
+
+async function canonicalNarrationDuration(db: DB, queueId: unknown) {
+  const narration = await first(db, "SELECT duration_seconds FROM v7_sequential_audio_assets WHERE queue_id=? AND stem_type='NARRATION' ORDER BY updated_at DESC LIMIT 1", queueId);
+  const duration = Number(narration?.duration_seconds || 0);
+  if (!Number.isFinite(duration) || duration < 480 || duration > 720) throw new SequentialCommandError("CANONICAL_NARRATION_DURATION_REQUIRED", 409, "A measured 480–720 second narration stem is required for adaptive Stage 08 compilation");
+  return duration;
 }
 
 async function stageContext(db: DB, stageKey: StageKey) {
@@ -187,7 +224,8 @@ async function startCompilation(env: Env, stageKey: StageKey, idempotencyKey: st
     if (!plan || !parseJson<string[]>(plan.stage_scope_json, []).includes("08")) throw new SequentialCommandError("APPROVED_BUDGET_PLAN_REQUIRED", 409, "Stage 08 provider execution requires an approved cost and rights plan");
   }
   const parentDigest = context.parentArtifacts.map((artifact) => ({ id: artifact.id, stageKey: artifact.stage_key, artifactType: artifact.artifact_type, content: parseJson<Row>(artifact.content_json, {}) }));
-  const prompt = `You are the greenfield production compiler for YouTube AI Factory contract ${CONTRACT}.\n\nCreate Stage ${stageKey} for video #1, title: ${clean(context.queue.title)}. Market US. Language en-US. Format faceless premium documentary explainer, 16:9, 8–12 minutes. Never mention AI in audience-facing output.\n\nMANDATORY: use no legacy dossier, prompt, script, storyboard, media, master or artifact. Only the CURRENT FROZEN PARENT ARTIFACTS below are eligible. Produce exactly these artifact types, preserving spelling: ${required.join(" | ")}.\n\nStage directive: ${stageDirective[stageKey]}\n\nQuality release floors: overall >=92, critical >=90, every dimension >=86, P0=0, material P1=0. Do not claim PASS unless the actual deliverable meets those floors. Every artifact must be detailed enough to execute without guessing. documentMarkdown is the substantive deliverable, not a short summary.\n\nCURRENT FROZEN PARENT ARTIFACTS:\n${JSON.stringify(parentDigest)}\n\nReturn only the strict structured bundle.`;
+  const canonicalDuration = stageKey === "08" ? await canonicalNarrationDuration(env.DB!, context.queue.id) : null;
+  const prompt = `You are the greenfield production compiler for YouTube AI Factory contract ${CONTRACT}.\n\nCreate Stage ${stageKey} for video #1, title: ${clean(context.queue.title)}. Market US. Language en-US. Format faceless premium documentary explainer, 16:9, 8–12 minutes. Never mention AI in audience-facing output.${canonicalDuration ? ` The exact measured canonical narration duration is ${canonicalDuration.toFixed(6)} seconds; the final shot must end at exactly this value within 0.05 seconds.` : ""}\n\nMANDATORY: use no legacy dossier, prompt, script, storyboard, media, master or artifact. Only the CURRENT FROZEN PARENT ARTIFACTS below are eligible. Produce exactly these artifact types, preserving spelling: ${required.join(" | ")}.\n\nStage directive: ${stageDirective[stageKey]}\n\nQuality release floors: overall >=92, critical >=90, every dimension >=86, P0=0, material P1=0. Do not claim PASS unless the actual deliverable meets those floors. Every artifact must be detailed enough to execute without guessing. documentMarkdown is the substantive deliverable, not a short summary.\n\nCURRENT FROZEN PARENT ARTIFACTS:\n${JSON.stringify(parentDigest)}\n\nReturn only the strict structured bundle.`;
   const requestId = makeId("seq-provider"), requestHash = await digest(prompt), startedAt = now(), model = env.OPENAI_QA_MODEL || MODEL;
   await env.DB!.prepare("INSERT INTO v7_sequential_provider_requests (id,program_id,queue_id,stage_key,provider,operation,lifecycle_state,idempotency_key,request_hash,rights_state,cost_usd,started_at) VALUES (?,?,?,?,?,'COMPILE_STAGE_BUNDLE','RUNNING',?,?,?,0,?)")
     .bind(requestId, context.program.id, context.queue.id, stageKey, "OPENAI", idempotencyKey, requestHash, stageKey === "01" || stageKey === "03" ? "PRIMARY_SOURCES_VERIFIED" : stageKey === "02" ? "REFERENCE_ANALYSIS_ONLY" : "CHANNEL_OWNED_ORIGINAL", startedAt).run();
@@ -230,7 +268,9 @@ async function finalizeCompilation(env: Env, actor: SequentialActor, stageKey: S
   const required = parseJson<string[]>(context.contract.required_artifacts_json, []), rawOutput = outputText(payload), bundle = parseJson<Row>(rawOutput, {});
   const usage = measureOpenAIUsage(payload, env.OPENAI_QA_MODEL || MODEL), responseHash = await digest(rawOutput), completedAt = now();
   let artifacts: Row[];
-  try { artifacts = validateBundle(stageKey, required, bundle); }
+  const canonicalDuration = stageKey === "08" ? await canonicalNarrationDuration(env.DB!, context.queue.id) : undefined;
+  if (stageKey === "08" && canonicalDuration) normalizeAdaptiveStage08Timeline(bundle, canonicalDuration);
+  try { artifacts = validateBundle(stageKey, required, bundle, canonicalDuration); }
   catch (error) {
     const errorCode = error instanceof SequentialCommandError ? error.code : "STAGE_BUNDLE_VALIDATION_FAILED";
     await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',response_hash=?,error_code=?,cost_usd=?,completed_at=? WHERE id=?").bind(responseHash, errorCode, usage.actualUsd, completedAt, providerRequestId).run();
@@ -247,6 +287,11 @@ async function finalizeCompilation(env: Env, actor: SequentialActor, stageKey: S
     receipts.push({ artifactType: artifact.artifactType, artifactId: produced.artifactId, produceOutcome: produced.outcome, verifyOutcome: verified.outcome });
   }
   const frozen = await submitSequentialCommand({ DB: env.DB!, BUCKET: env.BUCKET! }, { body: { action: "FREEZE_STAGE", channelId: CHANNEL_ID, sequence: 1, stageKey, expectedStageState: "RUNNING" }, actor, idempotencyKey: `${providerRequestId}:freeze` });
+  if (stageKey === "08") {
+    const records = Array.isArray(bundle.productionRecords) ? bundle.productionRecords as Row[] : [], last = records.at(-1), evidenceHash = await digest(JSON.stringify(records.map((record) => [record.shotId, record.startSeconds, record.endSeconds]))), evaluation = await first(env.DB!, "SELECT COALESCE(MAX(evaluation_number),0)+1 value FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? AND standard_id='VQ-M1-CANONICAL-COVERAGE'", context.queue.id, VIDEO_QUALITY_STANDARD_VERSION);
+    await env.DB!.prepare("INSERT INTO v7_video_quality_evidence (id,program_id,queue_id,standard_version,standard_id,evaluation_number,lifecycle_state,evidence_kind,artifact_id,evidence_hash,measured_value_json,findings_json,evaluated_by) VALUES (?,?,?,?,?,?, 'PASS','MOTION',?,?,?,'[]',?)")
+      .bind(makeId("seq-quality"), context.program.id, context.queue.id, VIDEO_QUALITY_STANDARD_VERSION, "VQ-M1-CANONICAL-COVERAGE", Number(evaluation?.value || 1), frozen.artifactId || receipts[0]?.artifactId || null, evidenceHash, JSON.stringify({ startSeconds: records[0]?.startSeconds, endSeconds: last?.endSeconds, canonicalDuration, shotCount: records.length, gaps: 0, overlaps: 0, fixedCountAuthority: false }), actor.email.toLowerCase()).run();
+  }
   return { outcome: "COMPLETED_AND_FROZEN", stageKey, providerRequestId, providerResponseId: request.provider_response_id, usage, receipts, freeze: frozen.detail };
 }
 

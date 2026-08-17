@@ -40,6 +40,23 @@ export type SequentialProductionProjection = {
     activeStageName: string;
     activeStageState: string;
     nextAction: string;
+    controlState: string;
+    qualityEligibility: "BLOCKED_VIDEO_STANDARD_V2" | "VIDEO_EXCELLENCE_ELIGIBLE";
+    qualityStandardVersion: string;
+    nextValidAction: string;
+  };
+  quality: {
+    eligibility: "BLOCKED_VIDEO_STANDARD_V2" | "VIDEO_EXCELLENCE_ELIGIBLE";
+    standardVersion: string;
+    registryCount: number;
+    resolvedStandards: number;
+    hardStandards: number;
+    passedHardStandards: number;
+    goldenSequenceState: string;
+    goldenSequenceDurationSeconds: number;
+    goldenPosterUrl?: string;
+    goldenMixUrl?: string;
+    gaps: Array<{ standardId: string; level: string; owningStage: string; status: string; evidenceRequired: string[] }>;
   };
   stages: Array<{
     key: string;

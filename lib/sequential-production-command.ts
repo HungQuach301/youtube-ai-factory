@@ -1,4 +1,12 @@
 import { SEQUENTIAL_PRODUCTION_CONTRACT } from "@/app/production-control-contract";
+import {
+  evaluateVideoQualityEligibility,
+  resolveVideoQualityStandards,
+  VIDEO_01_QUALITY_ROUTE,
+  VIDEO_QUALITY_STANDARD_VERSION,
+  type VideoQualityEvidence,
+  type VideoQualityStandard,
+} from "@/lib/video-quality-standard";
 
 type Row = Record<string, unknown>;
 type RunResult = { success?: boolean; meta?: { changes?: number } };
@@ -151,6 +159,15 @@ async function assertPredecessorsFrozen(db: SequentialCommandDB, context: Contex
 
 async function startStage(db: SequentialCommandDB, context: Context, body: SequentialCommandBody, actor: SequentialActor, key: string, hash: string) {
   await assertPredecessorsFrozen(db, context);
+  if (body.stageKey === "11") {
+    const standardRows = await rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION);
+    const evidenceRows = await rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", context.queue.id, VIDEO_QUALITY_STANDARD_VERSION);
+    const registry = standardRows.map((item) => ({ standardId: clean(item.id), version: VIDEO_QUALITY_STANDARD_VERSION, scope: clean(item.scope), scopeKey: clean(item.scope_key), enforcementLevel: clean(item.enforcement_level), trigger: clean(item.trigger), metric: clean(item.metric), thresholdOrRange: clean(item.threshold_or_range), evidenceRequired: parseJson(item.evidence_required_json, []), owningStage: clean(item.owning_stage), failureAction: clean(item.failure_action), waiverPolicy: clean(item.waiver_policy), active: Boolean(item.active) })) as VideoQualityStandard[];
+    const evidence = new Map<string, VideoQualityEvidence>();
+    for (const item of evidenceRows) evidence.set(clean(item.standard_id), { standardId: clean(item.standard_id), status: clean(item.lifecycle_state) as VideoQualityEvidence["status"], evidenceKind: clean(item.evidence_kind) as VideoQualityEvidence["evidenceKind"], evidenceHash: clean(item.evidence_hash) || undefined, artifactId: clean(item.artifact_id) || undefined });
+    const eligibility = evaluateVideoQualityEligibility(resolveVideoQualityStandards(registry, VIDEO_01_QUALITY_ROUTE), [...evidence.values()]);
+    if (eligibility.eligibility !== "VIDEO_EXCELLENCE_ELIGIBLE") throw new SequentialCommandError("VIDEO_EXCELLENCE_INELIGIBLE", 409, `${eligibility.gaps.length} Video Production Quality Standard V2 hard gates remain open`);
+  }
   const running = await first(db, "SELECT stage_key FROM v7_sequential_stage_runs WHERE queue_id=? AND lifecycle_state='RUNNING' LIMIT 1", context.queue.id);
   if (running) throw new SequentialCommandError("ANOTHER_STAGE_RUNNING", 409, `Stage ${clean(running.stage_key)} already owns the production lease`);
   const timestamp = now(), expires = new Date(Date.now() + 15 * 60_000).toISOString(), leaseId = id("seq-lease");
@@ -213,7 +230,7 @@ function validateArtifactContent(body: SequentialCommandBody, context: Context, 
   } else if (score < 92 || p0 !== 0) failures.push("qualityFloor");
   if (body.stageKey === "09" && clean(artifact.artifact_type) === "stored source bytes") {
     const assets = Array.isArray(content.assets) ? content.assets as Row[] : [];
-    if (assets.length !== 84 || assets.some((asset) => !clean(asset.storageKey) || !clean(asset.sha256) || Number(asset.byteSize || 0) <= 0 || asset.readbackVerified !== true)) failures.push("storedMediaAssets");
+    if (!assets.length || assets.some((asset) => !clean(asset.storageKey) || !clean(asset.sha256) || Number(asset.byteSize || 0) <= 0 || asset.readbackVerified !== true)) failures.push("storedMediaAssets");
   }
   if (body.stageKey === "10" && clean(artifact.artifact_type) === "audio stems") {
     const stems = Array.isArray(content.stems) ? content.stems as Row[] : [];

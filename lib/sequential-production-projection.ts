@@ -1,4 +1,12 @@
 import { SEQUENTIAL_PRODUCTION_CONTRACT, type SequentialProductionProjection } from "@/app/production-control-contract";
+import {
+  evaluateVideoQualityEligibility,
+  resolveVideoQualityStandards,
+  VIDEO_01_QUALITY_ROUTE,
+  VIDEO_QUALITY_STANDARD_VERSION,
+  type VideoQualityEvidence,
+  type VideoQualityStandard,
+} from "@/lib/video-quality-standard";
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null> };
@@ -171,6 +179,25 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   if (!current) throw new Error("EXCLUSIVE_ACTIVE_VIDEO_NOT_FOUND");
   const stages = await rows(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? ORDER BY sequence", current.id);
   const activeStage = stages.find((stage) => ["READY","RUNNING","REPAIR_REQUIRED","ESCALATED"].includes(text(stage.lifecycle_state))) ?? stages[0];
+  const [standardRows, evidenceRows, goldenSequence] = await Promise.all([
+    rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION),
+    rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
+    db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
+  ]);
+  const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND (role='AUDIENCE_MIX' OR (role='TEMPORAL_FRAME' AND temporal_state='MIDPOINT')) ORDER BY role,shot_id LIMIT 2", goldenSequence.id) : [];
+  const goldenAssetUrl = (role: string) => { const asset = goldenAssets.find((item) => text(item.role) === role); return asset ? `/api/factory/sequential-production/quality?asset=${encodeURIComponent(text(asset.id))}` : undefined; };
+  const registry = standardRows.map((item) => ({
+    standardId: text(item.id), version: VIDEO_QUALITY_STANDARD_VERSION, scope: text(item.scope), scopeKey: text(item.scope_key), enforcementLevel: text(item.enforcement_level),
+    trigger: text(item.trigger), metric: text(item.metric), thresholdOrRange: text(item.threshold_or_range), evidenceRequired: json<string[]>(item.evidence_required_json, []), owningStage: text(item.owning_stage),
+    failureAction: text(item.failure_action), waiverPolicy: text(item.waiver_policy), active: boolean(item.active),
+  })) as VideoQualityStandard[];
+  const latestEvidence = new Map<string, VideoQualityEvidence>();
+  for (const item of evidenceRows) latestEvidence.set(text(item.standard_id), {
+    standardId: text(item.standard_id), status: text(item.lifecycle_state) as VideoQualityEvidence["status"], evidenceKind: text(item.evidence_kind) as VideoQualityEvidence["evidenceKind"],
+    evidenceHash: text(item.evidence_hash) || undefined, measuredValue: item.measured_value_json ? json<unknown>(item.measured_value_json, undefined) as string | number | undefined : undefined, artifactId: text(item.artifact_id) || undefined,
+  });
+  const resolvedStandards = resolveVideoQualityStandards(registry, VIDEO_01_QUALITY_ROUTE);
+  const qualityEligibility = evaluateVideoQualityEligibility(resolvedStandards, [...latestEvidence.values()]);
   const rejected = await db.prepare("SELECT COUNT(*) total FROM production_v2_packages WHERE channel_id=? AND lifecycle_state='REJECTED_QUALITY'").bind(channelId).first<Row>();
   const preserved = await db.prepare("SELECT COUNT(*) total FROM production_v2_artifacts a JOIN production_v2_packages p ON p.id=a.package_id WHERE p.channel_id=?").bind(channelId).first<Row>();
   const activeCount = queue.filter((item) => boolean(item.active)).length;
@@ -201,7 +228,24 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       id: text(current.id), packageId: text(current.package_id), sequence: number(current.sequence), title: text(current.title), state: text(current.lifecycle_state),
       sourceBriefHash: text(current.source_brief_hash), priorMasterState: text(current.prior_master_state), activeStageKey: text(activeStage?.stage_key),
       activeStageName: text(activeStage?.stage_name), activeStageState: text(activeStage?.lifecycle_state),
-      nextAction: activeStage?.stage_key === "00" ? "Complete the new Stage 00–07B design package for video #1 before creating shots or media." : text(activeStage?.blocker || "Continue the active stage within its locked scope."),
+      nextAction: qualityEligibility.nextValidAction,
+      controlState: `Stage 00–10 FROZEN · Stage ${text(activeStage?.stage_key)} ${text(activeStage?.lifecycle_state)}`,
+      qualityEligibility: qualityEligibility.eligibility,
+      qualityStandardVersion: VIDEO_QUALITY_STANDARD_VERSION,
+      nextValidAction: qualityEligibility.nextValidAction,
+    },
+    quality: {
+      eligibility: qualityEligibility.eligibility,
+      standardVersion: VIDEO_QUALITY_STANDARD_VERSION,
+      registryCount: registry.length,
+      resolvedStandards: qualityEligibility.resolvedStandards,
+      hardStandards: qualityEligibility.hardStandards,
+      passedHardStandards: qualityEligibility.passedHardStandards,
+      goldenSequenceState: text(goldenSequence?.lifecycle_state) || "NOT_STARTED",
+      goldenSequenceDurationSeconds: number(goldenSequence?.duration_seconds),
+      goldenPosterUrl: goldenAssetUrl("TEMPORAL_FRAME"),
+      goldenMixUrl: goldenAssetUrl("AUDIENCE_MIX"),
+      gaps: qualityEligibility.gaps.map((gap) => ({ standardId: gap.standardId, level: gap.level, owningStage: gap.owningStage, status: gap.status, evidenceRequired: gap.evidenceRequired })),
     },
     stages: stages.map((stage) => {
       const key = text(stage.stage_key);

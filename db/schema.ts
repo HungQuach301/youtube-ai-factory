@@ -2225,3 +2225,27 @@ export const v7SequentialAudioAssets = sqliteTable("v7_sequential_audio_assets",
   rmsDbfs: real("rms_dbfs").notNull(), silenceRatio: real("silence_ratio").notNull(), rightsState: text("rights_state").notNull(), costUsd: real("cost_usd").notNull().default(0),
   metadataJson: text("metadata_json").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("v7_sequential_audio_queue_stem_uq").on(table.queueId, table.stemType), index("v7_sequential_audio_queue_provider_idx").on(table.queueId, table.provider)]);
+
+export const v7VideoQualityStandards = sqliteTable("v7_video_quality_standards", {
+  id: text("id").primaryKey(), standardVersion: text("standard_version").notNull(), scope: text("scope").notNull(), scopeKey: text("scope_key").notNull(),
+  enforcementLevel: text("enforcement_level").notNull(), trigger: text("trigger").notNull(), metric: text("metric").notNull(), thresholdOrRange: text("threshold_or_range").notNull(),
+  evidenceRequiredJson: text("evidence_required_json").notNull(), owningStage: text("owning_stage").notNull(), failureAction: text("failure_action").notNull(), waiverPolicy: text("waiver_policy").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_video_quality_standard_version_id_uq").on(table.standardVersion, table.id), index("v7_video_quality_standard_scope_idx").on(table.standardVersion, table.scope, table.scopeKey, table.active)]);
+
+export const v7VideoQualityEvidence = sqliteTable("v7_video_quality_evidence", {
+  id: text("id").primaryKey(), programId: text("program_id").notNull(), queueId: text("queue_id").notNull(), standardVersion: text("standard_version").notNull(), standardId: text("standard_id").notNull(),
+  evaluationNumber: integer("evaluation_number").notNull(), lifecycleState: text("lifecycle_state").notNull(), evidenceKind: text("evidence_kind").notNull(), artifactId: text("artifact_id"), storageKey: text("storage_key"), evidenceHash: text("evidence_hash"),
+  measuredValueJson: text("measured_value_json").notNull(), findingsJson: text("findings_json").notNull().default("[]"), evaluatedBy: text("evaluated_by").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_video_quality_evidence_eval_uq").on(table.queueId, table.standardVersion, table.standardId, table.evaluationNumber), index("v7_video_quality_evidence_latest_idx").on(table.queueId, table.standardId, table.createdAt)]);
+
+export const v7GoldenSequences = sqliteTable("v7_golden_sequences", {
+  id: text("id").primaryKey(), programId: text("program_id").notNull(), queueId: text("queue_id").notNull(), standardVersion: text("standard_version").notNull(), revision: integer("revision").notNull(), lifecycleState: text("lifecycle_state").notNull(),
+  startSeconds: real("start_seconds").notNull(), endSeconds: real("end_seconds").notNull(), durationSeconds: real("duration_seconds").notNull(), narrationText: text("narration_text").notNull(), manifestJson: text("manifest_json").notNull(),
+  qualityJson: text("quality_json").notNull().default("{}"), evidenceHash: text("evidence_hash"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_golden_sequence_queue_revision_uq").on(table.queueId, table.revision)]);
+
+export const v7GoldenSequenceAssets = sqliteTable("v7_golden_sequence_assets", {
+  id: text("id").primaryKey(), goldenSequenceId: text("golden_sequence_id").notNull(), role: text("role").notNull(), shotId: text("shot_id"), temporalState: text("temporal_state"), storageKey: text("storage_key").notNull(),
+  mimeType: text("mime_type").notNull(), byteSize: integer("byte_size").notNull(), sha256: text("sha256").notNull(), rightsState: text("rights_state").notNull(), metadataJson: text("metadata_json").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_golden_sequence_asset_role_uq").on(table.goldenSequenceId, table.role, table.shotId, table.temporalState)]);

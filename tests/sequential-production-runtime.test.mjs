@@ -60,11 +60,14 @@ test("Stage 01–07B executor is greenfield, metered and mutates state only thro
   assert.doesNotMatch(executor, /UPDATE v7_sequential_stage_runs SET lifecycle_state='FROZEN'/);
 });
 
-test("Stage 08 requires an approved bounded cost-rights plan and exact shot contracts", () => {
+test("Stage 08 requires an approved bounded plan and adaptive canonical-duration shot contracts", () => {
   const executor = read("app/api/factory/sequential-production/executor/route.ts");
   const plan = read("app/api/factory/sequential-production/plan/route.ts");
   assert.match(executor, /APPROVED_BUDGET_PLAN_REQUIRED/);
-  assert.match(executor, /minItems:\s*84,\s*maxItems:\s*84/);
+  assert.match(executor, /minItems:\s*90,\s*maxItems:\s*180/);
+  assert.match(executor, /canonicalNarrationDuration/);
+  assert.match(executor, /fixedCountAuthority:\s*false/);
+  assert.doesNotMatch(executor, /Compile exactly 84 contiguous shot contracts/);
   assert.match(executor, /SHOT_TIMELINE_COVERAGE_INVALID/);
   assert.match(plan, /APPROVE_COST_RIGHTS_PLAN/);
   assert.match(plan, /PER_VIDEO_HARD_CAP_USD = 40/);
@@ -85,4 +88,33 @@ test("Stage 09–10 executor stores real media/audio bytes with rights and measu
   assert.match(media, /audio\/wav/);
   assert.match(command, /storedMediaAssets/);
   assert.match(command, /storedAudioStems/);
+});
+
+test("Video Production Quality Standard V2 is executable and Stage 11 fails closed", () => {
+  const migration = read("drizzle/0045_video_quality_standard_v2.sql");
+  const registry = read("lib/video-quality-standard.ts");
+  const command = read("lib/sequential-production-command.ts");
+  const projection = read("lib/sequential-production-projection.ts");
+  assert.match(migration, /v7_video_quality_standards/);
+  assert.match(migration, /v7_video_quality_evidence/);
+  assert.match(registry, /VIDEO_QUALITY_STANDARD_WEAKENING/);
+  assert.match(registry, /BLOCKED_VIDEO_STANDARD_V2/);
+  assert.match(command, /VIDEO_EXCELLENCE_INELIGIBLE/);
+  assert.match(projection, /qualityEligibility/);
+});
+
+test("golden-sequence runtime uses real pixels, section voice, composed audio and independent audit", () => {
+  const quality = read("app/api/factory/sequential-production/quality/route.ts");
+  const pixels = read("lib/video-quality-pixels.ts");
+  const audio = read("lib/video-audio-quality.ts");
+  assert.match(quality, /CREATE_GOLDEN_PLAN/);
+  assert.match(quality, /PRODUCE_GOLDEN_VISUALS/);
+  assert.match(quality, /PRODUCE_GOLDEN_AUDIO/);
+  assert.match(quality, /AUDIT_GOLDEN_SEQUENCE/);
+  assert.match(quality, /speed:\s*1\.02/);
+  assert.match(quality, /minimum = 300, maximum = 800/);
+  assert.match(quality, /CHANNEL_COMPOSED_EVOLVING_BED/);
+  assert.match(pixels, /meaningfulTemporalDelta/);
+  assert.match(audio, /pitchRangeSemitones/);
+  assert.doesNotMatch(quality, /generatedStem/);
 });
