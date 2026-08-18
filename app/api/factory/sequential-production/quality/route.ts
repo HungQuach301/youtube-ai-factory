@@ -17,7 +17,7 @@ type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promis
 type DB = SequentialCommandDB & { prepare(query: string): Statement };
 type StoredObject = { arrayBuffer(): Promise<ArrayBuffer>; body?: ReadableStream; size?: number; httpMetadata?: { contentType?: string } };
 type QualityBucket = { put(key: string, value: Uint8Array | string, options?: Record<string, unknown>): Promise<void>; head(key: string): Promise<{ size: number } | null>; get(key: string, options?: { range?: { offset: number; length: number } }): Promise<StoredObject | null> };
-type Env = { DB?: DB; BUCKET?: QualityBucket; ELEVENLABS_API_KEY?: string; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?: string; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; SEQUENTIAL_EXECUTOR_TOKEN?: string };
+type Env = { DB?: DB; BUCKET?: QualityBucket; ELEVENLABS_API_KEY?: string; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?: string; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; SEQUENTIAL_EXECUTOR_TOKEN?: string; PERCEPTUAL_QA_EXECUTOR_TOKEN?: string };
 const clean = (value: unknown) => String(value ?? "").trim(), now = () => new Date().toISOString(), json = (value: unknown) => JSON.stringify(value), makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 const parseJson = <T,>(value: unknown, fallback: T): T => { try { return JSON.parse(clean(value)) as T; } catch { return fallback; } };
 async function runtime() { const { env } = await import("cloudflare:workers"); return env as unknown as Env; }
@@ -31,6 +31,8 @@ async function authorized(request: Request) {
   const env = await runtime(); if (!env.DB || !env.BUCKET) throw new SequentialCommandError("SEQUENTIAL_RUNTIME_UNAVAILABLE", 503, "Canonical D1 and R2 are required");
   let user = await getChatGPTUser();
   if (!user && await secretMatches(request.headers.get("x-sequential-executor-token") || "", env.SEQUENTIAL_EXECUTOR_TOKEN || "")) { const email = clean(env.FACTORY_AUTOMATION_ACTOR_EMAIL); if (email) user = { email, displayName: clean(env.FACTORY_AUTOMATION_ACTOR_NAME) || email, fullName: null }; }
+  const requestedAction = request.method === "POST" ? clean(((await request.clone().json().catch(() => null)) as Row | null)?.action).toUpperCase() : "";
+  if (!user && requestedAction === "AUDIT_GOLDEN_AUDIO_PERCEPTUAL" && await secretMatches(request.headers.get("x-perceptual-qa-executor-token") || "", env.PERCEPTUAL_QA_EXECUTOR_TOKEN || "")) { const email = clean(env.FACTORY_AUTOMATION_ACTOR_EMAIL); if (email) user = { email, displayName: clean(env.FACTORY_AUTOMATION_ACTOR_NAME) || email, fullName: null }; }
   if (!user) throw new SequentialCommandError("SIWC_AUTHENTICATION_REQUIRED", 401, "Owner authentication is required");
   const allowlist = new Set(clean(env.FACTORY_EXPERT_EMAILS).split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
   if (!allowlist.has(user.email.toLowerCase())) throw new SequentialCommandError("CHANNEL_OWNER_AUTHORIZATION_REQUIRED", 403, "This identity cannot execute Video Excellence production");

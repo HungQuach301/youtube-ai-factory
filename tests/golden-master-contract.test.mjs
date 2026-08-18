@@ -44,6 +44,8 @@ test("production UI and audit are master-video-first", () => {
   assert.match(route, /\["AUDIO_READY","MASTER_REQUIRED","MASTER_RENDERING"/);
   assert.match(route, /SUBMIT_GOLDEN_HUMAN_PLAYBACK/);
   assert.match(route, /AUDIT_GOLDEN_AUDIO_PERCEPTUAL/);
+  assert.match(route, /requestedAction === "AUDIT_GOLDEN_AUDIO_PERCEPTUAL"/);
+  assert.match(route, /x-perceptual-qa-executor-token/);
   assert.match(route, /content-range/);
   assert.match(readFileSync(new URL("../scripts/golden-master-executor.ts", import.meta.url), "utf8"), /FLAT_FRAME_CAMERA_MOTION/);
 });
