@@ -261,3 +261,7 @@ The scalable release path is now `render job → encoded master → storage read
 # Golden master production QA — 2026-08-17
 
 Sites v375 is live. Revision 8's real master correctly failed mobile legibility; renderer V5 fixed the reusable visual contract and revision 9 passed deterministic master QA and independent audit (`94`, mobile `91`, P0/P1 `0/0`). Production Range, full 1× A/V decode and multi-position seek decode pass, and recent error-only Worker logs are empty. Current golden state is intentionally `AUDIT_PASS_PLAYBACK_REQUIRED`: Cloud Browser blocked both preview and shared-file native playback, so human playback is not claimed. Stage 11 and auto-publish remain blocked.
+
+# Full-playback perceptual correction — 2026-08-18
+
+Document 36 supersedes revision 9's playback eligibility. Direct inspection of the exact production master found a camera-only slideshow: 33 flattened PNGs, one repeated visual treatment, zero B-roll/source-video segments and zero layered semantic-animation segments. Migration 0047 changes the state to `REPAIR_REQUIRED`. Pan/zoom pixel delta is no longer motion evidence. The master contract now requires motion provenance, camera-only coverage `<=35%`, semantic-animation coverage `>=45%`, source-video coverage `>=20%` and at least three visual treatments. A master-linked `gpt-audio-1.5` perceptual audit is mandatory in addition to deterministic audio metrics. Stage 11, subsequent videos and auto-publish remain blocked.

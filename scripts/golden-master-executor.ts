@@ -90,7 +90,27 @@ try {
   const masterPath = join(work, "golden-master.webm"); render(spec, framePaths, audioPath, masterPath);
   const masterProbe = probe(masterPath), samplePaths: string[] = [], sampleHashes: string[] = []; let cursor = 0;
   for (const [index, frame] of spec.frames.entries()) { const duration = number(frame.durationSeconds), samplePath = join(work, `decoded-${String(index).padStart(2, "0")}.jpg`); sampleHashes.push(extract(masterPath, samplePath, cursor + duration / 2)); samplePaths.push(samplePath); cursor += duration; }
-  const diagnostic = diagnose(masterPath), scan: GoldenMasterScan = { fullFrameScan: diagnostic.fullFrameScan, framesDecoded: masterProbe.videoFrames, blackFrameSeconds: diagnostic.blackFrameSeconds, maxFrozenFrameSeconds: diagnostic.maxFrozenFrameSeconds, decodedSemanticSamples: sampleHashes.length, uniqueSemanticSampleHashes: new Set(sampleHashes).size, expectedSemanticSamples: spec.expectedSemanticSamples, audioVideoDeltaSeconds: masterProbe.durationSeconds - masterProbe.audioDurationSeconds };
+  const diagnostic = diagnose(masterPath), scan: GoldenMasterScan = {
+    fullFrameScan: diagnostic.fullFrameScan,
+    framesDecoded: masterProbe.videoFrames,
+    blackFrameSeconds: diagnostic.blackFrameSeconds,
+    maxFrozenFrameSeconds: diagnostic.maxFrozenFrameSeconds,
+    decodedSemanticSamples: sampleHashes.length,
+    uniqueSemanticSampleHashes: new Set(sampleHashes).size,
+    expectedSemanticSamples: spec.expectedSemanticSamples,
+    audioVideoDeltaSeconds: masterProbe.durationSeconds - masterProbe.audioDurationSeconds,
+    // This executor loops flattened PNGs and applies only crop/pan. Pixel deltas
+    // from camera movement are not semantic motion and must never satisfy the
+    // audience-facing motion gate.
+    motionProvenance: {
+      rendererMode: "FLAT_FRAME_CAMERA_MOTION",
+      segmentCount: spec.frames.length,
+      cameraOnlySegmentCount: spec.frames.length,
+      semanticAnimationSegmentCount: 0,
+      sourceVideoSegmentCount: 0,
+      visualTreatmentCount: 1,
+    },
+  };
   const validation = validateGoldenMaster(masterProbe, scan, spec.canonicalDurationSeconds, spec.output.fps); if (!validation.pass) throw new Error(`master validation failed · ${validation.failures.join(",")} · ${JSON.stringify({ probe: masterProbe, scan })}`);
   await uploadMaster(spec, masterPath, masterProbe, scan);
   for (let stateIndex = 0; stateIndex < 3; stateIndex++) { const indexes = spec.frames.map((_, index) => index).filter((index) => index % 3 === stateIndex), sheetPath = join(work, `sheet-${stateIndex + 1}.jpg`), state = ["ENTRY", "MIDPOINT", "EXIT"][stateIndex]; contactSheet(indexes.map((index) => samplePaths[index]), indexes.map((index) => `${spec.frames[index].shotId} ${state}`), sheetPath); await uploadSheet(spec, sheetPath, stateIndex + 1, state); }

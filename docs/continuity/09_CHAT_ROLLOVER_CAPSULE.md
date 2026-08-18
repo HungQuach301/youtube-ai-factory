@@ -4,7 +4,7 @@
 **Current source classification:** `PRODUCTION_ACTIVE_V1`
 **Production-active functional baseline:** Sites v313 / `f7a125c2f101c3ee3dca23e6d4a080f747142c46`; final FE asset repair and acceptance ledger: Sites v314
 
-**Latest Video Excellence runtime:** Sites v369 / source checkpoint `6f1d55db01d3f881b222d0a55f9389ced39a3062`; Stage 08 is frozen at 98 adaptive shots over `704.4469583333333` seconds. Golden revision 8 is `PASS`: 80.244583 seconds, 33 real temporal PNGs, overall 94, factual 97, semantic 96, voice 98, visual 94, music/SFX 91, mobile 92, transaction-chain 95, P0/P1 `0/0`. The active plan ledger is `53/60` requests and `13.070514645833333/20 USD`, with zero active requests. The quality projection correctly resolves `13/18` hard standards; five full-video standards remain not evaluated, so Stage 11 stays blocked. Document 35 is authoritative.
+**Latest Video Excellence runtime:** Sites v375 is the current deployed baseline before the 2026-08-18 correction. Golden revision 9's valid 80.252-second VP9/Opus master is `REPAIR_REQUIRED`, not playback-ready: the exact production bytes are a one-treatment camera-only slideshow built from 33 flattened PNGs. Document 36 and migration 0047 are authoritative. Pan/zoom no longer counts as semantic motion; the next renderer must prove mixed visual treatments, layered semantic animation and source-video/B-roll coverage. A direct perceptual audio audit is required. Stage 11, videos 2–15 and auto-publish remain blocked.
 
 Chat transcripts and project memory are discovery aids, not executable source control. A rollover is ready only when the active assistant has created and independently recovery-tested a source capsule.
 

@@ -21,6 +21,14 @@ export type GoldenMasterScan = {
   uniqueSemanticSampleHashes: number;
   expectedSemanticSamples: number;
   audioVideoDeltaSeconds: number;
+  motionProvenance: {
+    rendererMode: "FLAT_FRAME_CAMERA_MOTION" | "LAYERED_SEMANTIC_MOTION" | "SOURCE_VIDEO_COMPOSITE";
+    segmentCount: number;
+    cameraOnlySegmentCount: number;
+    semanticAnimationSegmentCount: number;
+    sourceVideoSegmentCount: number;
+    visualTreatmentCount: number;
+  };
 };
 
 export type GoldenMasterValidation = { pass: boolean; failures: string[] };
@@ -57,6 +65,14 @@ export function validateGoldenMaster(
   if (scan.expectedSemanticSamples < 3 || scan.decodedSemanticSamples !== scan.expectedSemanticSamples) failures.push("MASTER_SEMANTIC_SAMPLE_COVERAGE_INCOMPLETE");
   if (scan.uniqueSemanticSampleHashes !== scan.expectedSemanticSamples) failures.push("MASTER_SEMANTIC_SAMPLE_DUPLICATION");
   if (Math.abs(scan.audioVideoDeltaSeconds) > frameTolerance) failures.push("MASTER_AUDIO_VIDEO_DURATION_MISMATCH");
+  const motion = scan.motionProvenance;
+  if (!motion || motion.segmentCount < 1) failures.push("MASTER_MOTION_PROVENANCE_MISSING");
+  else {
+    if (motion.cameraOnlySegmentCount / motion.segmentCount > 0.35) failures.push("MASTER_CAMERA_ONLY_SLIDESHOW");
+    if (motion.semanticAnimationSegmentCount / motion.segmentCount < 0.45) failures.push("MASTER_SEMANTIC_MOTION_COVERAGE_LOW");
+    if (motion.sourceVideoSegmentCount / motion.segmentCount < 0.2) failures.push("MASTER_SOURCE_VIDEO_COVERAGE_LOW");
+    if (motion.visualTreatmentCount < 3) failures.push("MASTER_VISUAL_TREATMENT_DIVERSITY_LOW");
+  }
   return { pass: failures.length === 0, failures };
 }
 
