@@ -66,3 +66,12 @@ test("critical visual qualifications are governed by a reusable mobile-safe cont
   assert.match(pixels, /qualificationRibbon/);
   assert.doesNotMatch(pixels, /opacity:\s*reveal\s*>=\s*3\s*\?\s*1\s*:\s*\.34/);
 });
+
+test("perceptual audio failure cannot be promoted into a later golden revision", () => {
+  const route = readFileSync(new URL("../app/api/factory/sequential-production/quality/route.ts", import.meta.url), "utf8");
+  assert.match(route, /priorPerceptual\.decision/);
+  assert.match(route, /GOLDEN_AUDIO_REPAIR_REQUIRED/);
+  assert.match(route, /const GOLDEN_TTS_SPEED = 1\.02/);
+  assert.match(route, /minimum = 1200, maximum = 4500/);
+  assert.match(route, /sampleRate \* 0\.25/);
+});

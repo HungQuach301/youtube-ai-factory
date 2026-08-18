@@ -26,3 +26,9 @@ No per-video exception may weaken these thresholds. A failure routes to the owni
 ## Next production action
 
 Run the immutable perceptual audio audit on revision 9, then create a new golden revision only after replacing the flat-frame renderer with a mixed-treatment motion compositor. Reuse the narration only if the audio perceptual audit passes and the narration checksum remains identical. Stage 11, subsequent videos, and auto-publish remain blocked.
+
+## Revision 9 audio audit result
+
+The one authorized `gpt-audio-1.5` request heard the exact 80-second audience mix and returned `REPAIR_REQUIRED`: overall 65; voice naturalness 70; pronunciation 85; pacing/prosody 60; mix balance 75; music dynamics 50; SFX timing 45; P0/P1 `1/3`. Findings: robotic/monotonous opening at 0–5s, unnatural pauses at 15–20s, static-like music at 40–45s and an abrupt seam at 60–65s. Measured cost was `$0.0297665`.
+
+Audio reuse is now denied unless the immediately prior revision has both deterministic `audio.status=PASS` and `perceptualAudioAudit.decision=PASS`. The reusable production correction uses longer semantic TTS sections, 1.02 speed, 250ms equal-power section crossfades, a sinusoidal rather than square-wave music bed, and windowed SFX tails. The failed r9 audio assets remain immutable evidence.

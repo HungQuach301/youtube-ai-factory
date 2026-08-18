@@ -118,7 +118,9 @@ test("golden-sequence runtime requires component evidence and a real audience ma
   assert.match(quality, /GOLDEN_MASTER_VIDEO/);
   assert.match(quality, /MASTER_QA_CONTACT_SHEET/);
   assert.match(quality, /SUBMIT_GOLDEN_HUMAN_PLAYBACK/);
-  assert.match(quality, /GOLDEN_TTS_SPEED = 1\.1/);
+  assert.match(quality, /GOLDEN_TTS_SPEED = 1\.02/);
+  assert.match(quality, /AUDIT_GOLDEN_AUDIO_PERCEPTUAL/);
+  assert.match(quality, /priorPerceptual\.decision/);
   assert.match(quality, /compileGoldenNarration/);
   assert.match(quality, /language_code:\s*"en"/);
   assert.match(quality, /GOLDEN_TRANSCRIPTION_MODEL = "gpt-4o-transcribe"/);
@@ -136,7 +138,7 @@ test("golden-sequence runtime requires component evidence and a real audience ma
   assert.match(pixels, /Acquiring side → issuer/);
   assert.match(quality, /golden\.id, "TRANSCRIPT"/);
   assert.match(quality, /CHANNEL_OWNED_DERIVATIVE/);
-  assert.match(quality, /minimum = 300, maximum = 800/);
+  assert.match(quality, /minimum = 1200, maximum = 4500/);
   assert.match(quality, /CHANNEL_COMPOSED_EVOLVING_BED/);
   assert.match(pixels, /meaningfulTemporalDelta/);
   assert.match(audio, /pitchRangeSemitones/);
