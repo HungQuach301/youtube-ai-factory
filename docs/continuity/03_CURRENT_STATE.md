@@ -1,6 +1,6 @@
 # Current State
 
-Last reconciled: 2026-08-16 (Asia/Bangkok)
+Last reconciled: 2026-08-19 (Asia/Bangkok)
 
 ## Sequential production correction — 2026-08-16
 
@@ -267,3 +267,28 @@ Sites v375 is live. Revision 8's real master correctly failed mobile legibility;
 Document 36 supersedes revision 9's playback eligibility. Direct inspection of the exact production master found a camera-only slideshow: 33 flattened PNGs, one repeated visual treatment, zero B-roll/source-video segments and zero layered semantic-animation segments. Migration 0047 changes the state to `REPAIR_REQUIRED`. Pan/zoom pixel delta is no longer motion evidence. The master contract now requires motion provenance, camera-only coverage `<=35%`, semantic-animation coverage `>=45%`, source-video coverage `>=20%` and at least three visual treatments. A master-linked `gpt-audio-1.5` perceptual audit is mandatory in addition to deterministic audio metrics. Stage 11, subsequent videos and auto-publish remain blocked.
 
 The revision 9 perceptual audio audit also failed: overall 65, P0/P1 `1/3`, with robotic opening, broken pauses, static-like music and an abrupt seam. Cost was `$0.0297665`. Revision 9 audio is not reusable. The next revision must regenerate voice/music/SFX under the corrected long-form TTS and seam-safe mix contract, then pass a new one-request perceptual audit before release assurance.
+
+## First-pass quality architecture — 2026-08-19
+
+Document 37 is authoritative for how future production output becomes eligible. The independent QA lifecycle is no longer a routine repair loop. Production must certify its capabilities, compile executable contracts, run bounded internal tournaments, complete deterministic and perceptual preflight and expose only a sealed release candidate to independent assurance.
+
+```text
+SITES_VERSION = 378
+FIRST_PASS_STANDARD = FIRST_PASS_QUALITY_V1
+FIRST_EXPOSED_OUTPUT = SEALED_RELEASE_CANDIDATE
+RAW_MODEL_OR_PROVIDER_RESULT = INTERNAL_CANDIDATE_ONLY
+INDEPENDENT_QA_ROLE = ONE_CONFIRMATION_NOT_DRAFT_REVIEW
+INDEPENDENT_QA_FAILURE = STOP_SCALE_AND_REQUALIFY_ROOT_CAPABILITY
+MAX_INDEPENDENT_ASSURANCE_ROOT_REVISIONS = 1_THEN_ARCHITECTURE_ESCALATION
+GENERIC_FALLBACK_RATE = ZERO
+PLACEHOLDER_RELEASE_ELIGIBILITY = NONE
+GOLDEN_R9_VISUAL = REPAIR_REQUIRED
+GOLDEN_R9_AUDIO = REPAIR_REQUIRED_NOT_REUSABLE
+STAGE_11 = BLOCKED
+VIDEO_02_TO_15 = BLOCKED_PREVIOUS_VIDEO
+AUTO_PUBLISH = FALSE
+NEXT_ACTION = FP1_TRUTHFUL_OPERATOR_PROJECTION_THEN_FP2_CAPABILITY_REGISTRY
+PROTECTED_ACTION = DO_NOT_RENDER_GOLDEN_R10_BEFORE_FP2_TO_FP5_PASS
+```
+
+The ordered plan is FP0–FP7 in Document 37: truthful UI/projection, runtime capability registry, executable Stage 07B/08 contracts, mixed-treatment visual plane, production audio plane, integrated canary and Golden r10, then the full Stage 11–15 release chain.

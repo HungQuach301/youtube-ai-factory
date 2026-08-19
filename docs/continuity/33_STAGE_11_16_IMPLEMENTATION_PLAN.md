@@ -1,6 +1,6 @@
 # Stage 11–16 Implementation Plan
 
-Status: revised on 2026-08-17. The former direct Stage 11 plan is superseded by Document 34. No Stage 11–16 production command has been executed by this document, and Stage 11 remains operationally paused.
+Status: revised on 2026-08-19. The former direct Stage 11 plan is superseded by Documents 34 and 37. Document 37 adds mandatory first-pass capability qualification, production preflight, truthful operator projection and a one-confirmation independent-assurance policy before this plan may continue. No Stage 11–16 production command has been executed by this document, and Stage 11 remains operationally paused.
 
 ## Delivery principle
 

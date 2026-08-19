@@ -118,6 +118,11 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Per-stage techniques, tools and quality controls: `docs/continuity/31_STAGE_TECHNIQUES_TOOLS_QUALITY_CONTROLS.md`.
 - Video-01 production record: `docs/continuity/32_VIDEO_01_STAGE_00_10_EXECUTION_RECORD.md`.
 - Next implementation plan: `docs/continuity/33_STAGE_11_16_IMPLEMENTATION_PLAN.md`.
+- Audience-facing Video Excellence constitution: `docs/continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md`.
+- Golden runtime and audit record: `docs/continuity/35_VIDEO_EXCELLENCE_RUNTIME_AND_GOLDEN_AUDIT.md`.
+- Full-playback perceptual correction: `docs/continuity/36_FULL_PLAYBACK_PERCEPTUAL_QA.md`.
+- First-pass capability, preflight and independent-assurance doctrine: `docs/continuity/37_FIRST_PASS_QUALITY_ARCHITECTURE.md`.
+- Current protected boundary: Golden r9 visual/audio remain rejected; Stage 11 and videos 2–15 are blocked; FP1 truthful operator projection and FP2 capability registry precede any Golden r10 render.
 - Video Production Quality Standard V2, content-route playbooks and M0–M4 enforcement registry: `docs/continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md`.
 - Registry/eligibility migration: `drizzle/0043_gorgeous_angel.sql`.
 - Media/audio migration: `drizzle/0044_adorable_skaar.sql`.

@@ -1,6 +1,6 @@
 # Stage Techniques, Tools, and Quality Controls
 
-Status: authoritative stage-technique and tool specification for the `V7_V23_4_V281` sequential production contract. Document 34 supersedes its audience-facing quality thresholds where the two conflict. Stage 00–10 remain control-state frozen for video #1; Stage 11 is state-ready but quality-ineligible and operationally paused.
+Status: authoritative stage-technique and tool specification for the `V7_V23_4_V281` sequential production contract. Document 34 supersedes its audience-facing quality thresholds where the two conflict. Document 37 is authoritative for first-pass capability qualification, production preflight and the independent-assurance failure policy. Stage 00–10 remain control-state frozen for video #1; Stage 11 is state-ready but quality-ineligible and operationally paused.
 
 ## Product and language decisions
 

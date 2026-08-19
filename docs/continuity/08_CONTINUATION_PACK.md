@@ -17,7 +17,7 @@ Record completed and incomplete work, artifact/version/hash, provider usage and 
 
 For the multi-channel product surface, Documents 16–27 are authoritative. Intelligence–Niche, Channel Strategy and all eight Content System & Planning slices are implemented, production-active and production-FE accepted. Preserve Documents 12–15 as V1 compatibility evidence; never reinterpret V1 video-topic candidates, the V1 expert-decision POST or legacy `channels.niche` as a V2 niche, priority, commitment or active strategy binding.
 
-The protected production handoff remains `MOTION_PROOF_REQUIRED` for champion C only after the Continuity Hardening Gate is reconciled. Do not recreate Stage 09 source, candidates, the composite tournament or pilot.
+The former `MOTION_PROOF_REQUIRED` champion-C handoff is historical only. Documents 34–37 are authoritative for the current Video Excellence boundary. Golden r9 visual/audio are immutable rejected evidence; Stage 11, videos 2–15 and auto-publish remain blocked. Continue with FP1 truthful operator projection and FP2 capability registry. Do not render Golden r10 until FP2–FP5 pass, and do not restore routine independent-QA repair loops, generic fallback or placeholder eligibility.
 # Slice 7 continuation
 
 Slice 7 adds explicit versioned selection and commitment over Slice 6. The current protected next action is Slice 8 Channel Strategy Activation. A new chat must read Documents 16–23, verify the recovery-tested Slice 7 capsule and must not rerun Slices 1–7.
