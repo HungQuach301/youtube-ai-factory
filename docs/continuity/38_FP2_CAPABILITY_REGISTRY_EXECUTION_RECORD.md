@@ -60,7 +60,7 @@ Video Engine now includes a Capability Registry view showing version, provider/t
 
 Production UI QA on v381 found that Golden r9's historical master scan omitted `motionProvenance`, causing the initial projection to retain only audio owners 07A/10 even though unresolved pixel/motion hard gaps still owned 07B/08/09. v382 corrects the fail-closed inference: when a rejected Golden has unresolved visual evidence owned by Stage 08/09, all reusable visual root owners 07B/08/09 remain open. The five-owner result is covered by regression tests both with and without historical motion-provenance telemetry.
 
-The same browser pass observed a root-level hydration warning isolated to Video Engine, not the homepage or another async D1 route. v384 keeps the Factory shell synchronous and moves the async D1 projection into an explicit Suspense boundary with a truthful loading state. Root-attribute suppression remains limited to `<html>` and does not hide component-level mismatches. Production QA requires zero application-origin console errors after a fresh navigation.
+The same browser pass observed a root-level hydration warning isolated to Video Engine, not the homepage or another async D1 route. v384 keeps the Factory shell synchronous and moves the async D1 projection into an explicit Suspense boundary with a truthful loading state. v385 removes the unnecessary client `Link` boundary from the server-rendered workspace tabs and retains standard accessible URL navigation. Root-attribute suppression remains limited to `<html>` and does not hide component-level mismatches.
 
 ## Next authorized action
 
