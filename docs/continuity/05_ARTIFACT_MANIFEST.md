@@ -122,7 +122,10 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Golden runtime and audit record: `docs/continuity/35_VIDEO_EXCELLENCE_RUNTIME_AND_GOLDEN_AUDIT.md`.
 - Full-playback perceptual correction: `docs/continuity/36_FULL_PLAYBACK_PERCEPTUAL_QA.md`.
 - First-pass capability, preflight and independent-assurance doctrine: `docs/continuity/37_FIRST_PASS_QUALITY_ARCHITECTURE.md`.
-- Current protected boundary: Golden r9 visual/audio remain rejected; Stage 11 and videos 2–15 are blocked; FP1 truthful operator projection and FP2 capability registry precede any Golden r10 render.
+- FP2 runtime and zero-spend execution record: `docs/continuity/38_FP2_CAPABILITY_REGISTRY_EXECUTION_RECORD.md`.
+- Capability Registry migration: `drizzle/0048_first_pass_capability_registry.sql`.
+- Shared eligibility and dispatch-audit runtime: `lib/first-pass-capability-registry.ts`.
+- Current protected boundary: Golden r9 visual/audio remain rejected; Stage 11 and videos 2–15 are blocked; FP1 and FP2 are implemented, but every capability binding remains `QUALIFICATION_REQUIRED`. FP3–FP5 precede any Golden r10 render.
 - Video Production Quality Standard V2, content-route playbooks and M0–M4 enforcement registry: `docs/continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md`.
 - Registry/eligibility migration: `drizzle/0043_gorgeous_angel.sql`.
 - Media/audio migration: `drizzle/0044_adorable_skaar.sql`.

@@ -352,6 +352,29 @@ PROVIDER_DISPATCH = CLOSED
 GOLDEN_R10_ELIGIBLE = FALSE
 ```
 
+### FP2 execution record — Sites v381
+
+FP2 is implemented as the runtime boundary specified here. Migration 0048 installs nine versioned capabilities, 20 hardest archetypes, one designed fixture per archetype, versioned qualification records, operation requirements, artifact envelopes and dispatch audits. The shared eligibility function requires version/standard/settings identity, fixture sample and evidence coverage, the registered first-pass yield, zero P0 escapes and no revocation. Zero requirements fails closed.
+
+The executor, Stage 09 media route and Golden quality route call the shared guard before new model, source, TTS, master-render or independent-assurance work. A rejected decision records zero provider requests and zero spend. No provider request was sent and no Golden revision was created during FP2.
+
+Current projected boundary:
+
+```text
+CURRENT_SLICE = FP2_IMPLEMENTED
+NEXT_SLICE = FP3_EXECUTABLE_STAGE_07B_08
+CAPABILITIES = 9
+HARDEST_ARCHETYPES = 20
+FIXTURES_DESIGNED = 20
+QUALIFIED_BINDINGS = 0
+CAPABILITY_REGISTRY_STATE = QUALIFICATION_REQUIRED
+DISPATCH_GUARD = ENFORCED
+PROVIDER_DISPATCH = CLOSED
+GOLDEN_R10_ELIGIBLE = FALSE
+```
+
+Document 38 contains the canonical implementation and handoff record.
+
 ## 16. Change governance
 
 Any future change to this doctrine requires a versioned ADR and explicit regression evidence. Later documents may tighten first-pass floors or add certified archetypes, but may not restore routine multi-round independent-QA repair, generic fallback, placeholder eligibility or average-score compensation for a hard failure.

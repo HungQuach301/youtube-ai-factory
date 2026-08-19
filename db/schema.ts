@@ -2226,6 +2226,52 @@ export const v7SequentialAudioAssets = sqliteTable("v7_sequential_audio_assets",
   metadataJson: text("metadata_json").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("v7_sequential_audio_queue_stem_uq").on(table.queueId, table.stemType), index("v7_sequential_audio_queue_provider_idx").on(table.queueId, table.provider)]);
 
+export const v7FirstPassCapabilities = sqliteTable("v7_first_pass_capabilities", {
+  id: text("id").primaryKey(), capabilityKey: text("capability_key").notNull(), capabilityVersion: text("capability_version").notNull(), plane: text("plane").notNull(), label: text("label").notNull(),
+  provider: text("provider").notNull(), toolOrModel: text("tool_or_model").notNull(), stageKeysJson: text("stage_keys_json").notNull(), configurationJson: text("configuration_json").notNull(),
+  rightsPolicy: text("rights_policy").notNull(), costPolicy: text("cost_policy").notNull(), failureMode: text("failure_mode").notNull(), lifecycleState: text("lifecycle_state").notNull().default("QUALIFICATION_REQUIRED"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_first_pass_capability_key_version_uq").on(table.capabilityKey, table.capabilityVersion), index("v7_first_pass_capability_plane_state_idx").on(table.plane, table.lifecycleState)]);
+
+export const v7FirstPassArchetypes = sqliteTable("v7_first_pass_archetypes", {
+  id: text("id").primaryKey(), archetypeKey: text("archetype_key").notNull(), plane: text("plane").notNull(), label: text("label").notNull(), riskTier: text("risk_tier").notNull(),
+  definition: text("definition").notNull(), requiredEvidenceJson: text("required_evidence_json").notNull(), minimumFirstPassYield: real("minimum_first_pass_yield").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_first_pass_archetype_key_uq").on(table.archetypeKey), index("v7_first_pass_archetype_plane_idx").on(table.plane, table.active)]);
+
+export const v7FirstPassFixtures = sqliteTable("v7_first_pass_fixtures", {
+  id: text("id").primaryKey(), archetypeId: text("archetype_id").notNull(), fixtureVersion: text("fixture_version").notNull(), label: text("label").notNull(), hardestFixture: integer("hardest_fixture", { mode: "boolean" }).notNull().default(true),
+  inputContractJson: text("input_contract_json").notNull(), expectedEvidenceJson: text("expected_evidence_json").notNull(), inputHash: text("input_hash"), lifecycleState: text("lifecycle_state").notNull().default("DESIGNED"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_first_pass_fixture_archetype_version_uq").on(table.archetypeId, table.fixtureVersion)]);
+
+export const v7FirstPassQualifications = sqliteTable("v7_first_pass_qualifications", {
+  id: text("id").primaryKey(), capabilityId: text("capability_id").notNull(), capabilityVersion: text("capability_version").notNull(), archetypeId: text("archetype_id").notNull(), qualificationVersion: integer("qualification_version").notNull(),
+  standardVersion: text("standard_version").notNull(), fixtureIdsJson: text("fixture_ids_json").notNull(), settingsHash: text("settings_hash"), sampleSize: integer("sample_size").notNull().default(0),
+  firstPassYield: real("first_pass_yield").notNull().default(0), p0EscapeCount: integer("p0_escape_count").notNull().default(0), evidenceHashesJson: text("evidence_hashes_json").notNull().default("[]"),
+  lifecycleState: text("lifecycle_state").notNull().default("QUALIFICATION_REQUIRED"), blocker: text("blocker"), qualifiedAt: text("qualified_at"), revokedAt: text("revoked_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_first_pass_qualification_version_uq").on(table.capabilityId, table.archetypeId, table.qualificationVersion), index("v7_first_pass_qualification_lookup_idx").on(table.capabilityId, table.archetypeId, table.lifecycleState, table.qualificationVersion)]);
+
+export const v7FirstPassOperationRequirements = sqliteTable("v7_first_pass_operation_requirements", {
+  id: text("id").primaryKey(), operation: text("operation").notNull(), stageKey: text("stage_key").notNull(), capabilityId: text("capability_id").notNull(), archetypeId: text("archetype_id").notNull(),
+  minimumSampleSize: integer("minimum_sample_size").notNull().default(1), minimumFirstPassYield: real("minimum_first_pass_yield").notNull(), requiredStandardVersion: text("required_standard_version").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_first_pass_requirement_uq").on(table.operation, table.stageKey, table.capabilityId, table.archetypeId), index("v7_first_pass_requirement_operation_idx").on(table.operation, table.stageKey, table.active)]);
+
+export const v7FirstPassArtifactEnvelopes = sqliteTable("v7_first_pass_artifact_envelopes", {
+  id: text("id").primaryKey(), programId: text("program_id").notNull(), queueId: text("queue_id").notNull(), stageKey: text("stage_key").notNull(), artifactId: text("artifact_id"), artifactType: text("artifact_type").notNull(),
+  revision: integer("revision").notNull(), lifecycleState: text("lifecycle_state").notNull(), standardVersion: text("standard_version").notNull(), capabilityQualificationIdsJson: text("capability_qualification_ids_json").notNull(),
+  parentHashesJson: text("parent_hashes_json").notNull(), artifactHash: text("artifact_hash"), rightsState: text("rights_state").notNull(), costState: text("cost_state").notNull(), preflightState: text("preflight_state").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), sealedAt: text("sealed_at"), supersededAt: text("superseded_at"),
+}, (table) => [uniqueIndex("v7_first_pass_envelope_revision_uq").on(table.queueId, table.stageKey, table.artifactType, table.revision), index("v7_first_pass_envelope_state_idx").on(table.queueId, table.lifecycleState, table.stageKey)]);
+
+export const v7FirstPassDispatchAudits = sqliteTable("v7_first_pass_dispatch_audits", {
+  id: text("id").primaryKey(), programId: text("program_id"), queueId: text("queue_id"), operation: text("operation").notNull(), stageKey: text("stage_key").notNull(), decision: text("decision").notNull(),
+  standardVersion: text("standard_version").notNull(), requirementCount: integer("requirement_count").notNull(), eligibleCount: integer("eligible_count").notNull(), gapJson: text("gap_json").notNull(),
+  providerRequests: integer("provider_requests").notNull().default(0), spendUsd: real("spend_usd").notNull().default(0), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [index("v7_first_pass_dispatch_operation_idx").on(table.operation, table.stageKey, table.createdAt)]);
+
 export const v7VideoQualityStandards = sqliteTable("v7_video_quality_standards", {
   id: text("id").primaryKey(), standardVersion: text("standard_version").notNull(), scope: text("scope").notNull(), scopeKey: text("scope_key").notNull(),
   enforcementLevel: text("enforcement_level").notNull(), trigger: text("trigger").notNull(), metric: text("metric").notNull(), thresholdOrRange: text("threshold_or_range").notNull(),

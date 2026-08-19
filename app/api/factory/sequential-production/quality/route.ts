@@ -5,6 +5,7 @@ import { compareTemporalPixels, GOLDEN_PIXEL_RENDERER_VERSION, renderTransaction
 import { REQUIRED_GOLDEN_SEQUENCE_GATES, VIDEO_QUALITY_STANDARD_VERSION } from "@/lib/video-quality-standard";
 import { SequentialCommandError, type SequentialCommandDB } from "@/lib/sequential-production-command";
 import { GOLDEN_MASTER_CONTRACT_VERSION, validateGoldenMaster, validateHumanPlayback, type GoldenMasterProbe, type GoldenMasterScan } from "@/lib/golden-master-contract";
+import { assertFirstPassCapabilityEligibility, FirstPassCapabilityError } from "@/lib/first-pass-capability-registry";
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "cache-control": "no-store" };
@@ -44,6 +45,16 @@ async function context(db: DB) {
   const queue = program ? await first(db, "SELECT * FROM v7_sequential_queue WHERE program_id=? AND sequence=1 AND active=1 LIMIT 1", program.id) : null;
   if (!program || !queue) throw new SequentialCommandError("VIDEO_01_NOT_ACTIVE", 409, "Video #1 must own the sequential queue");
   return { program, queue };
+}
+
+async function requireFirstPassOperation(env: Env, operation: string, stageKey: string) {
+  const ctx = await context(env.DB!);
+  await assertFirstPassCapabilityEligibility(env.DB!, {
+    operation,
+    stageKey,
+    programId: clean(ctx.program.id),
+    queueId: clean(ctx.queue.id),
+  });
 }
 
 async function approvedPlan(db: DB, queueId: unknown) {
@@ -335,7 +346,43 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  try { const { env, actor } = await authorized(request), body = await request.json().catch(() => null) as Row | null, action = clean(body?.action).toUpperCase(); if (action === "CREATE_GOLDEN_PLAN") return Response.json(await createGoldenPlan(env), { status: 201, headers: NO_STORE }); if (action === "PRODUCE_GOLDEN_VISUALS") return Response.json(await produceGoldenVisuals(env, actor), { status: 201, headers: NO_STORE }); if (action === "PRODUCE_GOLDEN_AUDIO") return Response.json(await produceGoldenAudio(env, actor), { status: 201, headers: NO_STORE }); if (action === "REASSESS_GOLDEN_AUDIO") return Response.json(await reassessGoldenAudio(env, actor), { status: 201, headers: NO_STORE }); if (action === "PROMOTE_VERIFIED_GOLDEN_AUDIO") return Response.json(await promoteVerifiedGoldenAudio(env, actor), { status: 201, headers: NO_STORE }); if (action === "REQUEST_GOLDEN_MASTER_RENDER") return Response.json(await requestGoldenMasterRender(env), { status: 201, headers: NO_STORE }); if (action === "AUDIT_GOLDEN_SEQUENCE") return Response.json(await auditGolden(env, actor), { status: 201, headers: NO_STORE }); if (action === "AUDIT_GOLDEN_AUDIO_PERCEPTUAL") return Response.json(await auditGoldenAudioPerceptual(env, actor), { status: 201, headers: NO_STORE }); if (action === "SUBMIT_GOLDEN_HUMAN_PLAYBACK") return Response.json(await submitGoldenHumanPlayback(env, actor, body || {}), { status: 201, headers: NO_STORE }); if (action === "RECONCILE_GOLDEN_PASS_EVIDENCE") return Response.json(await reconcileGoldenPassEvidence(env, actor), { status: 201, headers: NO_STORE }); return Response.json({ error: { code: "VIDEO_QUALITY_ACTION_INVALID", message: "Use the typed golden component, master-render, independent-audit, perceptual-audio or human-playback commands" } }, { status: 400, headers: NO_STORE }); } catch (error) { if (error instanceof SequentialCommandError) return Response.json({ error: { code: error.code, message: error.message } }, { status: error.status, headers: NO_STORE }); return Response.json({ error: { code: "VIDEO_QUALITY_EXECUTION_FAILED", message: error instanceof Error ? error.message : "Video quality execution failed" } }, { status: 503, headers: NO_STORE }); }
+  try {
+    const { env, actor } = await authorized(request), body = await request.json().catch(() => null) as Row | null, action = clean(body?.action).toUpperCase();
+    if (action === "CREATE_GOLDEN_PLAN") {
+      await requireFirstPassOperation(env, "RUN_STAGE_09_BATCH", "09");
+      await requireFirstPassOperation(env, "PRODUCE_GOLDEN_AUDIO", "10");
+      return Response.json(await createGoldenPlan(env), { status: 201, headers: NO_STORE });
+    }
+    if (action === "PRODUCE_GOLDEN_VISUALS") {
+      await requireFirstPassOperation(env, "RUN_STAGE_09_BATCH", "09");
+      return Response.json(await produceGoldenVisuals(env, actor), { status: 201, headers: NO_STORE });
+    }
+    if (["PRODUCE_GOLDEN_AUDIO", "REASSESS_GOLDEN_AUDIO", "PROMOTE_VERIFIED_GOLDEN_AUDIO"].includes(action)) {
+      await requireFirstPassOperation(env, "PRODUCE_GOLDEN_AUDIO", "10");
+      if (action === "PRODUCE_GOLDEN_AUDIO") return Response.json(await produceGoldenAudio(env, actor), { status: 201, headers: NO_STORE });
+      if (action === "REASSESS_GOLDEN_AUDIO") return Response.json(await reassessGoldenAudio(env, actor), { status: 201, headers: NO_STORE });
+      return Response.json(await promoteVerifiedGoldenAudio(env, actor), { status: 201, headers: NO_STORE });
+    }
+    if (action === "REQUEST_GOLDEN_MASTER_RENDER") {
+      await requireFirstPassOperation(env, "REQUEST_GOLDEN_MASTER_RENDER", "13");
+      return Response.json(await requestGoldenMasterRender(env), { status: 201, headers: NO_STORE });
+    }
+    if (action === "AUDIT_GOLDEN_SEQUENCE") {
+      await requireFirstPassOperation(env, "GOLDEN_MASTER_INDEPENDENT_AUDIT", "14");
+      return Response.json(await auditGolden(env, actor), { status: 201, headers: NO_STORE });
+    }
+    if (action === "AUDIT_GOLDEN_AUDIO_PERCEPTUAL") {
+      await requireFirstPassOperation(env, "GOLDEN_AUDIO_PERCEPTUAL_AUDIT", "14");
+      return Response.json(await auditGoldenAudioPerceptual(env, actor), { status: 201, headers: NO_STORE });
+    }
+    if (action === "SUBMIT_GOLDEN_HUMAN_PLAYBACK") return Response.json(await submitGoldenHumanPlayback(env, actor, body || {}), { status: 201, headers: NO_STORE });
+    if (action === "RECONCILE_GOLDEN_PASS_EVIDENCE") return Response.json(await reconcileGoldenPassEvidence(env, actor), { status: 201, headers: NO_STORE });
+    return Response.json({ error: { code: "VIDEO_QUALITY_ACTION_INVALID", message: "Use the typed golden component, master-render, independent-audit, perceptual-audio or human-playback commands" } }, { status: 400, headers: NO_STORE });
+  } catch (error) {
+    if (error instanceof FirstPassCapabilityError) return Response.json({ error: { code: error.code, message: error.message, gaps: error.gaps }, providerRequests: 0, spendUsd: 0 }, { status: error.status, headers: NO_STORE });
+    if (error instanceof SequentialCommandError) return Response.json({ error: { code: error.code, message: error.message } }, { status: error.status, headers: NO_STORE });
+    return Response.json({ error: { code: "VIDEO_QUALITY_EXECUTION_FAILED", message: error instanceof Error ? error.message : "Video quality execution failed" } }, { status: 503, headers: NO_STORE });
+  }
 }
 
 export async function PUT(request: Request) {

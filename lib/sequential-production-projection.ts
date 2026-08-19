@@ -188,12 +188,17 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   if (!current) throw new Error("EXCLUSIVE_ACTIVE_VIDEO_NOT_FOUND");
   const stages = await rows(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? ORDER BY sequence", current.id);
   const activeStage = stages.find((stage) => ["READY","RUNNING","REPAIR_REQUIRED","ESCALATED"].includes(text(stage.lifecycle_state))) ?? stages[0];
-  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary] = await Promise.all([
+  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows] = await Promise.all([
     rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION),
     rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
     db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
     db.prepare("SELECT lifecycle_state,max_spend_usd,max_provider_requests,actual_spend_usd,actual_provider_requests FROM v7_sequential_budget_plans WHERE queue_id=? ORDER BY version DESC LIMIT 1").bind(current.id).first<Row>(),
     db.prepare("SELECT SUM(CASE WHEN lifecycle_state='RUNNING' THEN 1 ELSE 0 END) active,SUM(CASE WHEN lifecycle_state='COMPLETED' THEN 1 ELSE 0 END) completed,SUM(CASE WHEN lifecycle_state='FAILED' THEN 1 ELSE 0 END) failed,COALESCE(SUM(CASE WHEN lifecycle_state IN ('COMPLETED','FAILED') THEN cost_usd ELSE 0 END),0) spend FROM v7_sequential_provider_requests WHERE queue_id=?").bind(current.id).first<Row>(),
+    rows(db, "SELECT * FROM v7_first_pass_capabilities ORDER BY plane,capability_key"),
+    rows(db, "SELECT * FROM v7_first_pass_archetypes WHERE active=1 ORDER BY plane,archetype_key"),
+    rows(db, "SELECT archetype_id,lifecycle_state FROM v7_first_pass_fixtures WHERE hardest_fixture=1 ORDER BY archetype_id,fixture_version"),
+    rows(db, "SELECT * FROM v7_first_pass_qualifications ORDER BY capability_id,archetype_id,qualification_version"),
+    rows(db, "SELECT * FROM v7_first_pass_operation_requirements WHERE active=1 ORDER BY capability_id,archetype_id"),
   ]);
   const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
   const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json,scan_json,error_code FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
@@ -215,6 +220,53 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   const goldenQuality = goldenSequence?.quality_json ? json<Record<string, unknown>>(goldenSequence.quality_json, {}) : {};
   const goldenScan = goldenMasterJob?.scan_json ? json<Record<string, unknown>>(goldenMasterJob.scan_json, {}) : {};
   const rootStageKeys = deriveRootStageKeys(goldenState, goldenQuality, goldenScan, qualityGaps);
+  const latestQualification = new Map<string, Row>();
+  for (const qualification of qualificationRows) latestQualification.set(`${text(qualification.capability_id)}:${text(qualification.archetype_id)}`, qualification);
+  const uniqueRequirementPairs = [...new Map(requirementRows.map((requirement) => [`${text(requirement.capability_id)}:${text(requirement.archetype_id)}`, requirement])).values()];
+  const qualificationPasses = (requirement: Row) => {
+    const capability = capabilityRows.find((item) => text(item.id) === text(requirement.capability_id));
+    const qualification = latestQualification.get(`${text(requirement.capability_id)}:${text(requirement.archetype_id)}`);
+    const evidenceHashes = json<unknown[]>(qualification?.evidence_hashes_json, []);
+    return Boolean(capability && qualification)
+      && text(capability.lifecycle_state) === "QUALIFIED"
+      && text(qualification?.lifecycle_state) === "QUALIFIED"
+      && text(qualification?.capability_version) === text(capability?.capability_version)
+      && text(qualification?.standard_version) === "FIRST_PASS_QUALITY_V1"
+      && Boolean(text(qualification?.settings_hash))
+      && number(qualification?.sample_size) >= number(requirement.minimum_sample_size)
+      && number(qualification?.first_pass_yield) >= number(requirement.minimum_first_pass_yield)
+      && number(qualification?.p0_escape_count) === 0
+      && evidenceHashes.length >= number(requirement.minimum_sample_size)
+      && !text(qualification?.revoked_at);
+  };
+  const qualifiedRequirementPairs = uniqueRequirementPairs.filter(qualificationPasses);
+  const capabilitySummaries = capabilityRows.map((capability) => {
+    const requirements = uniqueRequirementPairs.filter((item) => text(item.capability_id) === text(capability.id));
+    const passed = requirements.filter(qualificationPasses);
+    const yields = passed.map((item) => number(latestQualification.get(`${text(item.capability_id)}:${text(item.archetype_id)}`)?.first_pass_yield));
+    return {
+      id: text(capability.id), key: text(capability.capability_key), version: text(capability.capability_version), plane: text(capability.plane), label: text(capability.label),
+      provider: text(capability.provider), toolOrModel: text(capability.tool_or_model), stageKeys: json<string[]>(capability.stage_keys_json, []),
+      state: requirements.length > 0 && passed.length === requirements.length ? "QUALIFIED" : passed.length > 0 ? "PARTIALLY_QUALIFIED" : "QUALIFICATION_REQUIRED",
+      qualifiedArchetypes: passed.length, requiredArchetypes: requirements.length, firstPassYield: yields.length ? Math.min(...yields) : 0,
+    };
+  });
+  const archetypeSummaries = archetypeRows.map((archetype) => {
+    const requirements = uniqueRequirementPairs.filter((item) => text(item.archetype_id) === text(archetype.id));
+    const passed = requirements.filter(qualificationPasses);
+    return {
+      id: text(archetype.id), key: text(archetype.archetype_key), plane: text(archetype.plane), label: text(archetype.label), riskTier: text(archetype.risk_tier),
+      minimumYield: number(archetype.minimum_first_pass_yield), state: requirements.length > 0 && passed.length === requirements.length ? "QUALIFIED" : passed.length > 0 ? "PARTIALLY_QUALIFIED" : "QUALIFICATION_REQUIRED",
+      capabilityLabels: requirements.map((requirement) => text(capabilityRows.find((capability) => text(capability.id) === text(requirement.capability_id))?.label)).filter(Boolean),
+      evidence: json<string[]>(archetype.required_evidence_json, []),
+    };
+  });
+  const capabilitiesQualified = capabilitySummaries.filter((capability) => capability.state === "QUALIFIED").length;
+  const archetypesQualified = archetypeSummaries.filter((archetype) => archetype.state === "QUALIFIED").length;
+  const capabilityRegistryState = qualifiedRequirementPairs.length === uniqueRequirementPairs.length && uniqueRequirementPairs.length > 0 ? "QUALIFIED" as const
+    : qualifiedRequirementPairs.length > 0 ? "PARTIALLY_QUALIFIED" as const
+    : "QUALIFICATION_REQUIRED" as const;
+  const goldenR10Eligible = false;
   const activeRequests = number(requestSummary?.active);
   const runningStage = stages.some((stage) => text(stage.lifecycle_state) === "RUNNING");
   const effectiveState = text(current.lifecycle_state) === "OWNER_READY" ? "OWNER_READY" as const
@@ -279,24 +331,33 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       effectiveStateSummary: effectiveSummary,
       rootStageKeys,
       rootStageLabels,
-      nextMilestone: "FP2 · Capability Registry",
+      nextMilestone: "FP3 · Executable Stage 07B/08 contracts",
     },
     firstPass: {
       standardVersion: "FIRST_PASS_QUALITY_V1",
-      currentSlice: "FP1",
+      currentSlice: "FP2",
       currentSliceState: "IMPLEMENTED",
-      nextSlice: "FP2",
-      nextSliceLabel: "Capability Registry",
-      capabilityRegistryState: "NOT_IMPLEMENTED",
-      goldenR10Eligible: false,
+      nextSlice: "FP3",
+      nextSliceLabel: "Executable Stage 07B/08 contracts",
+      capabilityRegistryState,
+      dispatchGuardState: "ENFORCED",
+      goldenR10Eligible,
       independentAssurancePolicy: "ONE_CONFIRMATION",
+      capabilitiesTotal: capabilitySummaries.length,
+      capabilitiesQualified,
+      archetypesTotal: archetypeSummaries.length,
+      archetypesQualified,
+      fixturesDesigned: fixtureRows.filter((fixture) => ["DESIGNED", "READY", "EXECUTED", "VERIFIED"].includes(text(fixture.lifecycle_state))).length,
+      capabilities: capabilitySummaries,
+      archetypes: archetypeSummaries,
       readiness: [
         { id: "EFFECTIVE_PROJECTION", label: "Effective production state", passed: true, evidence: `${effectiveLabels[effectiveState]} projected from canonical evidence`, owningStages: ["00"] },
-        { id: "CAPABILITY_REGISTRY", label: "Capability Registry", passed: false, evidence: "FP2 must qualify model, tool, rights, cost and failure mode per operation", owningStages: ["07A", "07B", "09", "10"] },
+        { id: "CAPABILITY_REGISTRY", label: "Capability Registry runtime", passed: true, evidence: `${capabilitySummaries.length} versioned capabilities, ${archetypeSummaries.length} hardest archetypes and fail-closed dispatch auditing are active`, owningStages: ["07A", "07B", "09", "10", "13", "14"] },
+        { id: "CAPABILITY_QUALIFICATION", label: "Capability qualification", passed: capabilityRegistryState === "QUALIFIED", evidence: `${qualifiedRequirementPairs.length}/${uniqueRequirementPairs.length} capability–archetype bindings qualified; ${fixtureRows.length} fixtures designed`, owningStages: ["07A", "07B", "09", "10", "13", "14"] },
         { id: "EXECUTABLE_CONTRACT", label: "Executable shot and cue contract", passed: false, evidence: "FP3 must compile semantic intent into measurable visual and audio instructions", owningStages: ["08"] },
         { id: "VISUAL_PLANE", label: "Qualified visual plane", passed: false, evidence: "FP4 must pass real-pixel, semantic-motion and variety gates", owningStages: ["07B", "09"] },
         { id: "AUDIO_PLANE", label: "Qualified audio plane", passed: false, evidence: "FP5 must pass narration, music, ambience, SFX and perceptual-mix gates", owningStages: ["07A", "10"] },
-        { id: "GOLDEN_R10", label: "Golden r10", passed: false, evidence: "Forbidden until FP2–FP5 are green", owningStages: ["11", "12", "13", "14"] },
+        { id: "GOLDEN_R10", label: "Golden r10", passed: goldenR10Eligible, evidence: goldenR10Eligible ? "Capability requirements are qualified; later FP3–FP5 gates still control production" : "Forbidden until all capability bindings and FP3–FP5 gates are green", owningStages: ["11", "12", "13", "14"] },
       ],
     },
     operations: {
@@ -330,7 +391,11 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       const downstreamBlocked = rootStageKeys.length > 0 && ["11", "12", "13", "14", "15", "16"].includes(key);
       const state = text(stage.lifecycle_state);
       const effectiveStageState = attention ? "REOPEN_REQUIRED" : downstreamBlocked ? "BLOCKED_BY_REPAIR" : state;
-      const stageAction = attention ? "Qualify the required capability in FP2 before producing a replacement artifact."
+      const repairAction = key === "07B" || key === "08" ? "Implement the executable visual grammar and ShotCueProgram contract in FP3."
+        : key === "09" ? "Execute and qualify the visual archetype fixtures in FP4; production dispatch remains blocked."
+        : key === "07A" || key === "10" ? "Execute and qualify narration, music, ambience and SFX fixtures in FP5."
+        : "Complete the remaining first-pass qualification before producing a replacement artifact.";
+      const stageAction = attention ? repairAction
         : downstreamBlocked ? "Wait for root stages and Golden r10 to pass."
         : key === "16" ? "Wait for owner-authorized publication and real performance data."
         : state === "READY" ? "Complete the current-stage Definition of Ready, then dispatch a bounded job."

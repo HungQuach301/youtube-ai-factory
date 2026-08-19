@@ -63,13 +63,44 @@ export type SequentialProductionProjection = {
   };
   firstPass: {
     standardVersion: "FIRST_PASS_QUALITY_V1";
-    currentSlice: "FP1";
+    currentSlice: "FP2";
     currentSliceState: "IMPLEMENTED";
-    nextSlice: "FP2";
+    nextSlice: "FP3";
     nextSliceLabel: string;
-    capabilityRegistryState: "NOT_IMPLEMENTED";
-    goldenR10Eligible: false;
+    capabilityRegistryState: "QUALIFICATION_REQUIRED" | "PARTIALLY_QUALIFIED" | "QUALIFIED";
+    dispatchGuardState: "ENFORCED";
+    goldenR10Eligible: boolean;
     independentAssurancePolicy: "ONE_CONFIRMATION";
+    capabilitiesTotal: number;
+    capabilitiesQualified: number;
+    archetypesTotal: number;
+    archetypesQualified: number;
+    fixturesDesigned: number;
+    capabilities: Array<{
+      id: string;
+      key: string;
+      version: string;
+      plane: string;
+      label: string;
+      provider: string;
+      toolOrModel: string;
+      stageKeys: string[];
+      state: string;
+      qualifiedArchetypes: number;
+      requiredArchetypes: number;
+      firstPassYield: number;
+    }>;
+    archetypes: Array<{
+      id: string;
+      key: string;
+      plane: string;
+      label: string;
+      riskTier: string;
+      minimumYield: number;
+      state: string;
+      capabilityLabels: string[];
+      evidence: string[];
+    }>;
     readiness: Array<{ id: string; label: string; passed: boolean; evidence: string; owningStages: string[] }>;
   };
   operations: {

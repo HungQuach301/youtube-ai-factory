@@ -1,6 +1,7 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { measureOpenAIUsage } from "@/lib/ai-usage";
 import { VIDEO_QUALITY_STANDARD_VERSION } from "@/lib/video-quality-standard";
+import { assertFirstPassCapabilityEligibility, FirstPassCapabilityError } from "@/lib/first-pass-capability-registry";
 import {
   SequentialCommandError,
   submitSequentialCommand,
@@ -218,6 +219,7 @@ async function startCompilation(env: Env, stageKey: StageKey, idempotencyKey: st
   if (clean(context.stage.lifecycle_state) !== "RUNNING") throw new SequentialCommandError("STAGE_STATE_CONFLICT", 409, `Stage ${stageKey} must be RUNNING before compilation`);
   const existing = await first(env.DB!, "SELECT * FROM v7_sequential_provider_requests WHERE idempotency_key=? LIMIT 1", idempotencyKey);
   if (existing) return { outcome: "IDEMPOTENT_REPLAY", providerRequestId: existing.id, providerResponseId: existing.provider_response_id, providerStatus: existing.lifecycle_state, stageKey };
+  await assertFirstPassCapabilityEligibility(env.DB!, { operation: "COMPILE_STAGE_BUNDLE", stageKey, programId: clean(context.program.id), queueId: clean(context.queue.id) });
   const required = parseJson<string[]>(context.contract.required_artifacts_json, []);
   if (stageKey === "08") {
     const plan = await first(env.DB!, "SELECT * FROM v7_sequential_budget_plans WHERE queue_id=? AND lifecycle_state='APPROVED' ORDER BY version DESC LIMIT 1", context.queue.id);
@@ -317,6 +319,7 @@ export async function POST(request: Request) {
     }
     return failure("EXECUTOR_ACTION_INVALID", "Use START_COMPILATION or FINALIZE_COMPILATION", 400);
   } catch (error) {
+    if (error instanceof FirstPassCapabilityError) return Response.json({ error: { code: error.code, message: error.message, gaps: error.gaps }, fallback: false, providerRequests: 0, spendUsd: 0 }, { status: error.status, headers: NO_STORE });
     if (error instanceof SequentialCommandError) return failure(error.code, error.message, error.status);
     return failure("SEQUENTIAL_EXECUTOR_FAILED", error instanceof Error ? error.message : "Sequential executor failed", 503);
   }
