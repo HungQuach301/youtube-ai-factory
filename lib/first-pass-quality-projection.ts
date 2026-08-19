@@ -8,7 +8,7 @@ export function deriveRootStageKeys(
   goldenState: string,
   goldenQuality: Record<string, unknown>,
   goldenScan: Record<string, unknown>,
-  gaps: Array<{ owningStage: string }>,
+  gaps: Array<{ owningStage: string; status?: string; evidenceRequired?: string[] }>,
 ) {
   const roots = new Set<string>();
   const motion = (goldenScan.motionProvenance ?? {}) as Record<string, unknown>;
@@ -16,11 +16,15 @@ export function deriveRootStageKeys(
   const cameraOnlyRatio = segments > 0 ? numeric(motion.cameraOnlySegmentCount) / segments : 0;
   const semanticMotionRatio = segments > 0 ? numeric(motion.semanticAnimationSegmentCount) / segments : 0;
   const sourceVideoRatio = segments > 0 ? numeric(motion.sourceVideoSegmentCount) / segments : 0;
+  const unresolvedVisualGap = gaps.some((gap) => /(?:08|09)/.test(gap.owningStage)
+    && (gap.evidenceRequired ?? []).some((kind) => ["PIXELS", "MOTION", "MASTER"].includes(kind))
+    && gap.status !== "PASS");
   const visualRepair = goldenState === "REPAIR_REQUIRED" && (
     cameraOnlyRatio > .35 ||
     (segments > 0 && semanticMotionRatio < .45) ||
     (segments > 0 && sourceVideoRatio < .2) ||
-    (numeric(motion.visualTreatmentCount) > 0 && numeric(motion.visualTreatmentCount) < 3)
+    (numeric(motion.visualTreatmentCount) > 0 && numeric(motion.visualTreatmentCount) < 3) ||
+    unresolvedVisualGap
   );
   if (visualRepair) ["07B", "08", "09"].forEach((key) => roots.add(key));
   const audioAudit = (goldenQuality.perceptualAudioAudit ?? {}) as Record<string, unknown>;

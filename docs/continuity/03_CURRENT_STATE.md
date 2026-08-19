@@ -273,7 +273,7 @@ The revision 9 perceptual audio audit also failed: overall 65, P0/P1 `1/3`, with
 Document 37 is authoritative for how future production output becomes eligible. The independent QA lifecycle is no longer a routine repair loop. Production must certify its capabilities, compile executable contracts, run bounded internal tournaments, complete deterministic and perceptual preflight and expose only a sealed release candidate to independent assurance.
 
 ```text
-SITES_VERSION = 381
+SITES_VERSION = 382
 FIRST_PASS_STANDARD = FIRST_PASS_QUALITY_V1
 FIRST_EXPOSED_OUTPUT = SEALED_RELEASE_CANDIDATE
 RAW_MODEL_OR_PROVIDER_RESULT = INTERNAL_CANDIDATE_ONLY

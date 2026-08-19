@@ -10,6 +10,9 @@ test("Golden visual and audio failures resolve to the five reusable root owners"
   assert.deepEqual(deriveRootStageKeys("REPAIR_REQUIRED", { perceptualAudioAudit: { decision: "REPAIR_REQUIRED" } }, {
     motionProvenance: { segmentCount: 33, cameraOnlySegmentCount: 33, semanticAnimationSegmentCount: 0, sourceVideoSegmentCount: 0, visualTreatmentCount: 1 },
   }, []), ["07A", "07B", "08", "09", "10"]);
+  assert.deepEqual(deriveRootStageKeys("REPAIR_REQUIRED", { perceptualAudioAudit: { decision: "REPAIR_REQUIRED" } }, {}, [
+    { owningStage: "08/09", status: "NOT_EVALUATED", evidenceRequired: ["PIXELS", "MOTION"] },
+  ]), ["07A", "07B", "08", "09", "10"]);
 });
 
 test("Stage Contract Registry covers exactly 18 ordered stages and five typed commands", () => {
