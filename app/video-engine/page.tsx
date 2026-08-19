@@ -16,5 +16,5 @@ export default async function VideoEnginePage({ searchParams }: { searchParams: 
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : "Production state unavailable";
   }
-  return <FactoryShell active="production">{data ? <ProductionEngineWorkspace data={data} view={view} /> : <ProjectionState loading={false} error={errorMessage || "Production state unavailable"} data={null} label="Production Engine" />}</FactoryShell>;
+  return <FactoryShell active="production" mode="operator">{data ? <ProductionEngineWorkspace data={data} view={view} /> : <ProjectionState loading={false} error={errorMessage || "Production state unavailable"} data={null} label="Production Engine" />}</FactoryShell>;
 }

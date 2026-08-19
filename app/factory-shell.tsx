@@ -7,7 +7,7 @@ function Mark() {
   return <span className="pfMark" aria-hidden="true"><i /><i /><i /></span>;
 }
 
-export function FactoryShell({ children, active = "portfolio" }: { children: ReactNode; active?: Surface }) {
+export function FactoryShell({ children, active = "portfolio", mode = "projection" }: { children: ReactNode; active?: Surface; mode?: "projection" | "operator" }) {
   const navigation: Array<[Surface, string, string]> = [
     ["portfolio", "01", "Portfolio"],
     ["intelligence", "02", "Intelligence"],
@@ -32,7 +32,7 @@ export function FactoryShell({ children, active = "portfolio" }: { children: Rea
       <nav aria-label="Factory navigation">
         {navigation.map(([key, number, label]) => <Link key={key} aria-current={active === key ? "page" : undefined} className={active === key ? "active" : ""} href={href[key]}><span>{number}</span>{label}</Link>)}
       </nav>
-      <div className="pfSidebarFoot"><div><i />Read-only projection</div><Link href="/settings">Factory settings →</Link></div>
+      <div className="pfSidebarFoot"><div><i />{mode === "operator" ? "Operator workspace" : "Read-only projection"}</div><Link href="/settings">Factory settings →</Link></div>
     </aside>
     <main className="pfWorkspace" id="main-content" tabIndex={-1}>{children}</main>
     </div>

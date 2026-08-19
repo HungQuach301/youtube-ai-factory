@@ -8,6 +8,16 @@ export type PriorWorkClass =
   | "OWNER_REJECTED"
   | "NOT_STARTED";
 
+export type EffectiveProductionState =
+  | "ROOT_REPAIR_REQUIRED"
+  | "QUALITY_BLOCKED"
+  | "PRODUCTION_RUNNING"
+  | "ACTION_REQUIRED"
+  | "OWNER_READY"
+  | "BLOCKED_UPSTREAM";
+
+export type ProductionPhaseKey = "FOUNDATION" | "STORY" | "MEDIA" | "EDIT" | "LEARNING";
+
 export type SequentialProductionProjection = {
   contract: typeof SEQUENTIAL_PRODUCTION_CONTRACT;
   channel: { id: string; name: string; market: string; language: string };
@@ -44,6 +54,33 @@ export type SequentialProductionProjection = {
     qualityEligibility: "BLOCKED_VIDEO_STANDARD_V2" | "VIDEO_EXCELLENCE_ELIGIBLE";
     qualityStandardVersion: string;
     nextValidAction: string;
+    effectiveState: EffectiveProductionState;
+    effectiveStateLabel: string;
+    effectiveStateSummary: string;
+    rootStageKeys: string[];
+    rootStageLabels: string[];
+    nextMilestone: string;
+  };
+  firstPass: {
+    standardVersion: "FIRST_PASS_QUALITY_V1";
+    currentSlice: "FP1";
+    currentSliceState: "IMPLEMENTED";
+    nextSlice: "FP2";
+    nextSliceLabel: string;
+    capabilityRegistryState: "NOT_IMPLEMENTED";
+    goldenR10Eligible: false;
+    independentAssurancePolicy: "ONE_CONFIRMATION";
+    readiness: Array<{ id: string; label: string; passed: boolean; evidence: string; owningStages: string[] }>;
+  };
+  operations: {
+    activeProviderRequests: number;
+    completedProviderRequests: number;
+    failedProviderRequests: number;
+    actualSpendUsd: number;
+    maxSpendUsd: number;
+    actualProviderRequests: number;
+    maxProviderRequests: number;
+    budgetState: string;
   };
   quality: {
     eligibility: "BLOCKED_VIDEO_STANDARD_V2" | "VIDEO_EXCELLENCE_ELIGIBLE";
@@ -70,6 +107,14 @@ export type SequentialProductionProjection = {
     requiredArtifacts: string[];
     evidence: string;
     blocker?: string;
+    phaseKey: ProductionPhaseKey;
+    phaseLabel: string;
+    effectiveState: string;
+    effectiveStateLabel: string;
+    attention: boolean;
+    inputHealth: string;
+    gateSummary: string;
+    nextAction: string;
     priorWork: {
       classification: PriorWorkClass;
       label: string;

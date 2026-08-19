@@ -220,9 +220,9 @@ test("Production Engine V2 history remains preserved beneath the sequential rebu
   assert.match(productionV2Projection, /PUBLISHING_CLOSED/);
   assert.match(productionV2Route, /cache-control": "no-store"/);
   assert.match(productionV2Route, /CANONICAL_DATABASE_UNAVAILABLE/);
-  assert.match(productionV2Workspace, /One excellent video before the next one starts/);
+  assert.match(productionV2Workspace, /Next valid action/);
   assert.match(productionV2Workspace, /ONE VIDEO AT A TIME/);
-  assert.match(productionV2Workspace, /AUTO-PUBLISH/);
+  assert.match(productionV2Workspace, /auto-publish/);
 });
 
 test("operator state is a bounded canonical projection", () => {

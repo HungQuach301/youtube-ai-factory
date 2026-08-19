@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { deriveRootStageKeys } from "../lib/first-pass-quality-projection.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
+
+test("Golden visual and audio failures resolve to the five reusable root owners", () => {
+  assert.deepEqual(deriveRootStageKeys("REPAIR_REQUIRED", { perceptualAudioAudit: { decision: "REPAIR_REQUIRED" } }, {
+    motionProvenance: { segmentCount: 33, cameraOnlySegmentCount: 33, semanticAnimationSegmentCount: 0, sourceVideoSegmentCount: 0, visualTreatmentCount: 1 },
+  }, []), ["07A", "07B", "08", "09", "10"]);
+});
 
 test("Stage Contract Registry covers exactly 18 ordered stages and five typed commands", () => {
   const migration = read("drizzle/0043_gorgeous_angel.sql");
@@ -101,6 +108,24 @@ test("Video Production Quality Standard V2 is executable and Stage 11 fails clos
   assert.match(registry, /BLOCKED_VIDEO_STANDARD_V2/);
   assert.match(command, /VIDEO_EXCELLENCE_INELIGIBLE/);
   assert.match(projection, /qualityEligibility/);
+});
+
+test("FP1 operator projection derives root repair, readiness and live operating telemetry", () => {
+  const contract = read("app/production-control-contract.ts");
+  const projection = read("lib/sequential-production-projection.ts");
+  const workspace = read("app/video-engine/production-engine-workspace.tsx");
+  const shell = read("app/factory-shell.tsx");
+  assert.match(contract, /EffectiveProductionState/);
+  assert.match(contract, /FIRST_PASS_QUALITY_V1/);
+  assert.match(projection, /deriveRootStageKeys/);
+  assert.match(projection, /v7_sequential_provider_requests/);
+  assert.match(projection, /v7_sequential_budget_plans/);
+  assert.match(projection, /ROOT_REPAIR_REQUIRED/);
+  assert.match(workspace, /Definition of Ready/);
+  assert.match(workspace, /Root-cause ownership/);
+  assert.match(workspace, /five dependency phases/);
+  assert.doesNotMatch(workspace, /<small>Control state<\/small><strong>\{data\.currentVideo\.activeStageKey\}/);
+  assert.match(shell, /Operator workspace/);
 });
 
 test("golden-sequence runtime requires component evidence and a real audience master", () => {

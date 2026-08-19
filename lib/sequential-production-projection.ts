@@ -7,6 +7,7 @@ import {
   type VideoQualityEvidence,
   type VideoQualityStandard,
 } from "@/lib/video-quality-standard";
+import { deriveRootStageKeys } from "@/lib/first-pass-quality-projection";
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null> };
@@ -169,6 +170,14 @@ const lineageFlow: SequentialProductionProjection["lineageFlow"] = [
   { step: 5, title: "Assure quality, then learn after publication", detail: "New QA determines owner readiness; performance signals return only after an authorized publication." },
 ];
 
+const stagePhase = (stageKey: string) => {
+  if (["00", "01", "02", "03"].includes(stageKey)) return { key: "FOUNDATION" as const, label: "Foundation & truth" };
+  if (["04", "05", "06", "07A", "07B", "08"].includes(stageKey)) return { key: "STORY" as const, label: "Story & production design" };
+  if (["09", "10"].includes(stageKey)) return { key: "MEDIA" as const, label: "Media production" };
+  if (["11", "12", "13", "14", "15"].includes(stageKey)) return { key: "EDIT" as const, label: "Edit, master & assurance" };
+  return { key: "LEARNING" as const, label: "Release learning" };
+};
+
 export async function sequentialProductionProjection(channelId: string, db: SequentialProductionDB): Promise<SequentialProductionProjection> {
   const channel = await db.prepare("SELECT id,name,market,language FROM channels WHERE id=? LIMIT 1").bind(channelId).first<Row>();
   if (!channel) throw new Error("CHANNEL_NOT_FOUND");
@@ -179,13 +188,15 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   if (!current) throw new Error("EXCLUSIVE_ACTIVE_VIDEO_NOT_FOUND");
   const stages = await rows(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? ORDER BY sequence", current.id);
   const activeStage = stages.find((stage) => ["READY","RUNNING","REPAIR_REQUIRED","ESCALATED"].includes(text(stage.lifecycle_state))) ?? stages[0];
-  const [standardRows, evidenceRows, goldenSequence] = await Promise.all([
+  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary] = await Promise.all([
     rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION),
     rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
     db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
+    db.prepare("SELECT lifecycle_state,max_spend_usd,max_provider_requests,actual_spend_usd,actual_provider_requests FROM v7_sequential_budget_plans WHERE queue_id=? ORDER BY version DESC LIMIT 1").bind(current.id).first<Row>(),
+    db.prepare("SELECT SUM(CASE WHEN lifecycle_state='RUNNING' THEN 1 ELSE 0 END) active,SUM(CASE WHEN lifecycle_state='COMPLETED' THEN 1 ELSE 0 END) completed,SUM(CASE WHEN lifecycle_state='FAILED' THEN 1 ELSE 0 END) failed,COALESCE(SUM(CASE WHEN lifecycle_state IN ('COMPLETED','FAILED') THEN cost_usd ELSE 0 END),0) spend FROM v7_sequential_provider_requests WHERE queue_id=?").bind(current.id).first<Row>(),
   ]);
   const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
-  const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
+  const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json,scan_json,error_code FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
   const goldenAssetUrl = (role: string) => { const asset = goldenAssets.find((item) => text(item.role) === role); return asset ? `/api/factory/sequential-production/quality?asset=${encodeURIComponent(text(asset.id))}` : undefined; };
   const registry = standardRows.map((item) => ({
     standardId: text(item.id), version: VIDEO_QUALITY_STANDARD_VERSION, scope: text(item.scope), scopeKey: text(item.scope_key), enforcementLevel: text(item.enforcement_level),
@@ -199,6 +210,35 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   });
   const resolvedStandards = resolveVideoQualityStandards(registry, VIDEO_01_QUALITY_ROUTE);
   const qualityEligibility = evaluateVideoQualityEligibility(resolvedStandards, [...latestEvidence.values()]);
+  const qualityGaps = qualityEligibility.gaps.map((gap) => ({ standardId: gap.standardId, level: gap.level, owningStage: gap.owningStage, status: gap.status, evidenceRequired: gap.evidenceRequired }));
+  const goldenState = text(goldenSequence?.lifecycle_state) || "NOT_STARTED";
+  const goldenQuality = goldenSequence?.quality_json ? json<Record<string, unknown>>(goldenSequence.quality_json, {}) : {};
+  const goldenScan = goldenMasterJob?.scan_json ? json<Record<string, unknown>>(goldenMasterJob.scan_json, {}) : {};
+  const rootStageKeys = deriveRootStageKeys(goldenState, goldenQuality, goldenScan, qualityGaps);
+  const activeRequests = number(requestSummary?.active);
+  const runningStage = stages.some((stage) => text(stage.lifecycle_state) === "RUNNING");
+  const effectiveState = text(current.lifecycle_state) === "OWNER_READY" ? "OWNER_READY" as const
+    : goldenState === "REPAIR_REQUIRED" || rootStageKeys.length > 0 ? "ROOT_REPAIR_REQUIRED" as const
+    : qualityEligibility.eligibility !== "VIDEO_EXCELLENCE_ELIGIBLE" ? "QUALITY_BLOCKED" as const
+    : activeRequests > 0 || runningStage ? "PRODUCTION_RUNNING" as const
+    : text(activeStage?.lifecycle_state) === "READY" ? "ACTION_REQUIRED" as const
+    : "BLOCKED_UPSTREAM" as const;
+  const effectiveLabels = {
+    ROOT_REPAIR_REQUIRED: "Root repair required",
+    QUALITY_BLOCKED: "Quality evidence blocked",
+    PRODUCTION_RUNNING: "Production running",
+    ACTION_REQUIRED: "Action required",
+    OWNER_READY: "Ready for owner review",
+    BLOCKED_UPSTREAM: "Blocked by upstream work",
+  } as const;
+  const rootStageLabels = rootStageKeys.map((key) => `${key} · ${stageDisplayNames[key] ?? key}`);
+  const effectiveSummary = effectiveState === "ROOT_REPAIR_REQUIRED"
+    ? `Golden sequence ${goldenState === "REPAIR_REQUIRED" ? "failed visual or audio playback" : "has unresolved quality evidence"}. Requalify ${rootStageKeys.length ? `Stages ${rootStageKeys.join(", ")}` : "the owning stages"} before another master.`
+    : effectiveState === "QUALITY_BLOCKED" ? "Control history exists, but the current video has not satisfied its audience-facing quality evidence."
+    : effectiveState === "PRODUCTION_RUNNING" ? "A bounded production operation is active; downstream stages remain locked until verified completion."
+    : effectiveState === "OWNER_READY" ? "All production and independent assurance gates passed; the owner can review the release candidate."
+    : effectiveState === "ACTION_REQUIRED" ? "The next stage is ready, but no production operation is currently running."
+    : "The current video cannot advance until its upstream eligibility is restored.";
   const rejected = await db.prepare("SELECT COUNT(*) total FROM production_v2_packages WHERE channel_id=? AND lifecycle_state='REJECTED_QUALITY'").bind(channelId).first<Row>();
   const preserved = await db.prepare("SELECT COUNT(*) total FROM production_v2_artifacts a JOIN production_v2_packages p ON p.id=a.package_id WHERE p.channel_id=?").bind(channelId).first<Row>();
   const activeCount = queue.filter((item) => boolean(item.active)).length;
@@ -234,6 +274,40 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       qualityEligibility: qualityEligibility.eligibility,
       qualityStandardVersion: VIDEO_QUALITY_STANDARD_VERSION,
       nextValidAction: qualityEligibility.nextValidAction,
+      effectiveState,
+      effectiveStateLabel: effectiveLabels[effectiveState],
+      effectiveStateSummary: effectiveSummary,
+      rootStageKeys,
+      rootStageLabels,
+      nextMilestone: "FP2 · Capability Registry",
+    },
+    firstPass: {
+      standardVersion: "FIRST_PASS_QUALITY_V1",
+      currentSlice: "FP1",
+      currentSliceState: "IMPLEMENTED",
+      nextSlice: "FP2",
+      nextSliceLabel: "Capability Registry",
+      capabilityRegistryState: "NOT_IMPLEMENTED",
+      goldenR10Eligible: false,
+      independentAssurancePolicy: "ONE_CONFIRMATION",
+      readiness: [
+        { id: "EFFECTIVE_PROJECTION", label: "Effective production state", passed: true, evidence: `${effectiveLabels[effectiveState]} projected from canonical evidence`, owningStages: ["00"] },
+        { id: "CAPABILITY_REGISTRY", label: "Capability Registry", passed: false, evidence: "FP2 must qualify model, tool, rights, cost and failure mode per operation", owningStages: ["07A", "07B", "09", "10"] },
+        { id: "EXECUTABLE_CONTRACT", label: "Executable shot and cue contract", passed: false, evidence: "FP3 must compile semantic intent into measurable visual and audio instructions", owningStages: ["08"] },
+        { id: "VISUAL_PLANE", label: "Qualified visual plane", passed: false, evidence: "FP4 must pass real-pixel, semantic-motion and variety gates", owningStages: ["07B", "09"] },
+        { id: "AUDIO_PLANE", label: "Qualified audio plane", passed: false, evidence: "FP5 must pass narration, music, ambience, SFX and perceptual-mix gates", owningStages: ["07A", "10"] },
+        { id: "GOLDEN_R10", label: "Golden r10", passed: false, evidence: "Forbidden until FP2–FP5 are green", owningStages: ["11", "12", "13", "14"] },
+      ],
+    },
+    operations: {
+      activeProviderRequests: activeRequests,
+      completedProviderRequests: number(requestSummary?.completed),
+      failedProviderRequests: number(requestSummary?.failed),
+      actualSpendUsd: number(requestSummary?.spend ?? budgetPlan?.actual_spend_usd),
+      maxSpendUsd: number(budgetPlan?.max_spend_usd),
+      actualProviderRequests: number(budgetPlan?.actual_provider_requests),
+      maxProviderRequests: number(budgetPlan?.max_provider_requests),
+      budgetState: text(budgetPlan?.lifecycle_state) || "NOT_APPROVED",
     },
     quality: {
       eligibility: qualityEligibility.eligibility,
@@ -242,16 +316,33 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       resolvedStandards: qualityEligibility.resolvedStandards,
       hardStandards: qualityEligibility.hardStandards,
       passedHardStandards: qualityEligibility.passedHardStandards,
-      goldenSequenceState: text(goldenSequence?.lifecycle_state) || "NOT_STARTED",
+      goldenSequenceState: goldenState,
       goldenSequenceDurationSeconds: number(goldenSequence?.duration_seconds),
       goldenMasterUrl: goldenAssetUrl("GOLDEN_MASTER_VIDEO"),
       goldenMasterState: text(goldenMasterJob?.lifecycle_state) || "MASTER_REQUIRED",
       goldenMasterProbe: goldenMasterJob?.probe_json ? json<Record<string, number>>(goldenMasterJob.probe_json, {}) : undefined,
-      gaps: qualityEligibility.gaps.map((gap) => ({ standardId: gap.standardId, level: gap.level, owningStage: gap.owningStage, status: gap.status, evidenceRequired: gap.evidenceRequired })),
+      gaps: qualityGaps,
     },
     stages: stages.map((stage) => {
       const key = text(stage.stage_key);
-      return { key, sequence: number(stage.sequence), name: text(stage.stage_name), displayName: stageDisplayNames[key] ?? text(stage.stage_name), plane: text(stage.owner_plane), state: text(stage.lifecycle_state), gateVersion: text(stage.gate_version), requiredArtifacts: json<string[]>(stage.required_artifacts_json, []), evidence: text(stage.evidence_summary), blocker: text(stage.blocker) || undefined, priorWork: priorWork(key) };
+      const phase = stagePhase(key);
+      const attention = rootStageKeys.includes(key);
+      const downstreamBlocked = rootStageKeys.length > 0 && ["11", "12", "13", "14", "15", "16"].includes(key);
+      const state = text(stage.lifecycle_state);
+      const effectiveStageState = attention ? "REOPEN_REQUIRED" : downstreamBlocked ? "BLOCKED_BY_REPAIR" : state;
+      const stageAction = attention ? "Qualify the required capability in FP2 before producing a replacement artifact."
+        : downstreamBlocked ? "Wait for root stages and Golden r10 to pass."
+        : key === "16" ? "Wait for owner-authorized publication and real performance data."
+        : state === "READY" ? "Complete the current-stage Definition of Ready, then dispatch a bounded job."
+        : "Preserve current evidence and follow the dependency-ordered gate.";
+      return {
+        key, sequence: number(stage.sequence), name: text(stage.stage_name), displayName: stageDisplayNames[key] ?? text(stage.stage_name), plane: text(stage.owner_plane), state,
+        gateVersion: text(stage.gate_version), requiredArtifacts: json<string[]>(stage.required_artifacts_json, []), evidence: text(stage.evidence_summary), blocker: text(stage.blocker) || undefined,
+        phaseKey: phase.key, phaseLabel: phase.label, effectiveState: effectiveStageState, effectiveStateLabel: effectiveStageState.replaceAll("_", " "), attention,
+        inputHealth: attention ? "REQUALIFICATION_REQUIRED" : downstreamBlocked ? "UPSTREAM_BLOCKED" : state === "FROZEN" ? "VERIFIED_HISTORY_ONLY" : "NOT_YET_VERIFIED",
+        gateSummary: attention ? "Root-cause capability gate is open" : downstreamBlocked ? "Blocked by upstream repair" : `${text(stage.gate_version)} · ${state.replaceAll("_", " ")}`,
+        nextAction: stageAction, priorWork: priorWork(key),
+      };
     }),
     queue: queue.map((item) => ({ id: text(item.id), sequence: number(item.sequence), title: text(item.title), state: text(item.lifecycle_state), active: boolean(item.active), priorMasterState: text(item.prior_master_state), ownerReady: Boolean(item.owner_ready_at) })),
     architecture, critics,

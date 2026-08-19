@@ -337,6 +337,21 @@ Stage 11, videos 2–15 and auto-publish remain blocked.
 
 Do not create Golden r10 during FP1–FP5. Do not use QA findings as iterative composition prompts. Do not start video #2 until FP7 reaches owner-ready.
 
+### FP1 execution record — Sites v380
+
+FP1 is implemented. The canonical projection now computes an effective production state with explicit precedence over raw historical stage state; derives root-stage ownership from Golden master motion provenance, perceptual audio evidence and unresolved quality ownership; and reports provider-request and approved-budget telemetry. Video Engine now opens on an operator workspace with the next valid implementation boundary, Definition of Ready, root owners and the five-phase view of all 18 stages. Historical state and prior-work reconciliation remain inspectable but secondary.
+
+Current projected boundary:
+
+```text
+EFFECTIVE_STATE = ROOT_REPAIR_REQUIRED
+ROOT_STAGE_OWNERS = 07A, 07B, 08, 09, 10
+CURRENT_SLICE = FP1_IMPLEMENTED
+NEXT_SLICE = FP2_CAPABILITY_REGISTRY
+PROVIDER_DISPATCH = CLOSED
+GOLDEN_R10_ELIGIBLE = FALSE
+```
+
 ## 16. Change governance
 
 Any future change to this doctrine requires a versioned ADR and explicit regression evidence. Later documents may tighten first-pass floors or add certified archetypes, but may not restore routine multi-round independent-QA repair, generic fallback, placeholder eligibility or average-score compensation for a hard failure.

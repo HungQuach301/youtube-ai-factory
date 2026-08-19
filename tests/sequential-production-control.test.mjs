@@ -13,9 +13,9 @@ test("V7 V23.4 V281 control plane is an exclusive per-video state machine", () =
   assert.match(contract, /ONE_VIDEO_AT_A_TIME/);
   assert.match(projection, /Exactly one video has an active lease/);
   assert.match(projection, /Video N\+1 cannot run before/);
-  assert.match(workspace, /One excellent video before the next one starts/);
+  assert.match(workspace, /Implement the First-Pass Capability Registry/);
   assert.match(workspace, /Eight independent critic roles/);
-  assert.match(workspace, /Do not confuse “previously performed” with “complete”/);
+  assert.match(workspace, /18 stages grouped into five dependency phases/);
   assert.match(projection, /NEW_EPISODE_ARTIFACTS/);
   assert.match(projection, /PROHIBITED_INPUTS/);
   assert.doesNotMatch(workspace, /15 completed videos are ready/);
