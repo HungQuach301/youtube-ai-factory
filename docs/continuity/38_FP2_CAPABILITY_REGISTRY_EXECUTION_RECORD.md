@@ -60,6 +60,8 @@ Video Engine now includes a Capability Registry view showing version, provider/t
 
 Production UI QA on v381 found that Golden r9's historical master scan omitted `motionProvenance`, causing the initial projection to retain only audio owners 07A/10 even though unresolved pixel/motion hard gaps still owned 07B/08/09. v382 corrects the fail-closed inference: when a rejected Golden has unresolved visual evidence owned by Stage 08/09, all reusable visual root owners 07B/08/09 remain open. The five-owner result is covered by regression tests both with and without historical motion-provenance telemetry.
 
+The same browser pass observed a root-element hydration warning caused by the production authentication/browser layer mutating the document shell before React hydration. v383 applies `suppressHydrationWarning` only to the root `<html>` boundary; it does not hide component-level UI mismatches. Production QA must still require zero application-origin console errors after a fresh navigation.
+
 ## Next authorized action
 
 Implement FP3 without provider dispatch: compile the frozen Stage 06/07A/07B intent into a typed, exact-duration ShotCueProgram with claim, visual, audio, rights and observable acceptance-test bindings. Golden r10, replacement production, FP4/FP5 provider calls, video #2 and auto-publish remain blocked.
