@@ -116,3 +116,15 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** effective 2026-08-19, FP2 introduces a versioned Capability Registry and a shared fail-closed dispatch guard. Every production operation must resolve one or more active capability–archetype requirements. Eligibility requires a qualified capability and latest qualification with matching mechanism/standard versions, a settings hash, sufficient fixture samples and evidence hashes, first-pass yield at or above the registered floor, zero P0 escapes and no revocation. Zero requirements is not permissive; it is a configuration failure. Each authorization or block is audit-recorded before provider work, and a block reports zero requests and zero spend.
 
 **Reason:** registering a provider or completing one technically valid output does not prove that the mechanism can repeatedly solve its hardest audience-facing cases. Making qualification a precondition prevents production from using Video #01 as an expensive test fixture, preserves QA independence and gives tool/model/configuration changes an automatic revocation boundary. Registry installation alone does not qualify a mechanism, so the initial runtime remains `QUALIFICATION_REQUIRED` and Golden r10 stays locked.
+
+## ADR-075 — Git repository is the sole project source of truth
+
+**Decision:** effective 2026-08-20, `youtube-ai-factory` on `main` is the sole durable source for source code, architecture, decisions, standards, current state, roadmap and execution evidence. Chats, Personal Context, Library, Drive, scratch workspaces, screenshots and recovery exports are non-authoritative until reconciled and committed. Ordinary chat continuation clones or fetches the Git remote and follows `docs/README.md`; Library-dependent capsule recovery is superseded for normal operation.
+
+**Reason:** fragmented documents and chat-length limits repeatedly created missing, duplicated or stale context. A single versioned source with validation and a fixed reading order makes continuity reproducible, reviewable and independent of any conversation window.
+
+## ADR-076 — Expert assessments enter through a reconciled issue and standards process
+
+**Decision:** expert reviews are preserved with provenance but do not become production standards directly. Each finding is classified in the Master Issue Registry. Confirmed gaps create mandatory roadmap gates; architectural directions create versioned target contracts; numeric thresholds and tool selections require calibration; incorrect or obsolete claims are explicitly corrected. Closure requires code or document change, evidence, validation and a pushed Git checkpoint.
+
+**Reason:** the expert reviews contain high-value architecture findings alongside overlapping items, uncalibrated thresholds and several technical inaccuracies. Reconciliation preserves the insight without allowing a proposal or document label to bypass production evidence.

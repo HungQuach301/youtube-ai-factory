@@ -2,6 +2,27 @@
 
 Last reconciled: 2026-08-20 (Asia/Bangkok)
 
+## Repository knowledge consolidation — 2026-08-20
+
+```text
+SOURCE_OF_TRUTH_POLICY = GIT_REPOSITORY_SSOT_V1
+CANONICAL_REPOSITORY = youtube-ai-factory
+CANONICAL_BRANCH = main
+CODE_BASELINE_BEFORE_CONSOLIDATION = 5b669fc9230f5b012ebe4aa2c0b5c21fa50df890
+FP1 = IMPLEMENTED
+FP2_REGISTRY_MECHANISM = IMPLEMENTED
+FP2_QUALIFIED_OPERATION_BINDINGS = 1_OF_22
+FP3_SHOT_CUE_PROGRAM = IMPLEMENTED_SEALED
+NEXT_IMPLEMENTATION = FP3_1_PRODUCTION_INTEGRITY
+PAID_FP4_AUTHORITY = NONE
+GOLDEN_R10 = BLOCKED
+STAGE_11 = BLOCKED
+VIDEOS_02_TO_15 = BLOCKED
+AUTO_PUBLISH = FALSE
+```
+
+The repository knowledge index, master issue registry, target architecture and master roadmap supersede chat summaries and untracked workspace documents. The detailed expert assessment is preserved as advisory source with a tracked reconciliation. This documentation checkpoint does not grant provider dispatch, production mutation, deployment, publishing or deletion authority.
+
 ## Sequential production correction — 2026-08-16
 
 ```text
@@ -311,7 +332,8 @@ Document 39 is authoritative for the current implementation boundary. FP3 adds a
 ```text
 FIRST_PASS_STANDARD = FIRST_PASS_QUALITY_V1
 CURRENT_SLICE = FP3_IMPLEMENTED
-NEXT_SLICE = FP4_VISUAL_CAPABILITY_PLANE
+FP3_RECORDED_NEXT_SLICE = FP4_VISUAL_CAPABILITY_PLANE
+ACTIVE_PROGRAM_NEXT_WAVE = FP3_1_PRODUCTION_INTEGRITY
 SHOT_CUE_PROGRAM_VERSION = SHOT_CUE_PROGRAM_V1
 SHOT_CUE_COMPILER = DETERMINISTIC_SHOT_CUE_COMPILER_1_0_0
 GOLDEN_CONTRACT_FIXTURE_SECONDS = 80_252
@@ -328,7 +350,7 @@ GOLDEN_R10_ELIGIBLE = FALSE
 STAGE_11 = BLOCKED
 VIDEO_02_TO_15 = BLOCKED_PREVIOUS_VIDEO
 AUTO_PUBLISH = FALSE
-NEXT_ACTION = IMPLEMENT_FP4_HARDEST_FIRST_VISUAL_QUALIFICATION_UNDER_SEPARATE_BOUNDED_PLAN
+NEXT_ACTION = IMPLEMENT_FP3_1_PRODUCTION_INTEGRITY_WITH_ZERO_PROVIDER_DISPATCH
 ```
 
-Golden r9 remains immutable rejected evidence. The FP3 fixture is control-mechanism evidence only and has no production-media or release authority.
+Golden r9 remains immutable rejected evidence. The FP3 fixture is control-mechanism evidence only and has no production-media or release authority. FP4 was the next milestone recorded when FP3 closed; the reconciled expert review and `GIT_REPOSITORY_SSOT_V1` roadmap insert FP3.1, the Learning-ready Contract Pack and WP7 Evaluation Foundation before paid FP4 dispatch.

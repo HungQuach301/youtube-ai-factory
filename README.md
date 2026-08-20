@@ -6,6 +6,21 @@ This repository is the executable source for a multi-channel YouTube operating s
 
 V7/V23 remains the protected Video Production Engine beneath this portfolio architecture; it is not the top-level product shell.
 
+## Canonical project knowledge
+
+This Git repository is the sole source of truth for source, architecture, decisions, current state, roadmap, standards and execution evidence. Start with [`docs/README.md`](docs/README.md). Chat transcripts, Library files, Drive documents, scratch workspaces and exported capsules are non-authoritative unless reconciled and committed here.
+
+For a new chat or checkout:
+
+```bash
+git switch main
+git pull --ff-only origin main
+git status --short --branch
+npm run check:docs
+```
+
+The active roadmap is [`docs/roadmap/MASTER_ROADMAP.md`](docs/roadmap/MASTER_ROADMAP.md). The active issue source is [`docs/governance/MASTER_ISSUE_REGISTRY.md`](docs/governance/MASTER_ISSUE_REGISTRY.md).
+
 ## Current implementation checkpoint
 
 - Production functional baseline: the 15 Production Engine V2 masters were owner-rejected for perceived quality on 2026-08-16. The active replacement is the V7 → V23.4 → V281 sequential control: exactly one video may produce or spend at a time, and the next video remains blocked until the current master is owner-ready.

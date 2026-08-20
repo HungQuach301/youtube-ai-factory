@@ -1,12 +1,19 @@
 # AI Factory Working Instructions
 
+## Repository authority
+
+This Git repository is the sole source of project truth and knowledge. Chat transcripts, Personal Context, Library, Drive, scratch folders, screenshots, patches, bundles and archives are discovery or recovery aids only. They cannot override tracked source, decisions or reconciled runtime evidence.
+
+The active policy is [`docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md`](docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md).
+
 ## Start every chat
 
-1. Read `README.md`, `docs/continuity/03_CURRENT_STATE.md`, `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` and `docs/continuity/10_RECONSTRUCTED_SLICES_CHECKPOINT.md` before changing source.
-2. Verify the exact worktree, branch, HEAD and `git status --short`; never infer source from a prior chat transcript.
-3. If the required commit is absent, restore the latest verified continuity capsule from ChatGPT Library and validate `SHA256SUMS` before work.
+1. Read `docs/README.md` and follow its required reading order before changing source.
+2. Verify the exact repository, branch, HEAD, remote and `git status --short --branch`; never infer source from a prior chat transcript.
+3. If the required commit is absent, fetch or clone `origin/main`. Do not reconstruct ordinary source from an old chat or Library capsule while the canonical remote is available.
 4. Treat the product as a multi-channel operating system. V7/V23 is the Video Production Engine, not the whole product.
-5. State the bounded outcome, acceptance evidence and protected scope.
+5. Reconcile current state, open issues, active roadmap wave and protected scope.
+6. State the bounded outcome, acceptance evidence and protected scope.
 
 ## Non-negotiable controls
 
@@ -23,20 +30,23 @@
 - No operator-facing slice is commercial-ready without responsive, interaction, accessibility, truthful-state and performance evidence.
 - One chat may mutate a given worktree at a time.
 - Do not deploy, dispatch a provider, migrate data, run production QA or delete legacy state without explicit authority and runtime reconciliation.
+- Capability qualification, active settings/version, cost reservation, rights eligibility and idempotency are dispatch prerequisites.
+- Plans, schemas, migrations, UI labels and provider responses do not prove completion by themselves.
 
-## Proactive continuity rule
+## Documentation and continuity rule
 
-Before a chat rollover or after a coherent material milestone, the active assistant owns continuity preparation. It must:
+Before a chat rollover or after a coherent material milestone, the active assistant must:
 
 1. finish the smallest coherent unit and run the required verification;
-2. create a local Git commit;
-3. generate a binary patch, Git bundle, tracked-source archive, manifest and SHA-256 checksums;
-4. prove recovery from the capsule in a clean checkout;
-5. save the source capsule and updated checkpoint/handoff documents to ChatGPT Library;
-6. report `ROLLOVER READY` only after those gates pass.
+2. update the relevant current state, decision, issue and roadmap documents;
+3. run `npm run check:docs` and the relevant source checks;
+4. review the full diff and create a bounded Git commit;
+5. push to `origin/main`;
+6. verify local HEAD equals `origin/main` and the worktree is clean;
+7. report `ROLLOVER READY` only after those gates pass.
 
-The user must never be asked to choose between reconstructing source and locating an old working copy. If capsule preparation cannot complete, report `ROLLOVER BLOCKED`, keep the worktree intact and name the failed gate.
+Optional patches, bundles and archives are derivative disaster-recovery exports, not project authority. Do not copy nested repository bundles into this repository. If the Git checkpoint cannot complete, report `ROLLOVER BLOCKED`, keep the worktree intact and name the failed gate.
 
 ## End every material session
 
-Record actual tests/build/lint results, deployment truth, known limitations, exact next action and protected scope. Do not claim byte-identical recovery for rebuilt source; use `RECONSTRUCTED_V1` and preserve its verified commit/capsule identity.
+Record actual tests/build/lint results, deployment truth, known limitations, exact next action and protected scope. A material handoff is not complete until the canonical Git remote contains the checkpoint.

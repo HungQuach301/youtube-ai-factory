@@ -1,35 +1,50 @@
-# Continuation Pack Protocol
+# Continuation Protocol
+
+**Policy:** `GIT_REPOSITORY_SSOT_V1`
+**Supersedes:** `SOURCE_CONTINUITY_CAPSULE_V1` as the ordinary chat-continuation mechanism
 
 ## Session start
 
-1. Read Charter, Architecture, Current State and this protocol.
-2. Load the latest immutable continuity snapshot.
-3. Reconcile active requests, artifact hashes, provider usage and site-version lineage.
-4. Identify stale documents and unresolved evidence.
-5. State the one authorized next action and all protected work that must not be rerun.
-6. Perform no mutation until material contradictions are resolved.
+1. Clone or fetch the canonical repository and switch to `main`.
+2. Verify branch, HEAD, remote and clean/dirty worktree truth.
+3. Read `docs/README.md` in its required order.
+4. Reconcile runtime evidence, active requests, spend and deployment only when the authorized task needs them.
+5. Identify the active roadmap wave, one bounded next action and the protected no-rerun list.
+6. Perform no mutation while material contradictions remain unresolved.
 
 ## Session close
 
-Record completed and incomplete work, artifact/version/hash, provider usage and cost, QA/eval result, new or superseded decisions, blockers, one next action and the protected no-rerun list. Capture an immutable snapshot only when active provider requests are zero.
+Record:
 
-## Current handoff
+- completed and incomplete work;
+- exact commit and changed contracts;
+- tests, build, lint and benchmark truth;
+- provider request and cost truth;
+- new, superseded or unresolved decisions;
+- production/deployment truth;
+- blockers and protected scope;
+- one exact next action.
 
-For the multi-channel product surface, Documents 16–27 are authoritative. Intelligence–Niche, Channel Strategy and all eight Content System & Planning slices are implemented, production-active and production-FE accepted. Preserve Documents 12–15 as V1 compatibility evidence; never reinterpret V1 video-topic candidates, the V1 expert-decision POST or legacy `channels.niche` as a V2 niche, priority, commitment or active strategy binding.
+Commit and push the coherent checkpoint to `origin/main`. Verify local HEAD equals the remote and the worktree is clean before reporting `ROLLOVER READY`.
 
-The former `MOTION_PROOF_REQUIRED` champion-C handoff is historical only. Documents 34–39 are authoritative for the current Video Excellence boundary. Golden r9 visual/audio are immutable rejected evidence; Stage 11, videos 2–15 and auto-publish remain blocked. FP1 truthful operator projection, FP2 Capability Registry and FP3 executable Stage 07B/08 contracts are implemented. The registry contains nine mechanisms, 20 hardest archetypes and 20 fixtures; only the deterministic ShotCueProgram compiler binding is qualified. Its sealed 80.252-second fixture has eight typed shots, eight treatments, zero timing/schema gaps, zero provider requests and zero spend. Continue with separately bounded FP4 hardest-first visual qualification. Do not render Golden r10 until FP4–FP5 and every required capability qualification pass, and do not restore routine independent-QA repair loops, generic fallback or placeholder eligibility.
-# Slice 7 continuation
+## Recovery
 
-Slice 7 adds explicit versioned selection and commitment over Slice 6. The current protected next action is Slice 8 Channel Strategy Activation. A new chat must read Documents 16–23, verify the recovery-tested Slice 7 capsule and must not rerun Slices 1–7.
+Ordinary recovery uses Git:
 
-# Slice 8 continuation
+```bash
+git clone <origin>
+cd youtube-ai-factory
+git switch main
+git pull --ff-only origin main
+npm run check:docs
+```
 
-Slice 8 adds the separate versioned Channel Strategy binding over only an active Slice 7 commitment. A new chat must read Documents 16–26, verify the production-active capsule and must not rerun or reconstruct Slices 1–8 or reopen Intelligence–Niche FE closure without a newly observed production defect. The next product boundary is a separately authorized Content System & Planning handoff; do not grant activation provider dispatch, spend or content-production authority.
+Historical bundles, patches, archives and Library copies may be used only for disaster recovery when the canonical Git remote cannot provide the required commit. A recovered source must be compared with repository history and committed before it becomes authoritative.
 
-# Production-active continuation
+## Current protected handoff
 
-Documents 25 and 26 record production state and production FE acceptance. Channel Strategy v1 is active for `Everyday Payment and Pricing Infrastructure`; do not rerun the canonical bootstrap or create a replacement activation unless a separately approved governance change is required. The Intelligence–Niche stage is closed. The exact next boundary is Content System & Planning. It may read the active strategy, but it must add its own typed authority, data model and gates before planning, provider dispatch, production or spend.
-
-# Content System & Planning continuation
-
-Document 27 records the production-active `FULL_AUTOPILOT` content system. Policy v3 and run v2 are current; eight briefs are ready for the separately authorized Video Production Engine. Do not rerun planning or rebuild the active Strategy/Content System without a new defect or an approved versioned policy/strategy change. Provider dispatch, paid execution, production QA and publishing remain separate next-stage authorities.
+- FP1, FP2 mechanism and FP3 are implemented.
+- Only one of 22 capability/operation bindings is qualified.
+- Golden r10, Stage 11, Videos 2–15 and auto-publish remain blocked.
+- The next implementation boundary is FP3.1 Production Integrity.
+- Do not skip to paid FP4 dispatch.
