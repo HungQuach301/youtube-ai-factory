@@ -92,8 +92,8 @@ test("all production dispatch boundaries require qualification before provider w
 test("operator UI projects registry coverage without implying production readiness", () => {
   const projection = read("lib/sequential-production-projection.ts");
   const workspace = read("app/video-engine/production-engine-workspace.tsx");
-  assert.match(projection, /currentSlice: "FP2"/);
-  assert.match(projection, /nextSlice: "FP3"/);
+  assert.match(projection, /currentSlice: "FP3"/);
+  assert.match(projection, /nextSlice: "FP4"/);
   assert.match(projection, /dispatchGuardState: "ENFORCED"/);
   assert.match(workspace, /Qualification happens before production/);
   assert.match(workspace, /Golden r10 remains forbidden/);

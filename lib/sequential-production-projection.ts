@@ -8,6 +8,7 @@ import {
   type VideoQualityStandard,
 } from "@/lib/video-quality-standard";
 import { deriveRootStageKeys } from "@/lib/first-pass-quality-projection";
+import { FP3_GOLDEN_CONTRACT_SUMMARY } from "@/lib/first-pass-shot-cue-program";
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null> };
@@ -331,18 +332,31 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       effectiveStateSummary: effectiveSummary,
       rootStageKeys,
       rootStageLabels,
-      nextMilestone: "FP3 · Executable Stage 07B/08 contracts",
+      nextMilestone: "FP4 · Qualified visual capability plane",
     },
     firstPass: {
       standardVersion: "FIRST_PASS_QUALITY_V1",
-      currentSlice: "FP2",
+      currentSlice: "FP3",
       currentSliceState: "IMPLEMENTED",
-      nextSlice: "FP3",
-      nextSliceLabel: "Executable Stage 07B/08 contracts",
+      nextSlice: "FP4",
+      nextSliceLabel: "Qualified visual capability plane",
       capabilityRegistryState,
       dispatchGuardState: "ENFORCED",
       goldenR10Eligible,
       independentAssurancePolicy: "ONE_CONFIRMATION",
+      executableContract: {
+        state: "VERIFIED",
+        programVersion: "SHOT_CUE_PROGRAM_V1",
+        compilerVersion: "DETERMINISTIC_SHOT_CUE_COMPILER_1.0.0",
+        durationSeconds: FP3_GOLDEN_CONTRACT_SUMMARY.durationSeconds,
+        shotCount: FP3_GOLDEN_CONTRACT_SUMMARY.shotCount,
+        treatmentFamilyCount: FP3_GOLDEN_CONTRACT_SUMMARY.treatmentFamilyCount,
+        timelineGaps: FP3_GOLDEN_CONTRACT_SUMMARY.timelineGaps,
+        timelineOverlaps: FP3_GOLDEN_CONTRACT_SUMMARY.timelineOverlaps,
+        schemaGaps: FP3_GOLDEN_CONTRACT_SUMMARY.schemaGaps,
+        providerRequests: FP3_GOLDEN_CONTRACT_SUMMARY.providerRequests,
+        spendUsd: FP3_GOLDEN_CONTRACT_SUMMARY.spendUsd,
+      },
       capabilitiesTotal: capabilitySummaries.length,
       capabilitiesQualified,
       archetypesTotal: archetypeSummaries.length,
@@ -354,7 +368,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         { id: "EFFECTIVE_PROJECTION", label: "Effective production state", passed: true, evidence: `${effectiveLabels[effectiveState]} projected from canonical evidence`, owningStages: ["00"] },
         { id: "CAPABILITY_REGISTRY", label: "Capability Registry runtime", passed: true, evidence: `${capabilitySummaries.length} versioned capabilities, ${archetypeSummaries.length} hardest archetypes and fail-closed dispatch auditing are active`, owningStages: ["07A", "07B", "09", "10", "13", "14"] },
         { id: "CAPABILITY_QUALIFICATION", label: "Capability qualification", passed: capabilityRegistryState === "QUALIFIED", evidence: `${qualifiedRequirementPairs.length}/${uniqueRequirementPairs.length} capability–archetype bindings qualified; ${fixtureRows.length} fixtures designed`, owningStages: ["07A", "07B", "09", "10", "13", "14"] },
-        { id: "EXECUTABLE_CONTRACT", label: "Executable shot and cue contract", passed: false, evidence: "FP3 must compile semantic intent into measurable visual and audio instructions", owningStages: ["08"] },
+        { id: "EXECUTABLE_CONTRACT", label: "Executable shot and cue contract", passed: true, evidence: `${FP3_GOLDEN_CONTRACT_SUMMARY.shotCount} typed shots cover ${FP3_GOLDEN_CONTRACT_SUMMARY.durationSeconds.toFixed(3)}s with ${FP3_GOLDEN_CONTRACT_SUMMARY.timelineGaps} gaps, ${FP3_GOLDEN_CONTRACT_SUMMARY.timelineOverlaps} overlaps, ${FP3_GOLDEN_CONTRACT_SUMMARY.schemaGaps} schema gaps and zero provider dispatch`, owningStages: ["08"] },
         { id: "VISUAL_PLANE", label: "Qualified visual plane", passed: false, evidence: "FP4 must pass real-pixel, semantic-motion and variety gates", owningStages: ["07B", "09"] },
         { id: "AUDIO_PLANE", label: "Qualified audio plane", passed: false, evidence: "FP5 must pass narration, music, ambience, SFX and perceptual-mix gates", owningStages: ["07A", "10"] },
         { id: "GOLDEN_R10", label: "Golden r10", passed: goldenR10Eligible, evidence: goldenR10Eligible ? "Capability requirements are qualified; later FP3–FP5 gates still control production" : "Forbidden until all capability bindings and FP3–FP5 gates are green", owningStages: ["11", "12", "13", "14"] },
@@ -391,8 +405,8 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       const downstreamBlocked = rootStageKeys.length > 0 && ["11", "12", "13", "14", "15", "16"].includes(key);
       const state = text(stage.lifecycle_state);
       const effectiveStageState = attention ? "REOPEN_REQUIRED" : downstreamBlocked ? "BLOCKED_BY_REPAIR" : state;
-      const repairAction = key === "07B" || key === "08" ? "Implement the executable visual grammar and ShotCueProgram contract in FP3."
-        : key === "09" ? "Execute and qualify the visual archetype fixtures in FP4; production dispatch remains blocked."
+      const repairAction = key === "07B" || key === "09" ? "Execute and qualify the visual archetype fixtures in FP4; production dispatch remains blocked."
+        : key === "08" ? "Preserve the sealed FP3 ShotCueProgram and wait for its visual and audio capability bindings to qualify in FP4/FP5."
         : key === "07A" || key === "10" ? "Execute and qualify narration, music, ambience and SFX fixtures in FP5."
         : "Complete the remaining first-pass qualification before producing a replacement artifact.";
       const stageAction = attention ? repairAction

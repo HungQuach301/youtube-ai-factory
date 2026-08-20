@@ -1,6 +1,6 @@
 # Current State
 
-Last reconciled: 2026-08-19 (Asia/Bangkok)
+Last reconciled: 2026-08-20 (Asia/Bangkok)
 
 ## Sequential production correction — 2026-08-16
 
@@ -303,3 +303,32 @@ PROTECTED_ACTION = DO_NOT_RENDER_GOLDEN_R10_BEFORE_FP2_TO_FP5_PASS
 ```
 
 The ordered plan is FP0–FP7 in Document 37: truthful UI/projection, runtime capability registry, executable Stage 07B/08 contracts, mixed-treatment visual plane, production audio plane, integrated canary and Golden r10, then the full Stage 11–15 release chain.
+
+## FP3 executable ShotCueProgram — 2026-08-20
+
+Document 39 is authoritative for the current implementation boundary. FP3 adds an internal deterministic compiler and a sealed qualification fixture; it does not dispatch a provider and does not create Golden r10.
+
+```text
+FIRST_PASS_STANDARD = FIRST_PASS_QUALITY_V1
+CURRENT_SLICE = FP3_IMPLEMENTED
+NEXT_SLICE = FP4_VISUAL_CAPABILITY_PLANE
+SHOT_CUE_PROGRAM_VERSION = SHOT_CUE_PROGRAM_V1
+SHOT_CUE_COMPILER = DETERMINISTIC_SHOT_CUE_COMPILER_1_0_0
+GOLDEN_CONTRACT_FIXTURE_SECONDS = 80_252
+GOLDEN_CONTRACT_FIXTURE_SHOTS = 8
+GOLDEN_CONTRACT_TREATMENT_FAMILIES = 8
+TIMELINE_GAPS = 0
+TIMELINE_OVERLAPS = 0
+SCHEMA_GAPS = 0
+SHOT_CUE_CAPABILITY_BINDING = QUALIFIED_1_OF_22
+CAPABILITY_REGISTRY_STATE = PARTIALLY_QUALIFIED
+FP3_PROVIDER_REQUESTS = 0
+FP3_SPEND_USD = 0
+GOLDEN_R10_ELIGIBLE = FALSE
+STAGE_11 = BLOCKED
+VIDEO_02_TO_15 = BLOCKED_PREVIOUS_VIDEO
+AUTO_PUBLISH = FALSE
+NEXT_ACTION = IMPLEMENT_FP4_HARDEST_FIRST_VISUAL_QUALIFICATION_UNDER_SEPARATE_BOUNDED_PLAN
+```
+
+Golden r9 remains immutable rejected evidence. The FP3 fixture is control-mechanism evidence only and has no production-media or release authority.

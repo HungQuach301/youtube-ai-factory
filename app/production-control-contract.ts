@@ -63,14 +63,27 @@ export type SequentialProductionProjection = {
   };
   firstPass: {
     standardVersion: "FIRST_PASS_QUALITY_V1";
-    currentSlice: "FP2";
+    currentSlice: "FP3";
     currentSliceState: "IMPLEMENTED";
-    nextSlice: "FP3";
+    nextSlice: "FP4";
     nextSliceLabel: string;
     capabilityRegistryState: "QUALIFICATION_REQUIRED" | "PARTIALLY_QUALIFIED" | "QUALIFIED";
     dispatchGuardState: "ENFORCED";
     goldenR10Eligible: boolean;
     independentAssurancePolicy: "ONE_CONFIRMATION";
+    executableContract: {
+      state: "VERIFIED";
+      programVersion: "SHOT_CUE_PROGRAM_V1";
+      compilerVersion: "DETERMINISTIC_SHOT_CUE_COMPILER_1.0.0";
+      durationSeconds: number;
+      shotCount: number;
+      treatmentFamilyCount: number;
+      timelineGaps: number;
+      timelineOverlaps: number;
+      schemaGaps: number;
+      providerRequests: 0;
+      spendUsd: 0;
+    };
     capabilitiesTotal: number;
     capabilitiesQualified: number;
     archetypesTotal: number;

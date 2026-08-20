@@ -329,7 +329,7 @@ Stage 11, videos 2–15 and auto-publish remain blocked.
 | FP0 — Contract and continuity | establish this doctrine, ADR and authoritative next action | zero provider calls | Documents 03, 04, 09 and 37 agree |
 | FP1 — Truthful operator projection | effective state, root owner, readiness gaps, qualification/yield fields and Video Engine information architecture | zero provider calls | no contradictory status; current action visible in first viewport |
 | FP2 — First-pass runtime registry | capability, archetype, fixture, qualification, yield and revocation schemas; shared artifact envelope | zero provider calls | migration and regression tests; no capability without archetype evidence can dispatch |
-| FP3 — Executable Stage 07B/08 | mixed-treatment visual grammar and canonical ShotCueProgram with audio/visual bindings | bounded OpenAI only after deterministic lint | complete 60–90-second Golden contract; zero timing/schema gaps |
+| FP3 — Executable Stage 07B/08 | mixed-treatment visual grammar and canonical ShotCueProgram with audio/visual bindings | zero provider calls; internal deterministic compile and lint | complete 60–90-second Golden contract; zero timing/schema gaps |
 | FP4 — Visual capability plane | Pexels/Pixabay/Shutterstock video acquisition, layered scene graph, Sharp/FFmpeg compositor and eight archetype fixtures | bounded provider calls under the active plan | all required Golden archetypes certified; motion provenance gates pass |
 | FP5 — Audio capability plane | hardest-take tournament, long-section TTS, production music/SFX/ambience, alignment, mix and perceptual preflight | bounded ElevenLabs/OpenAI calls under the active plan | required audio archetypes certified; exact mix passes all floors |
 | FP6 — Integrated canary and Golden r10 | one 15–20-second canary, then the hardest 60–90-second master | dispatch only after FP2–FP5 pass | first sealed Golden r10 passes deterministic and one independent audit |
@@ -374,6 +374,24 @@ GOLDEN_R10_ELIGIBLE = FALSE
 ```
 
 Document 38 contains the canonical implementation and handoff record.
+
+### FP3 execution record — source checkpoint after Sites v385
+
+FP3 is implemented without provider dispatch. `DETERMINISTIC_SHOT_CUE_COMPILER_1.0.0` compiles a versioned `SHOT_CUE_PROGRAM_V1` from frozen Stage 06/07A/07B bindings and fails closed on timeline, schema, semantic, rights, treatment, mobile, audio, evidence, quality-binding or fallback gaps.
+
+The sealed hardest fixture covers `0–80.252` seconds with eight typed shots, eight treatment families, zero gaps, zero overlaps and zero schema gaps. Its content hash is `7a85dd494d873e30b7c8fef9dc837ad479b42ce503c5452d2c35f554fea37629`. Only the internal ShotCueProgram compiler binding is qualified; all visual, audio, master and assurance mechanisms remain closed.
+
+```text
+CURRENT_SLICE = FP3_IMPLEMENTED
+NEXT_SLICE = FP4_VISUAL_CAPABILITY_PLANE
+QUALIFIED_BINDINGS = 1_OF_22
+CAPABILITY_REGISTRY_STATE = PARTIALLY_QUALIFIED
+FP3_PROVIDER_REQUESTS = 0
+FP3_SPEND_USD = 0
+GOLDEN_R10_ELIGIBLE = FALSE
+```
+
+Document 39 contains the canonical implementation and handoff record.
 
 ## 16. Change governance
 
