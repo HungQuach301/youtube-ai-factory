@@ -6,6 +6,8 @@ Scope: deterministic mixed-treatment grammar and canonical `ShotCueProgram` only
 Provider calls/spend: `0 / $0`  
 Golden revision created: none
 
+Functional checkpoint: Sites v386 / `0471328329323e4d2d00c1cb650a2051a86959b7`
+
 ## Outcome
 
 FP3 converts frozen Stage 06 narration/claim intent, Stage 07A sound intent and Stage 07B visual intent into instructions that downstream workers can execute without guessing. The compiler is internal and deterministic; it does not call OpenAI or any media/audio provider.
