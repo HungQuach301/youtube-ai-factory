@@ -1,6 +1,9 @@
 # External Source Migration — 2026-08-20
 
-**State:** `COMPLETE_PENDING_GIT_CHECKPOINT`
+**State:** `COMPLETE`
+
+**Consolidation source commit:** `982b108a8d44ab2b46da51e79d7e7bec6f889340`
+**Remote synchronization:** verified on `origin/main`
 
 ## Purpose
 
@@ -32,3 +35,6 @@ Migration becomes `COMPLETE` only when:
 - the consolidation is committed;
 - the commit is pushed to `origin/main`;
 - local HEAD equals `origin/main` with a clean worktree.
+
+All completion gates were satisfied on 2026-08-20. This record is finalized by the
+follow-up Git checkpoint that contains this status transition.

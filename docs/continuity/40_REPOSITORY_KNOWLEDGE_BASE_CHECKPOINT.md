@@ -3,6 +3,8 @@
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 **Date:** 2026-08-20
 **Code baseline before consolidation:** `5b669fc9230f5b012ebe4aa2c0b5c21fa50df890`
+**Consolidation source commit:** `982b108a8d44ab2b46da51e79d7e7bec6f889340`
+**Remote synchronization:** verified on `origin/main`
 
 ## Bounded outcome
 
@@ -25,7 +27,7 @@ Consolidate project documentation, expert assessments, current state, roadmap an
 
 This checkpoint grants no production authority. FP4 provider dispatch, Golden r10, Stage 11, Videos 2–15, auto-publish, data migration and legacy deletion remain blocked by their existing gates.
 
-## Verification required before close
+## Verification completed
 
 - `npm run check:docs`
 - relevant source regressions remain unchanged
@@ -33,6 +35,9 @@ This checkpoint grants no production authority. FP4 provider dispatch, Golden r1
 - full Git diff reviewed
 - commit pushed to `origin/main`
 - local HEAD equals remote and worktree is clean
+
+All checks passed. The consolidation source commit was pushed and matched
+`origin/main`; this follow-up checkpoint records the completed state.
 
 ## Exact next implementation action
 
