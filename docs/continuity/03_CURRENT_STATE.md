@@ -19,10 +19,14 @@ PRODUCTION_VERSION_READBACK = EVALUATION_OWNER_REVIEW_UX_V2
 PRODUCTION_ACTIONABLE = 82
 PRODUCTION_RECEIPTS = 0
 WORKER_ERROR_EVENTS = 0
+TECHNICAL_QA = PASS_162_OF_162
+AUTH_BOUNDARY_QA = NON_SIWC_REJECTED_401
+AGENT_PREVIEW_QA = FAIL_CLOSED__LOCAL_D1_FIXTURE_ABSENT__NOT_A_PRODUCTION_DEFECT
+OWNER_EXPERIENTIAL_QA = PENDING_FIRST_REAL_SAMPLE
 NEXT_PROTECTED_ACTION = OWNER_VERIFY_FIRST_SAMPLE_USABILITY
 ```
 
-Sites v411 activates the owner workflow that separates human-observable playback defects from checks owned by deterministic evidence. Direct production read-back returns `EVALUATION_OWNER_REVIEW_UX_V2`, 82 actionable tasks, zero receipts, zero provider request/spend and zero Worker errors. It presents Vietnamese task guidance, three plain-language decisions, media-specific defect choices, progress and a full-screen path. Server validation rejects any attempt to record a system-owned dimension as an owner observation. The real owner must still verify the first sample's usability. Documents 54 and ADR-089 are authoritative.
+Sites v411 activates the owner workflow that separates human-observable playback defects from checks owned by deterministic evidence. Direct production read-back returns `EVALUATION_OWNER_REVIEW_UX_V2`, 82 actionable tasks, zero receipts, zero provider request/spend and zero Worker errors. Full source/regression QA passes 162/162; non-SIWC access remains rejected with `401`. Agent-preview visual interaction cannot enter the identity-bound route because its local D1 fixture is intentionally absent and fails closed; this is not production evidence. The real owner must still verify playback, wording and interaction on the first production sample. Documents 54 and ADR-089 are authoritative.
 
 ## Wave 3 correlation-control production checkpoint — 2026-08-21
 

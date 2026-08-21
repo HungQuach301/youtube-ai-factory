@@ -41,6 +41,8 @@ Complete-taxonomy coverage remains fail-closed. Only modalities observable from 
 - Provider requests/spend, fixture promotion, sealed datasets and release eligibility: unchanged at zero for this slice.
 - Sites v411 activates `EVALUATION_OWNER_REVIEW_UX_V2`; public production read-back returns the exact version, 82 actionable primaries, zero receipts and zero Worker errors.
 - Sites bypass without a real SIWC owner identity remains rejected with `401`; no automation path was added to view or submit owner judgments.
+- Full catalog regression after deployment: 162/162 PASS; documentation SSOT and production build PASS.
+- Agent preview correctly fails closed because its local D1/R2 owner fixture and SIWC identity are absent. It cannot substitute for first-owner-sample experiential QA and created no receipt.
 
 ## Next gate
 
