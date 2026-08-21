@@ -99,3 +99,7 @@ Production byte reconciliation is complete under `CORPUS_VERIFICATION_POLICY_V1`
 ## Next phase
 
 Sites v404 classified the 63 provider-terms-pending candidates as 46 ElevenLabs audio and 17 no-provider records: 16 masters and one clip. Sites v405 activated migration `0057` and created the exact 46/16/1 immutable task ledger without changing rights. Collect historical terms and paid-plan evidence covering each generation time, bind exact provider requests to exact audio hashes, construct composite rights manifests from verified parent lineage and establish the clip's source/authorship basis. Bind owner-confirmed defect labels only after rights evidence is durable. No dataset may be sealed and no assurance provider may be called until those gates pass.
+
+### Owner-label contract
+
+`EVALUATION_OWNER_LABEL_POLICY_V1` admits only current `EVIDENCE_VERIFIED`, rights-PASS, release-ineligible candidate evidence. A task binds the exact artifact hash and complete active taxonomy. SIWC owner authentication is required both to stream the R2 bytes and to append a decision. `REJECTED_DEFECT_PRESENT` requires a positive label; `CLEAN_NEGATIVE_CONTROL` forbids positive labels; `EXCLUDE_UNUSABLE` preserves evidence but removes it from later counts. Label receipts do not imply independent correlation, dataset membership, gold eligibility or assurance qualification.

@@ -6,12 +6,14 @@ import {
   EVALUATION_FOUNDATION_VERSION,
   CORPUS_VERIFICATION_POLICY_VERSION,
   EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION,
+  EVALUATION_OWNER_LABEL_POLICY_VERSION,
   OWNER_STANDING_AUTHORITY,
   evaluateAuthorshipEvidence,
   evaluateAssuranceQualification,
   evaluateCandidateVerification,
   evaluateCompositeRightsEvidence,
   evaluateProviderRightsEvidence,
+  evaluateOwnerLabelSubmission,
   reconcileCorpusArtifactEvidence,
   standingAuthorityCovers,
   summarizeCorpusEvidenceConflicts,
@@ -222,6 +224,56 @@ test("rights evidence contracts fail closed on current terms, package-level infe
   const unboundRender = evaluateAuthorshipEvidence({ artifactHash: "f".repeat(64), authorshipType: "RENDERED_COMPOSITE", authorIdentity: "PRODUCTION_ENGINE_V2_GREENFIELD_EXECUTOR", commercialUseState: "VERIFIED_COMMERCIAL_USE", territory: "WORLDWIDE", validFrom: "2026-01-01T00:00:00Z" });
   assert.equal(unboundRender.eligible, false);
   assert.ok(unboundRender.reasons.includes("COMPOSITE_SOURCE_MANIFEST_REQUIRED"));
+});
+
+test("owner labels bind exact bytes, require full taxonomy coverage and keep decisions internally consistent", () => {
+  assert.equal(EVALUATION_OWNER_LABEL_POLICY_VERSION, "EVALUATION_OWNER_LABEL_POLICY_V1");
+  const base = {
+    taskArtifactHash: "a".repeat(64), expectedArtifactHash: "a".repeat(64), rightsVerificationState: "PASS",
+    verificationState: "EVIDENCE_VERIFIED", lifecycleState: "CANDIDATE_EVIDENCE", releaseEligible: false,
+    rationale: "Observable artifact defect confirmed by owner playback.", activeDefectKeys: ["AUDIO_SEAM", "SAFETY_SCOPE_ESCAPE"],
+  };
+  const rejected = evaluateOwnerLabelSubmission({ ...base, decisionState: "REJECTED_DEFECT_PRESENT", labels: [
+    { defectKey: "AUDIO_SEAM", status: "PRESENT", confidence: 1 }, { defectKey: "SAFETY_SCOPE_ESCAPE", status: "ABSENT", confidence: 1 },
+  ] });
+  assert.equal(rejected.eligible, true);
+  assert.equal(rejected.presentCount, 1);
+  const incomplete = evaluateOwnerLabelSubmission({ ...base, decisionState: "REJECTED_DEFECT_PRESENT", labels: [{ defectKey: "AUDIO_SEAM", status: "PRESENT", confidence: 1 }] });
+  assert.equal(incomplete.eligible, false);
+  assert.ok(incomplete.reasons.includes("FULL_TAXONOMY_COVERAGE_REQUIRED"));
+  const falseClean = evaluateOwnerLabelSubmission({ ...base, decisionState: "CLEAN_NEGATIVE_CONTROL", labels: [
+    { defectKey: "AUDIO_SEAM", status: "PRESENT", confidence: 1 }, { defectKey: "SAFETY_SCOPE_ESCAPE", status: "ABSENT", confidence: 1 },
+  ] });
+  assert.ok(falseClean.reasons.includes("CLEAN_CONTROL_FORBIDS_PRESENT_DEFECT"));
+  const wrongHash = evaluateOwnerLabelSubmission({ ...base, expectedArtifactHash: "b".repeat(64), decisionState: "EXCLUDE_UNUSABLE", labels: [
+    { defectKey: "AUDIO_SEAM", status: "NOT_APPLICABLE" }, { defectKey: "SAFETY_SCOPE_ESCAPE", status: "NOT_APPLICABLE" },
+  ] });
+  assert.ok(wrongHash.reasons.includes("EXACT_ARTIFACT_HASH_BINDING_REQUIRED"));
+});
+
+test("migration 0058 creates immutable zero-spend owner-label tasks without fixture promotion", () => {
+  const migration = read("drizzle/0058_evaluation_owner_label_workflow.sql");
+  for (const table of ["v7_evaluation_owner_label_tasks", "v7_evaluation_owner_label_receipts", "v7_evaluation_defect_labels"]) assert.match(migration, new RegExp(table));
+  assert.match(migration, /EVALUATION_OWNER_LABEL_POLICY_V1/);
+  assert.match(migration, /verification_state='EVIDENCE_VERIFIED'/);
+  assert.match(migration, /rights_verification_state='PASS'/);
+  assert.match(migration, /EVALUATION_OWNER_LABEL_RECEIPT_IMMUTABLE/);
+  assert.match(migration, /EVALUATION_DEFECT_LABEL_IMMUTABLE/);
+  assert.doesNotMatch(migration, /GOLD_ELIGIBLE|VERIFIED_FIXTURE|release_eligible=1|api\.openai\.com|api\.elevenlabs\.io/);
+  const db = new DatabaseSync(":memory:");
+  for (const file of readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort()) db.exec(read(`drizzle/${file}`));
+  assert.equal(db.prepare("SELECT COUNT(*) total FROM v7_evaluation_owner_label_tasks").get().total, 0);
+  assert.throws(() => db.prepare(`INSERT INTO v7_evaluation_owner_label_receipts
+    (id,channel_id,task_id,candidate_id,exact_artifact_hash,decision_state,rationale,labels_json,taxonomy_version,taxonomy_manifest_hash,present_count,absent_count,not_applicable_count,idempotency_key,request_hash,evidence_hash,actor,provider_requests)
+    VALUES ('bad','channel','task','candidate',?,'EXCLUDE_UNUSABLE','A sufficiently long rationale','[]','EVALUATION_DEFECT_TAXONOMY_V1',?,0,0,11,'owner-label:bad-task',?,?, 'owner',1)`).run("a".repeat(64), "b".repeat(64), "c".repeat(64), "d".repeat(64)), /CHECK constraint failed|FOREIGN KEY constraint failed/);
+  const route = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(route, /RECORD_OWNER_LABEL_RECEIPT/);
+  assert.match(route, /authorized\(request, false\)/);
+  assert.match(route, /OWNER_LABEL_ARTIFACT_HASH_MISMATCH/);
+  assert.match(route, /env\.DB\.batch\(statements\)/);
+  assert.doesNotMatch(route, /authorizeProductionDispatch|api\.openai\.com|api\.elevenlabs\.io/);
+  const triage = read("app/video-engine/corpus-evidence-triage.tsx");
+  assert.match(triage, /owner-label-workflow/);
 });
 
 test("migration 0057 creates immutable zero-spend rights collection lanes without retroactive passes", () => {

@@ -3,6 +3,22 @@ export const CORPUS_VERIFICATION_POLICY_VERSION = "CORPUS_VERIFICATION_POLICY_V1
 export const CORPUS_VERIFICATION_MAXIMUM_BATCH = 20 as const;
 export const CORPUS_VERIFICATION_MAXIMUM_OBJECT_BYTES = 100_000_000 as const;
 export const EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION = "EVALUATION_RIGHTS_EVIDENCE_POLICY_V1" as const;
+export const EVALUATION_OWNER_LABEL_POLICY_VERSION = "EVALUATION_OWNER_LABEL_POLICY_V1" as const;
+
+export type OwnerLabelStatus = "PRESENT" | "ABSENT" | "NOT_APPLICABLE";
+export type OwnerLabelDecision = "REJECTED_DEFECT_PRESENT" | "CLEAN_NEGATIVE_CONTROL" | "EXCLUDE_UNUSABLE";
+export type OwnerLabelSubmission = {
+  taskArtifactHash?: string;
+  expectedArtifactHash?: string;
+  rightsVerificationState?: string;
+  verificationState?: string;
+  lifecycleState?: string;
+  releaseEligible?: boolean;
+  decisionState?: string;
+  rationale?: string;
+  activeDefectKeys: string[];
+  labels: Array<{ defectKey?: string; status?: string; confidence?: number }>;
+};
 
 export type CorpusEvidenceConflict = {
   candidateKind?: string;
@@ -120,6 +136,35 @@ export function summarizeEvaluationRightsQueue(rows: EvaluationRightsQueueItem[]
 
 const hash64 = (value: unknown) => /^[a-f0-9]{64}$/i.test(clean(value));
 const parseTime = (value: unknown) => { const time = Date.parse(clean(value)); return Number.isFinite(time) ? time : null; };
+
+export function evaluateOwnerLabelSubmission(input: OwnerLabelSubmission) {
+  const reasons: string[] = [], activeKeys = input.activeDefectKeys.map(clean).filter(Boolean), seen = new Set<string>();
+  const expectedHash = clean(input.expectedArtifactHash).toLowerCase(), taskHash = clean(input.taskArtifactHash).toLowerCase();
+  if (!hash64(expectedHash) || expectedHash !== taskHash) reasons.push("EXACT_ARTIFACT_HASH_BINDING_REQUIRED");
+  if (input.rightsVerificationState !== "PASS") reasons.push("RIGHTS_PASS_REQUIRED");
+  if (input.verificationState !== "EVIDENCE_VERIFIED") reasons.push("EVIDENCE_VERIFIED_REQUIRED");
+  if (input.lifecycleState !== "CANDIDATE_EVIDENCE") reasons.push("CANDIDATE_EVIDENCE_STATE_REQUIRED");
+  if (input.releaseEligible) reasons.push("RELEASE_ELIGIBLE_EVIDENCE_FORBIDDEN");
+  if (!(["REJECTED_DEFECT_PRESENT", "CLEAN_NEGATIVE_CONTROL", "EXCLUDE_UNUSABLE"] as string[]).includes(clean(input.decisionState))) reasons.push("OWNER_DECISION_INVALID");
+  if (clean(input.rationale).length < 12 || clean(input.rationale).length > 2000) reasons.push("OWNER_RATIONALE_LENGTH_INVALID");
+  if (activeKeys.length === 0 || new Set(activeKeys).size !== activeKeys.length) reasons.push("ACTIVE_TAXONOMY_INVALID");
+  let presentCount = 0, absentCount = 0, notApplicableCount = 0;
+  for (const label of input.labels) {
+    const key = clean(label.defectKey), status = clean(label.status);
+    if (!key || seen.has(key)) reasons.push("DEFECT_LABEL_DUPLICATE_OR_MISSING_KEY");
+    seen.add(key);
+    if (!activeKeys.includes(key)) reasons.push(`UNKNOWN_DEFECT_KEY:${key || "EMPTY"}`);
+    if (!["PRESENT", "ABSENT", "NOT_APPLICABLE"].includes(status)) reasons.push(`DEFECT_LABEL_STATUS_INVALID:${key || "EMPTY"}`);
+    if (status !== "NOT_APPLICABLE" && (!Number.isFinite(label.confidence) || Number(label.confidence) < 0 || Number(label.confidence) > 1)) reasons.push(`DEFECT_LABEL_CONFIDENCE_INVALID:${key || "EMPTY"}`);
+    if (status === "PRESENT") presentCount += 1;
+    if (status === "ABSENT") absentCount += 1;
+    if (status === "NOT_APPLICABLE") notApplicableCount += 1;
+  }
+  if (seen.size !== activeKeys.length || activeKeys.some((key) => !seen.has(key))) reasons.push("FULL_TAXONOMY_COVERAGE_REQUIRED");
+  if (input.decisionState === "REJECTED_DEFECT_PRESENT" && presentCount === 0) reasons.push("REJECTED_DECISION_REQUIRES_PRESENT_DEFECT");
+  if (input.decisionState === "CLEAN_NEGATIVE_CONTROL" && presentCount > 0) reasons.push("CLEAN_CONTROL_FORBIDS_PRESENT_DEFECT");
+  return { eligible: reasons.length === 0, presentCount, absentCount, notApplicableCount, reasons: [...new Set(reasons)] };
+}
 
 export function evaluateProviderRightsEvidence(input: ProviderRightsEvidenceInput) {
   const reasons: string[] = [];

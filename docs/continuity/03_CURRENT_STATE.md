@@ -2,6 +2,26 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Wave 3 owner-label workflow source checkpoint — 2026-08-21
+
+```text
+OWNER_LABEL_POLICY = EVALUATION_OWNER_LABEL_POLICY_V1
+SCHEMA = MIGRATION_0058_SOURCE_READY
+ELIGIBLE_INPUT = BYTE_CHECKSUM_PROVENANCE_VERIFIED__RIGHTS_PASS__CANDIDATE_EVIDENCE_ONLY
+OWNER_AUTH = SIWC_ALLOWLIST_ONLY__AUTOMATION_TOKEN_FORBIDDEN
+ARTIFACT_BINDING = EXACT_SHA256_R2_READBACK
+TAXONOMY_COVERAGE = ALL_ACTIVE_FAMILIES_REQUIRED
+TASK_AND_RECEIPT_MUTABILITY = APPEND_ONLY
+FIXTURE_PROMOTIONS = 0
+DATASETS_SEALED = 0
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+PRODUCTION_ACTIVATION = PENDING_CHECKPOINT
+NEXT_PROTECTED_ACTION = APPLY_0058_AND_READ_BACK_ELIGIBLE_TASK_COUNTS
+```
+
+Source, migration, owner-bound server-rendered workflow and regressions are ready. The workflow cannot label rights-pending or quarantined evidence and cannot promote a fixture. Document 54 and ADR-087 are authoritative.
+
 ## Wave 3 rights evidence collection source checkpoint — 2026-08-21
 
 ```text
