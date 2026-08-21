@@ -81,6 +81,7 @@ When facts conflict, use this order:
 | Wave 3 rights evidence collection | [`continuity/53_WAVE_3_RIGHTS_EVIDENCE_COLLECTION_EXECUTION_RECORD.md`](continuity/53_WAVE_3_RIGHTS_EVIDENCE_COLLECTION_EXECUTION_RECORD.md) |
 | Wave 3 owner-label workflow | [`continuity/54_WAVE_3_OWNER_LABEL_WORKFLOW_EXECUTION_RECORD.md`](continuity/54_WAVE_3_OWNER_LABEL_WORKFLOW_EXECUTION_RECORD.md) |
 | Wave 3 correlation control | [`continuity/55_WAVE_3_CORRELATION_CONTROL_EXECUTION_RECORD.md`](continuity/55_WAVE_3_CORRELATION_CONTROL_EXECUTION_RECORD.md) |
+| Mandatory Browser assurance gate | [`continuity/56_BROWSER_ASSURANCE_GATE_EXECUTION_RECORD.md`](continuity/56_BROWSER_ASSURANCE_GATE_EXECUTION_RECORD.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

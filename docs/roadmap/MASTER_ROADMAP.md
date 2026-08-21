@@ -27,6 +27,7 @@
 - Wave 3 owner-label workflow: production-accepted in Sites v407 with 525 exact-byte tasks, zero receipts and zero fixture promotion.
 - Wave 3 correlation control: production-accepted in Sites v409; 525 immutable tasks project to 82 actionable primaries and 443 deferred correlated variants.
 - Wave 3 owner-review usability: production-active in Sites v411 under `EVALUATION_OWNER_REVIEW_UX_V2`; first-owner-sample verification pending.
+- Mandatory Browser assurance: source-implemented under `BROWSER_ASSURANCE_GATE_V1` and migration `0060`; fixture playback/motion/focus pass, audio perception and zoom/reflow remain fail-closed pending production activation and owner supplementation.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -124,6 +125,8 @@ Phase 8 adds migration `0058` and `EVALUATION_OWNER_LABEL_POLICY_V1`. Only exact
 Phase 9 adds migration `0059` and `EVALUATION_CORRELATION_CONTROL_V1`. It preserves all owner-label tasks, collapses exact-byte duplicates, groups unique revisions by shot/package artifact lineage, and routes exactly one deterministic representative per family to owner attention. Sites v409 activated the policy from source `213038f808911ce31a38a708346e9f790417c0bf`: all 525 assignments are present, 82 are actionable independent-count primaries, 443 are correlated variants deferred and zero are exact duplicates deferred. Rights remain 525 PASS / 63 pending / seven excluded; owner receipts, fixtures, datasets, provider requests and slice spend remain zero. The next gate is real owner classification of the 82 representatives in parallel with exact rights-evidence collection for the 46/16/1 lanes.
 
 Owner-review usability hardening adds `EVALUATION_OWNER_REVIEW_UX_V2`: a three-step Vietnamese workflow, full-screen entry, media-specific owner-observable defects and server-enforced separation from rights/master-lineage evidence. Sites v411 production read-back returns the exact UX version, 82 actionable primaries, zero receipts, zero request/spend and zero Worker errors. Full regression passes 162/162 and non-SIWC access remains fail-closed at `401`; agent preview cannot enter the owner route without a local evidence fixture and owner identity. The SIWC owner must still verify the first real sample before usability acceptance closes.
+
+Browser assurance hardening adds `BROWSER_ASSURANCE_GATE_V1` as a separate mandatory exact-master release gate. Migration `0060` creates append-only tasks and receipts; the server-rendered surface requires at least 98% continuous playback plus pause/resume/seek/end, visibility, motion, audible audio, keyboard focus, zoom/reflow and zero console errors. Browser QA discovered and resolved one runtime defect, then passed playback/motion/focus while correctly remaining blocked on audio perception and zoom/reflow. Full regression passes 164/164 with zero provider request/spend. Production activation and the two owner-supplemented observations are next; this work does not open FP4, Golden r10 or Stage 11.
 
 ## Wave 4 — Upstream and technical standards
 

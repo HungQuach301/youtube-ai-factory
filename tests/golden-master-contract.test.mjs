@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { allocateGoldenMasterFrames, validateGoldenMaster, validateHumanPlayback } from "../lib/golden-master-contract.ts";
+import { allocateGoldenMasterFrames, BROWSER_ASSURANCE_GATE_VERSION, validateBrowserAssurance, validateGoldenMaster, validateHumanPlayback } from "../lib/golden-master-contract.ts";
 
 test("cumulative frame allocation preserves the exact canonical frame total", () => {
   const result = allocateGoldenMasterFrames(Array.from({ length: 33 }, () => 80.24458333333334 / 33), 80.24458333333334, 30);
@@ -34,6 +34,26 @@ test("human playback cannot pass from metadata or samples alone", () => {
   assert.ok(result.failures.includes("PLAYBACK_MOTION_NOT_OBSERVED"));
 });
 
+test("browser assurance requires exact-master binding, full rendered playback and real interaction evidence", () => {
+  const evidence = {
+    gateVersion: BROWSER_ASSURANCE_GATE_VERSION, sessionId: "browser-qa-session-0001", masterSha256: "a".repeat(64),
+    canonicalDurationSeconds: 80.245, metadataDurationSeconds: 80.245, watchedSeconds: 80.245, continuousCoverageRatio: 1,
+    ended: true, metadataLoaded: true, videoWidth: 1920, videoHeight: 1080, timeProgressed: true, pauseResumePassed: true, seekPassed: true,
+    audioTrackPresent: true, motionObserved: true, focusTraversalPassed: true, zoomReflowPassed: true, consoleErrorCount: 0, hiddenDuringPlaybackCount: 0,
+    viewportWidth: 390, viewportHeight: 844, devicePixelRatio: 3, userAgent: "Browser assurance test agent",
+    events: [
+      { type: "LOADED_METADATA", mediaTimeSeconds: 0, monotonicMilliseconds: 1 }, { type: "PLAY", mediaTimeSeconds: 0, monotonicMilliseconds: 2 },
+      { type: "PAUSE", mediaTimeSeconds: 2, monotonicMilliseconds: 3 }, { type: "PLAY", mediaTimeSeconds: 2, monotonicMilliseconds: 4 },
+      { type: "SEEKED", mediaTimeSeconds: 1.5, monotonicMilliseconds: 5 }, { type: "ENDED", mediaTimeSeconds: 80.245, monotonicMilliseconds: 6 },
+    ], findings: [],
+  };
+  assert.deepEqual(validateBrowserAssurance(evidence), { pass: true, failures: [] });
+  const selfAttested = validateBrowserAssurance({ ...evidence, continuousCoverageRatio: 0, events: [] });
+  assert.equal(selfAttested.pass, false);
+  assert.ok(selfAttested.failures.includes("BROWSER_CONTINUOUS_COVERAGE_INCOMPLETE"));
+  assert.ok(selfAttested.failures.includes("BROWSER_REQUIRED_INTERACTIONS_MISSING"));
+});
+
 test("production UI and audit are master-video-first", () => {
   const workspace = readFileSync(new URL("../app/video-engine/production-engine-workspace.tsx", import.meta.url), "utf8"), route = readFileSync(new URL("../app/api/factory/sequential-production/quality/route.ts", import.meta.url), "utf8");
   assert.match(workspace, /GoldenMasterPlayer/);
@@ -42,12 +62,23 @@ test("production UI and audit are master-video-first", () => {
   assert.match(route, /MASTER_QA_CONTACT_SHEET/);
   assert.match(route, /AUDIT_PASS_PLAYBACK_REQUIRED/);
   assert.match(route, /\["AUDIO_READY","MASTER_REQUIRED","MASTER_RENDERING"/);
-  assert.match(route, /SUBMIT_GOLDEN_HUMAN_PLAYBACK/);
+  assert.match(route, /SUBMIT_GOLDEN_BROWSER_ASSURANCE/);
+  assert.match(route, /LEGACY_SELF_ATTESTED_PLAYBACK_RETIRED/);
   assert.match(route, /AUDIT_GOLDEN_AUDIO_PERCEPTUAL/);
   assert.match(route, /requestedAction === "AUDIT_GOLDEN_AUDIO_PERCEPTUAL"/);
   assert.match(route, /x-perceptual-qa-executor-token/);
   assert.match(route, /content-range/);
   assert.match(readFileSync(new URL("../scripts/golden-master-executor.ts", import.meta.url), "utf8"), /FLAT_FRAME_CAMERA_MOTION/);
+});
+
+test("migration 0060 makes browser assurance append-only and zero-spend", () => {
+  const migration = readFileSync(new URL("../drizzle/0060_browser_assurance_gate.sql", import.meta.url), "utf8");
+  assert.match(migration, /v7_browser_assurance_tasks/);
+  assert.match(migration, /v7_browser_assurance_receipts/);
+  assert.match(migration, /BROWSER_ASSURANCE_RECEIPT_IMMUTABLE/);
+  assert.match(migration, /provider_requests.*CHECK \(`provider_requests` = 0\)/s);
+  assert.match(migration, /spend_usd.*CHECK \(`spend_usd` = 0\)/s);
+  assert.doesNotMatch(migration, /api\.openai\.com|api\.elevenlabs\.io/);
 });
 
 test("migration revokes the camera-only golden playback conclusion", () => {

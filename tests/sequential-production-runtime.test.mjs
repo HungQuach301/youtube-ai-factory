@@ -145,7 +145,8 @@ test("golden-sequence runtime requires component evidence and a real audience ma
   assert.match(quality, /REQUEST_GOLDEN_MASTER_RENDER/);
   assert.match(quality, /GOLDEN_MASTER_VIDEO/);
   assert.match(quality, /MASTER_QA_CONTACT_SHEET/);
-  assert.match(quality, /SUBMIT_GOLDEN_HUMAN_PLAYBACK/);
+  assert.match(quality, /SUBMIT_GOLDEN_BROWSER_ASSURANCE/);
+  assert.match(quality, /LEGACY_SELF_ATTESTED_PLAYBACK_RETIRED/);
   assert.match(quality, /GOLDEN_TTS_SPEED = 1\.02/);
   assert.match(quality, /AUDIT_GOLDEN_AUDIO_PERCEPTUAL/);
   assert.match(quality, /priorPerceptual\.decision/);

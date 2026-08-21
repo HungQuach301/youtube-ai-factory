@@ -188,6 +188,7 @@ export type SequentialProductionProjection = {
     goldenSequenceState: string;
     goldenSequenceDurationSeconds: number;
     goldenMasterUrl?: string;
+    goldenMasterSha256?: string;
     goldenMasterState: string;
     goldenMasterProbe?: { width?: number; height?: number; durationSeconds?: number; averageFrameRate?: number; audioSampleRate?: number; audioChannels?: number };
     gaps: Array<{ standardId: string; level: string; owningStage: string; status: string; evidenceRequired: string[] }>;

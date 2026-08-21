@@ -2,6 +2,29 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Mandatory Browser assurance source checkpoint — 2026-08-21
+
+```text
+BROWSER_ASSURANCE_GATE = BROWSER_ASSURANCE_GATE_V1
+SOURCE_STATE = IMPLEMENTED__PRODUCTION_PENDING
+SCHEMA = MIGRATION_0060_SOURCE_READY
+RELEASE_BINDING = EXACT_GOLDEN_REVISION__MASTER_ARTIFACT__MASTER_SHA256
+PLAYBACK_REQUIREMENT = CONTINUOUS_COVERAGE_GTE_98_PERCENT__PAUSE_RESUME_SEEK_ENDED
+INDEPENDENCE = AUTOMATED_STATIC_QA__BROWSER_ASSURANCE__OWNER_SEMANTIC_REVIEW
+FIXTURE_RELEASE_AUTHORITY = NONE
+BROWSER_PLAYBACK_MOTION_FOCUS = PASS
+BROWSER_AUDIO_PERCEPTION = PENDING_HUMAN_SENSE
+BROWSER_ZOOM_REFLOW = PENDING_SUPPORTED_RUNTIME
+FIXTURE_BROWSER_RESULT = BLOCKED_AUDIO_AND_ZOOM_REFLOW
+BROWSER_PASS_RECEIPTS = 0
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+TECHNICAL_QA = PASS_164_OF_164
+NEXT_PROTECTED_ACTION = DEPLOY_0060__VERIFY_PRODUCTION__OWNER_SUPPLEMENT_AUDIO_AND_REFLOW
+```
+
+Browser QA exercised a real 1920×1080 VP9/Opus fixture, reached playback end, used pause/resume/seek, observed motion and verified visible keyboard focus. It caught and drove a source fix for a missing `crypto.randomUUID` runtime capability. Because the Browser agent cannot hear audio and the cloud runtime did not apply zoom, the gate correctly refused PASS instead of fabricating evidence. Migration `0060`, ADR-090 and document 56 are authoritative; production remains unchanged until the checkpoint succeeds.
+
 ## Wave 3 owner-review usability production checkpoint — 2026-08-21
 
 ```text

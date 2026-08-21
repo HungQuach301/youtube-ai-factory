@@ -1,4 +1,40 @@
 export const GOLDEN_MASTER_CONTRACT_VERSION = "GOLDEN_MASTER_V1" as const;
+export const BROWSER_ASSURANCE_GATE_VERSION = "BROWSER_ASSURANCE_GATE_V1" as const;
+
+export type BrowserAssuranceEvent = {
+  type: "LOADED_METADATA" | "PLAY" | "PAUSE" | "SEEKED" | "ENDED";
+  mediaTimeSeconds: number;
+  monotonicMilliseconds: number;
+};
+
+export type BrowserAssuranceEvidence = {
+  gateVersion: typeof BROWSER_ASSURANCE_GATE_VERSION;
+  sessionId: string;
+  masterSha256: string;
+  canonicalDurationSeconds: number;
+  metadataDurationSeconds: number;
+  watchedSeconds: number;
+  continuousCoverageRatio: number;
+  ended: boolean;
+  metadataLoaded: boolean;
+  videoWidth: number;
+  videoHeight: number;
+  timeProgressed: boolean;
+  pauseResumePassed: boolean;
+  seekPassed: boolean;
+  audioTrackPresent: boolean;
+  motionObserved: boolean;
+  focusTraversalPassed: boolean;
+  zoomReflowPassed: boolean;
+  consoleErrorCount: number;
+  hiddenDuringPlaybackCount: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  devicePixelRatio: number;
+  userAgent: string;
+  events: BrowserAssuranceEvent[];
+  findings: string[];
+};
 
 export type GoldenMasterProbe = {
   durationSeconds: number;
@@ -100,4 +136,32 @@ export function validateHumanPlayback(input: {
   if (!input.motionObserved) failures.push("PLAYBACK_MOTION_NOT_OBSERVED");
   if (input.findings.length) failures.push("PLAYBACK_HUMAN_FINDINGS_OPEN");
   return { pass: failures.length === 0, failures };
+}
+
+export function validateBrowserAssurance(input: BrowserAssuranceEvidence): GoldenMasterValidation {
+  const failures = [...validateHumanPlayback(input).failures];
+  if (input.gateVersion !== BROWSER_ASSURANCE_GATE_VERSION) failures.push("BROWSER_GATE_VERSION_INVALID");
+  if (!/^[A-Za-z0-9._:-]{16,200}$/.test(input.sessionId)) failures.push("BROWSER_SESSION_INVALID");
+  if (!/^[a-f0-9]{64}$/.test(input.masterSha256)) failures.push("BROWSER_MASTER_HASH_INVALID");
+  if (input.continuousCoverageRatio < 0.98) failures.push("BROWSER_CONTINUOUS_COVERAGE_INCOMPLETE");
+  if (!input.focusTraversalPassed) failures.push("BROWSER_KEYBOARD_FOCUS_FAILED");
+  if (!input.zoomReflowPassed) failures.push("BROWSER_ZOOM_REFLOW_FAILED");
+  if (input.consoleErrorCount !== 0) failures.push("BROWSER_CONSOLE_ERRORS_OPEN");
+  if (input.hiddenDuringPlaybackCount !== 0) failures.push("BROWSER_PLAYBACK_NOT_VISIBLE");
+  if (input.viewportWidth < 320 || input.viewportHeight < 480 || input.devicePixelRatio <= 0) failures.push("BROWSER_VIEWPORT_EVIDENCE_INVALID");
+  if (input.userAgent.trim().length < 8) failures.push("BROWSER_USER_AGENT_MISSING");
+
+  let previous = -1;
+  for (const event of input.events) {
+    if (!Number.isFinite(event.mediaTimeSeconds) || !Number.isFinite(event.monotonicMilliseconds) || event.monotonicMilliseconds < previous) {
+      failures.push("BROWSER_EVENT_SEQUENCE_INVALID");
+      break;
+    }
+    previous = event.monotonicMilliseconds;
+  }
+  const types = input.events.map((event) => event.type);
+  const metadataIndex = types.indexOf("LOADED_METADATA"), firstPlay = types.indexOf("PLAY"), pause = types.indexOf("PAUSE"), seeked = types.indexOf("SEEKED"), ended = types.lastIndexOf("ENDED");
+  const resumed = pause >= 0 ? types.indexOf("PLAY", pause + 1) : -1;
+  if (metadataIndex < 0 || firstPlay <= metadataIndex || pause <= firstPlay || resumed <= pause || seeked <= firstPlay || ended <= Math.max(resumed, seeked)) failures.push("BROWSER_REQUIRED_INTERACTIONS_MISSING");
+  return { pass: failures.length === 0, failures: [...new Set(failures)] };
 }

@@ -241,9 +241,10 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     computedHash: text(row.computed_hash), actualBytes: number(row.actual_bytes), objectMetadataJson: text(row.object_metadata_json),
   })));
   const evaluationRightsQueue = summarizeEvaluationRightsQueue(evaluationRightsRows.map((row) => ({ candidateKind: text(row.candidate_kind), rightsBasis: text(row.rights_basis), provider: text(row.provider) })));
-  const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
+  const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state,sha256 FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
   const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json,scan_json,error_code FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
   const goldenAssetUrl = (role: string) => { const asset = goldenAssets.find((item) => text(item.role) === role); return asset ? `/api/factory/sequential-production/quality?asset=${encodeURIComponent(text(asset.id))}` : undefined; };
+  const goldenAssetHash = (role: string) => { const asset = goldenAssets.find((item) => text(item.role) === role); return asset ? text(asset.sha256) : undefined; };
   const registry = standardRows.map((item) => ({
     standardId: text(item.id), version: VIDEO_QUALITY_STANDARD_VERSION, scope: text(item.scope), scopeKey: text(item.scope_key), enforcementLevel: text(item.enforcement_level),
     trigger: text(item.trigger), metric: text(item.metric), thresholdOrRange: text(item.threshold_or_range), evidenceRequired: json<string[]>(item.evidence_required_json, []), owningStage: text(item.owning_stage),
@@ -494,6 +495,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       goldenSequenceState: goldenState,
       goldenSequenceDurationSeconds: number(goldenSequence?.duration_seconds),
       goldenMasterUrl: goldenAssetUrl("GOLDEN_MASTER_VIDEO"),
+      goldenMasterSha256: goldenAssetHash("GOLDEN_MASTER_VIDEO"),
       goldenMasterState: text(goldenMasterJob?.lifecycle_state) || "MASTER_REQUIRED",
       goldenMasterProbe: goldenMasterJob?.probe_json ? json<Record<string, number>>(goldenMasterJob.probe_json, {}) : undefined,
       gaps: qualityGaps,
@@ -538,6 +540,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       `Overall ≥ ${number(program.overall_floor)}; critical criteria ≥ ${number(program.critical_floor)}; every dimension ≥ ${number(program.dimension_floor)}.`,
       "P0=0 and no unresolved material P1; averages cannot compensate for a failed hard gate.",
       "Watch the full video continuously and inspect three temporal samples for every editorial shot.",
+      "Browser Assurance Gate V1 must bind real rendered playback to the exact master hash; source, metadata or direct API self-attestation cannot close it.",
       `At most ${number(program.maximum_repair_loops)} root-cause repair loops; a third failure requires escalation.`,
       "Only a new immutable master revision may be rescored; failed artifacts and critic evidence remain preserved.",
       "Video N+1 cannot run before video N is owner-ready; publishing authority is a separate gate.",
