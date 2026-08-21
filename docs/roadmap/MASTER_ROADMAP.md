@@ -22,7 +22,8 @@
 - Wave 3 evidence disposition: migration `0054` is production-active in Sites v401 with exactly 7 quarantined and 5 metadata-only blocked candidates.
 - Wave 3 metadata reconciliation: migration `0055` is production-active in Sites v402 with 5 accepted rebinds, 0 technical blocks and 68 rights-pending.
 - Wave 3 rights reconciliation: migration `0056` is production-active in Sites v403 with 5 accepted channel-authorship receipts and 63 provider-terms-pending records.
-- Wave 3 provider-family diagnostics: source-ready to separate direct provider terms from composite master lineage without exposing raw provider data.
+- Wave 3 provider-family diagnostics: production-accepted in Sites v404 with 46 ElevenLabs audio and 17 no-provider records.
+- Wave 3 rights evidence collection: migration `0057` source-ready with immutable 46/16/1 collection lanes and zero automatic PASS.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -85,7 +86,7 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
-Status: `PHASE_6_RIGHTS_RECONCILIATION_ACCEPTED__PROVIDER_FAMILY_READBACK_NEXT`.
+Status: `PHASE_7_RIGHTS_EVIDENCE_COLLECTION_SOURCE_READY__PRODUCTION_CHECKPOINT_NEXT`.
 
 Scope:
 
@@ -110,6 +111,10 @@ Phase 4 adds migration `0054` and `EVALUATION_EVIDENCE_DISPOSITION_V1`. Sites v4
 Phase 5 adds migration `0055` and `METADATA_BINDING_RECONCILIATION_V1`. Sites v402 accepted all five strict unique storage/hash rebinds and reports zero technical blocks, zero open incidents, seven quarantined and 68 rights-pending. All gold, dataset and release counts remain zero.
 
 Phase 6 adds migration `0056`, `EVALUATION_RIGHTS_RECONCILIATION_V1` and sanitized rights-basis/modality counts. Sites v403 accepted all five bounded channel-authorship receipts. Rights PASS is 525 and the remaining queue is exactly 63 `PROVIDER_TERMS_RECEIPT_MISSING`: 46 audio, 16 master and one clip. Gold, datasets, release, provider request and spend remain unchanged. Provider-family aggregation is source-ready; production read-back must separate direct provider terms from no-provider composite masters before a collection workflow is designed.
+
+Sites v404 completed that read-back: 46 candidates are ElevenLabs audio and 17 declare no provider, comprising 16 masters and one clip. No OpenAI, Pexels or Pixabay family is present in the open queue.
+
+Phase 7 adds migration `0057` and `EVALUATION_RIGHTS_EVIDENCE_POLICY_V1`. It creates immutable task, provider terms/plan, exact candidate-provider binding, composite parent-rights and authorship receipt tables. It does not backfill any receipt or update rights to PASS. Production checkpoint must prove 46 provider, 16 composite and one authorship task while rights PASS/pending remain 525/63 and provider/spend remain unchanged.
 
 ## Wave 4 — Upstream and technical standards
 

@@ -386,3 +386,16 @@ Revisions 3–7 remain preserved failed evidence. Audio reassessment, byte promo
 The revision 8 component audit is retained for lineage, but its playback conclusion is revoked. The next valid decision must be issued against the encoded master plus decoded full-master evidence and a completed human playback observation; no PNG poster or standalone audio control is eligible.
 
 Revision 8 master audit failed mobile legibility at `76` with one P1. The root repair introduced renderer `FOLLOW_FEE_PROGRAM_V5_MOBILE_SAFE`, minimum 22 px critical qualifiers, minimum 18 px labels, minimum 0.78 inactive opacity and always-opaque qualification ribbons. Revision 9 then passed the independent master audit at `94`, with mobile legibility `91` and P0/P1 `0/0`. Its exact master SHA-256 is `d1bb546f224e4f787b0a7f8f77b32357324dec4f41af2d101378bc6c1bfb5055`; the master has 2,407/2,407 decoded frames, 33/33 unique semantic samples, 0 black seconds, 0.3 maximum frozen seconds, VP9/Opus stereo 48 kHz and working HTTP Range. Final human playback remains deliberately open because the QA cloud browser blocked both the Sites preview and shared local file; no playback PASS was fabricated.
+## 2026-08-21 — Wave 3 rights evidence collection source run
+
+```text
+RUN = source.hidden-systems.wave-3.rights-evidence-collection.v1
+PRODUCTION_BASIS = SITES_V404__46_ELEVENLABS__16_MASTER__1_CLIP
+POLICY = EVALUATION_RIGHTS_EVIDENCE_POLICY_V1
+MIGRATION = 0057_SOURCE_READY
+AUTOMATIC_RIGHTS_PASS = 0
+CURRENT_TERMS_RETROACTIVE_AUTHORITY = FORBIDDEN
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+NEXT_ACTION = PRODUCTION_CHECKPOINT_AND_TASK_LEDGER_READBACK
+```

@@ -47,7 +47,7 @@ async function authorized(request: Request) {
 }
 
 async function projection(db: DB) {
-  const [candidate, runSummary, latestRuns, blockedRows, incidentSummary, rightsRows, rightsReceiptSummary] = await Promise.all([
+  const [candidate, runSummary, latestRuns, blockedRows, incidentSummary, rightsRows, rightsReceiptSummary, rightsTasks] = await Promise.all([
     first(db, `SELECT COUNT(*) candidates,
       COALESCE(SUM(CASE WHEN verification_state='PENDING' THEN 1 ELSE 0 END),0) pending,
       COALESCE(SUM(CASE WHEN bytes_state='READBACK_VERIFIED' THEN 1 ELSE 0 END),0) byte_verified,
@@ -83,6 +83,7 @@ async function projection(db: DB) {
       WHERE c.channel_id=? AND c.verification_state='PARTIAL_RIGHTS_PENDING'
       ORDER BY c.candidate_kind,r.rights_basis`, CHANNEL_ID),
     first(db, "SELECT COUNT(*) accepted FROM v7_evaluation_rights_receipts WHERE channel_id=? AND rights_state='PASS'", CHANNEL_ID),
+    rows(db, "SELECT task_type,COUNT(*) count FROM v7_evaluation_rights_evidence_tasks WHERE channel_id=? GROUP BY task_type ORDER BY count DESC,task_type", CHANNEL_ID),
   ]);
   const conflicts = summarizeCorpusEvidenceConflicts(blockedRows.map((row) => ({
     candidateKind: clean(row.candidate_kind), artifactType: clean(row.artifact_type), bytesState: clean(row.bytes_state), checksumState: clean(row.checksum_state),
@@ -99,6 +100,7 @@ async function projection(db: DB) {
     candidates: number(candidate?.candidates), pending: number(candidate?.pending), byteVerified: number(candidate?.byte_verified), checksumPass: number(candidate?.checksum_pass), provenancePass: number(candidate?.provenance_pass), rightsPass: number(candidate?.rights_pass), rightsPending: number(candidate?.rights_pending), blocked: number(candidate?.blocked), excluded: number(candidate?.excluded),
     evidenceIncidents: number(incidentSummary?.incidents), openEvidenceIncidents: number(incidentSummary?.open_incidents), byteDivergenceIncidents: number(incidentSummary?.byte_divergence), metadataReviewRequired: number(incidentSummary?.metadata_review), quarantinedCandidates: number(incidentSummary?.quarantined), metadataBindingsAccepted: number(incidentSummary?.metadata_bindings),
     rightsReceiptsAccepted: number(rightsReceiptSummary?.accepted), rightsBasisCounts: rightsQueue.basisCounts, rightsKindCounts: rightsQueue.kindCounts, rightsProviderCounts: rightsQueue.providerCounts,
+    rightsEvidenceTaskCounts: rightsTasks.map((item) => ({ key: clean(item.task_type), count: number(item.count) })),
     runs: number(runSummary?.runs), bytesRead: number(runSummary?.bytes_read), providerRequests: number(runSummary?.provider_requests), spendUsd: number(runSummary?.spend_usd),
     blockedReasonCounts: conflicts.reasonCounts, blockedFactCounts: conflicts.factCounts, blockedStateCounts: conflicts.stateCounts, blockedKindCounts: conflicts.kindCounts, latestRuns,
   };

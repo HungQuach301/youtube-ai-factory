@@ -182,3 +182,9 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** a metadata-rebound evaluation candidate may acquire `CHANNEL_AUTHORED_EVALUATION_USE` rights PASS only through a separate immutable receipt proving accepted declaration, non-audio/non-video media, no provider, explicit channel author/actor/executor and zero legacy sources. Provider-bound material requires an explicit terms or license receipt and cannot use this lane. Rights PASS changes neither candidate-evidence lifecycle nor owner/label/gold/dataset/release state.
 
 **Reason:** Sites v402 correctly moved five candidates to rights-pending rather than allowing technical reconciliation to imply legal authority. Separating rights receipts preserves that boundary while allowing genuinely channel-authored evidence to avoid a fabricated provider-license requirement.
+
+## ADR-086 — Historical provider and composite rights require time-bound exact evidence
+
+**Decision:** a provider artifact may pass rights only when an immutable receipt binds the exact artifact hash to a completed provider request/response, the applicable terms snapshot, and paid-plan evidence covering the generation timestamp. Current terms cannot be applied retroactively. A no-provider master requires an exact parent-rights manifest with PASS coverage for every parent. A rendered clip requires explicit authorship plus its source/render manifest. Package membership, provider family, generic rights declaration and present-day account state are insufficient.
+
+**Reason:** Sites v404 identifies 46 ElevenLabs audio records but historical artifact provenance does not bind a provider request ID. Sixteen no-provider masters also do not bind exact parent sets, and one clip requires source/authorship proof. Inferring from package-level records would turn correlation into legal authority and could falsely validate historical artifacts under newer terms.

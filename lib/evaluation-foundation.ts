@@ -2,6 +2,7 @@ export const EVALUATION_FOUNDATION_VERSION = "EVALUATION_FOUNDATION_V1" as const
 export const CORPUS_VERIFICATION_POLICY_VERSION = "CORPUS_VERIFICATION_POLICY_V1" as const;
 export const CORPUS_VERIFICATION_MAXIMUM_BATCH = 20 as const;
 export const CORPUS_VERIFICATION_MAXIMUM_OBJECT_BYTES = 100_000_000 as const;
+export const EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION = "EVALUATION_RIGHTS_EVIDENCE_POLICY_V1" as const;
 
 export type CorpusEvidenceConflict = {
   candidateKind?: string;
@@ -32,6 +33,41 @@ export type CorpusEvidenceConflictSummary = {
 
 export type EvaluationRightsQueueItem = { candidateKind?: string; rightsBasis?: string; provider?: string };
 export type EvaluationRightsQueueSummary = { basisCounts: Array<{ key: string; count: number }>; kindCounts: Array<{ key: string; count: number }>; providerCounts: Array<{ key: string; count: number }> };
+
+export type ProviderRightsEvidenceInput = {
+  providerFamily?: string;
+  providerRequestState?: string;
+  providerResponseId?: string;
+  artifactHash?: string;
+  boundArtifactHash?: string;
+  generationAt?: string;
+  termsEffectiveAt?: string;
+  termsSnapshotHash?: string;
+  accountPlan?: string;
+  planValidFrom?: string;
+  planValidUntil?: string;
+  planEvidenceHash?: string;
+  commercialUseState?: string;
+  modelId?: string;
+};
+
+export type CompositeRightsEvidenceInput = {
+  artifactHash?: string;
+  parentArtifactIds?: string[];
+  parentArtifactHashes?: string[];
+  parentRightsReceiptIds?: string[];
+};
+
+export type AuthorshipEvidenceInput = {
+  artifactHash?: string;
+  authorshipType?: string;
+  authorIdentity?: string;
+  sourceManifestId?: string;
+  sourceManifestHash?: string;
+  commercialUseState?: string;
+  territory?: string;
+  validFrom?: string;
+};
 
 export type CorpusArtifactEvidence = {
   candidateId: string;
@@ -80,6 +116,50 @@ export function summarizeEvaluationRightsQueue(rows: EvaluationRightsQueueItem[]
     increment(providers, providerFamily);
   }
   return { basisCounts: rankedCounts(bases), kindCounts: rankedCounts(kinds), providerCounts: rankedCounts(providers) };
+}
+
+const hash64 = (value: unknown) => /^[a-f0-9]{64}$/i.test(clean(value));
+const parseTime = (value: unknown) => { const time = Date.parse(clean(value)); return Number.isFinite(time) ? time : null; };
+
+export function evaluateProviderRightsEvidence(input: ProviderRightsEvidenceInput) {
+  const reasons: string[] = [];
+  const generated = parseTime(input.generationAt), termsEffective = parseTime(input.termsEffectiveAt), planFrom = parseTime(input.planValidFrom), planUntil = clean(input.planValidUntil) ? parseTime(input.planValidUntil) : null;
+  if (clean(input.providerFamily) !== "ELEVENLABS") reasons.push("SUPPORTED_PROVIDER_FAMILY_REQUIRED");
+  if (clean(input.providerRequestState) !== "COMPLETED") reasons.push("COMPLETED_PROVIDER_REQUEST_REQUIRED");
+  if (!clean(input.providerResponseId)) reasons.push("PROVIDER_RESPONSE_ID_REQUIRED");
+  if (!hash64(input.artifactHash) || clean(input.artifactHash).toLowerCase() !== clean(input.boundArtifactHash).toLowerCase()) reasons.push("EXACT_ARTIFACT_HASH_BINDING_REQUIRED");
+  if (generated === null) reasons.push("GENERATION_TIMESTAMP_REQUIRED");
+  if (!hash64(input.termsSnapshotHash)) reasons.push("TERMS_SNAPSHOT_HASH_REQUIRED");
+  if (termsEffective === null || generated === null || termsEffective > generated) reasons.push("TERMS_MUST_COVER_GENERATION_TIME");
+  if (!clean(input.accountPlan) || clean(input.accountPlan).toLowerCase() === "free") reasons.push("PAID_PLAN_REQUIRED");
+  if (!hash64(input.planEvidenceHash)) reasons.push("PLAN_EVIDENCE_HASH_REQUIRED");
+  if (planFrom === null || generated === null || planFrom > generated || (planUntil !== null && planUntil < generated)) reasons.push("PLAN_MUST_COVER_GENERATION_TIME");
+  if (clean(input.commercialUseState) !== "VERIFIED_PAID_COMMERCIAL_USE") reasons.push("COMMERCIAL_USE_NOT_VERIFIED");
+  if (!clean(input.modelId)) reasons.push("MODEL_ID_REQUIRED");
+  return { eligible: reasons.length === 0, rightsState: reasons.length === 0 ? "PASS" as const : "RECEIPT_REQUIRED" as const, reasons: [...new Set(reasons)] };
+}
+
+export function evaluateCompositeRightsEvidence(input: CompositeRightsEvidenceInput) {
+  const reasons: string[] = [];
+  const parents = input.parentArtifactIds ?? [], hashes = input.parentArtifactHashes ?? [], receipts = input.parentRightsReceiptIds ?? [];
+  if (!hash64(input.artifactHash)) reasons.push("COMPOSITE_ARTIFACT_HASH_REQUIRED");
+  if (parents.length === 0) reasons.push("PARENT_ARTIFACT_SET_REQUIRED");
+  if (parents.some((value) => !clean(value)) || new Set(parents).size !== parents.length) reasons.push("PARENT_ARTIFACT_SET_INVALID");
+  if (hashes.length !== parents.length || hashes.some((value) => !hash64(value))) reasons.push("PARENT_HASH_COVERAGE_INCOMPLETE");
+  if (receipts.length !== parents.length || receipts.some((value) => !clean(value))) reasons.push("PARENT_RIGHTS_RECEIPT_COVERAGE_INCOMPLETE");
+  return { eligible: reasons.length === 0, rightsState: reasons.length === 0 ? "PASS" as const : "RECEIPT_REQUIRED" as const, parentCount: parents.length, verifiedParentCount: reasons.length === 0 ? parents.length : 0, reasons: [...new Set(reasons)] };
+}
+
+export function evaluateAuthorshipEvidence(input: AuthorshipEvidenceInput) {
+  const reasons: string[] = [], type = clean(input.authorshipType);
+  if (!hash64(input.artifactHash)) reasons.push("AUTHORSHIP_ARTIFACT_HASH_REQUIRED");
+  if (!["CHANNEL_ORIGINAL", "WORK_FOR_HIRE", "RENDERED_COMPOSITE"].includes(type)) reasons.push("AUTHORSHIP_TYPE_REQUIRED");
+  if (!clean(input.authorIdentity)) reasons.push("AUTHOR_IDENTITY_REQUIRED");
+  if (type === "RENDERED_COMPOSITE" && (!clean(input.sourceManifestId) || !hash64(input.sourceManifestHash))) reasons.push("COMPOSITE_SOURCE_MANIFEST_REQUIRED");
+  if (clean(input.commercialUseState) !== "VERIFIED_COMMERCIAL_USE") reasons.push("COMMERCIAL_USE_NOT_VERIFIED");
+  if (!clean(input.territory)) reasons.push("TERRITORY_REQUIRED");
+  if (parseTime(input.validFrom) === null) reasons.push("VALID_FROM_REQUIRED");
+  return { eligible: reasons.length === 0, rightsState: reasons.length === 0 ? "PASS" as const : "RECEIPT_REQUIRED" as const, reasons: [...new Set(reasons)] };
 }
 
 export function summarizeCorpusEvidenceConflicts(rows: CorpusEvidenceConflict[]): CorpusEvidenceConflictSummary {

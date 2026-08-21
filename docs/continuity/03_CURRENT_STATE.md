@@ -2,21 +2,41 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
-## Wave 3 rights provider-family diagnostic source checkpoint — 2026-08-21
+## Wave 3 rights evidence collection source checkpoint — 2026-08-21
+
+```text
+RIGHTS_EVIDENCE_POLICY = EVALUATION_RIGHTS_EVIDENCE_POLICY_V1
+SCHEMA = MIGRATION_0057_SOURCE_READY
+PRODUCTION_BASIS = SITES_V404__63_RIGHTS_PENDING
+PRODUCTION_PROVIDER_FAMILIES = 46_ELEVENLABS__17_NO_PROVIDER_DECLARED
+PRODUCTION_TASK_TARGETS = 46_PROVIDER_TERMS_AND_PLAN__16_COMPOSITE_PARENT_MANIFEST__1_AUTHORSHIP_SOURCE
+CURRENT_TERMS_RETROACTIVE_AUTHORITY = FORBIDDEN
+PACKAGE_LEVEL_PROVIDER_INFERENCE = FORBIDDEN
+AUTOMATIC_RIGHTS_PASS = 0
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+NEXT_PROTECTED_ACTION = DEPLOY_0057_AND_READ_BACK_IMMUTABLE_TASK_LEDGER
+```
+
+Sites v404 proves the direct-provider/composite split. Migration `0057` defines provider terms/plan receipts, exact request-to-artifact bindings, composite parent-rights manifests and authorship receipts. It deliberately inserts no PASS receipt and changes no candidate rights. Document 53 and ADR-086 are authoritative.
+
+## Wave 3 rights provider-family diagnostic production checkpoint — 2026-08-21
 
 ```text
 DIAGNOSTIC = RIGHTS_PROVIDER_FAMILY_AGGREGATION_V1
-PRODUCTION_BASIS = SITES_V403__63_PROVIDER_TERMS_RECEIPTS_MISSING
+PRODUCTION_BASIS = SITES_V404__63_PROVIDER_TERMS_RECEIPTS_MISSING
 INPUT = SOURCE_PROVENANCE_PROVIDER_FIELD
 OUTPUT = ALLOWLISTED_PROVIDER_FAMILY_COUNTS
 RAW_PROVIDER_AND_ARTIFACT_IDENTIFIERS_EXPOSED = 0
 RIGHTS_MUTATIONS = 0
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-NEXT_PROTECTED_ACTION = DEPLOY_DIAGNOSTIC_AND_SPLIT_PROVIDER_TERMS_FROM_COMPOSITE_MASTER_LINEAGE
+PRODUCTION_PROVIDER_FAMILIES = 46_ELEVENLABS__17_NO_PROVIDER_DECLARED
+PROVIDER_KINDS = 46_AUDIO__16_MASTER__1_CLIP
+NEXT_PROTECTED_ACTION = CREATE_FAIL_CLOSED_RIGHTS_EVIDENCE_COLLECTION_SCHEMA
 ```
 
-Source now groups the remaining rights queue into `ELEVENLABS`, `OPENAI`, `PEXELS`, `PIXABAY`, `NO_PROVIDER_DECLARED` or `OTHER_PROVIDER`. Raw provider strings and artifact lineage stay server-side. The operator next-action uses the live rights-pending count instead of a hard-coded number. This diagnostic creates no rights authority.
+Sites v404 groups the remaining rights queue into `ELEVENLABS`, `OPENAI`, `PEXELS`, `PIXABAY`, `NO_PROVIDER_DECLARED` or `OTHER_PROVIDER`. Production contains 46 ElevenLabs audio artifacts and 17 no-provider records: 16 masters and one clip. Raw provider strings and artifact lineage stay server-side. This diagnostic creates no rights authority.
 
 ## Wave 3 rights reconciliation source checkpoint — 2026-08-21
 

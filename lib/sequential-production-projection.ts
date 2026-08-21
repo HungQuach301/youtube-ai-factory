@@ -190,7 +190,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   if (!current) throw new Error("EXCLUSIVE_ACTIVE_VIDEO_NOT_FOUND");
   const stages = await rows(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? ORDER BY sequence", current.id);
   const activeStage = stages.find((stage) => ["READY","RUNNING","REPAIR_REQUIRED","ESCALATED"].includes(text(stage.lifecycle_state))) ?? stages[0];
-  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationVerification, evaluationDefects, evaluationDatasets, evaluationBlockedRows, evaluationIncidents, evaluationRightsRows, evaluationRightsReceipts] = await Promise.all([
+  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationVerification, evaluationDefects, evaluationDatasets, evaluationBlockedRows, evaluationIncidents, evaluationRightsRows, evaluationRightsReceipts, evaluationRightsTasks] = await Promise.all([
     rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION),
     rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
     db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
@@ -231,6 +231,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       WHERE c.channel_id=? AND c.verification_state='PARTIAL_RIGHTS_PENDING'
       ORDER BY c.candidate_kind,r.rights_basis`, channelId),
     db.prepare("SELECT COUNT(*) accepted FROM v7_evaluation_rights_receipts WHERE channel_id=? AND rights_state='PASS'").bind(channelId).first<Row>(),
+    rows(db, "SELECT task_type,COUNT(*) count FROM v7_evaluation_rights_evidence_tasks WHERE channel_id=? GROUP BY task_type ORDER BY count DESC,task_type", channelId),
   ]);
   const evaluationConflicts = summarizeCorpusEvidenceConflicts(evaluationBlockedRows.map((row) => ({
     candidateKind: text(row.candidate_kind), artifactType: text(row.artifact_type), bytesState: text(row.bytes_state), checksumState: text(row.checksum_state),
@@ -446,6 +447,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         rightsBasisCounts: evaluationRightsQueue.basisCounts,
         rightsKindCounts: evaluationRightsQueue.kindCounts,
         rightsProviderCounts: evaluationRightsQueue.providerCounts,
+        rightsEvidenceTaskCounts: evaluationRightsTasks.map((item) => ({ key: text(item.task_type), count: number(item.count) })),
         verificationBytesRead: number(evaluationVerification?.bytes_read),
         blockedReasonCounts: evaluationConflicts.reasonCounts,
         blockedFactCounts: evaluationConflicts.factCounts,

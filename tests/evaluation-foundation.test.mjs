@@ -5,9 +5,13 @@ import test from "node:test";
 import {
   EVALUATION_FOUNDATION_VERSION,
   CORPUS_VERIFICATION_POLICY_VERSION,
+  EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION,
   OWNER_STANDING_AUTHORITY,
+  evaluateAuthorshipEvidence,
   evaluateAssuranceQualification,
   evaluateCandidateVerification,
+  evaluateCompositeRightsEvidence,
+  evaluateProviderRightsEvidence,
   reconcileCorpusArtifactEvidence,
   standingAuthorityCovers,
   summarizeCorpusEvidenceConflicts,
@@ -187,6 +191,58 @@ test("rights queue diagnostics expose only allowlisted basis and modality counts
   assert.deepEqual(summary.providerCounts, [
     { key: "ELEVENLABS", count: 1 }, { key: "NO_PROVIDER_DECLARED", count: 1 }, { key: "PEXELS", count: 1 },
   ]);
+});
+
+test("rights evidence contracts fail closed on current terms, package-level inference and incomplete parent coverage", () => {
+  assert.equal(EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION, "EVALUATION_RIGHTS_EVIDENCE_POLICY_V1");
+  const currentTermsOnly = evaluateProviderRightsEvidence({
+    providerFamily: "ELEVENLABS", providerRequestState: "COMPLETED", providerResponseId: "response-1",
+    artifactHash: "a".repeat(64), boundArtifactHash: "a".repeat(64), generationAt: "2026-02-01T00:00:00Z",
+    termsEffectiveAt: "2026-03-31T00:00:00Z", termsSnapshotHash: "b".repeat(64), accountPlan: "creator",
+    planValidFrom: "2026-01-01T00:00:00Z", planValidUntil: "2026-03-01T00:00:00Z", planEvidenceHash: "c".repeat(64),
+    commercialUseState: "VERIFIED_PAID_COMMERCIAL_USE", modelId: "eleven_multilingual_v2",
+  });
+  assert.equal(currentTermsOnly.eligible, false);
+  assert.ok(currentTermsOnly.reasons.includes("TERMS_MUST_COVER_GENERATION_TIME"));
+
+  const exactProviderReceipt = evaluateProviderRightsEvidence({
+    providerFamily: "ELEVENLABS", providerRequestState: "COMPLETED", providerResponseId: "response-1",
+    artifactHash: "a".repeat(64), boundArtifactHash: "a".repeat(64), generationAt: "2026-02-01T00:00:00Z",
+    termsEffectiveAt: "2026-01-01T00:00:00Z", termsSnapshotHash: "b".repeat(64), accountPlan: "creator",
+    planValidFrom: "2026-01-01T00:00:00Z", planValidUntil: "2026-03-01T00:00:00Z", planEvidenceHash: "c".repeat(64),
+    commercialUseState: "VERIFIED_PAID_COMMERCIAL_USE", modelId: "eleven_multilingual_v2",
+  });
+  assert.equal(exactProviderReceipt.eligible, true);
+
+  const incompleteMaster = evaluateCompositeRightsEvidence({ artifactHash: "d".repeat(64), parentArtifactIds: ["audio", "scene"], parentArtifactHashes: ["e".repeat(64)], parentRightsReceiptIds: ["receipt-a"] });
+  assert.equal(incompleteMaster.eligible, false);
+  assert.ok(incompleteMaster.reasons.includes("PARENT_HASH_COVERAGE_INCOMPLETE"));
+  assert.ok(incompleteMaster.reasons.includes("PARENT_RIGHTS_RECEIPT_COVERAGE_INCOMPLETE"));
+
+  const unboundRender = evaluateAuthorshipEvidence({ artifactHash: "f".repeat(64), authorshipType: "RENDERED_COMPOSITE", authorIdentity: "PRODUCTION_ENGINE_V2_GREENFIELD_EXECUTOR", commercialUseState: "VERIFIED_COMMERCIAL_USE", territory: "WORLDWIDE", validFrom: "2026-01-01T00:00:00Z" });
+  assert.equal(unboundRender.eligible, false);
+  assert.ok(unboundRender.reasons.includes("COMPOSITE_SOURCE_MANIFEST_REQUIRED"));
+});
+
+test("migration 0057 creates immutable zero-spend rights collection lanes without retroactive passes", () => {
+  const migration = read("drizzle/0057_evaluation_rights_evidence_collection.sql");
+  for (const table of [
+    "v7_evaluation_rights_evidence_tasks", "v7_evaluation_provider_terms_receipts", "v7_evaluation_candidate_provider_rights_receipts",
+    "v7_evaluation_composite_rights_manifests", "v7_evaluation_authorship_receipts",
+  ]) assert.match(migration, new RegExp(table));
+  for (const lane of ["PROVIDER_TERMS_AND_PLAN_RECEIPT", "COMPOSITE_PARENT_RIGHTS_MANIFEST", "AUTHORSHIP_SOURCE_RECEIPT"]) assert.match(migration, new RegExp(lane));
+  assert.match(migration, /HISTORICAL_TERMS_PLAN_AND_EXACT_REQUEST_BINDING_REQUIRED/);
+  assert.match(migration, /verified_parent_count.*parent_count/s);
+  assert.doesNotMatch(migration, /UPDATE `v7_evaluation_candidates`[\s\S]*rights_verification_state.*PASS/);
+  assert.doesNotMatch(migration, /api\.elevenlabs\.io|api\.openai\.com/);
+
+  const db = new DatabaseSync(":memory:");
+  for (const file of readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort()) db.exec(read(`drizzle/${file}`));
+  const taskCount = db.prepare("SELECT COUNT(*) total FROM v7_evaluation_rights_evidence_tasks").get().total;
+  assert.equal(taskCount, 0);
+  assert.throws(() => db.prepare(`INSERT INTO v7_evaluation_provider_terms_receipts
+    (id,channel_id,provider_family,jurisdiction_scope,terms_version,terms_effective_at,terms_source_url,terms_snapshot_hash,account_plan,plan_valid_from,plan_evidence_hash,commercial_use_state,supplemental_terms_json,evidence_hash,actor,provider_requests)
+    VALUES ('bad','channel','ELEVENLABS','NON_EEA','v1','2026-01-01','https://example.test',?,'paid','2026-01-01',?,'VERIFIED_PAID_COMMERCIAL_USE','[]',?,'owner',1)`).run("a".repeat(64), "b".repeat(64), "c".repeat(64)), /CHECK constraint failed/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {
