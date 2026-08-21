@@ -23,6 +23,7 @@
 - A candidate never becomes `VERIFIED_FIXTURE`, `GOLD_ELIGIBLE`, qualification-eligible or release-eligible from byte verification alone.
 - Owner decisions and evidence-bound defect labels remain separate mandatory gates.
 - Every run is idempotency-bound to an intent hash and stores its exact candidate list.
+- The operator form derives its idempotency key from the current pending-count cursor; resubmitting the same rendered batch replays safely, while a completed batch produces a new key.
 - Every receipt binds declared and computed hashes, declared and actual bytes, R2 metadata, reconciliation reasons and one canonical evidence hash.
 - Verification-run and receipt tables database-constrain provider requests and spend to zero.
 - External-provider rights are not inferred from a generic declaration; a receipt or terms-version binding is required.

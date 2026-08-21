@@ -167,4 +167,7 @@ test("migration 0053 adds bounded zero-spend verification runs and durable recei
   assert.match(route, /CORPUS_VERIFICATION_MAXIMUM_BATCH/);
   assert.match(route, /x-sequential-executor-token/);
   assert.doesNotMatch(route, /authorizeProductionDispatch|api\.openai\.com|elevenlabs\.io/);
+  const control = read("app/video-engine/corpus-verification-control.tsx");
+  assert.match(control, /corpus-form:pending-\$\{initial\.pending\}/);
+  assert.doesNotMatch(control, /randomUUID/);
 });
