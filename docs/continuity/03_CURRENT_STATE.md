@@ -2,23 +2,27 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
-## Wave 3 blocked-evidence diagnostic source checkpoint — 2026-08-21
+## Wave 3 blocked-evidence diagnostic production checkpoint — 2026-08-21
 
 ```text
-DIAGNOSTIC_POLICY = IMMUTABLE_RECEIPT_AGGREGATION_V1
-SOURCE = IMPLEMENTED_TESTED
+DIAGNOSTIC_POLICY = IMMUTABLE_RECEIPT_AGGREGATION_V2
+SOURCE_V1 = PRODUCTION_ACTIVE_SITES_V399
+SOURCE_V2 = IMPLEMENTED_TESTED__FIELD_FACT_CHECKPOINT_PENDING
 BLOCKED_TARGET = 12_CANDIDATES
-OUTPUT = SANITIZED_REASON_STATE_KIND_COUNTS
+PRODUCTION_BLOCKED_REASONS = 12_R2_OBJECT_METADATA_MISMATCH__7_BYTE_SIZE_MISMATCH__7_CHECKSUM_MISMATCH__12_UNKNOWN_V1_RIGHTS_BASIS
+PRODUCTION_BLOCKED_STATES = 7_READBACK_VERIFIED_FAIL_FAIL__5_READBACK_VERIFIED_PASS_FAIL
+PRODUCTION_BLOCKED_KINDS = 8_CLIP__2_AUDIO__2_MASTER
+OUTPUT = SANITIZED_REASON_STATE_KIND_AND_FIELD_FACT_COUNTS
 STORAGE_KEYS_AND_HASHES_EXPOSED = 0
 CANDIDATE_MUTATIONS = 0
 FIXTURE_PROMOTIONS = 0
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-PRODUCTION_RUNTIME = PENDING_CHECKPOINT_AND_LIVE_READBACK
-NEXT_PROTECTED_ACTION = DEPLOY_DIAGNOSTIC_AND_CLASSIFY_EXACT_BLOCKED_CAUSES
+PRODUCTION_RUNTIME = V1_READBACK_COMPLETE__V2_FIELD_FACT_READBACK_PENDING
+NEXT_PROTECTED_ACTION = DEPLOY_V2_AND_SEPARATE_METADATA_ONLY_FROM_BYTE_DIVERGENCE
 ```
 
-The source now derives blocked-evidence reason, state and candidate-kind counts only from each candidate's latest immutable verification receipt. Unknown reason text is collapsed to a safe category; storage keys, object metadata, hashes and source IDs are not exposed in the operator projection. This diagnostic creates no repair authority. Document 49 records the source evidence and ADR-082 fixes the rule that a diagnostic may select a repair lane but may never rewrite the losing receipt.
+Sites v399 confirmed all twelve blocked candidates have an R2 object-metadata conflict; seven also fail declared byte size and checksum, while five retain checksum PASS but provenance FAIL. The twelve v1 unknown reasons are the known rights bases `DECLARATION_NOT_ELIGIBLE`, `PROVIDER_TERMS_RECEIPT_MISSING` and `AUTHORSHIP_EVIDENCE_INCOMPLETE`, now allowlisted in v2. Source v2 compares candidate/source declarations, recomputed object bytes and parsed R2 metadata server-side, then exposes only aggregate field-fact counts. Storage keys, IDs, hashes, byte values and raw metadata remain private. The diagnostic mutates no candidate and creates no repair authority. Document 49 records the evidence; ADR-082 keeps every losing receipt immutable.
 
 ## Wave 3 corpus verification production acceptance — 2026-08-21
 

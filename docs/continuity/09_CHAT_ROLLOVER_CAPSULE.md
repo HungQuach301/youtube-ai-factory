@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_3_PHASE_3_DIAGNOSTIC_SOURCE_READY__PRODUCTION_CAUSE_READBACK_NEXT`
+**Current source classification:** `WAVE_3_PHASE_3_DIAGNOSTIC_V1_ACCEPTED__V2_FIELD_FACT_READBACK_NEXT`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -41,7 +41,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Sites v395–v397 activated migration `0053`, hardened idempotent form navigation and completed 30 bounded runs. Production read-back reports 595/595 byte-verified, 588 checksum PASS, 583 provenance PASS, 520 rights PASS, 63 rights-pending, 12 blocked and 851,549,647 bytes read.
 - Verified fixtures, gold-eligible fixtures, sealed datasets and release-eligible fixtures remain zero. Production provider totals remain 56 historical requests, zero active and `$13.247131145833333`; corpus verification added zero requests and zero spend. M0 Safety Scope is still `NOT_EVALUATED` and Golden r10 remains ineligible.
 - The next protected action is to investigate the 12 blocked candidates, collect 63 rights receipts and owner-confirmed labels, then de-duplicate/correlation-control the corpus before any dataset is sealed or assurance provider is called.
-- Blocked-evidence diagnostic source is implemented and tested. It exposes only allowlisted reason/state/kind counts from latest immutable receipts; production deployment and exact cause read-back remain pending.
+- Sites v399 activated blocked-evidence diagnostic v1. Production reports 12 `R2_OBJECT_METADATA_MISMATCH`, seven `BYTE_SIZE_MISMATCH`, seven `CHECKSUM_MISMATCH`, state split 7 checksum/provenance FAIL plus 5 checksum PASS/provenance FAIL, and modality split 8 clip/2 audio/2 master. Diagnostic v2 is implemented to expose sanitized field-fact counts and recognized rights bases without exposing identifiers, hashes, byte values or object metadata; its checkpoint/read-back is pending.
 - `OWNER_STANDING_PRODUCTION_AUTHORITY_V1` permits future roadmap-bounded deploy, migration, production QA and provider calls without repeated chat confirmation, but never bypasses capability/settings, budget, rights, safety, idempotency or fencing gates and does not authorize publish/delete/weaken actions.
 
 ## Protected no-rerun list

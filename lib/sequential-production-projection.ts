@@ -208,15 +208,21 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     db.prepare("SELECT COUNT(*) runs,COALESCE(SUM(bytes_read),0) bytes_read,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend FROM v7_evaluation_verification_runs WHERE channel_id=?").bind(channelId).first<Row>(),
     rows(db, "SELECT * FROM v7_evaluation_defect_taxonomy WHERE active=1 ORDER BY severity,defect_key"),
     rows(db, "SELECT * FROM v7_evaluation_datasets ORDER BY dataset_key,dataset_version"),
-    rows(db, `SELECT c.candidate_kind,c.artifact_type,r.bytes_state,r.checksum_state,r.provenance_state,r.reconciliation_reasons_json
+    rows(db, `SELECT c.candidate_kind,c.artifact_type,c.content_hash candidate_declared_hash,c.byte_size candidate_declared_bytes,
+      a.id source_artifact_id,a.package_id source_package_id,a.sha256 source_hash,a.byte_size source_bytes,a.engine_version source_engine_version,
+      r.computed_hash,r.actual_bytes,r.object_metadata_json,r.bytes_state,r.checksum_state,r.provenance_state,r.reconciliation_reasons_json
       FROM v7_evaluation_candidates c
       JOIN v7_evaluation_verification_receipts r ON r.id=c.latest_verification_receipt_id
+      JOIN production_v2_artifacts a ON c.source_table='production_v2_artifacts' AND a.id=c.source_id
       WHERE c.channel_id=? AND c.verification_state='BLOCKED'
       ORDER BY c.candidate_kind,c.artifact_type`, channelId),
   ]);
   const evaluationConflicts = summarizeCorpusEvidenceConflicts(evaluationBlockedRows.map((row) => ({
     candidateKind: text(row.candidate_kind), artifactType: text(row.artifact_type), bytesState: text(row.bytes_state), checksumState: text(row.checksum_state),
     provenanceState: text(row.provenance_state), reconciliationReasonsJson: text(row.reconciliation_reasons_json),
+    candidateDeclaredHash: text(row.candidate_declared_hash), candidateDeclaredBytes: number(row.candidate_declared_bytes), sourceArtifactId: text(row.source_artifact_id),
+    sourcePackageId: text(row.source_package_id), sourceHash: text(row.source_hash), sourceBytes: number(row.source_bytes), sourceEngineVersion: text(row.source_engine_version),
+    computedHash: text(row.computed_hash), actualBytes: number(row.actual_bytes), objectMetadataJson: text(row.object_metadata_json),
   })));
   const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
   const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json,scan_json,error_code FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
@@ -415,6 +421,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         verificationBlocked: number(evaluationCandidates?.verification_blocked),
         verificationBytesRead: number(evaluationVerification?.bytes_read),
         blockedReasonCounts: evaluationConflicts.reasonCounts,
+        blockedFactCounts: evaluationConflicts.factCounts,
         blockedStateCounts: evaluationConflicts.stateCounts,
         blockedKindCounts: evaluationConflicts.kindCounts,
         defectFamilies: evaluationDefects.length,

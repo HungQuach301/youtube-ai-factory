@@ -10,11 +10,22 @@ export type CorpusEvidenceConflict = {
   checksumState?: string;
   provenanceState?: string;
   reconciliationReasonsJson?: string;
+  candidateDeclaredHash?: string;
+  candidateDeclaredBytes?: number;
+  sourceArtifactId?: string;
+  sourcePackageId?: string;
+  sourceHash?: string;
+  sourceBytes?: number;
+  sourceEngineVersion?: string;
+  computedHash?: string;
+  actualBytes?: number;
+  objectMetadataJson?: string;
 };
 
 export type CorpusEvidenceConflictSummary = {
   blockedCandidates: number;
   reasonCounts: Array<{ key: string; count: number }>;
+  factCounts: Array<{ key: string; count: number }>;
   stateCounts: Array<{ key: string; count: number }>;
   kindCounts: Array<{ key: string; count: number }>;
 };
@@ -42,22 +53,35 @@ const acceptedRightsDeclarations = new Set(["CHANNEL_OWNED_OR_PROVIDER_COMMERCIA
 const knownConflictReasons = new Set([
   "OBJECT_MISSING", "OBJECT_SIZE_LIMIT_EXCEEDED", "BYTE_SIZE_MISMATCH", "DECLARED_HASH_MISSING", "CHECKSUM_MISMATCH",
   "PROVENANCE_JSON_INVALID", "LEGACY_SOURCE_ISOLATION_UNPROVEN", "R2_OBJECT_METADATA_MISMATCH",
+  "DECLARATION_NOT_ELIGIBLE", "PROVIDER_TERMS_RECEIPT_MISSING", "AUTHORSHIP_EVIDENCE_INCOMPLETE",
 ]);
 
 const increment = (target: Map<string, number>, key: string) => target.set(key, (target.get(key) ?? 0) + 1);
 const rankedCounts = (source: Map<string, number>) => [...source.entries()].map(([key, count]) => ({ key, count })).sort((left, right) => right.count - left.count || left.key.localeCompare(right.key));
+const comparableNumber = (value: unknown) => clean(value) !== "" && Number.isFinite(Number(value));
 
 export function summarizeCorpusEvidenceConflicts(rows: CorpusEvidenceConflict[]): CorpusEvidenceConflictSummary {
-  const reasons = new Map<string, number>(), states = new Map<string, number>(), kinds = new Map<string, number>();
+  const reasons = new Map<string, number>(), facts = new Map<string, number>(), states = new Map<string, number>(), kinds = new Map<string, number>();
   for (const row of rows) {
     const parsedReasons = (() => { try { const value = JSON.parse(clean(row.reconciliationReasonsJson)); return Array.isArray(value) ? value : []; } catch { return []; } })();
     const normalizedReasons = parsedReasons.map(clean).filter(Boolean);
     if (normalizedReasons.length === 0) increment(reasons, "RECONCILIATION_REASON_MISSING");
     for (const reason of normalizedReasons) increment(reasons, knownConflictReasons.has(reason) ? reason : "UNKNOWN_RECONCILIATION_REASON");
+    const metadata = (() => { try { const value = JSON.parse(clean(row.objectMetadataJson)); return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; } catch { return {}; } })();
+    const candidateHash = clean(row.candidateDeclaredHash).toLowerCase(), sourceHash = clean(row.sourceHash).toLowerCase(), computedHash = clean(row.computedHash).toLowerCase(), metadataHash = clean(metadata.sha256).toLowerCase();
+    if (clean(metadata.artifactId) !== clean(row.sourceArtifactId)) increment(facts, "R2_ARTIFACT_ID_FIELD_MISMATCH");
+    if (clean(metadata.packageId) !== clean(row.sourcePackageId)) increment(facts, "R2_PACKAGE_ID_FIELD_MISMATCH");
+    if (metadataHash !== candidateHash) increment(facts, "R2_METADATA_HASH_DECLARATION_MISMATCH");
+    if (clean(metadata.engineVersion) !== clean(row.sourceEngineVersion)) increment(facts, "R2_ENGINE_VERSION_FIELD_MISMATCH");
+    if (candidateHash !== sourceHash) increment(facts, "CANDIDATE_SOURCE_HASH_MISMATCH");
+    if (sourceHash !== computedHash) increment(facts, "SOURCE_HASH_OBJECT_BYTES_MISMATCH");
+    if (metadataHash !== computedHash) increment(facts, "R2_METADATA_HASH_OBJECT_BYTES_MISMATCH");
+    if (comparableNumber(row.candidateDeclaredBytes) && comparableNumber(row.sourceBytes) && Number(row.candidateDeclaredBytes) !== Number(row.sourceBytes)) increment(facts, "CANDIDATE_SOURCE_BYTE_SIZE_MISMATCH");
+    if (comparableNumber(row.sourceBytes) && comparableNumber(row.actualBytes) && Number(row.sourceBytes) !== Number(row.actualBytes)) increment(facts, "SOURCE_BYTE_SIZE_OBJECT_MISMATCH");
     increment(states, `${clean(row.bytesState) || "UNKNOWN_BYTES"}/${clean(row.checksumState) || "UNKNOWN_CHECKSUM"}/${clean(row.provenanceState) || "UNKNOWN_PROVENANCE"}`);
     increment(kinds, clean(row.candidateKind) || "UNKNOWN_KIND");
   }
-  return { blockedCandidates: rows.length, reasonCounts: rankedCounts(reasons), stateCounts: rankedCounts(states), kindCounts: rankedCounts(kinds) };
+  return { blockedCandidates: rows.length, reasonCounts: rankedCounts(reasons), factCounts: rankedCounts(facts), stateCounts: rankedCounts(states), kindCounts: rankedCounts(kinds) };
 }
 
 export function reconcileCorpusArtifactEvidence(input: CorpusArtifactEvidence) {

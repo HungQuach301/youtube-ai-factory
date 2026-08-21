@@ -151,17 +151,23 @@ test("migration 0052 inventories rejected artifacts as unverified non-release ev
 
 test("blocked corpus diagnostics aggregate sanitized immutable receipt conflicts", () => {
   const summary = summarizeCorpusEvidenceConflicts([
-    { candidateKind: "SHOT", bytesState: "READBACK_VERIFIED", checksumState: "FAIL", provenanceState: "FAIL", reconciliationReasonsJson: '["CHECKSUM_MISMATCH","R2_OBJECT_METADATA_MISMATCH"]' },
-    { candidateKind: "SHOT", bytesState: "READBACK_VERIFIED", checksumState: "PASS", provenanceState: "FAIL", reconciliationReasonsJson: '["R2_OBJECT_METADATA_MISMATCH"]' },
+    { candidateKind: "SHOT", bytesState: "READBACK_VERIFIED", checksumState: "FAIL", provenanceState: "FAIL", reconciliationReasonsJson: '["CHECKSUM_MISMATCH","R2_OBJECT_METADATA_MISMATCH","AUTHORSHIP_EVIDENCE_INCOMPLETE"]', candidateDeclaredHash: "a", sourceHash: "a", computedHash: "b", sourceArtifactId: "artifact-1", sourcePackageId: "package-1", sourceEngineVersion: "v1", objectMetadataJson: '{"artifactId":"artifact-1","packageId":"package-1","sha256":"a","engineVersion":"v1"}' },
+    { candidateKind: "SHOT", bytesState: "READBACK_VERIFIED", checksumState: "PASS", provenanceState: "FAIL", reconciliationReasonsJson: '["R2_OBJECT_METADATA_MISMATCH"]', candidateDeclaredHash: "c", sourceHash: "c", computedHash: "c", sourceArtifactId: "artifact-2", sourcePackageId: "package-2", sourceEngineVersion: "v2", objectMetadataJson: '{"artifactId":"artifact-2","packageId":"package-2","sha256":"c","engineVersion":"old"}' },
     { candidateKind: "AUDIO", bytesState: "READBACK_VERIFIED", checksumState: "FAIL", provenanceState: "FAIL", reconciliationReasonsJson: '["UNRECOGNIZED_DETAIL"]' },
   ]);
   assert.equal(summary.blockedCandidates, 3);
   assert.deepEqual(summary.reasonCounts, [
     { key: "R2_OBJECT_METADATA_MISMATCH", count: 2 },
+    { key: "AUTHORSHIP_EVIDENCE_INCOMPLETE", count: 1 },
     { key: "CHECKSUM_MISMATCH", count: 1 },
     { key: "UNKNOWN_RECONCILIATION_REASON", count: 1 },
   ]);
   assert.deepEqual(summary.kindCounts, [{ key: "SHOT", count: 2 }, { key: "AUDIO", count: 1 }]);
+  assert.deepEqual(summary.factCounts, [
+    { key: "R2_ENGINE_VERSION_FIELD_MISMATCH", count: 1 },
+    { key: "R2_METADATA_HASH_OBJECT_BYTES_MISMATCH", count: 1 },
+    { key: "SOURCE_HASH_OBJECT_BYTES_MISMATCH", count: 1 },
+  ]);
   assert.equal(summary.stateCounts.length, 2);
 });
 

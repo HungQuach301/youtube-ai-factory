@@ -58,15 +58,21 @@ async function projection(db: DB) {
       FROM v7_evaluation_candidates WHERE channel_id=?`, CHANNEL_ID),
     first(db, "SELECT COUNT(*) runs,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend_usd,COALESCE(SUM(bytes_read),0) bytes_read FROM v7_evaluation_verification_runs WHERE channel_id=?", CHANNEL_ID),
     rows(db, "SELECT id,lifecycle_state,planned_candidates,processed_candidates,byte_verified_candidates,checksum_pass_candidates,provenance_pass_candidates,rights_pass_candidates,blocked_candidates,bytes_read,created_at,completed_at FROM v7_evaluation_verification_runs WHERE channel_id=? ORDER BY created_at DESC LIMIT 10", CHANNEL_ID),
-    rows(db, `SELECT c.candidate_kind,c.artifact_type,r.bytes_state,r.checksum_state,r.provenance_state,r.reconciliation_reasons_json
+    rows(db, `SELECT c.candidate_kind,c.artifact_type,c.content_hash candidate_declared_hash,c.byte_size candidate_declared_bytes,
+      a.id source_artifact_id,a.package_id source_package_id,a.sha256 source_hash,a.byte_size source_bytes,a.engine_version source_engine_version,
+      r.computed_hash,r.actual_bytes,r.object_metadata_json,r.bytes_state,r.checksum_state,r.provenance_state,r.reconciliation_reasons_json
       FROM v7_evaluation_candidates c
       JOIN v7_evaluation_verification_receipts r ON r.id=c.latest_verification_receipt_id
+      JOIN production_v2_artifacts a ON c.source_table='production_v2_artifacts' AND a.id=c.source_id
       WHERE c.channel_id=? AND c.verification_state='BLOCKED'
       ORDER BY c.candidate_kind,c.artifact_type`, CHANNEL_ID),
   ]);
   const conflicts = summarizeCorpusEvidenceConflicts(blockedRows.map((row) => ({
     candidateKind: clean(row.candidate_kind), artifactType: clean(row.artifact_type), bytesState: clean(row.bytes_state), checksumState: clean(row.checksum_state),
     provenanceState: clean(row.provenance_state), reconciliationReasonsJson: clean(row.reconciliation_reasons_json),
+    candidateDeclaredHash: clean(row.candidate_declared_hash), candidateDeclaredBytes: number(row.candidate_declared_bytes), sourceArtifactId: clean(row.source_artifact_id),
+    sourcePackageId: clean(row.source_package_id), sourceHash: clean(row.source_hash), sourceBytes: number(row.source_bytes), sourceEngineVersion: clean(row.source_engine_version),
+    computedHash: clean(row.computed_hash), actualBytes: number(row.actual_bytes), objectMetadataJson: clean(row.object_metadata_json),
   })));
   return {
     foundationVersion: EVALUATION_FOUNDATION_VERSION,
@@ -74,7 +80,7 @@ async function projection(db: DB) {
     state: number(candidate?.pending) > 0 ? "CORPUS_VERIFICATION_ACTIVE" : "CORPUS_BYTE_RECONCILIATION_COMPLETE",
     candidates: number(candidate?.candidates), pending: number(candidate?.pending), byteVerified: number(candidate?.byte_verified), checksumPass: number(candidate?.checksum_pass), provenancePass: number(candidate?.provenance_pass), rightsPass: number(candidate?.rights_pass), rightsPending: number(candidate?.rights_pending), blocked: number(candidate?.blocked),
     runs: number(runSummary?.runs), bytesRead: number(runSummary?.bytes_read), providerRequests: number(runSummary?.provider_requests), spendUsd: number(runSummary?.spend_usd),
-    blockedReasonCounts: conflicts.reasonCounts, blockedStateCounts: conflicts.stateCounts, blockedKindCounts: conflicts.kindCounts, latestRuns,
+    blockedReasonCounts: conflicts.reasonCounts, blockedFactCounts: conflicts.factCounts, blockedStateCounts: conflicts.stateCounts, blockedKindCounts: conflicts.kindCounts, latestRuns,
   };
 }
 
