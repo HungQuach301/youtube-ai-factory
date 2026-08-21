@@ -6,7 +6,7 @@
 
 **Version:** `EVALUATION_FOUNDATION_V1`
 
-**Production status:** migration prepared, not yet accepted
+**Production status:** accepted separately in Document 46 / Sites v393
 
 ## Executed scope
 
@@ -35,7 +35,7 @@
 - Changed-scope ESLint: PASS for the five modified TypeScript/TSX source files.
 - `git diff --check`: PASS.
 
-This source implementation generated zero provider requests and zero provider spend. Deployment and direct production read-back remain the next evidence gate.
+This source implementation generated zero provider requests and zero provider spend. Document 46 records the successful production deployment and direct read-back.
 
 ## Protected scope
 
@@ -43,4 +43,4 @@ This source change does not verify any historical bytes, seal a gold set, qualif
 
 ## Exact next action
 
-Apply additive migration `0052` through an authorized checkpoint deployment and verify that production inventories the exact historical corpus with zero verified/gold/release-eligible fixtures and no provider/spend delta. Then begin read-only byte and provenance verification.
+Begin read-only byte and provenance verification under the production-accepted migration. Do not seal a dataset or call an assurance provider before the verified fixture gate passes.

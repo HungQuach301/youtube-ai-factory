@@ -71,6 +71,7 @@ When facts conflict, use this order:
 | Wave 2 source implementation evidence | [`continuity/43_WAVE_2_LEARNING_READY_CONTRACT_PACK_EXECUTION_RECORD.md`](continuity/43_WAVE_2_LEARNING_READY_CONTRACT_PACK_EXECUTION_RECORD.md) |
 | Wave 2 production runtime acceptance | [`continuity/44_WAVE_2_PRODUCTION_RUNTIME_ACCEPTANCE.md`](continuity/44_WAVE_2_PRODUCTION_RUNTIME_ACCEPTANCE.md) |
 | Wave 3 Evaluation Foundation source evidence | [`continuity/45_WAVE_3_EVALUATION_FOUNDATION_EXECUTION_RECORD.md`](continuity/45_WAVE_3_EVALUATION_FOUNDATION_EXECUTION_RECORD.md) |
+| Wave 3 production runtime acceptance | [`continuity/46_WAVE_3_EVALUATION_FOUNDATION_PRODUCTION_ACCEPTANCE.md`](continuity/46_WAVE_3_EVALUATION_FOUNDATION_PRODUCTION_ACCEPTANCE.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

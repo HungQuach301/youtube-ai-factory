@@ -25,7 +25,7 @@
 | A5 | P1 | Stage 11 control can appear READY while upstream repair is required | `HANDLED__PRODUCTION_ACTIVE`: effective control projection is `ROOT_REPAIR_REQUIRED` despite stored Stage 09 `READY` | FP3.1 |
 | A6 | P1 | Golden first-pass failure escalation lacks owner/SLA | `ACCEPTED_DESIGN`: architecture incident owner and bounded escalation required | FP3.1/WP7 |
 | A7 | P1 | Pilot mode exists; scale/sampling rules do not | `CONFIRMED_MANDATORY` before second channel | Scale |
-| A8 | P1 | Rejected fixture can be labelled release-ready | `PARTIAL__SOURCE_IMPLEMENTED`: migration `0052` constrains evaluation candidates to zero release eligibility; production activation and regression-corpus verification remain | WP7 |
+| A8 | P1 | Rejected fixture can be labelled release-ready | `PARTIAL__PRODUCTION_ACTIVE`: migration `0052` constrains all 595 evaluation candidates to zero release eligibility; byte/label verification and regression-set sealing remain | WP7 |
 | A9 | P2 | Fifteen videos contracted before Video #1 qualification | `ACCEPTED_DESIGN`: preserve briefs, issue downstream contracts in bounded batches | Video #1/Scale |
 | A10 | P1 | R2–Drive reconciliation has no clear owning package | `CONFIRMED_MANDATORY` before master/publish | Technical media |
 
@@ -33,10 +33,10 @@
 
 | ID | Priority | Finding | Reconciled disposition | Owning wave |
 |---|---:|---|---|---|
-| B1 | P0 | Assurance capability has no qualified ground truth | `PARTIAL__SOURCE_IMPLEMENTED`: candidate/gold lifecycle, labels, blinded datasets and per-family recall exist; no gold set or capability is yet qualified | WP7 |
+| B1 | P0 | Assurance capability has no qualified ground truth | `PARTIAL__PRODUCTION_ACTIVE`: candidate/gold lifecycle, labels, blinded datasets and per-family recall are live; no fixture, gold set or assurance capability is yet qualified | WP7 |
 | B2 | P0 | ASR/alignment tool and error floor are not pinned/calibrated | `CONFIRMED_MANDATORY`; exact stack and thresholds require calibration | Technical media/WP7 |
-| B3 | P0 | Independent QA is procedural rather than architectural | `PARTIAL__SOURCE_IMPLEMENTED`: blinded datasets and accountable label sources exist; independent provider/model-family or human P0 adjudication remains unqualified | WP7 |
-| B4 | P1 | Critic repeatability is unmeasured | `PARTIAL__SOURCE_IMPLEMENTED`: repeat policy and per-family metric are required; actual provider repeatability remains calibration-required | WP7 |
+| B3 | P0 | Independent QA is procedural rather than architectural | `PARTIAL__PRODUCTION_ACTIVE`: blinded datasets and accountable label sources are live; independent provider/model-family or human P0 adjudication remains unqualified | WP7 |
+| B4 | P1 | Critic repeatability is unmeasured | `PARTIAL__PRODUCTION_ACTIVE`: repeat policy and per-family metric are live; actual provider repeatability remains calibration-required | WP7 |
 | B5 | P1 | Three temporal samples cannot detect between-sample artifacts | `HANDLED`: Stage 12 owns full decode; samples remain perceptual evidence only | Regression |
 | B6 | P1 | No sealed performance prediction for Stage 16 comparison | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: composition/seal schema is deployed; no Video #1 prediction is sealed | Contract Pack |
 | B7 | P2 | Creative-route diversity is declared, not measurable | `ACCEPTED_DESIGN`; taxonomy and thresholds require calibration | Upstream quality |

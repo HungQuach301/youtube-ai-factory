@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_3_EVALUATION_FOUNDATION_SOURCE_IMPLEMENTED__PRODUCTION_PENDING`
+**Current source classification:** `WAVE_3_PHASE_1_PRODUCTION_ACCEPTED__CORPUS_VERIFICATION_NEXT`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -35,8 +35,11 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Wave 2 source defines all eight `LEARNING_READY_CONTRACT_PACK_V1` contracts plus migration `0051`, fail-closed validators, operator projection and regression coverage.
 - Sites v392 applied `0051` and passed zero-dispatch read-back: eight schema rows, zero rows across nine artifact/receipt tables, zero reservations/traces, no worker errors and unchanged provider totals of 56 requests and `$13.247131145833333`. It creates no actual channel/video artifacts and activates no learning command.
 - The next protected action is Wave 3 WP7 Evaluation Foundation. Paid FP4/FP5 remains unauthorized.
-- Wave 3 source adds `EVALUATION_FOUNDATION_V1`, migration `0052`, candidate/gold verification, correlation control, blinded datasets, eleven defect families and assurance qualification metrics. Production migration/read-back is the next gate.
-- Historical corpus counts remain candidate evidence only: zero verified fixtures, zero gold-eligible fixtures and zero release-eligible fixtures are claimed at source checkpoint.
+- Wave 3 adds `EVALUATION_FOUNDATION_V1`, migration `0052`, candidate/gold verification, correlation control, blinded datasets, eleven defect families and assurance qualification metrics.
+- Sites v393 deployed source `100901c1f064d91f3663df9d92bcc38bacd5797c`. Live read-back reports 595 candidate artifacts, 15 rejected packages, zero verified fixtures, zero gold-eligible fixtures, zero sealed datasets and zero release-eligible fixtures.
+- Sites v394 is the documentation-only closing checkpoint; it introduces no runtime or data mutation beyond the accepted v393 feature source.
+- Production provider totals remain 56 historical requests and `$13.247131145833333`; Wave 3 phase 1 added zero requests and zero spend. M0 Safety Scope is still `NOT_EVALUATED` and Golden r10 remains ineligible.
+- The next protected action is read-only R2 byte/checksum/provenance/rights and owner-label verification before any dataset is sealed or assurance provider is called.
 - `OWNER_STANDING_PRODUCTION_AUTHORITY_V1` permits future roadmap-bounded deploy, migration, production QA and provider calls without repeated chat confirmation, but never bypasses capability/settings, budget, rights, safety, idempotency or fencing gates and does not authorize publish/delete/weaken actions.
 
 ## Protected no-rerun list

@@ -16,7 +16,7 @@
 - FP3.1 production migration: active in Sites v389 after v388 failed safely before publish and exposed the historical fencing-token backfill defect.
 - FP3.1 runtime QA: zero-dispatch acceptance passed in Sites v390; Sites v391 removed the temporary QA authorization path, the environment key is absent and a retired QA header is rejected with `401`.
 - Wave 2 Learning-ready Contract Pack: production-runtime accepted in Sites v392 with migration `0051` active and zero-dispatch read-back passed.
-- Wave 3 Evaluation Foundation source: implemented and tested; migration `0052` production checkpoint and live inventory verification are next.
+- Wave 3 Evaluation Foundation phase 1: production-runtime accepted in Sites v393; read-only corpus verification is next.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -79,7 +79,7 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
-Status: `SOURCE_IMPLEMENTED_TESTED__PRODUCTION_MIGRATION_PENDING`.
+Status: `PHASE_1_PRODUCTION_RUNTIME_ACCEPTED__CORPUS_VERIFICATION_NEXT`.
 
 Scope:
 
@@ -93,7 +93,7 @@ Scope:
 
 The reported 595 outputs and 15 rejected masters are candidate evidence, not automatically a gold set.
 
-Source evidence on 2026-08-21: `EVALUATION_FOUNDATION_V1` defines six zero-spend components, candidate verification, correlation/de-duplication, blinded dataset splits, controlled-injection lineage, eleven initial defect families and per-family precision/recall/repeatability/cost results. Migration `0052` backfills only rejected artifact metadata as unverified, non-release candidate evidence. No fixture, dataset or assurance capability is sealed or qualified. Exact next gate: deploy `0052`, read back production counts and prove zero provider/spend delta before byte verification begins.
+Evidence on 2026-08-21: `EVALUATION_FOUNDATION_V1` defines six zero-spend components, candidate verification, correlation/de-duplication, blinded dataset splits, controlled-injection lineage, eleven initial defect families and per-family precision/recall/repeatability/cost results. Sites v393 applied migration `0052`. Direct live read-back reports 595 candidate artifacts, 15 rejected packages, zero verified/gold/release-eligible fixtures, zero sealed datasets and unchanged provider/spend totals. No assurance capability is qualified. Exact next gate: read back exact R2 bytes, recompute checksums, verify provenance/rights and bind owner labels before de-duplicated calibration data can be sealed.
 
 ## Wave 4 — Upstream and technical standards
 

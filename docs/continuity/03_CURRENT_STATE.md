@@ -7,10 +7,15 @@ Last reconciled: 2026-08-21 (Asia/Bangkok)
 ```text
 WAVE_3_SOURCE = IMPLEMENTED_TESTED
 WAVE_3_VERSION = EVALUATION_FOUNDATION_V1
-WAVE_3_SCHEMA = MIGRATION_0052_PREPARED__PRODUCTION_PENDING
+WAVE_3_SCHEMA = MIGRATION_0052_PRODUCTION_ACTIVE
+WAVE_3_RUNTIME = PRODUCTION_ACCEPTED_SITES_V393
+WAVE_3_PRODUCTION_SOURCE = 100901c1f064d91f3663df9d92bcc38bacd5797c
+WAVE_3_CLOSING_DEPLOYMENT = SITES_V394_DOCUMENTATION_CHECKPOINT
 EVALUATION_COMPONENTS = 6
 DEFECT_FAMILIES = 11_TOTAL__5_P0
 HISTORICAL_CORPUS_AUTHORITY = CANDIDATE_EVIDENCE_ONLY
+HISTORICAL_CANDIDATE_ARTIFACTS = 595
+REJECTED_PACKAGES = 15
 VERIFIED_FIXTURES = 0
 GOLD_ELIGIBLE_FIXTURES = 0
 SEALED_DATASETS = 0
@@ -19,10 +24,10 @@ PROVIDER_REQUESTS_THIS_SLICE = 0
 PROVIDER_SPEND_USD_THIS_SLICE = 0
 OWNER_AUTHORITY = OWNER_STANDING_PRODUCTION_AUTHORITY_V1
 VQ_M0_SAFETY_SCOPE = NOT_EVALUATED__PROVIDER_DISPATCH_BLOCKED
-NEXT_PROTECTED_ACTION = DEPLOY_0052_AND_VERIFY_PRODUCTION_INVENTORY
+NEXT_PROTECTED_ACTION = READ_ONLY_CORPUS_BYTE_AND_PROVENANCE_VERIFICATION
 ```
 
-Source now defines candidate verification, correlation/de-duplication, blinded datasets, controlled-defect lineage and per-family assurance qualification. Migration `0052` inventories rejected Production V2 artifacts without promoting declared hashes, package rejection or historic QA into verified fixture truth. Numeric recall and timing floors remain calibration-required. The operator projection leads with candidate, verified, gold and release-eligibility counts. ADR-079 records durable deployment/migration/QA/provider authority but preserves every dispatch prerequisite and keeps publication separate. Document 45 is the source execution record; `docs/architecture/EVALUATION_FOUNDATION.md` is normative.
+Source and production now define candidate verification, correlation/de-duplication, blinded datasets, controlled-defect lineage and per-family assurance qualification. Sites v393 applied migration `0052` and inventoried 595 artifacts associated with 15 rejected packages as candidate evidence only. Live read-back found zero verified, gold-eligible, sealed-dataset or release-eligible records and zero request/spend delta. Numeric recall and timing floors remain calibration-required. The operator projection leads with candidate, verified, gold and release-eligibility counts. ADR-079 records durable deployment/migration/QA/provider authority but preserves every dispatch prerequisite and keeps publication separate. Documents 45 and 46 are source and production evidence; `docs/architecture/EVALUATION_FOUNDATION.md` is normative.
 
 ## Wave 2 Learning-ready Contract Pack production checkpoint — 2026-08-21
 
