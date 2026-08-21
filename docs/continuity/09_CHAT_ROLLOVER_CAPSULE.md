@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `FP3_1_PRODUCTION_RUNTIME_ACCEPTED__TEMPORARY_QA_AUTH_SOURCE_REMOVAL_PENDING`
+**Current source classification:** `FP3_1_PRODUCTION_ACTIVE__RUNTIME_ACCEPTED`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -26,11 +26,13 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - FP2 Capability Registry mechanism is implemented.
 - One of 22 capability/operation bindings is qualified.
 - FP3 deterministic ShotCueProgram is sealed: 80.252 seconds, eight typed shots/treatments, zero timing/schema gaps, zero provider requests and zero spend.
-- FP3.1 Production Integrity is active. Sites v388 failed safely before publish on duplicate historical default fencing tokens; corrected migration `0050` became active in Sites v389. Sites v390 zero-dispatch runtime acceptance passed with unchanged provider/spend totals. The temporary QA environment key is removed; deploy the source authorization-branch removal before beginning Wave 2.
+- FP3.1 Production Integrity is active. Sites v388 failed safely before publish on duplicate historical default fencing tokens; corrected migration `0050` became active in Sites v389. Sites v390 zero-dispatch runtime acceptance passed with unchanged provider/spend totals. Sites v391 removed the temporary QA source authorization path; its environment key is absent and a retired QA header is rejected with `401`.
+- Production currently reports 56 historical provider requests (49 completed, seven failed), zero active requests and actual recorded spend of `$13.247131145833333`; FP3.1 added zero requests and zero spend.
+- `VQ-M0-SAFETY-SCOPE` remains `NOT_EVALUATED`. FP3.1 proves the fail-closed infrastructure, not the financial-content safety evidence needed to open dispatch.
 - Golden r9 is immutable rejected evidence.
 - Golden r10, Stage 11, Videos 2–15 and auto-publish are blocked.
 - Paid FP4 authority has not been granted.
-- The next implementation milestone is the closing FP3.1 source cleanup checkpoint, followed by the Learning-ready Contract Pack and WP7 Evaluation Foundation. Paid FP4/FP5 remains unauthorized.
+- The next implementation milestone is Wave 2, the zero-spend Learning-ready Contract Pack, followed by WP7 Evaluation Foundation. Paid FP4/FP5 remains unauthorized.
 
 ## Protected no-rerun list
 

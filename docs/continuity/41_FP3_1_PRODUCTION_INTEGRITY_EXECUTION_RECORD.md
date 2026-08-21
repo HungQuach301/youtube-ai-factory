@@ -2,8 +2,8 @@
 
 **Class:** `EXECUTION_EVIDENCE`
 **Date:** 2026-08-21 (Asia/Bangkok)
-**Source state:** `IMPLEMENTED_TESTED__HISTORICAL_LEASE_BACKFILL_CORRECTED`
-**Production state:** `UNCHANGED__SITES_V388_MIGRATION_FAILED_BEFORE_PUBLISH`
+**Source state:** `PRODUCTION_ACTIVE__SOURCE_COMMIT_3E8D1CE`
+**Production state:** `RUNTIME_ACCEPTED__SITES_V391`
 
 ## Bounded authority
 
@@ -30,7 +30,7 @@ Migration `drizzle/0050_fp3_1_production_integrity.sql` adds artifact eligibilit
 - `v7_integrity_dispatch_traces`
 - `v7_integrity_incidents`
 
-No production schema was changed in this session. The migration replay was isolated in memory and applied all 52 tracked SQL migrations through `0050`.
+The migration replay was first isolated in memory and applied all 52 tracked SQL migrations through `0050`. The corrected migration later became active in production at Sites v389.
 
 ## Production compatibility correction
 
@@ -38,7 +38,7 @@ The first authorized checkpoint attempt, Sites v388, failed before publication b
 
 Migration `0050` now ranks every historical lease deterministically within its program, backfills a unique monotonic token, orphans already-expired active leases, restores the token on any one still-valid active stage and initializes the counter from the resulting maximum. The migration regression now seeds multiple released leases, one expired active lease and one current active lease before applying `0050`; replay proves unique tokens, expired-lease reconciliation, active-stage continuity and the next-token floor before the production retry.
 
-Production runtime acceptance used a dedicated temporary `FP3_1_RUNTIME_QA_TOKEN` only on the integrity endpoint because a Sites bypass request is intentionally identity-less and cannot impersonate the channel owner. The credential granted no provider route, publish or spend authority. The endpoint also exposes a deterministic owner/system-authorized `PROBE_DISPATCH_FIREWALL` self-test that returned `BLOCKED_AS_EXPECTED` with zero requests and zero spend. The temporary environment key was removed after the probe, and the temporary source authorization branch is removed in the closing production checkpoint so the credential cannot remain an access path even if an edge retains stale secret material.
+Production runtime acceptance used a dedicated temporary `FP3_1_RUNTIME_QA_TOKEN` only on the integrity endpoint because a Sites bypass request is intentionally identity-less and cannot impersonate the channel owner. The credential granted no provider route, publish or spend authority. The endpoint also exposes a deterministic owner/system-authorized `PROBE_DISPATCH_FIREWALL` self-test that returned `BLOCKED_AS_EXPECTED` with zero requests and zero spend. The temporary environment key was removed after the probe. Sites v391 removed the temporary source authorization branch, and a request carrying only the retired QA header is rejected with `401`; the credential is no longer an access path even if an edge retained stale secret material.
 
 ## Verification evidence
 
@@ -65,6 +65,8 @@ PROVIDER_SPEND_USD = 0
 
 Git remote equality and clean-worktree verification remain required at handoff; the resulting pushed Git commit is the durable identity of this record.
 
+Production-runtime measurements and the closing credential-removal evidence are recorded in Document 42.
+
 ## Issues advanced, not closed by source alone
 
 - Source implementation advances A1–A5, D3, D7, F5 and X1–X4.
@@ -73,4 +75,4 @@ Git remote equality and clean-worktree verification remain required at handoff; 
 
 ## Exact next protected action
 
-Retry the corrected migration `0050` under the already granted zero-dispatch production authority, read back the migrated schema and reconciled rows, exercise fencing heartbeat/orphan and blocked-firewall probes at zero spend, inspect redacted trace/incident evidence, verify production logs, then record a production-runtime checkpoint. Do not start paid FP4/FP5 or Wave 2 merely because source tests pass.
+Implement Wave 2 Learning-ready Contract Pack as schema, policy and zero-spend regression work: channel identity, packaging promise, predicted performance, experiment/learning, rights/compliance, animatic and archival/distribution contracts. Do not dispatch paid FP4/FP5 providers, render Golden r10 or open Stage 11. The unresolved M0 Safety Scope evidence must remain fail-closed.

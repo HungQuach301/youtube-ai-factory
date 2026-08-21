@@ -14,8 +14,8 @@
 - Paid FP4 authority: not granted.
 - FP3.1 source, additive migration and local regression: implemented and tested.
 - FP3.1 production migration: active in Sites v389 after v388 failed safely before publish and exposed the historical fencing-token backfill defect.
-- FP3.1 runtime QA: zero-dispatch acceptance passed in Sites v390; the temporary QA environment key is removed and its source authorization branch is pending the closing checkpoint.
-- Next implementation milestone: close the temporary QA authorization path, then begin the zero-spend Learning-ready Contract Pack, not paid FP4 dispatch.
+- FP3.1 runtime QA: zero-dispatch acceptance passed in Sites v390; Sites v391 removed the temporary QA authorization path, the environment key is absent and a retired QA header is rejected with `401`.
+- Next implementation milestone: begin the zero-spend Learning-ready Contract Pack, not paid FP4 dispatch.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -33,7 +33,7 @@ Exit evidence: committed and pushed Git checkpoint; local HEAD equals `origin/ma
 
 ## Wave 1 — FP3.1 Production Integrity
 
-Status: `PRODUCTION_RUNTIME_ACCEPTED__TEMPORARY_QA_AUTH_SOURCE_REMOVAL_PENDING`.
+Status: `PRODUCTION_RUNTIME_ACCEPTED__CONTENT_SAFETY_GATE_REMAINS_BLOCKED`.
 
 Scope:
 
@@ -54,7 +54,7 @@ Exit gates:
 - canonicalization property tests pass;
 - no unqualified dispatch path remains.
 
-Source evidence on 2026-08-21: all 52 migrations replay through `0050`; canonicalization, stale fencing, real SQLite reservation ceilings, actual-cost ceilings, safety-state separation, settings supersede, failure taxonomy and route-firewall regressions pass. The first authorized production checkpoint failed safely before publish because historical leases shared the default fencing token; the corrected replay covers multiple released leases, an expired active lease and a current active lease. Sites v389 applied the corrected migration. Sites v390 read-back and zero-dispatch probes passed with unchanged provider/spend totals. Wave 2 may start only after the closing checkpoint removes the temporary QA authorization branch; the actual `VQ-M0-SAFETY-SCOPE` content state remains `NOT_EVALUATED` and blocks production dispatch.
+Source evidence on 2026-08-21: all 52 migrations replay through `0050`; canonicalization, stale fencing, real SQLite reservation ceilings, actual-cost ceilings, safety-state separation, settings supersede, failure taxonomy and route-firewall regressions pass. The first authorized production checkpoint failed safely before publish because historical leases shared the default fencing token; the corrected replay covers multiple released leases, an expired active lease and a current active lease. Sites v389 applied the corrected migration. Sites v390 read-back and zero-dispatch probes passed with unchanged provider/spend totals. Sites v391 removed the temporary QA authorization branch. Wave 1 infrastructure is accepted; the actual `VQ-M0-SAFETY-SCOPE` content state remains `NOT_EVALUATED` and blocks production dispatch. Wave 2 may proceed only as zero-spend schema, policy and regression work.
 
 ## Wave 2 — Learning-ready Contract Pack
 
