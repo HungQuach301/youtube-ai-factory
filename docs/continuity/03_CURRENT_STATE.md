@@ -2,6 +2,24 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Wave 3 corpus verification source checkpoint — 2026-08-21
+
+```text
+CORPUS_VERIFICATION_POLICY = CORPUS_VERIFICATION_POLICY_V1
+CORPUS_VERIFICATION_SOURCE = IMPLEMENTED_TESTED
+CORPUS_VERIFICATION_SCHEMA = MIGRATION_0053_PENDING_PRODUCTION
+RUNTIME_BATCH_LIMIT = 20_CANDIDATES
+RUNTIME_OBJECT_LIMIT = 100000000_BYTES
+R2_BINDING = CANDIDATE_TO_SOURCE_ARTIFACT_TO_OBJECT_METADATA
+RIGHTS_POLICY = PROVIDER_MEDIA_RECEIPT_REQUIRED
+PROVIDER_REQUESTS_THIS_SLICE = 0
+PROVIDER_SPEND_USD_THIS_SLICE = 0
+PRODUCTION_RUNTIME = PENDING_DEPLOYMENT_AND_LIVE_SWEEP
+NEXT_PROTECTED_ACTION = DEPLOY_MIGRATION_0053_AND_RUN_BOUNDED_BYTE_VERIFICATION
+```
+
+The source now contains an owner-bound, idempotent and read-only verification command. Each receipt stores recomputed hash, actual byte size, exact R2 metadata reconciliation, provenance result, rights basis, explicit reasons and a canonical evidence hash. Byte verification alone cannot promote a candidate: owner decision, defect label, rights, correlation and de-duplication gates remain closed. Document 47 records source execution evidence.
+
 ## Wave 3 Evaluation Foundation source checkpoint — 2026-08-21
 
 ```text

@@ -1,4 +1,74 @@
 export const EVALUATION_FOUNDATION_VERSION = "EVALUATION_FOUNDATION_V1" as const;
+export const CORPUS_VERIFICATION_POLICY_VERSION = "CORPUS_VERIFICATION_POLICY_V1" as const;
+export const CORPUS_VERIFICATION_MAXIMUM_BATCH = 20 as const;
+export const CORPUS_VERIFICATION_MAXIMUM_OBJECT_BYTES = 100_000_000 as const;
+
+export type CorpusArtifactEvidence = {
+  candidateId: string;
+  sourceArtifactId: string;
+  sourcePackageId: string;
+  storageKey: string;
+  declaredHash?: string;
+  computedHash?: string;
+  declaredBytes?: number;
+  actualBytes?: number;
+  mimeType?: string;
+  artifactType?: string;
+  engineVersion?: string;
+  rightsDeclaredState?: string;
+  provenance?: Record<string, unknown> | null;
+  objectFound: boolean;
+  objectMetadata?: Record<string, string>;
+};
+
+const clean = (value: unknown) => String(value ?? "").trim();
+const acceptedRightsDeclarations = new Set(["CHANNEL_OWNED_OR_PROVIDER_COMMERCIAL", "CHANNEL_OWNED_ORIGINAL", "COMMERCIAL_LICENSE_VERIFIED"]);
+
+export function reconcileCorpusArtifactEvidence(input: CorpusArtifactEvidence) {
+  const reasons: string[] = [];
+  const metadata = input.objectMetadata ?? {};
+  const provenance = input.provenance && typeof input.provenance === "object" && !Array.isArray(input.provenance) ? input.provenance : null;
+  const declaredHash = clean(input.declaredHash).toLowerCase(), computedHash = clean(input.computedHash).toLowerCase();
+  const bytesState = !input.objectFound ? "OBJECT_MISSING"
+    : Number(input.actualBytes) > CORPUS_VERIFICATION_MAXIMUM_OBJECT_BYTES ? "OBJECT_SIZE_LIMIT_EXCEEDED"
+    : "READBACK_VERIFIED";
+  if (bytesState !== "READBACK_VERIFIED") reasons.push(bytesState);
+  if (bytesState === "READBACK_VERIFIED" && Number(input.declaredBytes) !== Number(input.actualBytes)) reasons.push("BYTE_SIZE_MISMATCH");
+  const checksumState = bytesState === "READBACK_VERIFIED" && /^[a-f0-9]{64}$/.test(declaredHash) && declaredHash === computedHash ? "PASS" : "FAIL";
+  if (checksumState !== "PASS") reasons.push(!declaredHash ? "DECLARED_HASH_MISSING" : "CHECKSUM_MISMATCH");
+  const metadataMatches = clean(metadata.artifactId) === clean(input.sourceArtifactId)
+    && clean(metadata.packageId) === clean(input.sourcePackageId)
+    && clean(metadata.sha256).toLowerCase() === declaredHash
+    && clean(metadata.engineVersion) === clean(input.engineVersion);
+  const provenanceState = provenance && provenance.legacySources === 0 && metadataMatches ? "PASS" : "FAIL";
+  if (!provenance) reasons.push("PROVENANCE_JSON_INVALID");
+  if (provenance && provenance.legacySources !== 0) reasons.push("LEGACY_SOURCE_ISOLATION_UNPROVEN");
+  if (!metadataMatches) reasons.push("R2_OBJECT_METADATA_MISMATCH");
+
+  const mime = clean(input.mimeType).toLowerCase();
+  const providerBound = ["audio/", "video/"].some((prefix) => mime.startsWith(prefix)) || Boolean(clean(provenance?.provider));
+  const explicitRightsReceipt = Boolean(clean(provenance?.rightsReceiptHash) || clean(provenance?.licenseReceiptHash) || clean(provenance?.termsVersion));
+  const channelAuthored = !providerBound && Boolean(clean(provenance?.author) || clean(provenance?.actor) || clean(provenance?.executor));
+  const declaredRightsAccepted = acceptedRightsDeclarations.has(clean(input.rightsDeclaredState));
+  const rightsPass = provenanceState === "PASS" && declaredRightsAccepted && (channelAuthored || explicitRightsReceipt);
+  const rightsVerificationState = rightsPass ? "PASS" : "RECEIPT_REQUIRED";
+  const rightsBasis = rightsPass
+    ? channelAuthored ? "CHANNEL_AUTHORED_EVALUATION_USE" : "EXPLICIT_RIGHTS_RECEIPT"
+    : !declaredRightsAccepted ? "DECLARATION_NOT_ELIGIBLE" : providerBound && !explicitRightsReceipt ? "PROVIDER_TERMS_RECEIPT_MISSING" : "AUTHORSHIP_EVIDENCE_INCOMPLETE";
+  if (!rightsPass) reasons.push(rightsBasis);
+
+  return {
+    bytesState,
+    checksumState,
+    provenanceState,
+    rightsVerificationState,
+    rightsBasis,
+    verificationState: bytesState === "READBACK_VERIFIED" && checksumState === "PASS" && provenanceState === "PASS"
+      ? rightsPass ? "EVIDENCE_VERIFIED" as const : "PARTIAL_RIGHTS_PENDING" as const
+      : "BLOCKED" as const,
+    reasons: [...new Set(reasons)],
+  };
+}
 
 export const OWNER_STANDING_AUTHORITY = {
   version: "OWNER_STANDING_PRODUCTION_AUTHORITY_V1",

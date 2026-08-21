@@ -43,6 +43,8 @@ Migration `0052_evaluation_foundation.sql` adds:
 - assurance qualification runs and per-defect results;
 - an immutable inventory snapshot.
 
+Migration `0053_evaluation_corpus_verification.sql` adds bounded, idempotent verification runs and durable per-candidate receipts. `CORPUS_VERIFICATION_POLICY_V1` limits each runtime batch to 20 candidates and 100,000,000 bytes per object, binds recomputed bytes to source-artifact and R2 metadata, and database-constrains the verification plane to zero provider requests and zero spend.
+
 D1 stores evidence state, relationships, decisions and metrics. R2 remains authoritative for media bytes. Migration backfill copies declared metadata but deliberately leaves byte, checksum, provenance, rights and labels unverified.
 
 ## Defect taxonomy
@@ -84,4 +86,4 @@ The first phase inventories production-history artifacts as `CANDIDATE_EVIDENCE`
 
 ## Next phase
 
-Run bounded read-only corpus verification: R2 read-back, checksum recomputation, provenance/rights reconciliation and owner-label collection. Then de-duplicate and partition independent fixtures before creating any dataset or calling an assurance provider.
+Deploy migration `0053` and execute bounded read-only corpus verification. Byte/checksum/provenance PASS does not imply rights PASS: provider-bound material without a receipt remains `RECEIPT_REQUIRED`. After the sweep, collect missing rights evidence and owner labels, then de-duplicate and partition independent fixtures before creating any dataset or calling an assurance provider.

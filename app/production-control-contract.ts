@@ -64,7 +64,7 @@ export type SequentialProductionProjection = {
   firstPass: {
     standardVersion: "FIRST_PASS_QUALITY_V1";
     currentSlice: "WAVE_3";
-    currentSliceState: "CANDIDATE_INVENTORY_ACTIVE";
+    currentSliceState: "CORPUS_VERIFICATION_ACTIVE";
     nextSlice: "WP7_CORPUS_VERIFICATION";
     nextSliceLabel: string;
     capabilityRegistryState: "QUALIFICATION_REQUIRED" | "PARTIALLY_QUALIFIED" | "QUALIFIED";
@@ -133,6 +133,15 @@ export type SequentialProductionProjection = {
       verifiedFixtures: number;
       goldEligible: number;
       duplicateHashGroups: number;
+      verificationRuns: number;
+      verificationPending: number;
+      byteVerified: number;
+      checksumPass: number;
+      provenancePass: number;
+      rightsPass: number;
+      rightsPending: number;
+      verificationBlocked: number;
+      verificationBytesRead: number;
       defectFamilies: number;
       p0DefectFamilies: number;
       sealedDatasets: number;

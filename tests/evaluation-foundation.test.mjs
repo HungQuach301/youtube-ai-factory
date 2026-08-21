@@ -4,9 +4,11 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
   EVALUATION_FOUNDATION_VERSION,
+  CORPUS_VERIFICATION_POLICY_VERSION,
   OWNER_STANDING_AUTHORITY,
   evaluateAssuranceQualification,
   evaluateCandidateVerification,
+  reconcileCorpusArtifactEvidence,
   standingAuthorityCovers,
   summarizeEvaluationInventory,
 } from "../lib/evaluation-foundation.ts";
@@ -56,6 +58,27 @@ test("duplicate and correlated revisions never increase the gold count", () => {
   assert.equal(summary.candidates, 3);
   assert.equal(summary.duplicateHashes, 1);
   assert.equal(summary.goldEligible, 1);
+});
+
+test("corpus reconciliation binds D1 declarations to exact R2 bytes and metadata", () => {
+  const base = {
+    candidateId: "candidate-1", sourceArtifactId: "artifact-1", sourcePackageId: "package-1", storageKey: "production-v2/package-1/scene.svg",
+    declaredHash: "a".repeat(64), computedHash: "a".repeat(64), declaredBytes: 120, actualBytes: 120, mimeType: "image/svg+xml", artifactType: "FULL_SCENE",
+    engineVersion: "PRODUCTION_ENGINE_V2_GREENFIELD", rightsDeclaredState: "CHANNEL_OWNED_OR_PROVIDER_COMMERCIAL", provenance: { author: "PRODUCTION_ENGINE_V2_GREENFIELD", legacySources: 0 }, objectFound: true,
+    objectMetadata: { artifactId: "artifact-1", packageId: "package-1", sha256: "a".repeat(64), engineVersion: "PRODUCTION_ENGINE_V2_GREENFIELD" },
+  };
+  const verified = reconcileCorpusArtifactEvidence(base);
+  assert.equal(CORPUS_VERIFICATION_POLICY_VERSION, "CORPUS_VERIFICATION_POLICY_V1");
+  assert.deepEqual({ bytes: verified.bytesState, checksum: verified.checksumState, provenance: verified.provenanceState, rights: verified.rightsVerificationState, state: verified.verificationState }, {
+    bytes: "READBACK_VERIFIED", checksum: "PASS", provenance: "PASS", rights: "PASS", state: "EVIDENCE_VERIFIED",
+  });
+  const providerAudio = reconcileCorpusArtifactEvidence({ ...base, mimeType: "audio/mpeg", artifactType: "PILOT_NARRATION", provenance: { provider: "ElevenLabs", model: "eleven_multilingual_v2", legacySources: 0 } });
+  assert.equal(providerAudio.rightsVerificationState, "RECEIPT_REQUIRED");
+  assert.equal(providerAudio.verificationState, "PARTIAL_RIGHTS_PENDING");
+  const mismatched = reconcileCorpusArtifactEvidence({ ...base, computedHash: "b".repeat(64), objectMetadata: { ...base.objectMetadata, artifactId: "wrong" } });
+  assert.equal(mismatched.checksumState, "FAIL");
+  assert.equal(mismatched.provenanceState, "FAIL");
+  assert.equal(mismatched.verificationState, "BLOCKED");
 });
 
 test("assurance qualification requires calibrated P0 floors, blind data, repeatability and zero escapes", () => {
@@ -123,4 +146,25 @@ test("migration 0052 inventories rejected artifacts as unverified non-release ev
   assert.equal(zero.requests, 0);
   assert.equal(zero.spend, 0);
   assert.throws(() => db.prepare("UPDATE v7_evaluation_candidates SET release_eligible=1 WHERE id='evaluation-candidate:historical-a'").run(), /CHECK constraint failed/);
+});
+
+test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {
+  const migration = read("drizzle/0053_evaluation_corpus_verification.sql");
+  for (const table of ["v7_evaluation_verification_runs", "v7_evaluation_verification_receipts"]) assert.match(migration, new RegExp(table));
+  assert.match(migration, /maximum_candidates.*BETWEEN 1 AND 20/s);
+  assert.match(migration, /provider_requests.*CHECK \(`provider_requests` = 0\)/s);
+  assert.match(migration, /spend_usd.*CHECK \(`spend_usd` = 0\)/s);
+  assert.doesNotMatch(migration, /api\.openai\.com|elevenlabs\.io|pexels\.com\/v1/);
+  const db = new DatabaseSync(":memory:");
+  for (const file of readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort()) db.exec(read(`drizzle/${file}`));
+  const candidateColumns = db.prepare("PRAGMA table_info(v7_evaluation_candidates)").all().map((column) => column.name);
+  for (const column of ["verification_state", "latest_verification_receipt_id", "verification_attempted_at"]) assert.ok(candidateColumns.includes(column));
+  assert.throws(() => db.prepare(`INSERT INTO v7_evaluation_verification_runs
+    (id,channel_id,foundation_version,policy_version,idempotency_key,intent_hash,candidate_ids_json,maximum_candidates,maximum_object_bytes,planned_candidates,provider_requests,spend_usd,actor)
+    VALUES ('bad','channel','EVALUATION_FOUNDATION_V1','CORPUS_VERIFICATION_POLICY_V1','key','hash','[]',20,100000000,0,1,0,'owner')`).run(), /CHECK constraint failed/);
+  const route = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(route, /RUN_CORPUS_VERIFICATION_BATCH/);
+  assert.match(route, /CORPUS_VERIFICATION_MAXIMUM_BATCH/);
+  assert.match(route, /x-sequential-executor-token/);
+  assert.doesNotMatch(route, /authorizeProductionDispatch|api\.openai\.com|elevenlabs\.io/);
 });

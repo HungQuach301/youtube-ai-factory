@@ -2395,12 +2395,29 @@ export const v7EvaluationCandidates = sqliteTable("v7_evaluation_candidates", {
   defectLabelState: text("defect_label_state").notNull().default("NOT_LABELLED"), rightsDeclaredState: text("rights_declared_state").notNull().default("UNKNOWN"), rightsVerificationState: text("rights_verification_state").notNull().default("NOT_VERIFIED"),
   correlationGroup: text("correlation_group").notNull(), dedupHash: text("dedup_hash"), exclusionReason: text("exclusion_reason"), releaseEligible: integer("release_eligible", { mode: "boolean" }).notNull().default(false),
   qualificationEligible: integer("qualification_eligible", { mode: "boolean" }).notNull().default(false), providerRequests: integer("provider_requests").notNull().default(0), spendUsd: real("spend_usd").notNull().default(0),
+  verificationState: text("verification_state").notNull().default("PENDING"), latestVerificationReceiptId: text("latest_verification_receipt_id"), verificationAttemptedAt: text("verification_attempted_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), verifiedAt: text("verified_at"),
 }, (table) => [
   uniqueIndex("v7_evaluation_candidate_source_uq").on(table.sourceTable, table.sourceId),
   index("v7_evaluation_candidate_channel_state_idx").on(table.channelId, table.lifecycleState, table.candidateKind),
   index("v7_evaluation_candidate_dedup_idx").on(table.dedupHash, table.correlationGroup),
+  index("v7_evaluation_candidate_verification_idx").on(table.channelId, table.verificationState, table.id),
 ]);
+
+export const v7EvaluationVerificationRuns = sqliteTable("v7_evaluation_verification_runs", {
+  id: text("id").primaryKey(), channelId: text("channel_id").notNull(), foundationVersion: text("foundation_version").notNull(), policyVersion: text("policy_version").notNull(), lifecycleState: text("lifecycle_state").notNull().default("PLANNED"),
+  idempotencyKey: text("idempotency_key").notNull(), intentHash: text("intent_hash").notNull(), candidateIdsJson: text("candidate_ids_json").notNull(), maximumCandidates: integer("maximum_candidates").notNull(), maximumObjectBytes: integer("maximum_object_bytes").notNull(),
+  plannedCandidates: integer("planned_candidates").notNull(), processedCandidates: integer("processed_candidates").notNull().default(0), byteVerifiedCandidates: integer("byte_verified_candidates").notNull().default(0), checksumPassCandidates: integer("checksum_pass_candidates").notNull().default(0),
+  provenancePassCandidates: integer("provenance_pass_candidates").notNull().default(0), rightsPassCandidates: integer("rights_pass_candidates").notNull().default(0), blockedCandidates: integer("blocked_candidates").notNull().default(0), bytesRead: integer("bytes_read").notNull().default(0),
+  providerRequests: integer("provider_requests").notNull().default(0), spendUsd: real("spend_usd").notNull().default(0), actor: text("actor").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), completedAt: text("completed_at"),
+}, (table) => [uniqueIndex("v7_evaluation_verification_run_idempotency_uq").on(table.channelId, table.idempotencyKey), index("v7_evaluation_verification_run_state_idx").on(table.channelId, table.lifecycleState, table.createdAt)]);
+
+export const v7EvaluationVerificationReceipts = sqliteTable("v7_evaluation_verification_receipts", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => v7EvaluationVerificationRuns.id), candidateId: text("candidate_id").notNull().references(() => v7EvaluationCandidates.id), sourceArtifactId: text("source_artifact_id").notNull(), storageKey: text("storage_key").notNull(),
+  declaredHash: text("declared_hash"), computedHash: text("computed_hash"), declaredBytes: integer("declared_bytes"), actualBytes: integer("actual_bytes"), bytesState: text("bytes_state").notNull(), checksumState: text("checksum_state").notNull(), provenanceState: text("provenance_state").notNull(),
+  rightsVerificationState: text("rights_verification_state").notNull(), rightsBasis: text("rights_basis").notNull(), objectMetadataJson: text("object_metadata_json").notNull(), reconciliationReasonsJson: text("reconciliation_reasons_json").notNull(), evidenceHash: text("evidence_hash").notNull(),
+  providerRequests: integer("provider_requests").notNull().default(0), spendUsd: real("spend_usd").notNull().default(0), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_evaluation_verification_receipt_run_candidate_uq").on(table.runId, table.candidateId), index("v7_evaluation_verification_receipt_candidate_idx").on(table.candidateId, table.createdAt)]);
 
 export const v7EvaluationDefectTaxonomy = sqliteTable("v7_evaluation_defect_taxonomy", {
   id: text("id").primaryKey(), defectKey: text("defect_key").notNull(), label: text("label").notNull(), severity: text("severity").notNull(), modality: text("modality").notNull(), owningStage: text("owning_stage").notNull(),

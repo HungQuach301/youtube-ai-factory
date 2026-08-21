@@ -189,7 +189,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   if (!current) throw new Error("EXCLUSIVE_ACTIVE_VIDEO_NOT_FOUND");
   const stages = await rows(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? ORDER BY sequence", current.id);
   const activeStage = stages.find((stage) => ["READY","RUNNING","REPAIR_REQUIRED","ESCALATED"].includes(text(stage.lifecycle_state))) ?? stages[0];
-  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationDefects, evaluationDatasets] = await Promise.all([
+  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationVerification, evaluationDefects, evaluationDatasets] = await Promise.all([
     rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION),
     rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
     db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
@@ -203,7 +203,8 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     rows(db, "SELECT * FROM v7_learning_ready_contract_registry WHERE active=1 ORDER BY contract_key"),
     rows(db, "SELECT * FROM v7_evaluation_foundation_registry WHERE active=1 ORDER BY component_key"),
     rows(db, "SELECT * FROM v7_evaluation_corpus_sources WHERE active=1 ORDER BY source_family,source_table"),
-    db.prepare("SELECT COUNT(*) candidates,COALESCE(SUM(CASE WHEN lifecycle_state IN ('VERIFIED_FIXTURE','GOLD_ELIGIBLE') THEN 1 ELSE 0 END),0) verified,COALESCE(SUM(CASE WHEN lifecycle_state='GOLD_ELIGIBLE' AND qualification_eligible=1 THEN 1 ELSE 0 END),0) gold_eligible,COALESCE(SUM(release_eligible),0) release_eligible,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend,(SELECT COUNT(*) FROM (SELECT dedup_hash FROM v7_evaluation_candidates d WHERE d.channel_id=? AND d.dedup_hash IS NOT NULL GROUP BY dedup_hash HAVING COUNT(*)>1)) duplicate_groups FROM v7_evaluation_candidates WHERE channel_id=?").bind(channelId, channelId).first<Row>(),
+    db.prepare("SELECT COUNT(*) candidates,COALESCE(SUM(CASE WHEN lifecycle_state IN ('VERIFIED_FIXTURE','GOLD_ELIGIBLE') THEN 1 ELSE 0 END),0) verified,COALESCE(SUM(CASE WHEN lifecycle_state='GOLD_ELIGIBLE' AND qualification_eligible=1 THEN 1 ELSE 0 END),0) gold_eligible,COALESCE(SUM(CASE WHEN verification_state='PENDING' THEN 1 ELSE 0 END),0) verification_pending,COALESCE(SUM(CASE WHEN bytes_state='READBACK_VERIFIED' THEN 1 ELSE 0 END),0) byte_verified,COALESCE(SUM(CASE WHEN checksum_state='PASS' THEN 1 ELSE 0 END),0) checksum_pass,COALESCE(SUM(CASE WHEN provenance_state='PASS' THEN 1 ELSE 0 END),0) provenance_pass,COALESCE(SUM(CASE WHEN rights_verification_state='PASS' THEN 1 ELSE 0 END),0) rights_pass,COALESCE(SUM(CASE WHEN verification_state='PARTIAL_RIGHTS_PENDING' THEN 1 ELSE 0 END),0) rights_pending,COALESCE(SUM(CASE WHEN verification_state='BLOCKED' THEN 1 ELSE 0 END),0) verification_blocked,COALESCE(SUM(release_eligible),0) release_eligible,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend,(SELECT COUNT(*) FROM (SELECT dedup_hash FROM v7_evaluation_candidates d WHERE d.channel_id=? AND d.dedup_hash IS NOT NULL GROUP BY dedup_hash HAVING COUNT(*)>1)) duplicate_groups FROM v7_evaluation_candidates WHERE channel_id=?").bind(channelId, channelId).first<Row>(),
+    db.prepare("SELECT COUNT(*) runs,COALESCE(SUM(bytes_read),0) bytes_read,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend FROM v7_evaluation_verification_runs WHERE channel_id=?").bind(channelId).first<Row>(),
     rows(db, "SELECT * FROM v7_evaluation_defect_taxonomy WHERE active=1 ORDER BY severity,defect_key"),
     rows(db, "SELECT * FROM v7_evaluation_datasets ORDER BY dataset_key,dataset_version"),
   ]);
@@ -345,7 +346,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     firstPass: {
       standardVersion: "FIRST_PASS_QUALITY_V1",
       currentSlice: "WAVE_3",
-      currentSliceState: "CANDIDATE_INVENTORY_ACTIVE",
+      currentSliceState: "CORPUS_VERIFICATION_ACTIVE",
       nextSlice: "WP7_CORPUS_VERIFICATION",
       nextSliceLabel: "Read back bytes, verify lineage and owner-label independent fixtures",
       capabilityRegistryState,
@@ -386,7 +387,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       },
       evaluationFoundation: {
         version: "EVALUATION_FOUNDATION_V1",
-        state: "CANDIDATE_INVENTORY_ACTIVE",
+        state: number(evaluationCandidates?.verification_pending) < number(evaluationCandidates?.candidates) ? "CORPUS_VERIFICATION_ACTIVE" : "CANDIDATE_INVENTORY_ACTIVE",
         componentsDefined: evaluationComponents.length,
         corpusSources: evaluationSources.length,
         candidateArtifacts: number(evaluationCandidates?.candidates),
@@ -394,6 +395,15 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         verifiedFixtures: number(evaluationCandidates?.verified),
         goldEligible: number(evaluationCandidates?.gold_eligible),
         duplicateHashGroups: number(evaluationCandidates?.duplicate_groups),
+        verificationRuns: number(evaluationVerification?.runs),
+        verificationPending: number(evaluationCandidates?.verification_pending),
+        byteVerified: number(evaluationCandidates?.byte_verified),
+        checksumPass: number(evaluationCandidates?.checksum_pass),
+        provenancePass: number(evaluationCandidates?.provenance_pass),
+        rightsPass: number(evaluationCandidates?.rights_pass),
+        rightsPending: number(evaluationCandidates?.rights_pending),
+        verificationBlocked: number(evaluationCandidates?.verification_blocked),
+        verificationBytesRead: number(evaluationVerification?.bytes_read),
         defectFamilies: evaluationDefects.length,
         p0DefectFamilies: evaluationDefects.filter((item) => text(item.severity) === "P0").length,
         sealedDatasets: evaluationDatasets.filter((item) => text(item.lifecycle_state) === "SEALED").length,

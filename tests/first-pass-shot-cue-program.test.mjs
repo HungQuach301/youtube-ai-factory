@@ -68,12 +68,12 @@ test("FP3 migration stores typed cue, lint and qualification evidence with zero 
   assert.doesNotMatch(migration, /api\.openai\.com|ELEVENLABS|PEXELS_API_KEY|PIXABAY_API_KEY|SHUTTERSTOCK_CONSUMER_KEY/);
 });
 
-test("operator projection advances from the Contract Pack to WP7 without unlocking Golden r10", () => {
+test("operator projection activates bounded WP7 corpus verification without unlocking Golden r10", () => {
   const projection = read("lib/sequential-production-projection.ts");
   const contract = read("app/production-control-contract.ts");
   const workspace = read("app/video-engine/production-engine-workspace.tsx");
   assert.match(projection, /currentSlice: "WAVE_3"/);
-  assert.match(projection, /currentSliceState: "CANDIDATE_INVENTORY_ACTIVE"/);
+  assert.match(projection, /currentSliceState: "CORPUS_VERIFICATION_ACTIVE"/);
   assert.match(projection, /nextSlice: "WP7_CORPUS_VERIFICATION"/);
   assert.match(projection, /goldenR10Eligible = false/);
   assert.match(contract, /state: "VERIFIED"/);
