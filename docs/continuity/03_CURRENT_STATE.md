@@ -2,6 +2,28 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Wave 3 Evaluation Foundation source checkpoint — 2026-08-21
+
+```text
+WAVE_3_SOURCE = IMPLEMENTED_TESTED
+WAVE_3_VERSION = EVALUATION_FOUNDATION_V1
+WAVE_3_SCHEMA = MIGRATION_0052_PREPARED__PRODUCTION_PENDING
+EVALUATION_COMPONENTS = 6
+DEFECT_FAMILIES = 11_TOTAL__5_P0
+HISTORICAL_CORPUS_AUTHORITY = CANDIDATE_EVIDENCE_ONLY
+VERIFIED_FIXTURES = 0
+GOLD_ELIGIBLE_FIXTURES = 0
+SEALED_DATASETS = 0
+RELEASE_ELIGIBLE_FIXTURES = 0
+PROVIDER_REQUESTS_THIS_SLICE = 0
+PROVIDER_SPEND_USD_THIS_SLICE = 0
+OWNER_AUTHORITY = OWNER_STANDING_PRODUCTION_AUTHORITY_V1
+VQ_M0_SAFETY_SCOPE = NOT_EVALUATED__PROVIDER_DISPATCH_BLOCKED
+NEXT_PROTECTED_ACTION = DEPLOY_0052_AND_VERIFY_PRODUCTION_INVENTORY
+```
+
+Source now defines candidate verification, correlation/de-duplication, blinded datasets, controlled-defect lineage and per-family assurance qualification. Migration `0052` inventories rejected Production V2 artifacts without promoting declared hashes, package rejection or historic QA into verified fixture truth. Numeric recall and timing floors remain calibration-required. The operator projection leads with candidate, verified, gold and release-eligibility counts. ADR-079 records durable deployment/migration/QA/provider authority but preserves every dispatch prerequisite and keeps publication separate. Document 45 is the source execution record; `docs/architecture/EVALUATION_FOUNDATION.md` is normative.
+
 ## Wave 2 Learning-ready Contract Pack production checkpoint — 2026-08-21
 
 ```text

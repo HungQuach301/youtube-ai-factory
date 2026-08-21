@@ -189,7 +189,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   if (!current) throw new Error("EXCLUSIVE_ACTIVE_VIDEO_NOT_FOUND");
   const stages = await rows(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? ORDER BY sequence", current.id);
   const activeStage = stages.find((stage) => ["READY","RUNNING","REPAIR_REQUIRED","ESCALATED"].includes(text(stage.lifecycle_state))) ?? stages[0];
-  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows] = await Promise.all([
+  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationDefects, evaluationDatasets] = await Promise.all([
     rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION),
     rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
     db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
@@ -201,6 +201,11 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     rows(db, "SELECT * FROM v7_first_pass_qualifications ORDER BY capability_id,archetype_id,qualification_version"),
     rows(db, "SELECT * FROM v7_first_pass_operation_requirements WHERE active=1 ORDER BY capability_id,archetype_id"),
     rows(db, "SELECT * FROM v7_learning_ready_contract_registry WHERE active=1 ORDER BY contract_key"),
+    rows(db, "SELECT * FROM v7_evaluation_foundation_registry WHERE active=1 ORDER BY component_key"),
+    rows(db, "SELECT * FROM v7_evaluation_corpus_sources WHERE active=1 ORDER BY source_family,source_table"),
+    db.prepare("SELECT COUNT(*) candidates,COALESCE(SUM(CASE WHEN lifecycle_state IN ('VERIFIED_FIXTURE','GOLD_ELIGIBLE') THEN 1 ELSE 0 END),0) verified,COALESCE(SUM(CASE WHEN lifecycle_state='GOLD_ELIGIBLE' AND qualification_eligible=1 THEN 1 ELSE 0 END),0) gold_eligible,COALESCE(SUM(release_eligible),0) release_eligible,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend,(SELECT COUNT(*) FROM (SELECT dedup_hash FROM v7_evaluation_candidates d WHERE d.channel_id=? AND d.dedup_hash IS NOT NULL GROUP BY dedup_hash HAVING COUNT(*)>1)) duplicate_groups FROM v7_evaluation_candidates WHERE channel_id=?").bind(channelId, channelId).first<Row>(),
+    rows(db, "SELECT * FROM v7_evaluation_defect_taxonomy WHERE active=1 ORDER BY severity,defect_key"),
+    rows(db, "SELECT * FROM v7_evaluation_datasets ORDER BY dataset_key,dataset_version"),
   ]);
   const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
   const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json,scan_json,error_code FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
@@ -335,14 +340,14 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       effectiveStateSummary: effectiveSummary,
       rootStageKeys,
       rootStageLabels,
-      nextMilestone: "Wave 3 · WP7 Evaluation Foundation",
+      nextMilestone: "Wave 3 · Verify failure corpus",
     },
     firstPass: {
       standardVersion: "FIRST_PASS_QUALITY_V1",
-      currentSlice: "WAVE_2",
-      currentSliceState: "CONTRACT_SCHEMA_ACTIVE",
-      nextSlice: "WP7_EVALUATION_FOUNDATION",
-      nextSliceLabel: "Verified failure corpus and qualified assurance gold sets",
+      currentSlice: "WAVE_3",
+      currentSliceState: "CANDIDATE_INVENTORY_ACTIVE",
+      nextSlice: "WP7_CORPUS_VERIFICATION",
+      nextSliceLabel: "Read back bytes, verify lineage and owner-label independent fixtures",
       capabilityRegistryState,
       dispatchGuardState: "ENFORCED",
       goldenR10Eligible,
@@ -379,6 +384,24 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
           stageBindings: json<string[]>(item.stage_bindings_json, []), lifecycleState: text(item.lifecycle_state),
         })),
       },
+      evaluationFoundation: {
+        version: "EVALUATION_FOUNDATION_V1",
+        state: "CANDIDATE_INVENTORY_ACTIVE",
+        componentsDefined: evaluationComponents.length,
+        corpusSources: evaluationSources.length,
+        candidateArtifacts: number(evaluationCandidates?.candidates),
+        rejectedPackages: rejectedCount,
+        verifiedFixtures: number(evaluationCandidates?.verified),
+        goldEligible: number(evaluationCandidates?.gold_eligible),
+        duplicateHashGroups: number(evaluationCandidates?.duplicate_groups),
+        defectFamilies: evaluationDefects.length,
+        p0DefectFamilies: evaluationDefects.filter((item) => text(item.severity) === "P0").length,
+        sealedDatasets: evaluationDatasets.filter((item) => text(item.lifecycle_state) === "SEALED").length,
+        releaseEligibleFixtures: number(evaluationCandidates?.release_eligible),
+        providerRequests: 0,
+        spendUsd: 0,
+        nextAction: "Verify R2 bytes, recompute checksums, reconcile provenance and rights, collect owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset.",
+      },
       readiness: [
         { id: "EFFECTIVE_PROJECTION", label: "Effective production state", passed: true, evidence: `${effectiveLabels[effectiveState]} projected from canonical evidence`, owningStages: ["00"] },
         { id: "CAPABILITY_REGISTRY", label: "Capability Registry runtime", passed: true, evidence: `${capabilitySummaries.length} versioned capabilities, ${archetypeSummaries.length} hardest archetypes and fail-closed dispatch auditing are active`, owningStages: ["07A", "07B", "09", "10", "13", "14"] },
@@ -386,6 +409,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         { id: "EXECUTABLE_CONTRACT", label: "Executable shot and cue contract", passed: true, evidence: `${FP3_GOLDEN_CONTRACT_SUMMARY.shotCount} typed shots cover ${FP3_GOLDEN_CONTRACT_SUMMARY.durationSeconds.toFixed(3)}s with ${FP3_GOLDEN_CONTRACT_SUMMARY.timelineGaps} gaps, ${FP3_GOLDEN_CONTRACT_SUMMARY.timelineOverlaps} overlaps, ${FP3_GOLDEN_CONTRACT_SUMMARY.schemaGaps} schema gaps and zero provider dispatch`, owningStages: ["08"] },
         { id: "PRODUCTION_INTEGRITY", label: "FP3.1 production runtime", passed: true, evidence: "Migration 0050 is production-active; historical fencing backfill, stale-writer rejection, orphan reconciliation and the zero-dispatch firewall probe passed with no new provider request or spend", owningStages: ["00", "03", "06"] },
         { id: "LEARNING_READY_CONTRACTS", label: "Learning-ready contract schemas", passed: contractRows.length === 8, evidence: `${contractRows.length}/8 channel identity, packaging, prediction, experiment, learning, rights/compliance, animatic and master-delivery schemas active; zero provider authority`, owningStages: ["04", "05", "08", "11", "13", "15", "16"] },
+        { id: "EVALUATION_FOUNDATION", label: "WP7 evaluation inventory", passed: evaluationComponents.length === 6 && number(evaluationCandidates?.release_eligible) === 0, evidence: `${number(evaluationCandidates?.candidates)} historical artifacts inventoried as candidate evidence; ${number(evaluationCandidates?.verified)} verified fixtures, ${number(evaluationCandidates?.gold_eligible)} gold-eligible, ${evaluationDefects.length} defect families; zero release authority and zero provider dispatch`, owningStages: ["12", "14"] },
         { id: "VISUAL_PLANE", label: "Qualified visual plane", passed: false, evidence: "FP4 must pass real-pixel, semantic-motion and variety gates", owningStages: ["07B", "09"] },
         { id: "AUDIO_PLANE", label: "Qualified audio plane", passed: false, evidence: "FP5 must pass narration, music, ambience, SFX and perceptual-mix gates", owningStages: ["07A", "10"] },
         { id: "GOLDEN_R10", label: "Golden r10", passed: goldenR10Eligible, evidence: goldenR10Eligible ? "Capability requirements are qualified; later FP3–FP5 gates still control production" : "Forbidden until all capability bindings and FP3–FP5 gates are green", owningStages: ["11", "12", "13", "14"] },

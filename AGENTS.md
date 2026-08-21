@@ -33,6 +33,10 @@ The active policy is [`docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md`](docs/gove
 - Capability qualification, active settings/version, cost reservation, rights eligibility and idempotency are dispatch prerequisites.
 - Plans, schemas, migrations, UI labels and provider responses do not prove completion by themselves.
 
+## Standing owner production authority
+
+`OWNER_STANDING_PRODUCTION_AUTHORITY_V1`, granted 2026-08-21, covers roadmap-bounded production deployments, additive migrations, production QA and provider dispatch without asking the owner for a duplicate chat confirmation. Every operation must still pass the active typed plan, capability/settings qualification, atomic budget reservation, rights, safety, idempotency and fencing gates. This standing authority does not authorize auto-publish, public publication, deletion of historical evidence or weakening a hard gate; those remain separate typed owner decisions.
+
 ## Documentation and continuity rule
 
 Before a chat rollover or after a coherent material milestone, the active assistant must:

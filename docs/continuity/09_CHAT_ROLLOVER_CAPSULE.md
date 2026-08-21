@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_2_PRODUCTION_RUNTIME_ACCEPTED__WP7_NEXT`
+**Current source classification:** `WAVE_3_EVALUATION_FOUNDATION_SOURCE_IMPLEMENTED__PRODUCTION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -35,6 +35,9 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Wave 2 source defines all eight `LEARNING_READY_CONTRACT_PACK_V1` contracts plus migration `0051`, fail-closed validators, operator projection and regression coverage.
 - Sites v392 applied `0051` and passed zero-dispatch read-back: eight schema rows, zero rows across nine artifact/receipt tables, zero reservations/traces, no worker errors and unchanged provider totals of 56 requests and `$13.247131145833333`. It creates no actual channel/video artifacts and activates no learning command.
 - The next protected action is Wave 3 WP7 Evaluation Foundation. Paid FP4/FP5 remains unauthorized.
+- Wave 3 source adds `EVALUATION_FOUNDATION_V1`, migration `0052`, candidate/gold verification, correlation control, blinded datasets, eleven defect families and assurance qualification metrics. Production migration/read-back is the next gate.
+- Historical corpus counts remain candidate evidence only: zero verified fixtures, zero gold-eligible fixtures and zero release-eligible fixtures are claimed at source checkpoint.
+- `OWNER_STANDING_PRODUCTION_AUTHORITY_V1` permits future roadmap-bounded deploy, migration, production QA and provider calls without repeated chat confirmation, but never bypasses capability/settings, budget, rights, safety, idempotency or fencing gates and does not authorize publish/delete/weaken actions.
 
 ## Protected no-rerun list
 
@@ -44,7 +47,7 @@ Do not:
 - treat historical Production Engine V2 masters as reusable or release-eligible;
 - restore generic fallback, placeholder eligibility or routine QA-guided repair loops;
 - render Golden r10 or open Stage 11 before required qualifications pass;
-- dispatch providers, migrate production data, deploy, publish or delete legacy state without explicit authority and runtime reconciliation.
+- dispatch providers, migrate production data or deploy without standing/typed authority and runtime reconciliation; publish, delete legacy state or weaken a hard gate without their separate owner-bound command.
 
 ## Rollover-ready gate
 

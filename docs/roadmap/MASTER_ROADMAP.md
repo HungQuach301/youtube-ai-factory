@@ -16,7 +16,7 @@
 - FP3.1 production migration: active in Sites v389 after v388 failed safely before publish and exposed the historical fencing-token backfill defect.
 - FP3.1 runtime QA: zero-dispatch acceptance passed in Sites v390; Sites v391 removed the temporary QA authorization path, the environment key is absent and a retired QA header is rejected with `401`.
 - Wave 2 Learning-ready Contract Pack: production-runtime accepted in Sites v392 with migration `0051` active and zero-dispatch read-back passed.
-- Next implementation milestone: Wave 3 WP7 Evaluation Foundation.
+- Wave 3 Evaluation Foundation source: implemented and tested; migration `0052` production checkpoint and live inventory verification are next.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -79,6 +79,8 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
+Status: `SOURCE_IMPLEMENTED_TESTED__PRODUCTION_MIGRATION_PENDING`.
+
 Scope:
 
 1. Inventory the historical failure corpus.
@@ -90,6 +92,8 @@ Scope:
 7. Qualify assurance only after every P0 defect family reaches its approved recall floor.
 
 The reported 595 outputs and 15 rejected masters are candidate evidence, not automatically a gold set.
+
+Source evidence on 2026-08-21: `EVALUATION_FOUNDATION_V1` defines six zero-spend components, candidate verification, correlation/de-duplication, blinded dataset splits, controlled-injection lineage, eleven initial defect families and per-family precision/recall/repeatability/cost results. Migration `0052` backfills only rejected artifact metadata as unverified, non-release candidate evidence. No fixture, dataset or assurance capability is sealed or qualified. Exact next gate: deploy `0052`, read back production counts and prove zero provider/spend delta before byte verification begins.
 
 ## Wave 4 — Upstream and technical standards
 

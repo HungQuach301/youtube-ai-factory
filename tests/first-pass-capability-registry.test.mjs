@@ -94,10 +94,10 @@ test("all production dispatch boundaries require qualification before provider w
 test("operator UI projects registry coverage without implying production readiness", () => {
   const projection = read("lib/sequential-production-projection.ts");
   const workspace = read("app/video-engine/production-engine-workspace.tsx");
-  assert.match(projection, /currentSlice: "WAVE_2"/);
+  assert.match(projection, /currentSlice: "WAVE_3"/);
   assert.match(projection, /v7_learning_ready_contract_registry/);
-  assert.match(projection, /nextSlice: "WP7_EVALUATION_FOUNDATION"/);
+  assert.match(projection, /nextSlice: "WP7_CORPUS_VERIFICATION"/);
   assert.match(projection, /dispatchGuardState: "ENFORCED"/);
   assert.match(workspace, /Qualification happens before production/);
-  assert.match(workspace, /Provider dispatch, Safety Scope completion and Golden r10 remain separately blocked/);
+  assert.match(workspace, /provider dispatch, Safety Scope completion and Golden r10 remain separately blocked/);
 });

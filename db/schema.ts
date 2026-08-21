@@ -2374,3 +2374,73 @@ export const v7MasterDeliveryContracts = sqliteTable("v7_master_delivery_contrac
   r2ReconciliationState: text("r2_reconciliation_state").notNull().default("NOT_EVALUATED"), driveReconciliationState: text("drive_reconciliation_state").notNull().default("NOT_EVALUATED"), rightsManifestHash: text("rights_manifest_hash").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), sealedAt: text("sealed_at"),
 }, (table) => [uniqueIndex("v7_master_delivery_queue_version_uq").on(table.queueId, table.version), index("v7_master_delivery_state_idx").on(table.queueId, table.lifecycleState)]);
+
+export const v7EvaluationFoundationRegistry = sqliteTable("v7_evaluation_foundation_registry", {
+  id: text("id").primaryKey(), componentKey: text("component_key").notNull(), foundationVersion: text("foundation_version").notNull(), purpose: text("purpose").notNull(),
+  exitEvidenceJson: text("exit_evidence_json").notNull(), lifecycleState: text("lifecycle_state").notNull().default("SCHEMA_DEFINED"), providerRequests: integer("provider_requests").notNull().default(0),
+  spendUsd: real("spend_usd").notNull().default(0), active: integer("active", { mode: "boolean" }).notNull().default(true), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_evaluation_registry_key_version_uq").on(table.componentKey, table.foundationVersion)]);
+
+export const v7EvaluationCorpusSources = sqliteTable("v7_evaluation_corpus_sources", {
+  id: text("id").primaryKey(), sourceFamily: text("source_family").notNull(), sourceTable: text("source_table").notNull(), candidateKind: text("candidate_kind").notNull(),
+  authorityState: text("authority_state").notNull().default("CANDIDATE_EVIDENCE_ONLY"), inclusionRuleJson: text("inclusion_rule_json").notNull(), verificationRequirementsJson: text("verification_requirements_json").notNull(),
+  active: integer("active", { mode: "boolean" }).notNull().default(true), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_evaluation_corpus_source_uq").on(table.sourceFamily, table.sourceTable)]);
+
+export const v7EvaluationCandidates = sqliteTable("v7_evaluation_candidates", {
+  id: text("id").primaryKey(), channelId: text("channel_id").notNull(), sourceFamily: text("source_family").notNull(), sourceTable: text("source_table").notNull(), sourceId: text("source_id").notNull(),
+  sourceParentId: text("source_parent_id"), candidateKind: text("candidate_kind").notNull(), artifactType: text("artifact_type").notNull(), lifecycleState: text("lifecycle_state").notNull().default("CANDIDATE_EVIDENCE"),
+  storageKey: text("storage_key"), mimeType: text("mime_type"), byteSize: integer("byte_size"), contentHash: text("content_hash"), bytesState: text("bytes_state").notNull().default("NOT_VERIFIED"),
+  checksumState: text("checksum_state").notNull().default("DECLARED_UNVERIFIED"), provenanceState: text("provenance_state").notNull().default("DECLARED_UNVERIFIED"), ownerDecisionState: text("owner_decision_state").notNull().default("NOT_VERIFIED"),
+  defectLabelState: text("defect_label_state").notNull().default("NOT_LABELLED"), rightsDeclaredState: text("rights_declared_state").notNull().default("UNKNOWN"), rightsVerificationState: text("rights_verification_state").notNull().default("NOT_VERIFIED"),
+  correlationGroup: text("correlation_group").notNull(), dedupHash: text("dedup_hash"), exclusionReason: text("exclusion_reason"), releaseEligible: integer("release_eligible", { mode: "boolean" }).notNull().default(false),
+  qualificationEligible: integer("qualification_eligible", { mode: "boolean" }).notNull().default(false), providerRequests: integer("provider_requests").notNull().default(0), spendUsd: real("spend_usd").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), verifiedAt: text("verified_at"),
+}, (table) => [
+  uniqueIndex("v7_evaluation_candidate_source_uq").on(table.sourceTable, table.sourceId),
+  index("v7_evaluation_candidate_channel_state_idx").on(table.channelId, table.lifecycleState, table.candidateKind),
+  index("v7_evaluation_candidate_dedup_idx").on(table.dedupHash, table.correlationGroup),
+]);
+
+export const v7EvaluationDefectTaxonomy = sqliteTable("v7_evaluation_defect_taxonomy", {
+  id: text("id").primaryKey(), defectKey: text("defect_key").notNull(), label: text("label").notNull(), severity: text("severity").notNull(), modality: text("modality").notNull(), owningStage: text("owning_stage").notNull(),
+  deterministicDetectable: integer("deterministic_detectable", { mode: "boolean" }).notNull().default(false), approvedRecallFloor: real("approved_recall_floor"), description: text("description").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("CALIBRATION_REQUIRED"), active: integer("active", { mode: "boolean" }).notNull().default(true), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_evaluation_defect_key_uq").on(table.defectKey)]);
+
+export const v7EvaluationDefectLabels = sqliteTable("v7_evaluation_defect_labels", {
+  id: text("id").primaryKey(), candidateId: text("candidate_id").notNull().references(() => v7EvaluationCandidates.id), defectId: text("defect_id").notNull().references(() => v7EvaluationDefectTaxonomy.id),
+  labelSource: text("label_source").notNull(), polarity: text("polarity").notNull(), confidence: real("confidence").notNull(), evidenceHash: text("evidence_hash").notNull(), actor: text("actor").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_evaluation_defect_label_uq").on(table.candidateId, table.defectId, table.labelSource, table.evidenceHash)]);
+
+export const v7EvaluationDatasets = sqliteTable("v7_evaluation_datasets", {
+  id: text("id").primaryKey(), datasetKey: text("dataset_key").notNull(), datasetVersion: integer("dataset_version").notNull(), datasetType: text("dataset_type").notNull(), candidateKind: text("candidate_kind").notNull(),
+  lifecycleState: text("lifecycle_state").notNull().default("DRAFT"), blinded: integer("blinded", { mode: "boolean" }).notNull().default(true), independencePolicyJson: text("independence_policy_json").notNull(), manifestHash: text("manifest_hash"),
+  providerRequests: integer("provider_requests").notNull().default(0), spendUsd: real("spend_usd").notNull().default(0), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), sealedAt: text("sealed_at"),
+}, (table) => [uniqueIndex("v7_evaluation_dataset_key_version_uq").on(table.datasetKey, table.datasetVersion)]);
+
+export const v7EvaluationDatasetItems = sqliteTable("v7_evaluation_dataset_items", {
+  id: text("id").primaryKey(), datasetId: text("dataset_id").notNull().references(() => v7EvaluationDatasets.id), candidateId: text("candidate_id").notNull().references(() => v7EvaluationCandidates.id),
+  split: text("split").notNull(), role: text("role").notNull(), correlationGroup: text("correlation_group").notNull(), itemHash: text("item_hash").notNull(), countEligible: integer("count_eligible", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_evaluation_dataset_item_uq").on(table.datasetId, table.candidateId), index("v7_evaluation_dataset_correlation_idx").on(table.datasetId, table.correlationGroup, table.countEligible)]);
+
+export const v7AssuranceQualificationRuns = sqliteTable("v7_assurance_qualification_runs", {
+  id: text("id").primaryKey(), capabilityId: text("capability_id").notNull(), capabilityVersion: text("capability_version").notNull(), settingsHash: text("settings_hash").notNull(), datasetId: text("dataset_id").notNull().references(() => v7EvaluationDatasets.id),
+  lifecycleState: text("lifecycle_state").notNull().default("PLANNED"), blinded: integer("blinded", { mode: "boolean" }).notNull().default(true), repeatCount: integer("repeat_count").notNull().default(3), samplingPolicyJson: text("sampling_policy_json").notNull(),
+  maximumProviderRequests: integer("maximum_provider_requests").notNull().default(0), maximumSpendUsd: real("maximum_spend_usd").notNull().default(0), actualProviderRequests: integer("actual_provider_requests").notNull().default(0), actualSpendUsd: real("actual_spend_usd").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), completedAt: text("completed_at"),
+}, (table) => [uniqueIndex("v7_assurance_qualification_run_uq").on(table.capabilityId, table.capabilityVersion, table.settingsHash, table.datasetId)]);
+
+export const v7AssuranceQualificationResults = sqliteTable("v7_assurance_qualification_results", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => v7AssuranceQualificationRuns.id), defectId: text("defect_id").notNull().references(() => v7EvaluationDefectTaxonomy.id),
+  sampleSize: integer("sample_size").notNull(), precision: real("precision"), recall: real("recall"), repeatability: real("repeatability"), p0EscapeCount: integer("p0_escape_count").notNull().default(0),
+  costPerEvaluatedItemUsd: real("cost_per_evaluated_item_usd"), lifecycleState: text("lifecycle_state").notNull().default("NOT_EVALUATED"), evidenceHash: text("evidence_hash"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_assurance_qualification_result_uq").on(table.runId, table.defectId)]);
+
+export const v7EvaluationInventorySnapshots = sqliteTable("v7_evaluation_inventory_snapshots", {
+  id: text("id").primaryKey(), channelId: text("channel_id").notNull(), foundationVersion: text("foundation_version").notNull(), candidateArtifacts: integer("candidate_artifacts").notNull(), rejectedPackages: integer("rejected_packages").notNull(),
+  verifiedFixtures: integer("verified_fixtures").notNull().default(0), goldEligible: integer("gold_eligible").notNull().default(0), duplicateHashGroups: integer("duplicate_hash_groups").notNull().default(0),
+  providerRequests: integer("provider_requests").notNull().default(0), spendUsd: real("spend_usd").notNull().default(0), evidenceJson: text("evidence_json").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_evaluation_inventory_channel_version_uq").on(table.channelId, table.foundationVersion)]);

@@ -63,9 +63,9 @@ export type SequentialProductionProjection = {
   };
   firstPass: {
     standardVersion: "FIRST_PASS_QUALITY_V1";
-    currentSlice: "WAVE_2";
-    currentSliceState: "CONTRACT_SCHEMA_ACTIVE";
-    nextSlice: "WP7_EVALUATION_FOUNDATION";
+    currentSlice: "WAVE_3";
+    currentSliceState: "CANDIDATE_INVENTORY_ACTIVE";
+    nextSlice: "WP7_CORPUS_VERIFICATION";
     nextSliceLabel: string;
     capabilityRegistryState: "QUALIFICATION_REQUIRED" | "PARTIALLY_QUALIFIED" | "QUALIFIED";
     dispatchGuardState: "ENFORCED";
@@ -122,6 +122,24 @@ export type SequentialProductionProjection = {
       providerRequests: 0;
       spendUsd: 0;
       definitions: Array<{ key: string; artifactType: string; ownerPlane: string; stageBindings: string[]; lifecycleState: string }>;
+    };
+    evaluationFoundation: {
+      version: "EVALUATION_FOUNDATION_V1";
+      state: "CANDIDATE_INVENTORY_ACTIVE" | "CORPUS_VERIFICATION_ACTIVE" | "GOLD_SETS_SEALED";
+      componentsDefined: number;
+      corpusSources: number;
+      candidateArtifacts: number;
+      rejectedPackages: number;
+      verifiedFixtures: number;
+      goldEligible: number;
+      duplicateHashGroups: number;
+      defectFamilies: number;
+      p0DefectFamilies: number;
+      sealedDatasets: number;
+      releaseEligibleFixtures: number;
+      providerRequests: 0;
+      spendUsd: 0;
+      nextAction: string;
     };
     readiness: Array<{ id: string; label: string; passed: boolean; evidence: string; owningStages: string[] }>;
   };
