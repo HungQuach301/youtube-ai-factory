@@ -2,12 +2,31 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Wave 3 evidence disposition source checkpoint — 2026-08-21
+
+```text
+DISPOSITION_POLICY = EVALUATION_EVIDENCE_DISPOSITION_V1
+SCHEMA = MIGRATION_0054_PENDING_PRODUCTION
+PRODUCTION_BASIS = SITES_V400_FIELD_FACT_READBACK
+BYTE_DIVERGENT_TARGET = 7_QUARANTINE_EVALUATION_ONLY
+METADATA_ONLY_TARGET = 5_RETAIN_BLOCKED_FOR_REVIEW
+INCIDENT_AND_DISPOSITION_MUTABILITY = APPEND_ONLY
+R2_OBJECT_MUTATIONS = 0
+RECEIPT_REWRITES = 0
+FIXTURE_PROMOTIONS = 0
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+NEXT_PROTECTED_ACTION = DEPLOY_0054_AND_VERIFY_7_EXCLUDED__5_BLOCKED
+```
+
+Source migration `0054` records twelve immutable incidents, writes quarantine dispositions only for the seven candidates whose declared source bytes diverge from the recomputed R2 object, and changes only those candidate projections to `EXCLUDED`. The five checksum-PASS metadata-binding conflicts remain `BLOCKED`. Document 50 and ADR-083 define this fail-closed split.
+
 ## Wave 3 blocked-evidence diagnostic production checkpoint — 2026-08-21
 
 ```text
 DIAGNOSTIC_POLICY = IMMUTABLE_RECEIPT_AGGREGATION_V2
 SOURCE_V1 = PRODUCTION_ACTIVE_SITES_V399
-SOURCE_V2 = IMPLEMENTED_TESTED__FIELD_FACT_CHECKPOINT_PENDING
+SOURCE_V2 = PRODUCTION_ACTIVE_SITES_V400
 BLOCKED_TARGET = 12_CANDIDATES
 PRODUCTION_BLOCKED_REASONS = 12_R2_OBJECT_METADATA_MISMATCH__7_BYTE_SIZE_MISMATCH__7_CHECKSUM_MISMATCH__12_UNKNOWN_V1_RIGHTS_BASIS
 PRODUCTION_BLOCKED_STATES = 7_READBACK_VERIFIED_FAIL_FAIL__5_READBACK_VERIFIED_PASS_FAIL
@@ -18,11 +37,13 @@ CANDIDATE_MUTATIONS = 0
 FIXTURE_PROMOTIONS = 0
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-PRODUCTION_RUNTIME = V1_READBACK_COMPLETE__V2_FIELD_FACT_READBACK_PENDING
-NEXT_PROTECTED_ACTION = DEPLOY_V2_AND_SEPARATE_METADATA_ONLY_FROM_BYTE_DIVERGENCE
+PRODUCTION_FIELD_FACTS = 12_R2_ARTIFACT_ID_MISMATCH__7_METADATA_HASH_DECLARATION_MISMATCH__7_SOURCE_HASH_OBJECT_MISMATCH__7_SOURCE_BYTES_OBJECT_MISMATCH
+PRODUCTION_RIGHTS_BASES = 8_AUTHORSHIP_INCOMPLETE__4_PROVIDER_TERMS_RECEIPT_MISSING
+PRODUCTION_RUNTIME = V2_FIELD_FACT_READBACK_COMPLETE
+NEXT_PROTECTED_ACTION = APPLY_APPEND_ONLY_DISPOSITION_MIGRATION_0054
 ```
 
-Sites v399 confirmed all twelve blocked candidates have an R2 object-metadata conflict; seven also fail declared byte size and checksum, while five retain checksum PASS but provenance FAIL. The twelve v1 unknown reasons are the known rights bases `DECLARATION_NOT_ELIGIBLE`, `PROVIDER_TERMS_RECEIPT_MISSING` and `AUTHORSHIP_EVIDENCE_INCOMPLETE`, now allowlisted in v2. Source v2 compares candidate/source declarations, recomputed object bytes and parsed R2 metadata server-side, then exposes only aggregate field-fact counts. Storage keys, IDs, hashes, byte values and raw metadata remain private. The diagnostic mutates no candidate and creates no repair authority. Document 49 records the evidence; ADR-082 keeps every losing receipt immutable.
+Sites v399 confirmed all twelve blocked candidates have an R2 object-metadata conflict; seven also fail declared byte size and checksum, while five retain checksum PASS but provenance FAIL. Sites v400 then confirmed that the same seven differ in source hash and byte size versus recomputed R2 bytes, while the five have no byte/hash divergence. Rights bases are eight incomplete authorship records and four missing provider-terms receipts. Storage keys, IDs, hashes, byte values and raw metadata remain private. Document 49 records the diagnostic evidence; ADR-082 keeps every losing receipt immutable.
 
 ## Wave 3 corpus verification production acceptance — 2026-08-21
 

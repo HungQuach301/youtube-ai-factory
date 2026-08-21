@@ -18,7 +18,8 @@
 - Wave 2 Learning-ready Contract Pack: production-runtime accepted in Sites v392 with migration `0051` active and zero-dispatch read-back passed.
 - Wave 3 Evaluation Foundation phase 1: production-runtime accepted in Sites v393.
 - Wave 3 corpus verification: production-accepted through Sites v397; all 595 candidates were read back, with 12 blocked and 63 rights-pending retained for evidence repair.
-- Wave 3 blocked-evidence diagnostics: v1 production-active in Sites v399; all 12 have metadata conflicts, seven also have byte/checksum divergence, and v2 field-fact read-back is the next bounded checkpoint.
+- Wave 3 blocked-evidence diagnostics: v2 production-active in Sites v400; seven source/object byte divergences and five metadata-only conflicts are proven.
+- Wave 3 evidence disposition: migration `0054` is source-ready to quarantine the seven byte-divergent candidates and retain the five metadata-only candidates for append-only review.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -81,7 +82,7 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
-Status: `PHASE_3_DIAGNOSTIC_V1_ACCEPTED__V2_FIELD_FACT_READBACK_NEXT`.
+Status: `PHASE_4_DISPOSITION_SOURCE_READY__PRODUCTION_MIGRATION_NEXT`.
 
 Scope:
 
@@ -99,7 +100,9 @@ Evidence on 2026-08-21: `EVALUATION_FOUNDATION_V1` defines six zero-spend compon
 
 Phase 2 production evidence: Sites v395 activated migration `0053`; v396 and v397 hardened browser idempotency and redirect freshness without weakening authorization. Thirty durable runs read all 595 objects and 851,549,647 bytes. Results are 595 byte-verified, 588 checksum PASS, 583 provenance PASS, 520 rights PASS, 63 rights-pending and 12 blocked. Provider requests and spend are zero; verified/gold/release-eligible fixtures and sealed datasets remain zero. The next gate is to investigate the 12 exact failures, collect the 63 missing rights receipts, bind owner-confirmed defect labels, then remove duplicate/correlated revisions before sealing calibration data.
 
-Phase 3 diagnostic v1 adds a sanitized aggregation over the latest immutable receipt for every blocked candidate. Sites v399 production read-back reports 12 R2 metadata conflicts, including seven byte-size/checksum failures, split across eight clips, two audio artifacts and two masters. The five checksum-PASS/provenance-FAIL records require field-level separation from the seven byte-divergent records. Diagnostic v2 adds aggregate field facts and recognizes the three known rights-basis codes; identifiers, storage keys, hashes, byte values and object metadata remain server-side. This checkpoint has zero candidate mutation, fixture promotion, provider authority and spend. Production v2 read-back must establish the exact repair, incident or exclusion lanes before any command is designed.
+Phase 3 diagnostics aggregate the latest immutable receipt for each blocked candidate. Sites v399 reported 12 R2 metadata conflicts, including seven byte-size/checksum failures. Sites v400 proved seven source-hash/object-byte and source-size/object-size divergences; the other five are checksum-PASS metadata-binding failures. It also resolved the rights bases to eight incomplete-authorship and four missing-provider-terms records. Identifiers, storage keys, hashes, byte values and object metadata remain server-side; diagnostic work used zero provider request and zero spend.
+
+Phase 4 source adds migration `0054` and `EVALUATION_EVIDENCE_DISPOSITION_V1`. It creates immutable incidents for all twelve, immutable quarantine dispositions for the seven byte-divergent candidates, changes only those candidate projections to `EXCLUDED`, and retains the five metadata-only candidates as `BLOCKED`. It deletes no object or evidence, rewrites no receipt, promotes no fixture and cannot create release eligibility. Production migration and exact 7/5 read-back are the next gate.
 
 ## Wave 4 — Upstream and technical standards
 

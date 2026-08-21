@@ -200,3 +200,42 @@ test("migration 0053 adds bounded zero-spend verification runs and durable recei
   assert.match(triage, /Receipts remain immutable/);
   assert.doesNotMatch(triage, /storage_key|computed_hash|source_artifact_id/);
 });
+
+test("migration 0054 quarantines byte-divergent evidence and retains metadata-only review append-only", () => {
+  const migration = read("drizzle/0054_evaluation_evidence_disposition.sql");
+  for (const table of ["v7_evaluation_evidence_incidents", "v7_evaluation_candidate_dispositions"]) assert.match(migration, new RegExp(table));
+  assert.match(migration, /SOURCE_OBJECT_BYTE_DIVERGENCE/);
+  assert.match(migration, /R2_METADATA_BINDING_MISMATCH/);
+  assert.match(migration, /QUARANTINE_EVALUATION_ONLY/);
+  assert.doesNotMatch(migration, /DELETE FROM|api\.openai\.com|elevenlabs\.io/);
+
+  const db = new DatabaseSync(":memory:");
+  const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
+  const dispositionIndex = migrations.indexOf("0054_evaluation_evidence_disposition.sql");
+  for (const file of migrations.slice(0, dispositionIndex)) db.exec(read(`drizzle/${file}`));
+  db.prepare(`INSERT INTO v7_evaluation_verification_runs
+    (id,channel_id,foundation_version,policy_version,idempotency_key,intent_hash,candidate_ids_json,maximum_candidates,maximum_object_bytes,planned_candidates,actor)
+    VALUES ('run-0054','channel-test','EVALUATION_FOUNDATION_V1','CORPUS_VERIFICATION_POLICY_V1','0054-idempotency','0054-intent','["candidate-diverged","candidate-metadata"]',20,100000000,2,'owner')`).run();
+  const insertCandidate = db.prepare(`INSERT INTO v7_evaluation_candidates
+    (id,channel_id,source_family,source_table,source_id,candidate_kind,artifact_type,correlation_group,verification_state)
+    VALUES (?,?,?,?,?,?,?,?, 'BLOCKED')`);
+  insertCandidate.run("candidate-diverged", "channel-test", "PRODUCTION_V2_REJECTED", "production_v2_artifacts", "source-diverged", "CLIP", "VISUAL", "package-1");
+  insertCandidate.run("candidate-metadata", "channel-test", "PRODUCTION_V2_REJECTED", "production_v2_artifacts", "source-metadata", "AUDIO", "AUDIO", "package-1");
+  const insertReceipt = db.prepare(`INSERT INTO v7_evaluation_verification_receipts
+    (id,run_id,candidate_id,source_artifact_id,storage_key,declared_hash,computed_hash,declared_bytes,actual_bytes,bytes_state,checksum_state,provenance_state,rights_verification_state,rights_basis,object_metadata_json,reconciliation_reasons_json,evidence_hash)
+    VALUES (?,?,?,?,?,?,?,?,?,'READBACK_VERIFIED',?,'FAIL','RECEIPT_REQUIRED','AUTHORSHIP_EVIDENCE_INCOMPLETE','{}',?,?)`);
+  insertReceipt.run("receipt-diverged", "run-0054", "candidate-diverged", "source-diverged", "r2/diverged", "a", "b", 10, 12, "FAIL", '["CHECKSUM_MISMATCH","R2_OBJECT_METADATA_MISMATCH"]', "evidence-diverged");
+  insertReceipt.run("receipt-metadata", "run-0054", "candidate-metadata", "source-metadata", "r2/metadata", "c", "c", 10, 10, "PASS", '["R2_OBJECT_METADATA_MISMATCH"]', "evidence-metadata");
+  db.prepare("UPDATE v7_evaluation_candidates SET latest_verification_receipt_id=? WHERE id=?").run("receipt-diverged", "candidate-diverged");
+  db.prepare("UPDATE v7_evaluation_candidates SET latest_verification_receipt_id=? WHERE id=?").run("receipt-metadata", "candidate-metadata");
+  db.exec(migration);
+
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM v7_evaluation_evidence_incidents").get().count, 2);
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM v7_evaluation_candidate_dispositions").get().count, 1);
+  assert.deepEqual({ ...db.prepare("SELECT lifecycle_state,verification_state,exclusion_reason FROM v7_evaluation_candidates WHERE id='candidate-diverged'").get() }, {
+    lifecycle_state: "EXCLUDED", verification_state: "EXCLUDED", exclusion_reason: "DECLARED_SOURCE_BYTES_DIVERGE_FROM_R2_OBJECT",
+  });
+  assert.equal(db.prepare("SELECT verification_state FROM v7_evaluation_candidates WHERE id='candidate-metadata'").get().verification_state, "BLOCKED");
+  assert.throws(() => db.prepare("DELETE FROM v7_evaluation_candidate_dispositions").run(), /EVALUATION_CANDIDATE_DISPOSITION_IMMUTABLE/);
+  assert.throws(() => db.prepare("UPDATE v7_evaluation_evidence_incidents SET incident_state='OPEN'").run(), /EVALUATION_EVIDENCE_INCIDENT_IMMUTABLE/);
+});

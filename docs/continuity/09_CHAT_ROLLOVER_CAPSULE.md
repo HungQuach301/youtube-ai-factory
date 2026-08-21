@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_3_PHASE_3_DIAGNOSTIC_V1_ACCEPTED__V2_FIELD_FACT_READBACK_NEXT`
+**Current source classification:** `WAVE_3_PHASE_4_DISPOSITION_SOURCE_READY__PRODUCTION_MIGRATION_NEXT`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -41,7 +41,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Sites v395–v397 activated migration `0053`, hardened idempotent form navigation and completed 30 bounded runs. Production read-back reports 595/595 byte-verified, 588 checksum PASS, 583 provenance PASS, 520 rights PASS, 63 rights-pending, 12 blocked and 851,549,647 bytes read.
 - Verified fixtures, gold-eligible fixtures, sealed datasets and release-eligible fixtures remain zero. Production provider totals remain 56 historical requests, zero active and `$13.247131145833333`; corpus verification added zero requests and zero spend. M0 Safety Scope is still `NOT_EVALUATED` and Golden r10 remains ineligible.
 - The next protected action is to investigate the 12 blocked candidates, collect 63 rights receipts and owner-confirmed labels, then de-duplicate/correlation-control the corpus before any dataset is sealed or assurance provider is called.
-- Sites v399 activated blocked-evidence diagnostic v1. Production reports 12 `R2_OBJECT_METADATA_MISMATCH`, seven `BYTE_SIZE_MISMATCH`, seven `CHECKSUM_MISMATCH`, state split 7 checksum/provenance FAIL plus 5 checksum PASS/provenance FAIL, and modality split 8 clip/2 audio/2 master. Diagnostic v2 is implemented to expose sanitized field-fact counts and recognized rights bases without exposing identifiers, hashes, byte values or object metadata; its checkpoint/read-back is pending.
+- Sites v399 activated blocked-evidence diagnostic v1. Sites v400 field-fact read-back proves seven source/object hash and byte-size divergences plus five checksum-PASS metadata-only binding conflicts. Rights bases are eight incomplete-authorship and four missing-provider-terms records; no identifiers, hashes, byte values or raw metadata are exposed.
+- Migration `0054` and `EVALUATION_EVIDENCE_DISPOSITION_V1` are source-ready: append twelve immutable incidents, quarantine seven byte-divergent candidates as `EXCLUDED`, retain five metadata-only candidates as `BLOCKED`, and preserve every R2 object, D1 artifact and verification receipt. Production migration/read-back is pending.
 - `OWNER_STANDING_PRODUCTION_AUTHORITY_V1` permits future roadmap-bounded deploy, migration, production QA and provider calls without repeated chat confirmation, but never bypasses capability/settings, budget, rights, safety, idempotency or fencing gates and does not authorize publish/delete/weaken actions.
 
 ## Protected no-rerun list

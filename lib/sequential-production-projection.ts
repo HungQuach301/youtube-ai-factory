@@ -190,7 +190,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   if (!current) throw new Error("EXCLUSIVE_ACTIVE_VIDEO_NOT_FOUND");
   const stages = await rows(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? ORDER BY sequence", current.id);
   const activeStage = stages.find((stage) => ["READY","RUNNING","REPAIR_REQUIRED","ESCALATED"].includes(text(stage.lifecycle_state))) ?? stages[0];
-  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationVerification, evaluationDefects, evaluationDatasets, evaluationBlockedRows] = await Promise.all([
+  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationVerification, evaluationDefects, evaluationDatasets, evaluationBlockedRows, evaluationIncidents] = await Promise.all([
     rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION),
     rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
     db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
@@ -204,7 +204,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     rows(db, "SELECT * FROM v7_learning_ready_contract_registry WHERE active=1 ORDER BY contract_key"),
     rows(db, "SELECT * FROM v7_evaluation_foundation_registry WHERE active=1 ORDER BY component_key"),
     rows(db, "SELECT * FROM v7_evaluation_corpus_sources WHERE active=1 ORDER BY source_family,source_table"),
-    db.prepare("SELECT COUNT(*) candidates,COALESCE(SUM(CASE WHEN lifecycle_state IN ('VERIFIED_FIXTURE','GOLD_ELIGIBLE') THEN 1 ELSE 0 END),0) verified,COALESCE(SUM(CASE WHEN lifecycle_state='GOLD_ELIGIBLE' AND qualification_eligible=1 THEN 1 ELSE 0 END),0) gold_eligible,COALESCE(SUM(CASE WHEN verification_state='PENDING' THEN 1 ELSE 0 END),0) verification_pending,COALESCE(SUM(CASE WHEN bytes_state='READBACK_VERIFIED' THEN 1 ELSE 0 END),0) byte_verified,COALESCE(SUM(CASE WHEN checksum_state='PASS' THEN 1 ELSE 0 END),0) checksum_pass,COALESCE(SUM(CASE WHEN provenance_state='PASS' THEN 1 ELSE 0 END),0) provenance_pass,COALESCE(SUM(CASE WHEN rights_verification_state='PASS' THEN 1 ELSE 0 END),0) rights_pass,COALESCE(SUM(CASE WHEN verification_state='PARTIAL_RIGHTS_PENDING' THEN 1 ELSE 0 END),0) rights_pending,COALESCE(SUM(CASE WHEN verification_state='BLOCKED' THEN 1 ELSE 0 END),0) verification_blocked,COALESCE(SUM(release_eligible),0) release_eligible,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend,(SELECT COUNT(*) FROM (SELECT dedup_hash FROM v7_evaluation_candidates d WHERE d.channel_id=? AND d.dedup_hash IS NOT NULL GROUP BY dedup_hash HAVING COUNT(*)>1)) duplicate_groups FROM v7_evaluation_candidates WHERE channel_id=?").bind(channelId, channelId).first<Row>(),
+    db.prepare("SELECT COUNT(*) candidates,COALESCE(SUM(CASE WHEN lifecycle_state IN ('VERIFIED_FIXTURE','GOLD_ELIGIBLE') THEN 1 ELSE 0 END),0) verified,COALESCE(SUM(CASE WHEN lifecycle_state='GOLD_ELIGIBLE' AND qualification_eligible=1 THEN 1 ELSE 0 END),0) gold_eligible,COALESCE(SUM(CASE WHEN verification_state='PENDING' THEN 1 ELSE 0 END),0) verification_pending,COALESCE(SUM(CASE WHEN bytes_state='READBACK_VERIFIED' THEN 1 ELSE 0 END),0) byte_verified,COALESCE(SUM(CASE WHEN checksum_state='PASS' THEN 1 ELSE 0 END),0) checksum_pass,COALESCE(SUM(CASE WHEN provenance_state='PASS' THEN 1 ELSE 0 END),0) provenance_pass,COALESCE(SUM(CASE WHEN rights_verification_state='PASS' THEN 1 ELSE 0 END),0) rights_pass,COALESCE(SUM(CASE WHEN verification_state='PARTIAL_RIGHTS_PENDING' THEN 1 ELSE 0 END),0) rights_pending,COALESCE(SUM(CASE WHEN verification_state='BLOCKED' THEN 1 ELSE 0 END),0) verification_blocked,COALESCE(SUM(CASE WHEN verification_state='EXCLUDED' THEN 1 ELSE 0 END),0) verification_excluded,COALESCE(SUM(release_eligible),0) release_eligible,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend,(SELECT COUNT(*) FROM (SELECT dedup_hash FROM v7_evaluation_candidates d WHERE d.channel_id=? AND d.dedup_hash IS NOT NULL GROUP BY dedup_hash HAVING COUNT(*)>1)) duplicate_groups FROM v7_evaluation_candidates WHERE channel_id=?").bind(channelId, channelId).first<Row>(),
     db.prepare("SELECT COUNT(*) runs,COALESCE(SUM(bytes_read),0) bytes_read,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend FROM v7_evaluation_verification_runs WHERE channel_id=?").bind(channelId).first<Row>(),
     rows(db, "SELECT * FROM v7_evaluation_defect_taxonomy WHERE active=1 ORDER BY severity,defect_key"),
     rows(db, "SELECT * FROM v7_evaluation_datasets ORDER BY dataset_key,dataset_version"),
@@ -216,6 +216,11 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       JOIN production_v2_artifacts a ON c.source_table='production_v2_artifacts' AND a.id=c.source_id
       WHERE c.channel_id=? AND c.verification_state='BLOCKED'
       ORDER BY c.candidate_kind,c.artifact_type`, channelId),
+    db.prepare(`SELECT COUNT(*) incidents,
+      COALESCE(SUM(CASE WHEN incident_type='SOURCE_OBJECT_BYTE_DIVERGENCE' THEN 1 ELSE 0 END),0) byte_divergence,
+      COALESCE(SUM(CASE WHEN incident_type='R2_METADATA_BINDING_MISMATCH' THEN 1 ELSE 0 END),0) metadata_review,
+      (SELECT COUNT(*) FROM v7_evaluation_candidate_dispositions d WHERE d.channel_id=? AND d.disposition='QUARANTINE_EVALUATION_ONLY') quarantined
+      FROM v7_evaluation_evidence_incidents WHERE channel_id=?`).bind(channelId, channelId).first<Row>(),
   ]);
   const evaluationConflicts = summarizeCorpusEvidenceConflicts(evaluationBlockedRows.map((row) => ({
     candidateKind: text(row.candidate_kind), artifactType: text(row.artifact_type), bytesState: text(row.bytes_state), checksumState: text(row.checksum_state),
@@ -419,6 +424,11 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         rightsPass: number(evaluationCandidates?.rights_pass),
         rightsPending: number(evaluationCandidates?.rights_pending),
         verificationBlocked: number(evaluationCandidates?.verification_blocked),
+        verificationExcluded: number(evaluationCandidates?.verification_excluded),
+        openEvidenceIncidents: number(evaluationIncidents?.incidents),
+        byteDivergenceIncidents: number(evaluationIncidents?.byte_divergence),
+        metadataReviewRequired: number(evaluationIncidents?.metadata_review),
+        quarantinedCandidates: number(evaluationIncidents?.quarantined),
         verificationBytesRead: number(evaluationVerification?.bytes_read),
         blockedReasonCounts: evaluationConflicts.reasonCounts,
         blockedFactCounts: evaluationConflicts.factCounts,
@@ -430,7 +440,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         releaseEligibleFixtures: number(evaluationCandidates?.release_eligible),
         providerRequests: 0,
         spendUsd: 0,
-        nextAction: number(evaluationCandidates?.verification_pending) === 0 ? "Investigate blocked receipts, collect missing rights evidence and owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset." : "Verify R2 bytes, recompute checksums, reconcile provenance and rights, collect owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset.",
+        nextAction: number(evaluationCandidates?.verification_pending) === 0 ? "Review the five metadata-binding incidents, collect missing rights evidence and owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset." : "Verify R2 bytes, recompute checksums, reconcile provenance and rights, collect owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset.",
       },
       readiness: [
         { id: "EFFECTIVE_PROJECTION", label: "Effective production state", passed: true, evidence: `${effectiveLabels[effectiveState]} projected from canonical evidence`, owningStages: ["00"] },

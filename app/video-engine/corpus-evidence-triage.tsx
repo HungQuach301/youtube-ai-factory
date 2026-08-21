@@ -25,8 +25,10 @@ const labels: Record<string, string> = {
   SOURCE_BYTE_SIZE_OBJECT_MISMATCH: "Source byte size differs from object bytes",
 };
 
-export function CorpusEvidenceTriage({ blocked, rightsPending, reasons, facts, states, kinds }: {
+export function CorpusEvidenceTriage({ blocked, excluded, metadataReview, rightsPending, reasons, facts, states, kinds }: {
   blocked: number;
+  excluded: number;
+  metadataReview: number;
   rightsPending: number;
   reasons: Count[];
   facts: Count[];
@@ -36,6 +38,8 @@ export function CorpusEvidenceTriage({ blocked, rightsPending, reasons, facts, s
   return <section aria-label="Corpus evidence triage">
     <div className="seqRootGrid">
       <article><small>Blocked evidence</small><h3>{blocked} candidates</h3><p>Receipts remain immutable. Repair must create new evidence or exclude the candidate from independent counts.</p></article>
+      <article><small>Quarantined evidence</small><h3>{excluded} candidates</h3><p>Declared source bytes diverge from R2. These records remain preserved but cannot enter a gold set.</p></article>
+      <article><small>Metadata review</small><h3>{metadataReview} candidates</h3><p>Bytes and checksum agree; provenance stays blocked until a new binding receipt resolves the artifact ID conflict.</p></article>
       <article><small>Rights queue</small><h3>{rightsPending} candidates</h3><p>Byte and provenance substrate passed; explicit provider receipt or terms binding is still required.</p></article>
       <article><small>Dominant conflict</small><h3>{reasons[0] ? `${reasons[0].count} · ${labels[reasons[0].key] ?? reasons[0].key}` : "No open conflict"}</h3><p>{reasons.slice(1, 4).map((item) => `${item.count} ${labels[item.key] ?? item.key}`).join(" · ") || "No secondary reason recorded"}</p></article>
       <article><small>Field-level fact</small><h3>{facts[0] ? `${facts[0].count} · ${labels[facts[0].key] ?? facts[0].key}` : "No field mismatch"}</h3><p>{facts.slice(1, 4).map((item) => `${item.count} ${labels[item.key] ?? item.key}`).join(" · ") || "No secondary field mismatch"}</p></article>
