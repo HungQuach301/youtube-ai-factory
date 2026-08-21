@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `FP3_1_SOURCE_IMPLEMENTED_WITH_PRODUCTION_HISTORY_BACKFILL_FIX__PRODUCTION_RUNTIME_UNCHANGED`
+**Current source classification:** `FP3_1_PRODUCTION_RUNTIME_ACCEPTED__TEMPORARY_QA_AUTH_SOURCE_REMOVAL_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -26,11 +26,11 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - FP2 Capability Registry mechanism is implemented.
 - One of 22 capability/operation bindings is qualified.
 - FP3 deterministic ShotCueProgram is sealed: 80.252 seconds, eight typed shots/treatments, zero timing/schema gaps, zero provider requests and zero spend.
-- FP3.1 Production Integrity is implemented and tested in source. The first authorized Sites v388 checkpoint failed before publish on duplicate historical default fencing tokens; migration `0050` now backfills unique program-local tokens and passes a multi-lease history fixture. Production remains on the prior live version.
+- FP3.1 Production Integrity is active. Sites v388 failed safely before publish on duplicate historical default fencing tokens; corrected migration `0050` became active in Sites v389. Sites v390 zero-dispatch runtime acceptance passed with unchanged provider/spend totals. The temporary QA environment key is removed; deploy the source authorization-branch removal before beginning Wave 2.
 - Golden r9 is immutable rejected evidence.
 - Golden r10, Stage 11, Videos 2–15 and auto-publish are blocked.
 - Paid FP4 authority has not been granted.
-- The next implementation milestone is separately authorized FP3.1 production migration and zero-dispatch runtime QA. Only after that gate closes may the Learning-ready Contract Pack and WP7 Evaluation Foundation proceed.
+- The next implementation milestone is the closing FP3.1 source cleanup checkpoint, followed by the Learning-ready Contract Pack and WP7 Evaluation Foundation. Paid FP4/FP5 remains unauthorized.
 
 ## Protected no-rerun list
 

@@ -68,15 +68,16 @@ test("FP3 migration stores typed cue, lint and qualification evidence with zero 
   assert.doesNotMatch(migration, /api\.openai\.com|ELEVENLABS|PEXELS_API_KEY|PIXABAY_API_KEY|SHUTTERSTOCK_CONSUMER_KEY/);
 });
 
-test("operator projection advances to FP3.1 runtime verification without unlocking Golden r10", () => {
+test("operator projection advances from accepted FP3.1 runtime to the Contract Pack without unlocking Golden r10", () => {
   const projection = read("lib/sequential-production-projection.ts");
   const contract = read("app/production-control-contract.ts");
   const workspace = read("app/video-engine/production-engine-workspace.tsx");
   assert.match(projection, /currentSlice: "FP3\.1"/);
-  assert.match(projection, /nextSlice: "FP3\.1-RUNTIME"/);
+  assert.match(projection, /currentSliceState: "PRODUCTION_RUNTIME_ACCEPTED"/);
+  assert.match(projection, /nextSlice: "LEARNING_READY_CONTRACT_PACK"/);
   assert.match(projection, /goldenR10Eligible = false/);
   assert.match(contract, /state: "VERIFIED"/);
-  assert.match(workspace, /Apply and verify FP3\.1 in production/);
-  assert.match(workspace, /FP3\.1 runtime gate/);
+  assert.match(workspace, /Build the learning-ready Contract Pack/);
+  assert.match(workspace, /Wave 2 contract gate/);
   assert.match(workspace, /No FP4\/FP5 provider qualification, Golden r10, Stage 11, video #2 or auto-publish/);
 });

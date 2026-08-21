@@ -95,8 +95,8 @@ test("operator UI projects registry coverage without implying production readine
   const projection = read("lib/sequential-production-projection.ts");
   const workspace = read("app/video-engine/production-engine-workspace.tsx");
   assert.match(projection, /currentSlice: "FP3\.1"/);
-  assert.match(projection, /nextSlice: "FP3\.1-RUNTIME"/);
+  assert.match(projection, /nextSlice: "LEARNING_READY_CONTRACT_PACK"/);
   assert.match(projection, /dispatchGuardState: "ENFORCED"/);
   assert.match(workspace, /Qualification happens before production/);
-  assert.match(workspace, /provider dispatch and Golden r10 remain separately blocked/);
+  assert.match(workspace, /Provider dispatch, Safety Scope completion and Golden r10 remain separately blocked/);
 });

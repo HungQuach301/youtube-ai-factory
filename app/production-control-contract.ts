@@ -64,8 +64,8 @@ export type SequentialProductionProjection = {
   firstPass: {
     standardVersion: "FIRST_PASS_QUALITY_V1";
     currentSlice: "FP3.1";
-    currentSliceState: "SOURCE_IMPLEMENTED";
-    nextSlice: "FP3.1-RUNTIME";
+    currentSliceState: "PRODUCTION_RUNTIME_ACCEPTED";
+    nextSlice: "LEARNING_READY_CONTRACT_PACK";
     nextSliceLabel: string;
     capabilityRegistryState: "QUALIFICATION_REQUIRED" | "PARTIALLY_QUALIFIED" | "QUALIFIED";
     dispatchGuardState: "ENFORCED";

@@ -5,21 +5,22 @@ Last reconciled: 2026-08-21 (Asia/Bangkok)
 ## FP3.1 Production Integrity source checkpoint — 2026-08-21
 
 ```text
-FP3_1_SOURCE = IMPLEMENTED_TESTED
-FP3_1_SCHEMA = ADDITIVE_MIGRATION_0050_REPLAYED_WITH_HISTORICAL_MULTI_LEASE_FIXTURE
-FP3_1_PRODUCTION_MIGRATION = AUTHORIZED_ATTEMPT_V388_FAILED_BEFORE_PUBLISH
-FP3_1_RUNTIME_QA = NOT_RUN
-PRODUCTION_DEPLOYMENT = LIVE_VERSION_UNCHANGED
+FP3_1_SOURCE = PRODUCTION_ACTIVE__TEMPORARY_QA_AUTH_BRANCH_REMOVAL_PENDING
+FP3_1_SCHEMA = PRODUCTION_MIGRATION_0050_ACTIVE_SITES_V389
+FP3_1_PRODUCTION_MIGRATION = PASS_AFTER_V388_SAFE_FAILURE_AND_HISTORY_BACKFILL_FIX
+FP3_1_RUNTIME_QA = PASS_ZERO_DISPATCH_SITES_V390
+PRODUCTION_DEPLOYMENT = SITES_V390
+FP3_1_QA_ENV_KEY = REMOVED
 PROVIDER_REQUESTS_THIS_SLICE = 0
 PROVIDER_SPEND_USD_THIS_SLICE = 0
 GOLDEN_R10 = BLOCKED
 STAGE_11 = BLOCKED
-NEXT_IMPLEMENTATION = FP3_1_PRODUCTION_MIGRATION_AND_RUNTIME_QA
+NEXT_IMPLEMENTATION = DEPLOY_TEMPORARY_QA_AUTH_BRANCH_REMOVAL_THEN_WAVE_2_CONTRACT_PACK
 ```
 
 Source now defines canonical `JCS_NFC_V1` hashing, independent immutability and eligibility state, monotonic fencing tokens, lease heartbeat/orphan reconciliation, atomic budget reservation and settlement, capability/settings supersede, M0 Safety Scope fail-closed behavior, provider-failure classification, redacted trace lineage and a shared production dispatch firewall. Historical artifacts are backfilled as blocked pending reconciliation; source implementation does not make them eligible.
 
-This is not a production-runtime completion claim. The first authorized checkpoint, Sites v388, failed before publication when production history exposed duplicate default fencing token `0` values. Production data, production schema and the live site remained unchanged. Source now deterministically backfills unique historical tokens, reconciles expired active leases and restores any still-valid active stage fence; production retry, post-migration read-back and zero-dispatch runtime QA remain required. Document 41 is the execution record.
+The first authorized checkpoint, Sites v388, failed before publication when production history exposed duplicate default fencing token `0` values. The corrected migration became active in Sites v389. Sites v390 runtime read-back found 14 historical leases, zero active leases, zero reservations, zero traces and one open `SAFETY_SCOPE_NOT_EVALUATED` incident. Stale heartbeat, orphan and firewall probes passed; provider request and spend totals were unchanged. The temporary QA environment key is removed; the closing checkpoint removes its temporary source authorization branch before Wave 2 begins. Document 41 is the source execution record; the closing runtime record follows that deployment.
 
 ## Repository knowledge consolidation — 2026-08-20
 
