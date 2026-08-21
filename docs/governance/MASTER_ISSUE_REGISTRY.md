@@ -111,7 +111,7 @@
 | X9 | P1 | Rejected-output quarantine is conflated with qualified asset reuse | `ACCEPTED_DESIGN`: preserve quarantine and build a separate qualified library | Scale |
 | X10 | P1 | Platform compliance is not a separate channel-level risk plane | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: compliance manifest schema is deployed; platform evidence and runtime gate remain open | Contract Pack/Video #1 |
 | X11 | P1 | Exclusive one-video mode has no portfolio-scale successor | `ACCEPTED_DESIGN` before second channel | Scale |
-| X12 | P1 | Owner approval has no explicit attention budget | `PARTIAL__SOURCE_READY`: exact-byte/lineage correlation now reduces WP7 owner attention without deleting evidence; scale-wide delegation and escalation budgets remain open | Evaluation/Scale |
+| X12 | P1 | Owner approval has no explicit attention budget | `PARTIAL__PRODUCTION_ACTIVE`: Sites v409 reduces the WP7 queue from 525 immutable tasks to 82 actionable primaries while preserving 443 correlated variants; scale-wide delegation and escalation budgets remain open | Evaluation/Scale |
 | X13 | P1 | External documentation and chat continuity were fragmented | `CONFIRMED_MANDATORY`; addressed by `GIT_REPOSITORY_SSOT_V1` | Wave 0 |
 
 ## Closure rule

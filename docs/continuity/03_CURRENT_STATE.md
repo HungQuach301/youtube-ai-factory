@@ -2,26 +2,31 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
-## Wave 3 correlation-control source checkpoint — 2026-08-21
+## Wave 3 correlation-control production checkpoint — 2026-08-21
 
 ```text
 CORRELATION_POLICY = EVALUATION_CORRELATION_CONTROL_V1
-SCHEMA = MIGRATION_0059_SOURCE_READY
+SCHEMA = MIGRATION_0059_PRODUCTION_ACTIVE_SITES_V409
 INPUT_TASKS = 525_IMMUTABLE_OWNER_LABEL_TASKS
 EXACT_DUPLICATE_RULE = SHA256_ONE_REPRESENTATIVE
 LINEAGE_RULE = SHOT_AND_ARTIFACT_TYPE__OR_PACKAGE_KIND_AND_ARTIFACT_TYPE
 PRIMARY_CARDINALITY = EXACTLY_ONE_PER_LINEAGE_FAMILY
 DEFERRED_EVIDENCE = PRESERVED__NOT_INDEPENDENT_COUNT
+PRODUCTION_CORRELATION_CANDIDATES = 525
+PRODUCTION_ACTIONABLE_PRIMARY = 82
+PRODUCTION_CORRELATED_VARIANTS_DEFERRED = 443
+PRODUCTION_EXACT_DUPLICATES_DEFERRED = 0
+PRODUCTION_INDEPENDENT_COUNT_ELIGIBLE = 82
 OWNER_RECEIPTS_CREATED = 0
 FIXTURE_PROMOTIONS = 0
 DATASETS_SEALED = 0
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-PRODUCTION_ACTIVATION = PENDING_CHECKPOINT
-NEXT_PROTECTED_ACTION = APPLY_0059_AND_READ_BACK_ACTIONABLE_OWNER_QUEUE
+PRODUCTION_ACTIVATION = PASS
+NEXT_PROTECTED_ACTION = OWNER_CLASSIFY_82_PRIMARY_REPRESENTATIVES__COLLECT_63_RIGHTS_EVIDENCE
 ```
 
-Source and regressions now separate primary owner attention from duplicate/correlated evidence without mutating the 525 task ledger. Document 55 and ADR-088 are authoritative.
+Sites v409 and direct production read-back prove that correlation control reduces owner attention from 525 immutable tasks to 82 actionable primary representatives while preserving 443 correlated variants and every original task. No exact-byte duplicate was present. Rights remain 525 PASS / 63 pending / seven excluded; no receipt, fixture, dataset, provider request or spend was created. Document 55 and ADR-088 are authoritative.
 
 ## Wave 3 owner-label workflow production checkpoint — 2026-08-21
 

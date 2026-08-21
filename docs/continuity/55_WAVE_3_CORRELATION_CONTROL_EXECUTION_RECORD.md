@@ -8,7 +8,7 @@
 
 Reduce owner attention and prevent correlated revisions from inflating evaluation sample size without deleting, rewriting or silently resolving any of the 525 immutable owner-label tasks.
 
-## Source outcome
+## Production outcome
 
 Migration `0059_evaluation_correlation_control.sql` creates one immutable snapshot and one immutable assignment per currently eligible owner-label candidate. Selection is hierarchical:
 
@@ -17,7 +17,7 @@ Migration `0059_evaluation_correlation_control.sql` creates one immutable snapsh
 3. One representative per lineage family becomes `READY_PRIMARY`; other unique variants become `CORRELATED_VARIANT_DEFERRED`.
 4. Ranking prefers stored artifact-level P0/P1 evidence, then the latest source timestamp, then a deterministic candidate ID tie-break.
 
-The previous 525 task ledger remains unchanged. Deferred evidence remains available for later coverage-gap review but cannot enter the primary owner queue or independent counts.
+Sites v409 activated migration `0059` from source commit `213038f808911ce31a38a708346e9f790417c0bf`. The previous 525 task ledger remains unchanged. Production assigned all 525 eligible candidates to 82 actionable primary representatives and 443 correlated variants; no byte-identical duplicate was present in this corpus. Deferred evidence remains available for later coverage-gap review but cannot enter the primary owner queue or independent counts.
 
 ## Runtime boundary
 
@@ -33,8 +33,13 @@ The previous 525 task ledger remains unchanged. Deferred evidence remains availa
 - Append-only snapshot/item triggers: PASS.
 - Migration replay through `0059`: PASS.
 - Full build and catalog-wide performance gate: PASS.
-- Production migration/read-back: pending checkpoint.
+- Production migration/read-back in Sites v409: PASS.
+- Candidate/task preservation: 595 candidates, 525 owner-label tasks and zero owner receipts.
+- Attention projection: 82 actionable primaries, 443 correlated variants deferred and zero exact duplicates deferred.
+- Independent-count projection: 82 eligible.
+- Eligibility boundaries: 525 rights PASS, 63 rights-pending and seven excluded.
+- Slice side effects: zero provider requests, zero spend, zero Worker error events.
 
 ## Next gate
 
-Activate `0059`, read back the actual production reduction and then collect owner labels only for actionable primary representatives. Rights evidence for 63 excluded candidates remains a separate parallel lane. No dataset may be sealed until labels and independent-count assignments are both durable.
+Collect real owner labels only for the 82 actionable primary representatives. In parallel, collect exact historical rights evidence for 46 ElevenLabs audio records, composite parent-rights manifests for 16 masters and authorship/source evidence for one clip. No dataset may be sealed until the required labels and independent-count assignments are both durable.
