@@ -21,7 +21,8 @@
 - Wave 3 blocked-evidence diagnostics: v2 production-active in Sites v400; seven source/object byte divergences and five metadata-only conflicts are proven.
 - Wave 3 evidence disposition: migration `0054` is production-active in Sites v401 with exactly 7 quarantined and 5 metadata-only blocked candidates.
 - Wave 3 metadata reconciliation: migration `0055` is production-active in Sites v402 with 5 accepted rebinds, 0 technical blocks and 68 rights-pending.
-- Wave 3 rights reconciliation: migration `0056` and sanitized rights-queue diagnostics are source-ready; provider terms remain explicit-evidence only.
+- Wave 3 rights reconciliation: migration `0056` is production-active in Sites v403 with 5 accepted channel-authorship receipts and 63 provider-terms-pending records.
+- Wave 3 provider-family diagnostics: source-ready to separate direct provider terms from composite master lineage without exposing raw provider data.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -84,7 +85,7 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
-Status: `PHASE_6_RIGHTS_RECONCILIATION_SOURCE_READY__PRODUCTION_MIGRATION_NEXT`.
+Status: `PHASE_6_RIGHTS_RECONCILIATION_ACCEPTED__PROVIDER_FAMILY_READBACK_NEXT`.
 
 Scope:
 
@@ -108,7 +109,7 @@ Phase 4 adds migration `0054` and `EVALUATION_EVIDENCE_DISPOSITION_V1`. Sites v4
 
 Phase 5 adds migration `0055` and `METADATA_BINDING_RECONCILIATION_V1`. Sites v402 accepted all five strict unique storage/hash rebinds and reports zero technical blocks, zero open incidents, seven quarantined and 68 rights-pending. All gold, dataset and release counts remain zero.
 
-Phase 6 source adds migration `0056`, `EVALUATION_RIGHTS_RECONCILIATION_V1` and sanitized rights-basis/modality counts. Only metadata-rebound, channel-authored, non-provider, non-audio/video evidence may receive an immutable rights PASS receipt. Provider media still requires explicit terms/license evidence. Production read-back must establish how many of the bounded five pass and the exact remaining 63–68 rights queue before any collection workflow is designed.
+Phase 6 adds migration `0056`, `EVALUATION_RIGHTS_RECONCILIATION_V1` and sanitized rights-basis/modality counts. Sites v403 accepted all five bounded channel-authorship receipts. Rights PASS is 525 and the remaining queue is exactly 63 `PROVIDER_TERMS_RECEIPT_MISSING`: 46 audio, 16 master and one clip. Gold, datasets, release, provider request and spend remain unchanged. Provider-family aggregation is source-ready; production read-back must separate direct provider terms from no-provider composite masters before a collection workflow is designed.
 
 ## Wave 4 — Upstream and technical standards
 

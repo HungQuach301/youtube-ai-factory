@@ -30,8 +30,8 @@ export type CorpusEvidenceConflictSummary = {
   kindCounts: Array<{ key: string; count: number }>;
 };
 
-export type EvaluationRightsQueueItem = { candidateKind?: string; rightsBasis?: string };
-export type EvaluationRightsQueueSummary = { basisCounts: Array<{ key: string; count: number }>; kindCounts: Array<{ key: string; count: number }> };
+export type EvaluationRightsQueueItem = { candidateKind?: string; rightsBasis?: string; provider?: string };
+export type EvaluationRightsQueueSummary = { basisCounts: Array<{ key: string; count: number }>; kindCounts: Array<{ key: string; count: number }>; providerCounts: Array<{ key: string; count: number }> };
 
 export type CorpusArtifactEvidence = {
   candidateId: string;
@@ -65,13 +65,21 @@ const comparableNumber = (value: unknown) => clean(value) !== "" && Number.isFin
 const knownRightsBases = new Set(["DECLARATION_NOT_ELIGIBLE", "PROVIDER_TERMS_RECEIPT_MISSING", "AUTHORSHIP_EVIDENCE_INCOMPLETE"]);
 
 export function summarizeEvaluationRightsQueue(rows: EvaluationRightsQueueItem[]): EvaluationRightsQueueSummary {
-  const bases = new Map<string, number>(), kinds = new Map<string, number>();
+  const bases = new Map<string, number>(), kinds = new Map<string, number>(), providers = new Map<string, number>();
   for (const row of rows) {
     const basis = clean(row.rightsBasis);
+    const provider = clean(row.provider).toLowerCase();
+    const providerFamily = !provider ? "NO_PROVIDER_DECLARED"
+      : provider.includes("eleven") ? "ELEVENLABS"
+      : provider.includes("openai") || provider.includes("gpt") || provider.includes("dall-e") ? "OPENAI"
+      : provider.includes("pexels") ? "PEXELS"
+      : provider.includes("pixabay") ? "PIXABAY"
+      : "OTHER_PROVIDER";
     increment(bases, knownRightsBases.has(basis) ? basis : basis ? "UNKNOWN_RIGHTS_BASIS" : "RIGHTS_BASIS_MISSING");
     increment(kinds, clean(row.candidateKind) || "UNKNOWN_KIND");
+    increment(providers, providerFamily);
   }
-  return { basisCounts: rankedCounts(bases), kindCounts: rankedCounts(kinds) };
+  return { basisCounts: rankedCounts(bases), kindCounts: rankedCounts(kinds), providerCounts: rankedCounts(providers) };
 }
 
 export function summarizeCorpusEvidenceConflicts(rows: CorpusEvidenceConflict[]): CorpusEvidenceConflictSummary {

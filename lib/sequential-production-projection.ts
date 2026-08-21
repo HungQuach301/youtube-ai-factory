@@ -224,9 +224,10 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       (SELECT COUNT(*) FROM v7_evaluation_candidate_dispositions d WHERE d.channel_id=? AND d.disposition='QUARANTINE_EVALUATION_ONLY') quarantined,
       (SELECT COUNT(*) FROM v7_evaluation_metadata_binding_receipts b WHERE b.channel_id=? AND b.binding_state='UNIQUE_STORAGE_HASH_REBIND_VERIFIED') metadata_bindings
       FROM v7_evaluation_evidence_incidents i WHERE channel_id=?`).bind(channelId, channelId, channelId).first<Row>(),
-    rows(db, `SELECT c.candidate_kind,r.rights_basis
+    rows(db, `SELECT c.candidate_kind,r.rights_basis,json_extract(a.provenance_json,'$.provider') provider
       FROM v7_evaluation_candidates c
       JOIN v7_evaluation_verification_receipts r ON r.id=c.latest_verification_receipt_id
+      JOIN production_v2_artifacts a ON c.source_table='production_v2_artifacts' AND a.id=c.source_id
       WHERE c.channel_id=? AND c.verification_state='PARTIAL_RIGHTS_PENDING'
       ORDER BY c.candidate_kind,r.rights_basis`, channelId),
     db.prepare("SELECT COUNT(*) accepted FROM v7_evaluation_rights_receipts WHERE channel_id=? AND rights_state='PASS'").bind(channelId).first<Row>(),
@@ -238,7 +239,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     sourcePackageId: text(row.source_package_id), sourceHash: text(row.source_hash), sourceBytes: number(row.source_bytes), sourceEngineVersion: text(row.source_engine_version),
     computedHash: text(row.computed_hash), actualBytes: number(row.actual_bytes), objectMetadataJson: text(row.object_metadata_json),
   })));
-  const evaluationRightsQueue = summarizeEvaluationRightsQueue(evaluationRightsRows.map((row) => ({ candidateKind: text(row.candidate_kind), rightsBasis: text(row.rights_basis) })));
+  const evaluationRightsQueue = summarizeEvaluationRightsQueue(evaluationRightsRows.map((row) => ({ candidateKind: text(row.candidate_kind), rightsBasis: text(row.rights_basis), provider: text(row.provider) })));
   const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
   const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json,scan_json,error_code FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
   const goldenAssetUrl = (role: string) => { const asset = goldenAssets.find((item) => text(item.role) === role); return asset ? `/api/factory/sequential-production/quality?asset=${encodeURIComponent(text(asset.id))}` : undefined; };
@@ -444,6 +445,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         rightsReceiptsAccepted: number(evaluationRightsReceipts?.accepted),
         rightsBasisCounts: evaluationRightsQueue.basisCounts,
         rightsKindCounts: evaluationRightsQueue.kindCounts,
+        rightsProviderCounts: evaluationRightsQueue.providerCounts,
         verificationBytesRead: number(evaluationVerification?.bytes_read),
         blockedReasonCounts: evaluationConflicts.reasonCounts,
         blockedFactCounts: evaluationConflicts.factCounts,
@@ -455,7 +457,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         releaseEligibleFixtures: number(evaluationCandidates?.release_eligible),
         providerRequests: 0,
         spendUsd: 0,
-        nextAction: number(evaluationCandidates?.verification_pending) === 0 && number(evaluationCandidates?.verification_blocked) === 0 ? "Collect the 68 missing rights receipts and owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset." : number(evaluationCandidates?.verification_pending) === 0 ? "Review unresolved metadata-binding incidents, collect missing rights evidence and owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset." : "Verify R2 bytes, recompute checksums, reconcile provenance and rights, collect owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset.",
+        nextAction: number(evaluationCandidates?.verification_pending) === 0 && number(evaluationCandidates?.verification_blocked) === 0 ? `Collect the ${number(evaluationCandidates?.rights_pending)} missing rights receipts and owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset.` : number(evaluationCandidates?.verification_pending) === 0 ? "Review unresolved metadata-binding incidents, collect missing rights evidence and owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset." : "Verify R2 bytes, recompute checksums, reconcile provenance and rights, collect owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset.",
       },
       readiness: [
         { id: "EFFECTIVE_PROJECTION", label: "Effective production state", passed: true, evidence: `${effectiveLabels[effectiveState]} projected from canonical evidence`, owningStages: ["00"] },

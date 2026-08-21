@@ -174,8 +174,8 @@ test("blocked corpus diagnostics aggregate sanitized immutable receipt conflicts
 
 test("rights queue diagnostics expose only allowlisted basis and modality counts", () => {
   const summary = summarizeEvaluationRightsQueue([
-    { candidateKind: "AUDIO", rightsBasis: "PROVIDER_TERMS_RECEIPT_MISSING" },
-    { candidateKind: "CLIP", rightsBasis: "AUTHORSHIP_EVIDENCE_INCOMPLETE" },
+    { candidateKind: "AUDIO", rightsBasis: "PROVIDER_TERMS_RECEIPT_MISSING", provider: "ElevenLabs" },
+    { candidateKind: "CLIP", rightsBasis: "AUTHORSHIP_EVIDENCE_INCOMPLETE", provider: "Pexels" },
     { candidateKind: "CLIP", rightsBasis: "UNSAFE_RAW_DETAIL" },
   ]);
   assert.deepEqual(summary.basisCounts, [
@@ -184,6 +184,9 @@ test("rights queue diagnostics expose only allowlisted basis and modality counts
     { key: "UNKNOWN_RIGHTS_BASIS", count: 1 },
   ]);
   assert.deepEqual(summary.kindCounts, [{ key: "CLIP", count: 2 }, { key: "AUDIO", count: 1 }]);
+  assert.deepEqual(summary.providerCounts, [
+    { key: "ELEVENLABS", count: 1 }, { key: "NO_PROVIDER_DECLARED", count: 1 }, { key: "PEXELS", count: 1 },
+  ]);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

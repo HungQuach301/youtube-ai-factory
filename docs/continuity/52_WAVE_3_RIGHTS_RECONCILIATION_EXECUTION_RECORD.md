@@ -37,8 +37,12 @@ The projection also adds sanitized rights-basis and candidate-kind counts for th
 - Targeted Evaluation Foundation, contract-pack and integrity regression: 27/27 PASS.
 - The migration fixture proves metadata reconciliation and rights reconciliation are separate receipts.
 - The candidate remains `CANDIDATE_EVIDENCE` after rights PASS.
-- Production migration/read-back: pending checkpoint.
+- Production migration/read-back: PASS in Sites v403.
+- Exact result: 5 channel-authorship receipts, rights PASS 525, rights-pending 63.
+- Remaining basis: 63 `PROVIDER_TERMS_RECEIPT_MISSING`.
+- Remaining modality: 46 audio, 16 master and 1 clip.
+- Provider slice stayed zero; global totals remain 56 historical requests, zero active and `$13.247131145833333`.
 
 ## Next gate
 
-Deploy migration `0056`. At most the five metadata-rebound channel-authored candidates may pass. Read the exact remaining rights-basis/modality distribution and create a provider-terms receipt collection plan without fabricating or scraping license evidence.
+Deploy the sanitized provider-family diagnostic. Split direct provider assets from composite masters that require a parent-lineage manifest, then create an explicit evidence-collection plan without fabricating license receipts.

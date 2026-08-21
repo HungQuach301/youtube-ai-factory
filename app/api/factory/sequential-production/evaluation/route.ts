@@ -76,9 +76,10 @@ async function projection(db: DB) {
       (SELECT COUNT(*) FROM v7_evaluation_candidate_dispositions d WHERE d.channel_id=? AND d.disposition='QUARANTINE_EVALUATION_ONLY') quarantined,
       (SELECT COUNT(*) FROM v7_evaluation_metadata_binding_receipts b WHERE b.channel_id=? AND b.binding_state='UNIQUE_STORAGE_HASH_REBIND_VERIFIED') metadata_bindings
       FROM v7_evaluation_evidence_incidents i WHERE channel_id=?`, CHANNEL_ID, CHANNEL_ID, CHANNEL_ID),
-    rows(db, `SELECT c.candidate_kind,r.rights_basis
+    rows(db, `SELECT c.candidate_kind,r.rights_basis,json_extract(a.provenance_json,'$.provider') provider
       FROM v7_evaluation_candidates c
       JOIN v7_evaluation_verification_receipts r ON r.id=c.latest_verification_receipt_id
+      JOIN production_v2_artifacts a ON c.source_table='production_v2_artifacts' AND a.id=c.source_id
       WHERE c.channel_id=? AND c.verification_state='PARTIAL_RIGHTS_PENDING'
       ORDER BY c.candidate_kind,r.rights_basis`, CHANNEL_ID),
     first(db, "SELECT COUNT(*) accepted FROM v7_evaluation_rights_receipts WHERE channel_id=? AND rights_state='PASS'", CHANNEL_ID),
@@ -90,14 +91,14 @@ async function projection(db: DB) {
     sourcePackageId: clean(row.source_package_id), sourceHash: clean(row.source_hash), sourceBytes: number(row.source_bytes), sourceEngineVersion: clean(row.source_engine_version),
     computedHash: clean(row.computed_hash), actualBytes: number(row.actual_bytes), objectMetadataJson: clean(row.object_metadata_json),
   })));
-  const rightsQueue = summarizeEvaluationRightsQueue(rightsRows.map((row) => ({ candidateKind: clean(row.candidate_kind), rightsBasis: clean(row.rights_basis) })));
+  const rightsQueue = summarizeEvaluationRightsQueue(rightsRows.map((row) => ({ candidateKind: clean(row.candidate_kind), rightsBasis: clean(row.rights_basis), provider: clean(row.provider) })));
   return {
     foundationVersion: EVALUATION_FOUNDATION_VERSION,
     policyVersion: CORPUS_VERIFICATION_POLICY_VERSION,
     state: number(candidate?.pending) > 0 ? "CORPUS_VERIFICATION_ACTIVE" : "CORPUS_BYTE_RECONCILIATION_COMPLETE",
     candidates: number(candidate?.candidates), pending: number(candidate?.pending), byteVerified: number(candidate?.byte_verified), checksumPass: number(candidate?.checksum_pass), provenancePass: number(candidate?.provenance_pass), rightsPass: number(candidate?.rights_pass), rightsPending: number(candidate?.rights_pending), blocked: number(candidate?.blocked), excluded: number(candidate?.excluded),
     evidenceIncidents: number(incidentSummary?.incidents), openEvidenceIncidents: number(incidentSummary?.open_incidents), byteDivergenceIncidents: number(incidentSummary?.byte_divergence), metadataReviewRequired: number(incidentSummary?.metadata_review), quarantinedCandidates: number(incidentSummary?.quarantined), metadataBindingsAccepted: number(incidentSummary?.metadata_bindings),
-    rightsReceiptsAccepted: number(rightsReceiptSummary?.accepted), rightsBasisCounts: rightsQueue.basisCounts, rightsKindCounts: rightsQueue.kindCounts,
+    rightsReceiptsAccepted: number(rightsReceiptSummary?.accepted), rightsBasisCounts: rightsQueue.basisCounts, rightsKindCounts: rightsQueue.kindCounts, rightsProviderCounts: rightsQueue.providerCounts,
     runs: number(runSummary?.runs), bytesRead: number(runSummary?.bytes_read), providerRequests: number(runSummary?.provider_requests), spendUsd: number(runSummary?.spend_usd),
     blockedReasonCounts: conflicts.reasonCounts, blockedFactCounts: conflicts.factCounts, blockedStateCounts: conflicts.stateCounts, blockedKindCounts: conflicts.kindCounts, latestRuns,
   };

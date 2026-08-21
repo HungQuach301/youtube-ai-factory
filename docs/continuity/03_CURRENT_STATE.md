@@ -2,23 +2,43 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Wave 3 rights provider-family diagnostic source checkpoint — 2026-08-21
+
+```text
+DIAGNOSTIC = RIGHTS_PROVIDER_FAMILY_AGGREGATION_V1
+PRODUCTION_BASIS = SITES_V403__63_PROVIDER_TERMS_RECEIPTS_MISSING
+INPUT = SOURCE_PROVENANCE_PROVIDER_FIELD
+OUTPUT = ALLOWLISTED_PROVIDER_FAMILY_COUNTS
+RAW_PROVIDER_AND_ARTIFACT_IDENTIFIERS_EXPOSED = 0
+RIGHTS_MUTATIONS = 0
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+NEXT_PROTECTED_ACTION = DEPLOY_DIAGNOSTIC_AND_SPLIT_PROVIDER_TERMS_FROM_COMPOSITE_MASTER_LINEAGE
+```
+
+Source now groups the remaining rights queue into `ELEVENLABS`, `OPENAI`, `PEXELS`, `PIXABAY`, `NO_PROVIDER_DECLARED` or `OTHER_PROVIDER`. Raw provider strings and artifact lineage stay server-side. The operator next-action uses the live rights-pending count instead of a hard-coded number. This diagnostic creates no rights authority.
+
 ## Wave 3 rights reconciliation source checkpoint — 2026-08-21
 
 ```text
 RIGHTS_POLICY = EVALUATION_RIGHTS_RECONCILIATION_V1
-SCHEMA = MIGRATION_0056_PENDING_PRODUCTION
-PRODUCTION_BASIS = SITES_V402__68_RIGHTS_PENDING
+SCHEMA = MIGRATION_0056_PRODUCTION_ACTIVE_SITES_V403
+PRODUCTION_BASIS = SITES_V403__63_RIGHTS_PENDING
 CHANNEL_AUTHORSHIP_LANE = METADATA_REBOUND__NON_PROVIDER__NON_AUDIO_VIDEO__EXPLICIT_AUTHOR__ZERO_LEGACY
-MAXIMUM_AUTOMATIC_RIGHTS_TARGET = 5
+PRODUCTION_CHANNEL_AUTHORSHIP_RECEIPTS = 5
+PRODUCTION_RIGHTS_PASS = 525
+PRODUCTION_RIGHTS_PENDING = 63
+PRODUCTION_RIGHTS_BASIS = 63_PROVIDER_TERMS_RECEIPT_MISSING
+PRODUCTION_RIGHTS_KINDS = 46_AUDIO__16_MASTER__1_CLIP
 PROVIDER_TERMS_INFERENCE = FORBIDDEN
 RIGHTS_QUEUE_DIAGNOSTIC = SANITIZED_BASIS_AND_KIND_COUNTS
 FIXTURE_PROMOTIONS = 0
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-NEXT_PROTECTED_ACTION = DEPLOY_0056_AND_CLASSIFY_REMAINING_RIGHTS_QUEUE
+NEXT_PROTECTED_ACTION = CLASSIFY_PROVIDER_FAMILY_AND_COMPOSITE_MASTER_LINEAGE
 ```
 
-Source migration `0056` creates a separate immutable channel-authorship rights receipt only after technical metadata reconciliation and strict non-provider authorship proof. It cannot pass provider media, promote a fixture or create release authority. The operator projection now classifies the remaining queue by allowlisted rights basis and candidate kind. Document 52 and ADR-085 are authoritative.
+Sites v403 applied migration `0056` exactly: five immutable channel-authorship receipts, rights PASS increased 520 → 525 and rights-pending decreased 68 → 63. Every remaining record requires provider terms under the current classifier: 46 audio, 16 master and one clip. It did not promote a fixture or create release authority. Document 52 and ADR-085 are authoritative.
 
 ## Wave 3 metadata-binding reconciliation source checkpoint — 2026-08-21
 

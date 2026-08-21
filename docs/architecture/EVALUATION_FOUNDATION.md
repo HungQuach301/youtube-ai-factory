@@ -51,6 +51,8 @@ Migration `0055_evaluation_metadata_binding_reconciliation.sql` resolves only th
 
 Migration `0056_evaluation_rights_reconciliation.sql` is a separate rights decision. It may pass only a metadata-rebound, non-audio/non-video candidate with an accepted declaration, no provider, an explicit channel author/actor/executor and zero legacy sources. Provider terms are never inferred. Its append-only receipt changes rights verification and technical evidence state only; candidate lifecycle, labels, qualification and release remain unchanged. The rights queue projection exposes only allowlisted basis and modality counts.
 
+Rights provider-family diagnostics normalize source provenance to a closed public/operator taxonomy and collapse all other values. Raw provider strings, terms data, source IDs and hashes remain server-side. A distribution/master with no direct provider declaration is not automatically channel-authored; it requires a composite parent-lineage rights manifest.
+
 Blocked-evidence diagnostics aggregate only the latest immutable receipt bound to each blocked candidate. The public/operator projection may expose allowlisted reason codes, state combinations, candidate-kind counts and field-level mismatch counts derived server-side from candidate/source declarations, recomputed object bytes and parsed R2 metadata. It must not expose source IDs, storage keys, hashes, byte values, raw object metadata or arbitrary receipt text. Missing declarations are not mismatches. Diagnostics create no authority to repair, relabel, exclude, promote or release a candidate.
 
 D1 stores evidence state, relationships, decisions and metrics. R2 remains authoritative for media bytes. Migration backfill copies declared metadata but deliberately leaves byte, checksum, provenance, rights and labels unverified.
@@ -94,4 +96,4 @@ Production byte reconciliation is complete under `CORPUS_VERIFICATION_POLICY_V1`
 
 ## Next phase
 
-Sites v402 verified five exact metadata rebinds, zero technical blocks, zero open incidents, seven quarantined and 68 rights-pending candidates. Deploy migration `0056` and read the remaining rights-basis/modality distribution. Collect explicit provider terms or authorship evidence for the rest, then bind owner-confirmed defect labels before correlation control. No dataset may be sealed and no assurance provider may be called until those gates pass.
+Sites v403 verified five channel-authorship rights receipts and leaves 63 provider-terms-pending candidates: 46 audio, 16 master and one clip. Deploy the provider-family diagnostic, then collect explicit terms for direct provider assets and construct composite rights manifests for masters from verified parent lineage. Bind owner-confirmed defect labels only after rights evidence is durable. No dataset may be sealed and no assurance provider may be called until those gates pass.

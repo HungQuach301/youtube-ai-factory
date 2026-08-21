@@ -151,6 +151,7 @@ export type SequentialProductionProjection = {
       rightsReceiptsAccepted: number;
       rightsBasisCounts: Array<{ key: string; count: number }>;
       rightsKindCounts: Array<{ key: string; count: number }>;
+      rightsProviderCounts: Array<{ key: string; count: number }>;
       verificationBytesRead: number;
       blockedReasonCounts: Array<{ key: string; count: number }>;
       blockedFactCounts: Array<{ key: string; count: number }>;
