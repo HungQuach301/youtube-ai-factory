@@ -38,7 +38,7 @@
 | B3 | P0 | Independent QA is procedural rather than architectural | `CONFIRMED_MANDATORY`: separate failure path/model family or human adjudication for P0 | WP7 |
 | B4 | P1 | Critic repeatability is unmeasured | `CONFIRMED_MANDATORY`; sampling parameters depend on provider support | WP7 |
 | B5 | P1 | Three temporal samples cannot detect between-sample artifacts | `HANDLED`: Stage 12 owns full decode; samples remain perceptual evidence only | Regression |
-| B6 | P1 | No sealed performance prediction for Stage 16 comparison | `PARTIAL__SOURCE_CONTRACT_IMPLEMENTED`: composition/seal schema and validator exist; no Video #1 prediction is sealed | Contract Pack |
+| B6 | P1 | No sealed performance prediction for Stage 16 comparison | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: composition/seal schema is deployed; no Video #1 prediction is sealed | Contract Pack |
 | B7 | P2 | Creative-route diversity is declared, not measurable | `ACCEPTED_DESIGN`; taxonomy and thresholds require calibration | Upstream quality |
 | B8 | P1 | Hybrid-shot classification is undefined | `CONFIRMED_MANDATORY`; motion measurements support but do not solely decide classification | Technical media |
 | B9 | P2 | Perceptual audio model could be used for deterministic mix measurements | `HANDLED`: keep BS.1770/FFmpeg deterministic and model scope perceptual | Regression |
@@ -48,7 +48,7 @@
 
 | ID | Priority | Finding | Reconciled disposition | Owning wave |
 |---|---:|---|---|---|
-| C1 | P0 | VP9+Opus distribution render is treated as master | `PARTIAL__SOURCE_CONTRACT_IMPLEMENTED`: delivery schema separates archival/mezzanine and distribution; Stage 13 runtime is not migrated or qualified | Contract Pack/Technical media |
+| C1 | P0 | VP9+Opus distribution render is treated as master | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: deployed delivery schema separates archival/mezzanine and distribution; Stage 13 runtime is not qualified | Contract Pack/Technical media |
 | C2 | P1 | Fixed 90–180 shot count conflicts with content-derived pacing | `CONFIRMED_MANDATORY`: remove fixed floor; proposed adaptive values need calibration | Upstream quality |
 | C3 | P1 | Creative champion floor has no execution headroom | `CALIBRATION_REQUIRED`: do not hard-code 95 without labelled evidence | Upstream quality |
 | C4 | P1 | One A/V sync tolerance covers incompatible archetypes | `ACCEPTED_DESIGN`; visible-lip and archetype thresholds require calibration | Technical media |
@@ -65,7 +65,7 @@
 | ID | Priority | Finding | Reconciled disposition | Owning wave |
 |---|---:|---|---|---|
 | D1 | P1 | Compositor throughput/cost is unmeasured | `CONFIRMED_MANDATORY`: benchmark every archetype; qualify dependencies first | Technical media |
-| D2 | P1 | Rights are fields rather than a versioned licence-lineage object | `PARTIAL__SOURCE_CONTRACT_IMPLEMENTED`: versioned rights/compliance terms schema exists; provider/asset lineage integration remains open | Contract Pack/Technical media |
+| D2 | P1 | Rights are fields rather than a versioned licence-lineage object | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: versioned rights/compliance schema is deployed; provider/asset lineage integration remains open | Contract Pack/Technical media |
 | D3 | P1 | Model aliases and updates can halt or silently change behavior | `PARTIAL__PRODUCTION_ACTIVE`: settings-hash supersede is deployed; immutable provider IDs and shadow qualification remain provider-specific work | FP3.1 |
 | D4 | P1 | Production-audio provider decision is incorrectly hidden inside FP5 | `CONFIRMED_MANDATORY`: commercial/legal selection runs before FP5 | Technical media |
 | D5 | P1 | FP4 qualifying all visual archetypes at once is big-bang | `CONFIRMED_MANDATORY`: benchmark all, qualify Video #1 dependency order first | FP4 |
@@ -83,7 +83,7 @@
 | ID | Priority | Finding | Reconciled disposition | Owning wave |
 |---|---:|---|---|---|
 | F1 | P0 | Upstream design criteria are misaligned with downstream assurance | `CORRECTED`: alignment gap is real; `V281` is a contract label, not 281 QA iterations | Contract Pack/Upstream quality |
-| F2 | P1 | Story/retention/audience fail too late after full media spend | `PARTIAL__SOURCE_CONTRACT_IMPLEMENTED`: pre-Stage-09 animatic schema and validator exist; no animatic has been produced or accepted | Contract Pack |
+| F2 | P1 | Story/retention/audience fail too late after full media spend | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: pre-Stage-09 animatic schema is deployed; no animatic has been produced or accepted | Contract Pack |
 | F3 | P1 | Parity rewards similarity without differentiation | `CONFIRMED_MANDATORY`; metric thresholds require calibration | Upstream quality |
 | F4 | P1 | Stage 03 lacks a domain-aware source authority ladder | `CONFIRMED_MANDATORY` | Upstream quality |
 | F5 | P1 | Personalized financial advice is checked too late | `PARTIAL__PRODUCTION_ACTIVE`: high-precision deterministic Stage 06 lint is deployed; semantic/human safety remains upstream quality work | FP3.1/Upstream quality |
@@ -104,12 +104,12 @@
 | X2 | P0 | Expiring leases do not prevent stale writers | `HANDLED__PRODUCTION_ACTIVE`: monotonic fencing, heartbeat and reconciliation are deployed; a stale/fake production heartbeat was rejected with `409` | FP3.1 |
 | X3 | P0 | Spend is recorded after provider completion without atomic reservation | `HANDLED__PRODUCTION_ACTIVE`: transactional reservation and actual-cost ceilings are deployed and concurrency-tested; zero-dispatch acceptance preserved totals exactly | FP3.1 |
 | X4 | P1 | End-to-end trace/span and provider-failure evidence are incomplete | `PARTIAL__PRODUCTION_ACTIVE`: redacted trace, reservation, lease and failure lineage are deployed; zero-dispatch acceptance correctly produced no trace, while retention/encryption operations remain open | FP3.1 |
-| X5 | P0 | Packaging and publishing are absent from the authoritative video path | `PARTIAL__SOURCE_CONTRACT_IMPLEMENTED`: packaging promise is defined; metadata and typed publishing runtime remain open | Contract Pack/Video #1 |
-| X6 | P0 | Learning loop lacks prediction and typed promotion | `PARTIAL__SOURCE_CONTRACT_IMPLEMENTED`: prediction, candidate and promotion receipt contracts exist; runtime command and actual evidence remain open | Contract Pack/Learning |
-| X7 | P1 | Experiment discipline is absent and N=1 can create false learning | `PARTIAL__SOURCE_CONTRACT_IMPLEMENTED`: one-variable experiment schema and validator exist; no experiment evidence exists | Contract Pack/Learning |
-| X8 | P1 | Voice/visual/music identity is decided at video rather than channel level | `PARTIAL__SOURCE_CONTRACT_IMPLEMENTED`: channel-scoped identity schema exists; no identity artifact is sealed | Contract Pack |
+| X5 | P0 | Packaging and publishing are absent from the authoritative video path | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: packaging promise schema is deployed; metadata and typed publishing runtime remain open | Contract Pack/Video #1 |
+| X6 | P0 | Learning loop lacks prediction and typed promotion | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: prediction, candidate and promotion receipt schemas are deployed; runtime command and actual evidence remain open | Contract Pack/Learning |
+| X7 | P1 | Experiment discipline is absent and N=1 can create false learning | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: one-variable experiment schema is deployed; no experiment evidence exists | Contract Pack/Learning |
+| X8 | P1 | Voice/visual/music identity is decided at video rather than channel level | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: channel-scoped identity schema is deployed; no identity artifact is sealed | Contract Pack |
 | X9 | P1 | Rejected-output quarantine is conflated with qualified asset reuse | `ACCEPTED_DESIGN`: preserve quarantine and build a separate qualified library | Scale |
-| X10 | P1 | Platform compliance is not a separate channel-level risk plane | `PARTIAL__SOURCE_CONTRACT_IMPLEMENTED`: compliance manifest schema exists; platform evidence and runtime gate remain open | Contract Pack/Video #1 |
+| X10 | P1 | Platform compliance is not a separate channel-level risk plane | `PARTIAL__PRODUCTION_SCHEMA_ACTIVE`: compliance manifest schema is deployed; platform evidence and runtime gate remain open | Contract Pack/Video #1 |
 | X11 | P1 | Exclusive one-video mode has no portfolio-scale successor | `ACCEPTED_DESIGN` before second channel | Scale |
 | X12 | P1 | Owner approval has no explicit attention budget | `ACCEPTED_DESIGN` before scale | Scale |
 | X13 | P1 | External documentation and chat continuity were fragmented | `CONFIRMED_MANDATORY`; addressed by `GIT_REPOSITORY_SSOT_V1` | Wave 0 |

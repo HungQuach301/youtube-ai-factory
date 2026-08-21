@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_2_SOURCE_IMPLEMENTED_TESTED__PRODUCTION_MIGRATION_PENDING`
+**Current source classification:** `WAVE_2_PRODUCTION_RUNTIME_ACCEPTED__WP7_NEXT`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -32,8 +32,9 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Golden r9 is immutable rejected evidence.
 - Golden r10, Stage 11, Videos 2–15 and auto-publish are blocked.
 - Paid FP4 authority has not been granted.
-- Wave 2 source defines all eight `LEARNING_READY_CONTRACT_PACK_V1` contracts plus migration `0051`, fail-closed validators, operator projection and regression coverage. It creates no actual channel/video artifacts and activates no learning command.
-- Production remains Sites v391 on FP3.1; migration `0051` has not been applied. The next protected action is an explicitly authorized production checkpoint with zero-dispatch read-back, followed by WP7 Evaluation Foundation. Paid FP4/FP5 remains unauthorized.
+- Wave 2 source defines all eight `LEARNING_READY_CONTRACT_PACK_V1` contracts plus migration `0051`, fail-closed validators, operator projection and regression coverage.
+- Sites v392 applied `0051` and passed zero-dispatch read-back: eight schema rows, zero rows across nine artifact/receipt tables, zero reservations/traces, no worker errors and unchanged provider totals of 56 requests and `$13.247131145833333`. It creates no actual channel/video artifacts and activates no learning command.
+- The next protected action is Wave 3 WP7 Evaluation Foundation. Paid FP4/FP5 remains unauthorized.
 
 ## Protected no-rerun list
 

@@ -6,7 +6,7 @@
 
 **Effective source date:** 2026-08-21
 
-**Runtime status:** source implemented; production migration not applied
+**Runtime status:** schema production-active in Sites v392; no video-specific artifact sealed
 
 ## Purpose
 
@@ -71,4 +71,4 @@ Artifact lifecycles remain append-only by version. Drafts do not satisfy stage g
 
 ## Next boundary
 
-After an explicitly authorized production checkpoint applies `0051` and zero-dispatch read-back proves the same invariants, Wave 3 may build the WP7 Evaluation Foundation. Paid provider work remains separately gated.
+Sites v392 applied `0051` and zero-dispatch read-back proved the same invariants. Wave 3 may now build the WP7 Evaluation Foundation. Paid provider work remains separately gated.

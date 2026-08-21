@@ -15,8 +15,8 @@
 - FP3.1 source, additive migration and local regression: implemented and tested.
 - FP3.1 production migration: active in Sites v389 after v388 failed safely before publish and exposed the historical fencing-token backfill defect.
 - FP3.1 runtime QA: zero-dispatch acceptance passed in Sites v390; Sites v391 removed the temporary QA authorization path, the environment key is absent and a retired QA header is rejected with `401`.
-- Wave 2 Learning-ready Contract Pack: source implemented and tested; production migration `0051` is prepared but not applied.
-- Next protected milestone: an explicitly authorized Wave 2 production checkpoint and zero-dispatch read-back, followed by WP7 Evaluation Foundation.
+- Wave 2 Learning-ready Contract Pack: production-runtime accepted in Sites v392 with migration `0051` active and zero-dispatch read-back passed.
+- Next implementation milestone: Wave 3 WP7 Evaluation Foundation.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -59,7 +59,7 @@ Source evidence on 2026-08-21: all 52 migrations replay through `0050`; canonica
 
 ## Wave 2 — Learning-ready Contract Pack
 
-Status: `SOURCE_IMPLEMENTED_TESTED__PRODUCTION_MIGRATION_PENDING`.
+Status: `PRODUCTION_RUNTIME_ACCEPTED__ZERO_DISPATCH`.
 
 Scope:
 
@@ -73,11 +73,11 @@ Scope:
 
 This wave changes schemas and policy only. It does not authorize paid production.
 
-Source evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight zero-dispatch registry entries and adds append-only persistence for channel identity, packaging promise, predicted performance, experiment definition, learning candidate/promotion receipt, rights/compliance, animatic and archival/distribution delivery. Validators fail closed on unsealed prediction, underpowered experiments, non-owner promotion, unevaluated compliance, failed animatic gates and invalid master lineage. This checkpoint creates no actual Video #1 artifacts and activates no learning command. Wave 2 becomes production-active only after authorized migration `0051` and zero-dispatch runtime read-back.
+Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight zero-dispatch registry entries and adds append-only persistence for channel identity, packaging promise, predicted performance, experiment definition, learning candidate/promotion receipt, rights/compliance, animatic and archival/distribution delivery. Sites v392 applied `0051`. Direct production read-back found all eight schema definitions, zero rows across all nine artifact/receipt tables, zero integrity reservations/traces, unchanged provider/spend totals and no worker errors. Validators fail closed on unsealed prediction, underpowered experiments, non-owner promotion, unevaluated compliance, failed animatic gates and invalid master lineage. No actual Video #1 artifact or runtime learning command was activated.
 
 ## Wave 3 — WP7 Evaluation Foundation
 
-Entry gate: Wave 2 migration active in production with eight definitions, zero provider requests/spend and no protected-lock regression.
+Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
 Scope:
 
