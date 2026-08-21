@@ -23,7 +23,7 @@
 - Wave 3 metadata reconciliation: migration `0055` is production-active in Sites v402 with 5 accepted rebinds, 0 technical blocks and 68 rights-pending.
 - Wave 3 rights reconciliation: migration `0056` is production-active in Sites v403 with 5 accepted channel-authorship receipts and 63 provider-terms-pending records.
 - Wave 3 provider-family diagnostics: production-accepted in Sites v404 with 46 ElevenLabs audio and 17 no-provider records.
-- Wave 3 rights evidence collection: migration `0057` source-ready with immutable 46/16/1 collection lanes and zero automatic PASS.
+- Wave 3 rights evidence collection: production-accepted in Sites v405 with immutable 46/16/1 collection lanes and zero automatic PASS.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -86,7 +86,7 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
-Status: `PHASE_7_RIGHTS_EVIDENCE_COLLECTION_SOURCE_READY__PRODUCTION_CHECKPOINT_NEXT`.
+Status: `PHASE_7_RIGHTS_EVIDENCE_COLLECTION_PRODUCTION_ACCEPTED__HISTORICAL_EVIDENCE_COLLECTION_NEXT`.
 
 Scope:
 
@@ -114,7 +114,7 @@ Phase 6 adds migration `0056`, `EVALUATION_RIGHTS_RECONCILIATION_V1` and sanitiz
 
 Sites v404 completed that read-back: 46 candidates are ElevenLabs audio and 17 declare no provider, comprising 16 masters and one clip. No OpenAI, Pexels or Pixabay family is present in the open queue.
 
-Phase 7 adds migration `0057` and `EVALUATION_RIGHTS_EVIDENCE_POLICY_V1`. It creates immutable task, provider terms/plan, exact candidate-provider binding, composite parent-rights and authorship receipt tables. It does not backfill any receipt or update rights to PASS. Production checkpoint must prove 46 provider, 16 composite and one authorship task while rights PASS/pending remain 525/63 and provider/spend remain unchanged.
+Phase 7 adds migration `0057` and `EVALUATION_RIGHTS_EVIDENCE_POLICY_V1`. It creates immutable task, provider terms/plan, exact candidate-provider binding, composite parent-rights and authorship receipt tables. Sites v405 proves exactly 46 provider, 16 composite and one authorship task while rights PASS/pending remain 525/63 and provider/spend remain unchanged. It backfilled no receipt and updated no rights to PASS.
 
 ## Wave 4 — Upstream and technical standards
 

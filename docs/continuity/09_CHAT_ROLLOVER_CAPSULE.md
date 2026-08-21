@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_3_PHASE_7_RIGHTS_EVIDENCE_COLLECTION_SOURCE_READY__PRODUCTION_CHECKPOINT_NEXT`
+**Current source classification:** `WAVE_3_PHASE_7_RIGHTS_EVIDENCE_COLLECTION_PRODUCTION_ACCEPTED__HISTORICAL_EVIDENCE_COLLECTION_NEXT`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 

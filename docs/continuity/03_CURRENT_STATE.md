@@ -6,8 +6,8 @@ Last reconciled: 2026-08-21 (Asia/Bangkok)
 
 ```text
 RIGHTS_EVIDENCE_POLICY = EVALUATION_RIGHTS_EVIDENCE_POLICY_V1
-SCHEMA = MIGRATION_0057_SOURCE_READY
-PRODUCTION_BASIS = SITES_V404__63_RIGHTS_PENDING
+SCHEMA = MIGRATION_0057_PRODUCTION_ACTIVE_SITES_V405
+PRODUCTION_BASIS = SITES_V405__63_RIGHTS_PENDING
 PRODUCTION_PROVIDER_FAMILIES = 46_ELEVENLABS__17_NO_PROVIDER_DECLARED
 PRODUCTION_TASK_TARGETS = 46_PROVIDER_TERMS_AND_PLAN__16_COMPOSITE_PARENT_MANIFEST__1_AUTHORSHIP_SOURCE
 CURRENT_TERMS_RETROACTIVE_AUTHORITY = FORBIDDEN
@@ -15,10 +15,11 @@ PACKAGE_LEVEL_PROVIDER_INFERENCE = FORBIDDEN
 AUTOMATIC_RIGHTS_PASS = 0
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-NEXT_PROTECTED_ACTION = DEPLOY_0057_AND_READ_BACK_IMMUTABLE_TASK_LEDGER
+PRODUCTION_TASK_LEDGER = 46_PROVIDER_TERMS_AND_PLAN__16_COMPOSITE_PARENT_MANIFEST__1_AUTHORSHIP_SOURCE
+NEXT_PROTECTED_ACTION = COLLECT_HISTORICAL_PROVIDER_AND_PARENT_LINEAGE_EVIDENCE
 ```
 
-Sites v404 proves the direct-provider/composite split. Migration `0057` defines provider terms/plan receipts, exact request-to-artifact bindings, composite parent-rights manifests and authorship receipts. It deliberately inserts no PASS receipt and changes no candidate rights. Document 53 and ADR-086 are authoritative.
+Sites v405 applied migration `0057` and created exactly 46 provider terms/plan tasks, 16 composite parent-rights tasks and one authorship/source task. Rights remained 525 PASS / 63 pending; provider/spend and every fixture/dataset/release lock remained unchanged. Document 53 and ADR-086 are authoritative.
 
 ## Wave 3 rights provider-family diagnostic production checkpoint — 2026-08-21
 

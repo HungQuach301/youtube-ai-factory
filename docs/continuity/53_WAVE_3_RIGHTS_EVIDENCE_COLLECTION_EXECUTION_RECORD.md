@@ -37,7 +37,11 @@ The schema stores provider-level terms/plan receipts separately from candidate-t
 - Incomplete parent hash/receipt coverage test: rejected.
 - Rendered composite without source manifest test: rejected.
 - Full application build and commercial/performance gates: PASS.
+- Production migration/read-back: PASS in Sites v405.
+- Exact task ledger: 46 provider terms/plan, 16 composite parent-rights and one authorship/source task.
+- Rights remained 525 PASS / 63 pending; provider requests and spend remained 0 / `$0` for the slice.
+- Verified fixtures, gold eligibility, sealed datasets and release eligibility remained zero.
 
 ## Next gate
 
-Deploy migration `0057`, read back the exact 46/16/1 task split, and keep all 63 candidates rights-pending. Then collect historical ElevenLabs terms and paid-plan evidence from an authoritative account/billing source before any provider candidate can receive a PASS receipt. In parallel, reconstruct exact master parent sets and the one clip's source/authorship basis. Owner-confirmed defect labels remain downstream of durable rights evidence.
+Collect historical ElevenLabs terms and paid-plan evidence from an authoritative account/billing source before any provider candidate can receive a PASS receipt. In parallel, reconstruct exact master parent sets and the one clip's source/authorship basis. Owner-confirmed defect labels remain downstream of durable rights evidence.
