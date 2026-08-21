@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_3_PHASE_8_OWNER_LABEL_WORKFLOW_PRODUCTION_ACCEPTED__OWNER_CLASSIFICATION_AND_RIGHTS_EVIDENCE_NEXT`
+**Current source classification:** `WAVE_3_PHASE_9_CORRELATION_CONTROL_SOURCE_READY__PRODUCTION_CHECKPOINT_NEXT`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -48,6 +48,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Provider-family diagnostic source is ready. It exposes only closed family counts, keeps raw provenance private and treats no-provider masters as requiring composite parent-lineage manifests rather than automatically passing them.
 - `OWNER_STANDING_PRODUCTION_AUTHORITY_V1` permits future roadmap-bounded deploy, migration, production QA and provider calls without repeated chat confirmation, but never bypasses capability/settings, budget, rights, safety, idempotency or fencing gates and does not authorize publish/delete/weaken actions.
 - Sites v407 activated migration `0058` and `EVALUATION_OWNER_LABEL_POLICY_V1`: 525 open exact-byte tasks, zero receipts, zero owner-confirmed/labelled candidates, 63 rights-pending and seven quarantined candidates excluded. Owner playback recomputes the R2 hash, taxonomy coverage is complete and receipts are append-only. Next is real owner classification in parallel with collecting the 63 rights-evidence records; then correlation/de-duplication before dataset sealing.
+- Migration `0059` and `EVALUATION_CORRELATION_CONTROL_V1` are source-ready. They preserve all 525 tasks but expose only exact-byte/lineage primary representatives to owner attention; duplicate and correlated variants remain immutable and count-ineligible. Production activation/read-back is the exact next action. No owner receipt, fixture, dataset, provider request or spend was created locally.
 
 ## Protected no-rerun list
 

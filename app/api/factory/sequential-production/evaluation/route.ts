@@ -50,7 +50,7 @@ async function authorized(request: Request, allowAutomation = true) {
 }
 
 async function projection(db: DB) {
-  const [candidate, runSummary, latestRuns, blockedRows, incidentSummary, rightsRows, rightsReceiptSummary, rightsTasks, labelSummary] = await Promise.all([
+  const [candidate, runSummary, latestRuns, blockedRows, incidentSummary, rightsRows, rightsReceiptSummary, rightsTasks, labelSummary, correlationSummary] = await Promise.all([
     first(db, `SELECT COUNT(*) candidates,
       COALESCE(SUM(CASE WHEN verification_state='PENDING' THEN 1 ELSE 0 END),0) pending,
       COALESCE(SUM(CASE WHEN bytes_state='READBACK_VERIFIED' THEN 1 ELSE 0 END),0) byte_verified,
@@ -93,6 +93,12 @@ async function projection(db: DB) {
       (SELECT COUNT(*) FROM v7_evaluation_owner_label_tasks t WHERE t.channel_id=? AND NOT EXISTS (SELECT 1 FROM v7_evaluation_owner_label_receipts r WHERE r.task_id=t.id)) open_tasks,
       (SELECT COUNT(*) FROM v7_evaluation_candidates c WHERE c.channel_id=? AND c.owner_decision_state='OWNER_CONFIRMED') owner_confirmed,
       (SELECT COUNT(*) FROM v7_evaluation_candidates c WHERE c.channel_id=? AND c.defect_label_state='LABELLED') labelled`, CHANNEL_ID, CHANNEL_ID, CHANNEL_ID, CHANNEL_ID, CHANNEL_ID),
+    first(db, `SELECT s.candidate_count,s.primary_representative_count,s.exact_duplicate_deferred_count,s.correlated_variant_deferred_count,s.independent_count_eligible,
+      (SELECT COUNT(*) FROM v7_evaluation_correlation_items i
+        JOIN v7_evaluation_owner_label_tasks t ON t.candidate_id=i.candidate_id
+        WHERE i.snapshot_id=s.id AND i.attention_state='READY_PRIMARY'
+          AND NOT EXISTS (SELECT 1 FROM v7_evaluation_owner_label_receipts r WHERE r.task_id=t.id)) actionable_open
+      FROM v7_evaluation_correlation_snapshots s WHERE s.channel_id=? AND s.policy_version='EVALUATION_CORRELATION_CONTROL_V1' LIMIT 1`, CHANNEL_ID),
   ]);
   const conflicts = summarizeCorpusEvidenceConflicts(blockedRows.map((row) => ({
     candidateKind: clean(row.candidate_kind), artifactType: clean(row.artifact_type), bytesState: clean(row.bytes_state), checksumState: clean(row.checksum_state),
@@ -113,18 +119,24 @@ async function projection(db: DB) {
     ownerLabelPolicyVersion: EVALUATION_OWNER_LABEL_POLICY_VERSION,
     ownerLabelTasks: number(labelSummary?.tasks), ownerLabelReceipts: number(labelSummary?.receipts), ownerLabelOpen: number(labelSummary?.open_tasks),
     ownerConfirmed: number(labelSummary?.owner_confirmed), labelled: number(labelSummary?.labelled),
+    correlationPolicyVersion: "EVALUATION_CORRELATION_CONTROL_V1",
+    correlationCandidates: number(correlationSummary?.candidate_count), ownerLabelActionable: number(correlationSummary?.actionable_open),
+    primaryRepresentatives: number(correlationSummary?.primary_representative_count), exactDuplicatesDeferred: number(correlationSummary?.exact_duplicate_deferred_count),
+    correlatedVariantsDeferred: number(correlationSummary?.correlated_variant_deferred_count), independentCountEligible: number(correlationSummary?.independent_count_eligible),
     runs: number(runSummary?.runs), bytesRead: number(runSummary?.bytes_read), providerRequests: number(runSummary?.provider_requests), spendUsd: number(runSummary?.spend_usd),
     blockedReasonCounts: conflicts.reasonCounts, blockedFactCounts: conflicts.factCounts, blockedStateCounts: conflicts.stateCounts, blockedKindCounts: conflicts.kindCounts, latestRuns,
   };
 }
 
 async function nextOwnerLabelTask(db: DB) {
-  return first(db, `SELECT t.id task_id,t.candidate_id,t.exact_artifact_hash,t.candidate_kind,t.artifact_type,c.mime_type
+  return first(db, `SELECT t.id task_id,t.candidate_id,t.exact_artifact_hash,t.candidate_kind,t.artifact_type,c.mime_type,i.queue_role,i.relation_class
     FROM v7_evaluation_owner_label_tasks t
     JOIN v7_evaluation_candidates c ON c.id=t.candidate_id
+    JOIN v7_evaluation_correlation_items i ON i.candidate_id=t.candidate_id AND i.policy_version='EVALUATION_CORRELATION_CONTROL_V1'
     WHERE t.channel_id=? AND t.task_state='OPEN'
       AND c.lifecycle_state='CANDIDATE_EVIDENCE' AND c.verification_state='EVIDENCE_VERIFIED'
       AND c.rights_verification_state='PASS' AND c.release_eligible=0
+      AND i.attention_state='READY_PRIMARY' AND i.independent_count_eligible=1
       AND NOT EXISTS (SELECT 1 FROM v7_evaluation_owner_label_receipts r WHERE r.task_id=t.id)
     ORDER BY CASE t.candidate_kind WHEN 'MASTER' THEN 1 WHEN 'AUDIO' THEN 2 WHEN 'PACKAGING' THEN 3 WHEN 'SHOT' THEN 4 ELSE 5 END,t.created_at,t.id LIMIT 1`, CHANNEL_ID);
 }
@@ -137,8 +149,10 @@ export async function GET(request: Request) {
       if (artifactCandidateId) {
         const item = await first(env.DB, `SELECT c.id,c.storage_key,c.mime_type,c.content_hash,t.exact_artifact_hash
           FROM v7_evaluation_candidates c JOIN v7_evaluation_owner_label_tasks t ON t.candidate_id=c.id
+          JOIN v7_evaluation_correlation_items i ON i.candidate_id=c.id AND i.policy_version='EVALUATION_CORRELATION_CONTROL_V1'
           WHERE c.channel_id=? AND c.id=? AND c.lifecycle_state='CANDIDATE_EVIDENCE' AND c.verification_state='EVIDENCE_VERIFIED'
-            AND c.rights_verification_state='PASS' AND c.release_eligible=0 AND t.exact_artifact_hash=c.content_hash LIMIT 1`, CHANNEL_ID, artifactCandidateId);
+            AND c.rights_verification_state='PASS' AND c.release_eligible=0 AND t.exact_artifact_hash=c.content_hash
+            AND i.attention_state='READY_PRIMARY' AND i.independent_count_eligible=1 LIMIT 1`, CHANNEL_ID, artifactCandidateId);
         if (!item) throw new EvaluationCommandError("OWNER_LABEL_ARTIFACT_NOT_ELIGIBLE", 404, "The requested artifact is not eligible for owner labeling");
         const object = await env.BUCKET.get(clean(item.storage_key));
         if (!object) throw new EvaluationCommandError("OWNER_LABEL_ARTIFACT_MISSING", 404, "The exact R2 artifact could not be read");
@@ -147,6 +161,10 @@ export async function GET(request: Request) {
         return new Response(bytes, { headers: { ...NO_STORE, "content-type": clean(item.mime_type) || "application/octet-stream", "content-disposition": "inline; filename=owner-label-artifact" } });
       }
       const task = await nextOwnerLabelTask(env.DB), taxonomy = await rows(env.DB, "SELECT id,defect_key,label,severity,modality,description FROM v7_evaluation_defect_taxonomy WHERE active=1 ORDER BY severity,defect_key");
+      const attention = await first(env.DB, `SELECT s.primary_representative_count,s.exact_duplicate_deferred_count,s.correlated_variant_deferred_count,
+        (SELECT COUNT(*) FROM v7_evaluation_correlation_items i JOIN v7_evaluation_owner_label_tasks t ON t.candidate_id=i.candidate_id
+          WHERE i.snapshot_id=s.id AND i.attention_state='READY_PRIMARY' AND NOT EXISTS (SELECT 1 FROM v7_evaluation_owner_label_receipts r WHERE r.task_id=t.id)) actionable_open
+        FROM v7_evaluation_correlation_snapshots s WHERE s.channel_id=? AND s.policy_version='EVALUATION_CORRELATION_CONTROL_V1' LIMIT 1`, CHANNEL_ID);
       if (view === "owner-label-workflow") {
         const recorded = url.searchParams.get("recorded") === "1", artifactUrl = task ? `/api/factory/sequential-production/evaluation?artifact=${encodeURIComponent(clean(task.candidate_id))}` : "";
         const mime = clean(task?.mime_type), artifact = !task ? ""
@@ -156,10 +174,10 @@ export async function GET(request: Request) {
           : `<a href="${artifactUrl}" target="_blank" rel="noreferrer">Open exact artifact</a>`;
         const fields = taxonomy.map((item) => `<label class="tax"><span><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.severity)} · ${escapeHtml(item.modality)}</small><em>${escapeHtml(item.description)}</em></span><select name="label__${escapeHtml(item.defect_key)}" required><option value="">Unclassified</option><option value="PRESENT">Present</option><option value="ABSENT">Absent</option><option value="NOT_APPLICABLE">Not applicable</option></select></label>`).join("");
         const content = task ? `<div class="artifact"><div><small>${escapeHtml(task.candidate_kind)} · ${escapeHtml(task.artifact_type)}</small><b>${escapeHtml(mime)}</b><code>${escapeHtml(task.exact_artifact_hash)}</code></div>${artifact}</div><form method="post" action="/api/factory/sequential-production/evaluation"><input type="hidden" name="action" value="RECORD_OWNER_LABEL_RECEIPT"><input type="hidden" name="taskId" value="${escapeHtml(task.task_id)}"><input type="hidden" name="candidateId" value="${escapeHtml(task.candidate_id)}"><input type="hidden" name="expectedArtifactHash" value="${escapeHtml(task.exact_artifact_hash)}"><input type="hidden" name="idempotencyKey" value="owner-label:${escapeHtml(task.task_id)}"><div class="fields"><label><span>Owner decision</span><select name="decisionState" required><option value="">Select a decision</option><option value="REJECTED_DEFECT_PRESENT">Rejected — defect present</option><option value="CLEAN_NEGATIVE_CONTROL">Clean negative control</option><option value="EXCLUDE_UNUSABLE">Exclude unusable evidence</option></select></label><label><span>Rationale</span><textarea name="rationale" required minlength="12" maxlength="2000" placeholder="State the observable basis for this decision."></textarea></label></div><div class="taxonomy">${fields}</div><footer><span>${taxonomy.length} active defect families · no fixture promotion</span><button type="submit">Record immutable receipt</button></footer></form>` : `<p class="notice">No open rights-PASS owner-label task is currently eligible.</p>`;
-        return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Owner label workflow</title><style>*{box-sizing:border-box}body{margin:0;padding:18px;background:#101f19;color:#d9e8e1;font:13px Arial,sans-serif}header,footer{display:flex;align-items:center;justify-content:space-between;gap:16px}h2{margin:5px 0 6px;font:600 25px Georgia,serif}p,small,span{color:#8ca39a;font-size:11px;line-height:1.45}.artifact{display:grid;grid-template-columns:minmax(220px,.6fr) minmax(0,1.4fr);gap:16px;align-items:center;margin-top:16px;padding:14px;border-radius:11px;background:#0b1712}.artifact b,.artifact code{display:block;margin-top:6px}.artifact code{overflow-wrap:anywhere;color:#8fb8a7;font-size:9px}audio,video,img{display:block;width:100%;max-height:340px;object-fit:contain;border-radius:9px;background:#050a08}.fields{display:grid;grid-template-columns:.65fr 1.35fr;gap:10px;margin-top:12px}label{display:grid;gap:6px}select,textarea{width:100%;border:1px solid #39584c;border-radius:8px;background:#0b1712;color:#d9e8e1;padding:10px}textarea{min-height:82px;resize:vertical}.taxonomy{display:grid;gap:7px;margin:12px 0}.tax{grid-template-columns:minmax(0,1fr) 190px;align-items:center;padding:10px;border:1px solid #294238;border-radius:9px}.tax b,.tax small,.tax em{display:block}.tax em{margin-top:3px;color:#789087;font-size:9px;font-style:normal}button{min-height:38px;padding:0 14px;border:0;border-radius:9px;background:#a8e8ca;color:#09291e;font-weight:800;cursor:pointer}.notice{padding:10px;border-radius:8px;background:#172b23}@media(max-width:680px){header,footer{align-items:stretch;flex-direction:column}.artifact,.fields,.tax{grid-template-columns:1fr}}</style></head><body><header><div><small>Owner-label workflow</small><h2>Bind judgment to exact artifact bytes</h2><p>Only rights-PASS evidence enters this queue. Every active defect family requires an explicit classification.</p></div></header>${recorded ? '<p class="notice">Immutable owner-label receipt recorded. The next eligible task is shown.</p>' : ""}${content}</body></html>`, { headers: { ...NO_STORE, "content-type": "text/html; charset=utf-8", "x-frame-options": "SAMEORIGIN" } });
+        return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Owner label workflow</title><style>*{box-sizing:border-box}body{margin:0;padding:18px;background:#101f19;color:#d9e8e1;font:13px Arial,sans-serif}header,footer{display:flex;align-items:center;justify-content:space-between;gap:16px}h2{margin:5px 0 6px;font:600 25px Georgia,serif}p,small,span{color:#8ca39a;font-size:11px;line-height:1.45}.attention{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}.attention b{padding:7px 9px;border:1px solid #39584c;border-radius:999px;color:#a8e8ca;font-size:10px}.artifact{display:grid;grid-template-columns:minmax(220px,.6fr) minmax(0,1.4fr);gap:16px;align-items:center;margin-top:16px;padding:14px;border-radius:11px;background:#0b1712}.artifact b,.artifact code{display:block;margin-top:6px}.artifact code{overflow-wrap:anywhere;color:#8fb8a7;font-size:9px}audio,video,img{display:block;width:100%;max-height:340px;object-fit:contain;border-radius:9px;background:#050a08}.fields{display:grid;grid-template-columns:.65fr 1.35fr;gap:10px;margin-top:12px}label{display:grid;gap:6px}select,textarea{width:100%;border:1px solid #39584c;border-radius:8px;background:#0b1712;color:#d9e8e1;padding:10px}textarea{min-height:82px;resize:vertical}.taxonomy{display:grid;gap:7px;margin:12px 0}.tax{grid-template-columns:minmax(0,1fr) 190px;align-items:center;padding:10px;border:1px solid #294238;border-radius:9px}.tax b,.tax small,.tax em{display:block}.tax em{margin-top:3px;color:#789087;font-size:9px;font-style:normal}button{min-height:38px;padding:0 14px;border:0;border-radius:9px;background:#a8e8ca;color:#09291e;font-weight:800;cursor:pointer}.notice{padding:10px;border-radius:8px;background:#172b23}@media(max-width:680px){header,footer{align-items:stretch;flex-direction:column}.artifact,.fields,.tax{grid-template-columns:1fr}}</style></head><body><header><div><small>Owner attention queue</small><h2>Bind judgment to independent exact bytes</h2><p>Only rights-PASS primary representatives enter this queue. Exact duplicates and correlated variants remain preserved but deferred from independent counts.</p></div></header><div class="attention"><b>${number(attention?.actionable_open)} actionable</b><b>${number(attention?.exact_duplicate_deferred_count)} exact duplicates deferred</b><b>${number(attention?.correlated_variant_deferred_count)} correlated variants deferred</b></div>${recorded ? '<p class="notice">Immutable owner-label receipt recorded. The next eligible representative is shown.</p>' : ""}${content}</body></html>`, { headers: { ...NO_STORE, "content-type": "text/html; charset=utf-8", "x-frame-options": "SAMEORIGIN" } });
       }
       return Response.json({ policyVersion: EVALUATION_OWNER_LABEL_POLICY_VERSION, task: task ? {
-        taskId: clean(task.task_id), candidateId: clean(task.candidate_id), exactArtifactHash: clean(task.exact_artifact_hash), candidateKind: clean(task.candidate_kind), artifactType: clean(task.artifact_type), mimeType: clean(task.mime_type),
+        taskId: clean(task.task_id), candidateId: clean(task.candidate_id), exactArtifactHash: clean(task.exact_artifact_hash), candidateKind: clean(task.candidate_kind), artifactType: clean(task.artifact_type), mimeType: clean(task.mime_type), queueRole: clean(task.queue_role), relationClass: clean(task.relation_class),
         artifactUrl: `/api/factory/sequential-production/evaluation?artifact=${encodeURIComponent(clean(task.candidate_id))}`,
       } : null, taxonomy: taxonomy.map((item) => ({ id: clean(item.id), defectKey: clean(item.defect_key), label: clean(item.label), severity: clean(item.severity), modality: clean(item.modality), description: clean(item.description) })) }, { headers: NO_STORE });
     }
@@ -233,9 +251,10 @@ export async function POST(request: Request) {
         if (clean(prior.request_hash) !== requestHash) throw new EvaluationCommandError("IDEMPOTENCY_INTENT_CONFLICT", 409, "The idempotency key is already bound to a different owner-label intent");
         return Response.json({ outcome: "REPLAYED", receipt: prior, corpus: await projection(env.DB), providerRequests: 0, spendUsd: 0 }, { headers: NO_STORE });
       }
-      const task = await first(env.DB, `SELECT t.*,c.content_hash,c.rights_verification_state,c.verification_state,c.lifecycle_state,c.release_eligible
+      const task = await first(env.DB, `SELECT t.*,c.content_hash,c.rights_verification_state,c.verification_state,c.lifecycle_state,c.release_eligible,i.attention_state,i.independent_count_eligible
         FROM v7_evaluation_owner_label_tasks t JOIN v7_evaluation_candidates c ON c.id=t.candidate_id
-        WHERE t.id=? AND t.channel_id=? AND t.candidate_id=? LIMIT 1`, taskId, CHANNEL_ID, candidateId);
+        JOIN v7_evaluation_correlation_items i ON i.candidate_id=t.candidate_id AND i.policy_version='EVALUATION_CORRELATION_CONTROL_V1'
+        WHERE t.id=? AND t.channel_id=? AND t.candidate_id=? AND i.attention_state='READY_PRIMARY' AND i.independent_count_eligible=1 LIMIT 1`, taskId, CHANNEL_ID, candidateId);
       if (!task) throw new EvaluationCommandError("OWNER_LABEL_TASK_NOT_FOUND", 404, "The exact owner-label task was not found");
       const existingTaskReceipt = await first(env.DB, "SELECT * FROM v7_evaluation_owner_label_receipts WHERE task_id=? LIMIT 1", taskId);
       if (existingTaskReceipt) throw new EvaluationCommandError("OWNER_LABEL_TASK_ALREADY_RESOLVED", 409, "This owner-label task already has an immutable receipt");

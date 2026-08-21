@@ -7,6 +7,7 @@ import {
   CORPUS_VERIFICATION_POLICY_VERSION,
   EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION,
   EVALUATION_OWNER_LABEL_POLICY_VERSION,
+  EVALUATION_CORRELATION_CONTROL_VERSION,
   OWNER_STANDING_AUTHORITY,
   evaluateAuthorshipEvidence,
   evaluateAssuranceQualification,
@@ -14,6 +15,7 @@ import {
   evaluateCompositeRightsEvidence,
   evaluateProviderRightsEvidence,
   evaluateOwnerLabelSubmission,
+  evaluateCorrelationAssignments,
   reconcileCorpusArtifactEvidence,
   standingAuthorityCovers,
   summarizeCorpusEvidenceConflicts,
@@ -274,6 +276,69 @@ test("migration 0058 creates immutable zero-spend owner-label tasks without fixt
   assert.doesNotMatch(route, /authorizeProductionDispatch|api\.openai\.com|api\.elevenlabs\.io/);
   const triage = read("app/video-engine/corpus-evidence-triage.tsx");
   assert.match(triage, /owner-label-workflow/);
+});
+
+test("correlation control permits one independent representative per lineage and exact hash", () => {
+  assert.equal(EVALUATION_CORRELATION_CONTROL_VERSION, "EVALUATION_CORRELATION_CONTROL_V1");
+  const valid = evaluateCorrelationAssignments([
+    { candidateId: "a", exactArtifactHash: "a".repeat(64), lineageGroupKey: "shot-1", representativeCandidateId: "a", queueRole: "PRIMARY_REPRESENTATIVE", independentCountEligible: true },
+    { candidateId: "b", exactArtifactHash: "a".repeat(64), lineageGroupKey: "shot-1", representativeCandidateId: "a", queueRole: "EXACT_DUPLICATE_DEFERRED", independentCountEligible: false },
+    { candidateId: "c", exactArtifactHash: "c".repeat(64), lineageGroupKey: "shot-1", representativeCandidateId: "a", queueRole: "CORRELATED_VARIANT_DEFERRED", independentCountEligible: false },
+    { candidateId: "d", exactArtifactHash: "d".repeat(64), lineageGroupKey: "shot-2", representativeCandidateId: "d", queueRole: "PRIMARY_REPRESENTATIVE", independentCountEligible: true },
+  ]);
+  assert.equal(valid.eligible, true);
+  assert.deepEqual({ candidates: valid.candidateCount, primary: valid.primaryRepresentatives, exact: valid.exactDuplicatesDeferred, correlated: valid.correlatedVariantsDeferred }, { candidates: 4, primary: 2, exact: 1, correlated: 1 });
+  const invalid = evaluateCorrelationAssignments([
+    { candidateId: "a", exactArtifactHash: "a".repeat(64), lineageGroupKey: "shot-1", representativeCandidateId: "a", queueRole: "PRIMARY_REPRESENTATIVE", independentCountEligible: true },
+    { candidateId: "b", exactArtifactHash: "b".repeat(64), lineageGroupKey: "shot-1", representativeCandidateId: "b", queueRole: "PRIMARY_REPRESENTATIVE", independentCountEligible: true },
+  ]);
+  assert.equal(invalid.eligible, false);
+  assert.ok(invalid.reasons.includes("CORRELATION_PRIMARY_CARDINALITY:shot-1"));
+});
+
+test("migration 0059 preserves every task while routing only independent representatives to owner attention", () => {
+  const migration = read("drizzle/0059_evaluation_correlation_control.sql");
+  for (const table of ["v7_evaluation_correlation_snapshots", "v7_evaluation_correlation_items"]) assert.match(migration, new RegExp(table));
+  assert.match(migration, /EVALUATION_CORRELATION_CONTROL_V1/);
+  assert.match(migration, /EXACT_DUPLICATE_DEFERRED/);
+  assert.match(migration, /CORRELATED_VARIANT_DEFERRED/);
+  assert.match(migration, /ROW_NUMBER\(\) OVER/);
+  assert.doesNotMatch(migration, /DELETE FROM|GOLD_ELIGIBLE|VERIFIED_FIXTURE|release_eligible=1|api\.openai\.com|api\.elevenlabs\.io/);
+
+  const db = new DatabaseSync(":memory:");
+  const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
+  const correlationIndex = migrations.indexOf("0059_evaluation_correlation_control.sql");
+  for (const file of migrations.slice(0, correlationIndex)) db.exec(read(`drizzle/${file}`));
+  db.exec("PRAGMA foreign_keys=OFF");
+  const artifact = db.prepare(`INSERT INTO production_v2_artifacts
+    (id,package_id,shot_contract_id,artifact_type,storage_key,mime_type,byte_size,sha256,rights_state,provenance_json,created_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+  artifact.run("a1","package-1","shot-1","VISUAL_FRAME","r2/a1","image/png",10,"a".repeat(64),"COMMERCIAL_LICENSE_VERIFIED",'{"author":"engine","legacySources":0}',"2026-01-03");
+  artifact.run("a2","package-1","shot-1","VISUAL_FRAME","r2/a2","image/png",10,"a".repeat(64),"COMMERCIAL_LICENSE_VERIFIED",'{"author":"engine","legacySources":0}',"2026-01-02");
+  artifact.run("a3","package-1","shot-1","VISUAL_FRAME","r2/a3","image/png",10,"c".repeat(64),"COMMERCIAL_LICENSE_VERIFIED",'{"author":"engine","legacySources":0}',"2026-01-01");
+  artifact.run("a4","package-1","shot-2","VISUAL_FRAME","r2/a4","image/png",10,"d".repeat(64),"COMMERCIAL_LICENSE_VERIFIED",'{"author":"engine","legacySources":0}',"2026-01-01");
+  artifact.run("a5","package-1",null,"NARRATION_AUDIO","r2/a5","audio/mpeg",10,"e".repeat(64),"COMMERCIAL_LICENSE_VERIFIED",'{"provider":"ElevenLabs","legacySources":0}',"2026-01-01");
+  const candidate = db.prepare(`INSERT INTO v7_evaluation_candidates
+    (id,channel_id,source_family,source_table,source_id,source_parent_id,candidate_kind,artifact_type,storage_key,mime_type,byte_size,content_hash,bytes_state,checksum_state,provenance_state,owner_decision_state,defect_label_state,rights_declared_state,rights_verification_state,correlation_group,dedup_hash,verification_state)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  const task = db.prepare(`INSERT INTO v7_evaluation_owner_label_tasks
+    (id,channel_id,candidate_id,exact_artifact_hash,candidate_kind,artifact_type,taxonomy_version,requirements_json,policy_version)
+    VALUES (?,?,?,?,?,?,?,'[]',?)`);
+  for (const [id,kind,type,hash] of [["a1","SHOT","VISUAL_FRAME","a"],["a2","SHOT","VISUAL_FRAME","a"],["a3","SHOT","VISUAL_FRAME","c"],["a4","SHOT","VISUAL_FRAME","d"],["a5","AUDIO","NARRATION_AUDIO","e"]]) {
+    candidate.run(`c-${id}`,"channel-test","PRODUCTION_V2_REJECTED","production_v2_artifacts",id,"package-1",kind,type,`r2/${id}`,kind === "AUDIO" ? "audio/mpeg" : "image/png",10,hash.repeat(64),"READBACK_VERIFIED","PASS","PASS","INHERITED_PACKAGE_REJECTION","NOT_LABELLED","COMMERCIAL_LICENSE_VERIFIED","PASS","package-1",hash.repeat(64),"EVIDENCE_VERIFIED");
+    task.run(`t-${id}`,"channel-test",`c-${id}`,hash.repeat(64),kind,type,"EVALUATION_DEFECT_TAXONOMY_V1","EVALUATION_OWNER_LABEL_POLICY_V1");
+  }
+  db.exec("PRAGMA foreign_keys=ON");
+  db.exec(migration);
+  const snapshot = db.prepare("SELECT * FROM v7_evaluation_correlation_snapshots WHERE channel_id='channel-test'").get();
+  assert.deepEqual({ candidates: snapshot.candidate_count, primary: snapshot.primary_representative_count, exact: snapshot.exact_duplicate_deferred_count, correlated: snapshot.correlated_variant_deferred_count, independent: snapshot.independent_count_eligible }, { candidates: 5, primary: 3, exact: 1, correlated: 1, independent: 3 });
+  assert.equal(db.prepare("SELECT COUNT(*) total FROM v7_evaluation_owner_label_tasks").get().total, 5);
+  assert.equal(db.prepare("SELECT COUNT(*) total FROM v7_evaluation_correlation_items WHERE attention_state='READY_PRIMARY'").get().total, 3);
+  assert.throws(() => db.prepare("DELETE FROM v7_evaluation_correlation_items").run(), /EVALUATION_CORRELATION_ITEM_IMMUTABLE/);
+  assert.throws(() => db.prepare("UPDATE v7_evaluation_correlation_snapshots SET primary_representative_count=4").run(), /EVALUATION_CORRELATION_SNAPSHOT_IMMUTABLE/);
+  const route = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(route, /i\.attention_state='READY_PRIMARY'/);
+  assert.match(route, /ownerLabelActionable/);
 });
 
 test("migration 0057 creates immutable zero-spend rights collection lanes without retroactive passes", () => {

@@ -4,6 +4,7 @@ export const CORPUS_VERIFICATION_MAXIMUM_BATCH = 20 as const;
 export const CORPUS_VERIFICATION_MAXIMUM_OBJECT_BYTES = 100_000_000 as const;
 export const EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION = "EVALUATION_RIGHTS_EVIDENCE_POLICY_V1" as const;
 export const EVALUATION_OWNER_LABEL_POLICY_VERSION = "EVALUATION_OWNER_LABEL_POLICY_V1" as const;
+export const EVALUATION_CORRELATION_CONTROL_VERSION = "EVALUATION_CORRELATION_CONTROL_V1" as const;
 
 export type OwnerLabelStatus = "PRESENT" | "ABSENT" | "NOT_APPLICABLE";
 export type OwnerLabelDecision = "REJECTED_DEFECT_PRESENT" | "CLEAN_NEGATIVE_CONTROL" | "EXCLUDE_UNUSABLE";
@@ -18,6 +19,15 @@ export type OwnerLabelSubmission = {
   rationale?: string;
   activeDefectKeys: string[];
   labels: Array<{ defectKey?: string; status?: string; confidence?: number }>;
+};
+
+export type CorrelationAssignment = {
+  candidateId: string;
+  exactArtifactHash: string;
+  lineageGroupKey: string;
+  representativeCandidateId: string;
+  queueRole: "PRIMARY_REPRESENTATIVE" | "EXACT_DUPLICATE_DEFERRED" | "CORRELATED_VARIANT_DEFERRED";
+  independentCountEligible: boolean;
 };
 
 export type CorpusEvidenceConflict = {
@@ -164,6 +174,34 @@ export function evaluateOwnerLabelSubmission(input: OwnerLabelSubmission) {
   if (input.decisionState === "REJECTED_DEFECT_PRESENT" && presentCount === 0) reasons.push("REJECTED_DECISION_REQUIRES_PRESENT_DEFECT");
   if (input.decisionState === "CLEAN_NEGATIVE_CONTROL" && presentCount > 0) reasons.push("CLEAN_CONTROL_FORBIDS_PRESENT_DEFECT");
   return { eligible: reasons.length === 0, presentCount, absentCount, notApplicableCount, reasons: [...new Set(reasons)] };
+}
+
+export function evaluateCorrelationAssignments(items: CorrelationAssignment[]) {
+  const reasons: string[] = [], candidateIds = new Set<string>(), lineages = new Map<string, CorrelationAssignment[]>(), hashes = new Map<string, CorrelationAssignment[]>();
+  for (const item of items) {
+    if (!clean(item.candidateId) || candidateIds.has(item.candidateId)) reasons.push("CORRELATION_CANDIDATE_DUPLICATE_OR_MISSING");
+    candidateIds.add(item.candidateId);
+    if (!hash64(item.exactArtifactHash)) reasons.push(`CORRELATION_HASH_INVALID:${clean(item.candidateId)}`);
+    if (!clean(item.lineageGroupKey)) reasons.push(`CORRELATION_LINEAGE_MISSING:${clean(item.candidateId)}`);
+    const lineage = lineages.get(item.lineageGroupKey) ?? []; lineage.push(item); lineages.set(item.lineageGroupKey, lineage);
+    const hash = hashes.get(clean(item.exactArtifactHash).toLowerCase()) ?? []; hash.push(item); hashes.set(clean(item.exactArtifactHash).toLowerCase(), hash);
+    if ((item.queueRole === "PRIMARY_REPRESENTATIVE") !== item.independentCountEligible) reasons.push(`CORRELATION_INDEPENDENCE_ROLE_MISMATCH:${clean(item.candidateId)}`);
+  }
+  for (const [key, group] of lineages) {
+    const primaries = group.filter((item) => item.queueRole === "PRIMARY_REPRESENTATIVE");
+    if (primaries.length !== 1) reasons.push(`CORRELATION_PRIMARY_CARDINALITY:${key}`);
+    const representative = primaries[0]?.candidateId;
+    if (representative && group.some((item) => item.representativeCandidateId !== representative)) reasons.push(`CORRELATION_REPRESENTATIVE_BINDING_MISMATCH:${key}`);
+  }
+  for (const [hash, group] of hashes) if (group.filter((item) => item.queueRole !== "EXACT_DUPLICATE_DEFERRED").length !== 1) reasons.push(`EXACT_HASH_REPRESENTATIVE_CARDINALITY:${hash}`);
+  return {
+    eligible: reasons.length === 0,
+    candidateCount: items.length,
+    primaryRepresentatives: items.filter((item) => item.queueRole === "PRIMARY_REPRESENTATIVE").length,
+    exactDuplicatesDeferred: items.filter((item) => item.queueRole === "EXACT_DUPLICATE_DEFERRED").length,
+    correlatedVariantsDeferred: items.filter((item) => item.queueRole === "CORRELATED_VARIANT_DEFERRED").length,
+    reasons: [...new Set(reasons)],
+  };
 }
 
 export function evaluateProviderRightsEvidence(input: ProviderRightsEvidenceInput) {

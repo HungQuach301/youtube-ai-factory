@@ -103,3 +103,7 @@ Sites v404 classified the 63 provider-terms-pending candidates as 46 ElevenLabs 
 ### Owner-label contract
 
 `EVALUATION_OWNER_LABEL_POLICY_V1` admits only current `EVIDENCE_VERIFIED`, rights-PASS, release-ineligible candidate evidence. A task binds the exact artifact hash and complete active taxonomy. SIWC owner authentication is required both to stream the R2 bytes and to append a decision. `REJECTED_DEFECT_PRESENT` requires a positive label; `CLEAN_NEGATIVE_CONTROL` forbids positive labels; `EXCLUDE_UNUSABLE` preserves evidence but removes it from later counts. Label receipts do not imply independent correlation, dataset membership, gold eligibility or assurance qualification.
+
+### Correlation and owner-attention contract
+
+`EVALUATION_CORRELATION_CONTROL_V1` never deletes a task. It first collapses exact SHA-256 copies, then groups the surviving unique hashes by shot/artifact family or package/kind/artifact family. One deterministic representative receives primary attention and independent-count eligibility. Other bytes remain append-only as deferred exact duplicates or correlated variants. Deferred items may be reopened only through a later typed coverage-gap policy; they cannot silently enter counts or bypass the primary queue.

@@ -25,6 +25,7 @@
 - Wave 3 provider-family diagnostics: production-accepted in Sites v404 with 46 ElevenLabs audio and 17 no-provider records.
 - Wave 3 rights evidence collection: production-accepted in Sites v405 with immutable 46/16/1 collection lanes and zero automatic PASS.
 - Wave 3 owner-label workflow: production-accepted in Sites v407 with 525 exact-byte tasks, zero receipts and zero fixture promotion.
+- Wave 3 correlation control: source-ready under `EVALUATION_CORRELATION_CONTROL_V1`; production reduction/read-back pending.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -87,7 +88,7 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
-Status: `PHASE_7_RIGHTS_EVIDENCE_COLLECTION_PRODUCTION_ACCEPTED__HISTORICAL_EVIDENCE_COLLECTION_NEXT`.
+Status: `PHASE_9_CORRELATION_CONTROL_SOURCE_READY__PRODUCTION_CHECKPOINT_NEXT`.
 
 Scope:
 
@@ -118,6 +119,8 @@ Sites v404 completed that read-back: 46 candidates are ElevenLabs audio and 17 d
 Phase 7 adds migration `0057` and `EVALUATION_RIGHTS_EVIDENCE_POLICY_V1`. It creates immutable task, provider terms/plan, exact candidate-provider binding, composite parent-rights and authorship receipt tables. Sites v405 proves exactly 46 provider, 16 composite and one authorship task while rights PASS/pending remain 525/63 and provider/spend remain unchanged. It backfilled no receipt and updated no rights to PASS.
 
 Phase 8 adds migration `0058` and `EVALUATION_OWNER_LABEL_POLICY_V1`. Only exact byte/checksum/provenance-verified, rights-PASS candidate evidence receives a task. SIWC-authenticated owners can play/read the exact R2 bytes and must classify the complete active defect taxonomy before an immutable receipt is accepted. Sites v407 created 525 open tasks and zero receipts; 63 rights-pending and seven quarantined candidates remain outside the queue. The slice promoted no fixture, sealed no dataset and added zero request/spend.
+
+Phase 9 adds migration `0059` and `EVALUATION_CORRELATION_CONTROL_V1`. It preserves all owner-label tasks, collapses exact-byte duplicates, groups unique revisions by shot/package artifact lineage, and routes exactly one deterministic representative per family to owner attention. Deferred variants remain immutable and count-ineligible. Source, replay, synthetic cardinality tests and build pass; production activation/read-back is pending.
 
 ## Wave 4 — Upstream and technical standards
 
