@@ -13,7 +13,8 @@
 - Golden r10, Stage 11, Videos 2–15 and auto-publish: blocked.
 - Paid FP4 authority: not granted.
 - FP3.1 source, additive migration and local regression: implemented and tested.
-- FP3.1 production migration and runtime QA: not authorized and not run.
+- FP3.1 production migration: first authorized checkpoint v388 failed before publish on historical fencing-token backfill; source regression is corrected and production remains unchanged.
+- FP3.1 runtime QA: not run.
 - Next implementation milestone: separately authorize and execute FP3.1 production migration plus zero-dispatch runtime QA, not paid FP4 dispatch.
 
 ## Wave 0 — Repository knowledge consolidation
@@ -53,7 +54,7 @@ Exit gates:
 - canonicalization property tests pass;
 - no unqualified dispatch path remains.
 
-Source evidence on 2026-08-21: all 52 migrations replay through `0050`; canonicalization, stale fencing, real SQLite reservation ceilings, actual-cost ceilings, safety-state separation, settings supersede, failure taxonomy and route-firewall regressions pass. Production exit is still open because migration, production read-back, trace inspection and zero-dispatch runtime QA were not authorized. Wave 2 must not start as an active implementation slice until that checkpoint is reconciled.
+Source evidence on 2026-08-21: all 52 migrations replay through `0050`; canonicalization, stale fencing, real SQLite reservation ceilings, actual-cost ceilings, safety-state separation, settings supersede, failure taxonomy and route-firewall regressions pass. The first authorized production checkpoint failed safely before publish because historical leases shared the default fencing token; the corrected replay now covers multiple released leases, an expired active lease and a current active lease. Production exit is still open until the corrected migration, read-back, trace inspection and zero-dispatch runtime QA pass. Wave 2 must not start as an active implementation slice until that checkpoint is reconciled.
 
 ## Wave 2 — Learning-ready Contract Pack
 

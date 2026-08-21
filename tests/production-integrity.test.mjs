@@ -99,8 +99,31 @@ test("FP3.1 migration defines durable integrity state and atomic budget guards",
 test("all migrations replay and the real SQLite guards close concurrent and actual-cost overruns", () => {
   const db = new DatabaseSync(":memory:");
   const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
-  for (const migration of migrations) db.exec(read(`drizzle/${migration}`));
+  for (const migration of migrations.slice(0, -1)) db.exec(read(`drizzle/${migration}`));
+  db.exec(`
+    INSERT INTO v7_sequential_stage_runs
+      (id,queue_id,stage_key,sequence,stage_name,owner_plane,lifecycle_state,gate_version,required_artifacts_json)
+    VALUES
+      ('historical-stage-09','historical-queue','09',9,'Visual','MEDIA_EXECUTION','RUNNING','V23.4','[]');
+    INSERT INTO v7_sequential_leases
+      (id,program_id,queue_id,stage_key,lifecycle_state,actor_email,acquired_at,expires_at,released_at)
+    VALUES
+      ('historical-lease-1','YTAF-V7-SEQUENTIAL','historical-queue','08','RELEASED','owner@example.test','2026-08-20T00:00:00.000Z','2026-08-20T00:15:00.000Z','2026-08-20T00:10:00.000Z'),
+      ('historical-lease-2','YTAF-V7-SEQUENTIAL','historical-queue','08','RELEASED','owner@example.test','2026-08-20T01:00:00.000Z','2026-08-20T01:15:00.000Z','2026-08-20T01:10:00.000Z'),
+      ('historical-lease-3','YTAF-V7-SEQUENTIAL','historical-queue','09','ACTIVE','owner@example.test','2026-08-20T02:00:00.000Z','2026-08-20T02:15:00.000Z',NULL),
+      ('historical-lease-4','YTAF-V7-SEQUENTIAL','historical-queue','09','ACTIVE','owner@example.test','2026-08-21T00:00:00.000Z','2999-08-21T00:15:00.000Z',NULL);
+  `);
+  db.exec(read(`drizzle/${migrations.at(-1)}`));
   assert.equal(migrations.at(-1), "0050_fp3_1_production_integrity.sql");
+  const historicalLeases = db.prepare("SELECT id,fencing_token,lifecycle_state FROM v7_sequential_leases WHERE program_id='YTAF-V7-SEQUENTIAL' ORDER BY fencing_token").all();
+  assert.deepEqual(historicalLeases.map((lease) => [lease.id, lease.fencing_token, lease.lifecycle_state]), [
+    ["historical-lease-1", 1, "RELEASED"],
+    ["historical-lease-2", 2, "RELEASED"],
+    ["historical-lease-3", 3, "ORPHANED"],
+    ["historical-lease-4", 4, "ACTIVE"],
+  ]);
+  assert.equal(db.prepare("SELECT active_fencing_token FROM v7_sequential_stage_runs WHERE id='historical-stage-09'").get().active_fencing_token, 4);
+  assert.equal(db.prepare("SELECT next_token FROM v7_integrity_fence_counters WHERE program_id='YTAF-V7-SEQUENTIAL'").get().next_token, 4);
   const artifactColumns = db.prepare("PRAGMA table_info(v7_sequential_artifacts)").all().map((column) => column.name);
   assert.ok(artifactColumns.includes("immutability_state"));
   assert.ok(artifactColumns.includes("eligibility_state"));

@@ -6,10 +6,10 @@ Last reconciled: 2026-08-21 (Asia/Bangkok)
 
 ```text
 FP3_1_SOURCE = IMPLEMENTED_TESTED
-FP3_1_SCHEMA = ADDITIVE_MIGRATION_0050_REPLAYED_LOCALLY
-FP3_1_PRODUCTION_MIGRATION = NOT_AUTHORIZED_NOT_RUN
+FP3_1_SCHEMA = ADDITIVE_MIGRATION_0050_REPLAYED_WITH_HISTORICAL_MULTI_LEASE_FIXTURE
+FP3_1_PRODUCTION_MIGRATION = AUTHORIZED_ATTEMPT_V388_FAILED_BEFORE_PUBLISH
 FP3_1_RUNTIME_QA = NOT_RUN
-PRODUCTION_DEPLOYMENT = NOT_AUTHORIZED_NOT_RUN
+PRODUCTION_DEPLOYMENT = LIVE_VERSION_UNCHANGED
 PROVIDER_REQUESTS_THIS_SLICE = 0
 PROVIDER_SPEND_USD_THIS_SLICE = 0
 GOLDEN_R10 = BLOCKED
@@ -19,7 +19,7 @@ NEXT_IMPLEMENTATION = FP3_1_PRODUCTION_MIGRATION_AND_RUNTIME_QA
 
 Source now defines canonical `JCS_NFC_V1` hashing, independent immutability and eligibility state, monotonic fencing tokens, lease heartbeat/orphan reconciliation, atomic budget reservation and settlement, capability/settings supersede, M0 Safety Scope fail-closed behavior, provider-failure classification, redacted trace lineage and a shared production dispatch firewall. Historical artifacts are backfilled as blocked pending reconciliation; source implementation does not make them eligible.
 
-This is not a production-runtime completion claim. Migration `0050` has only been replayed in an isolated in-memory database. Production data, production schema and the deployed site remain unchanged until separately authorized migration, post-migration read-back and zero-dispatch runtime QA complete. Document 41 is the execution record.
+This is not a production-runtime completion claim. The first authorized checkpoint, Sites v388, failed before publication when production history exposed duplicate default fencing token `0` values. Production data, production schema and the live site remained unchanged. Source now deterministically backfills unique historical tokens, reconciles expired active leases and restores any still-valid active stage fence; production retry, post-migration read-back and zero-dispatch runtime QA remain required. Document 41 is the execution record.
 
 ## Repository knowledge consolidation — 2026-08-20
 

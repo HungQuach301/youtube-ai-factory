@@ -2,8 +2,8 @@
 
 **Class:** `EXECUTION_EVIDENCE`
 **Date:** 2026-08-21 (Asia/Bangkok)
-**Source state:** `IMPLEMENTED_TESTED`
-**Production state:** `UNCHANGED__MIGRATION_NOT_AUTHORIZED`
+**Source state:** `IMPLEMENTED_TESTED__HISTORICAL_LEASE_BACKFILL_CORRECTED`
+**Production state:** `UNCHANGED__SITES_V388_MIGRATION_FAILED_BEFORE_PUBLISH`
 
 ## Bounded authority
 
@@ -32,11 +32,20 @@ Migration `drizzle/0050_fp3_1_production_integrity.sql` adds artifact eligibilit
 
 No production schema was changed in this session. The migration replay was isolated in memory and applied all 52 tracked SQL migrations through `0050`.
 
+## Production compatibility correction
+
+The first authorized checkpoint attempt, Sites v388, failed before publication because every historical lease initially received fencing token `0`, so the new `(program_id, fencing_token)` unique index rejected programs with more than one historical lease. The live deployment and provider state remained unchanged.
+
+Migration `0050` now ranks every historical lease deterministically within its program, backfills a unique monotonic token, orphans already-expired active leases, restores the token on any one still-valid active stage and initializes the counter from the resulting maximum. The migration regression now seeds multiple released leases, one expired active lease and one current active lease before applying `0050`; replay proves unique tokens, expired-lease reconciliation, active-stage continuity and the next-token floor before the production retry.
+
 ## Verification evidence
 
 ```text
 TARGETED_FP2_FP3_FP3_1_TESTS = PASS_23_OF_23
 FULL_MIGRATION_REPLAY = PASS_52_FILES_THROUGH_0050
+HISTORICAL_MULTI_LEASE_BACKFILL = PASS_4_UNIQUE_TOKENS
+EXPIRED_ACTIVE_LEASE_RECONCILIATION = PASS
+CURRENT_ACTIVE_STAGE_FENCE_RESTORATION = PASS
 FULL_REPOSITORY_TESTS = PASS_139_OF_139
 VERIFIED_BUILD = PASS
 DOCUMENTATION_SSOT = PASS_53_MARKDOWN_FILES
@@ -62,4 +71,4 @@ Git remote equality and clean-worktree verification remain required at handoff; 
 
 ## Exact next protected action
 
-Obtain separate authority to apply migration `0050` to production without provider dispatch, read back the migrated schema and reconciled rows, exercise fencing heartbeat/orphan and blocked-firewall probes at zero spend, inspect redacted trace/incident evidence, verify production logs, then record a production-runtime checkpoint. Do not start paid FP4/FP5 or Wave 2 merely because source tests pass.
+Retry the corrected migration `0050` under the already granted zero-dispatch production authority, read back the migrated schema and reconciled rows, exercise fencing heartbeat/orphan and blocked-firewall probes at zero spend, inspect redacted trace/incident evidence, verify production logs, then record a production-runtime checkpoint. Do not start paid FP4/FP5 or Wave 2 merely because source tests pass.

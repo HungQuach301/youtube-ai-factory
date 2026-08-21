@@ -23,6 +23,32 @@ ALTER TABLE `v7_sequential_leases` ADD COLUMN `heartbeat_at` text;
 --> statement-breakpoint
 ALTER TABLE `v7_sequential_leases` ADD COLUMN `orphaned_at` text;
 --> statement-breakpoint
+WITH `ranked_historical_leases` AS (
+  SELECT `id`,ROW_NUMBER() OVER (PARTITION BY `program_id` ORDER BY `acquired_at`,`created_at`,`id`) AS `fencing_token`
+  FROM `v7_sequential_leases`
+)
+UPDATE `v7_sequential_leases`
+SET `fencing_token`=(SELECT `ranked_historical_leases`.`fencing_token` FROM `ranked_historical_leases` WHERE `ranked_historical_leases`.`id`=`v7_sequential_leases`.`id`);
+--> statement-breakpoint
+UPDATE `v7_sequential_leases`
+SET `lifecycle_state`='ORPHANED',`orphaned_at`=CURRENT_TIMESTAMP,`released_at`=COALESCE(`released_at`,CURRENT_TIMESTAMP)
+WHERE `lifecycle_state`='ACTIVE' AND `expires_at`<=CURRENT_TIMESTAMP;
+--> statement-breakpoint
+UPDATE `v7_sequential_stage_runs`
+SET `active_fencing_token`=(
+  SELECT `lease`.`fencing_token` FROM `v7_sequential_leases` `lease`
+  WHERE `lease`.`queue_id`=`v7_sequential_stage_runs`.`queue_id`
+    AND `lease`.`stage_key`=`v7_sequential_stage_runs`.`stage_key`
+    AND `lease`.`lifecycle_state`='ACTIVE'
+  ORDER BY `lease`.`acquired_at` DESC,`lease`.`id` DESC LIMIT 1
+)
+WHERE EXISTS (
+  SELECT 1 FROM `v7_sequential_leases` `lease`
+  WHERE `lease`.`queue_id`=`v7_sequential_stage_runs`.`queue_id`
+    AND `lease`.`stage_key`=`v7_sequential_stage_runs`.`stage_key`
+    AND `lease`.`lifecycle_state`='ACTIVE'
+);
+--> statement-breakpoint
 CREATE UNIQUE INDEX `v7_sequential_lease_program_fence_uq` ON `v7_sequential_leases` (`program_id`,`fencing_token`);
 --> statement-breakpoint
 CREATE UNIQUE INDEX `v7_sequential_one_active_lease_uq` ON `v7_sequential_leases` (`program_id`) WHERE `lifecycle_state`='ACTIVE';
