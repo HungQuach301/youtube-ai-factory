@@ -153,8 +153,13 @@ export async function POST(request: Request) {
     const processed = number(totals?.processed), blocked = number(totals?.blocked), rightsPass = number(totals?.rights_pass);
     const state = processed !== candidateIds.length || blocked > 0 || rightsPass !== processed ? "PARTIAL" : "COMPLETED";
     await run(env.DB, `UPDATE v7_evaluation_verification_runs SET lifecycle_state=?,processed_candidates=?,byte_verified_candidates=?,checksum_pass_candidates=?,provenance_pass_candidates=?,rights_pass_candidates=?,blocked_candidates=?,bytes_read=?,completed_at=? WHERE id=?`, state, processed, totals?.byte_verified, totals?.checksum_pass, totals?.provenance_pass, rightsPass, blocked, totals?.bytes_read, new Date().toISOString(), verificationRun.id);
-    if (formSubmission) return Response.redirect(new URL("/video-engine", request.url), 303);
-    return Response.json({ outcome: "RECORDED", run: await first(env.DB, "SELECT * FROM v7_evaluation_verification_runs WHERE id=?", verificationRun.id), corpus: await projection(env.DB), providerRequests: 0, spendUsd: 0 }, { status: 200, headers: NO_STORE });
+    const corpus = await projection(env.DB);
+    if (formSubmission) {
+      const destination = new URL("/video-engine", request.url);
+      destination.searchParams.set("corpusPending", String(corpus.pending));
+      return new Response(null, { status: 303, headers: { ...NO_STORE, location: destination.toString() } });
+    }
+    return Response.json({ outcome: "RECORDED", run: await first(env.DB, "SELECT * FROM v7_evaluation_verification_runs WHERE id=?", verificationRun.id), corpus, providerRequests: 0, spendUsd: 0 }, { status: 200, headers: NO_STORE });
   } catch (error) {
     if (error instanceof EvaluationCommandError) return Response.json({ error: { code: error.code, message: error.message }, providerRequests: 0, spendUsd: 0 }, { status: error.status, headers: NO_STORE });
     return Response.json({ error: { code: "CORPUS_VERIFICATION_FAILED", message: error instanceof Error ? error.message : "Corpus verification failed" }, providerRequests: 0, spendUsd: 0 }, { status: 503, headers: NO_STORE });
