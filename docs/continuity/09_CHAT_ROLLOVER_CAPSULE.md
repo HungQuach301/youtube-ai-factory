@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_3_PHASE_8_OWNER_LABEL_WORKFLOW_SOURCE_READY__PRODUCTION_CHECKPOINT_NEXT`
+**Current source classification:** `WAVE_3_PHASE_8_OWNER_LABEL_WORKFLOW_PRODUCTION_ACCEPTED__OWNER_CLASSIFICATION_AND_RIGHTS_EVIDENCE_NEXT`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -47,7 +47,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Sites v403 applied migration `0056`: 5 immutable channel-authorship receipts, rights PASS 525 and rights-pending 63. Every remaining basis is `PROVIDER_TERMS_RECEIPT_MISSING`; kinds are 46 audio, 16 master and 1 clip. Gold/dataset/release remain zero and provider/spend are unchanged.
 - Provider-family diagnostic source is ready. It exposes only closed family counts, keeps raw provenance private and treats no-provider masters as requiring composite parent-lineage manifests rather than automatically passing them.
 - `OWNER_STANDING_PRODUCTION_AUTHORITY_V1` permits future roadmap-bounded deploy, migration, production QA and provider calls without repeated chat confirmation, but never bypasses capability/settings, budget, rights, safety, idempotency or fencing gates and does not authorize publish/delete/weaken actions.
-- Migration `0058` and `EVALUATION_OWNER_LABEL_POLICY_V1` are source-ready. Only the 525 currently rights-PASS candidates are expected to enter the initial queue; the 63 rights-pending and seven quarantined candidates remain excluded. Owner playback is exact-hash R2 read-back, taxonomy coverage is complete and receipts are append-only. Production activation/read-back remains the next checkpoint.
+- Sites v407 activated migration `0058` and `EVALUATION_OWNER_LABEL_POLICY_V1`: 525 open exact-byte tasks, zero receipts, zero owner-confirmed/labelled candidates, 63 rights-pending and seven quarantined candidates excluded. Owner playback recomputes the R2 hash, taxonomy coverage is complete and receipts are append-only. Next is real owner classification in parallel with collecting the 63 rights-evidence records; then correlation/de-duplication before dataset sealing.
 
 ## Protected no-rerun list
 

@@ -28,8 +28,12 @@ The owner workflow is server-rendered inside the operator surface. It streams th
 - Exact-hash, rights, lifecycle, taxonomy-coverage and decision-consistency unit tests: PASS.
 - Migration replay and immutability/zero-spend regressions: PASS.
 - Full build and catalog-wide performance budget: PASS without raising a budget.
-- Production migration/read-back: pending checkpoint.
+- Production migration/read-back: PASS in Sites v407.
+- Exact production queue: 525 tasks, 525 open, zero receipts, zero owner-confirmed candidates and zero labelled candidates.
+- Rights remained 525 PASS / 63 pending; seven quarantined candidates remained excluded.
+- Unauthenticated owner workflow request: rejected with `401`.
+- Provider requests/spend, fixture promotion, sealed datasets and release eligibility: unchanged at zero for this slice.
 
 ## Next gate
 
-After production activation, the owner must classify the eligible queue. Receipt counts are evidence, not a sealed dataset. Correlation groups and duplicate hashes must be adjudicated before any calibration, qualification or regression split can be sealed.
+The owner must now classify the 525 eligible tasks through an authenticated ChatGPT Site session. Receipt counts are evidence, not a sealed dataset. Correlation groups and duplicate hashes must be adjudicated before any calibration, qualification or regression split can be sealed. The 63 rights-pending tasks remain on their separate evidence-collection lanes.
