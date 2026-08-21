@@ -38,6 +38,8 @@ The first authorized checkpoint attempt, Sites v388, failed before publication b
 
 Migration `0050` now ranks every historical lease deterministically within its program, backfills a unique monotonic token, orphans already-expired active leases, restores the token on any one still-valid active stage and initializes the counter from the resulting maximum. The migration regression now seeds multiple released leases, one expired active lease and one current active lease before applying `0050`; replay proves unique tokens, expired-lease reconciliation, active-stage continuity and the next-token floor before the production retry.
 
+Production runtime acceptance uses a dedicated temporary `FP3_1_RUNTIME_QA_TOKEN` only on the integrity endpoint because a Sites bypass request is intentionally identity-less and cannot impersonate the channel owner. The credential grants no provider route, publish or spend authority. The endpoint also exposes a deterministic `PROBE_DISPATCH_FIREWALL` self-test that must return `BLOCKED_AS_EXPECTED` with zero requests and zero spend. Runtime acceptance is incomplete until the temporary environment key is removed, the removal is deployed and the same token is rejected with `401`.
+
 ## Verification evidence
 
 ```text

@@ -1,5 +1,6 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { ProductionIntegrityError, heartbeatProductionLease, readFencingHeaders, reconcileExpiredProductionLease, type ProductionIntegrityDB } from "@/lib/production-integrity-runtime";
+import { evaluateDispatchFirewall } from "@/lib/production-integrity";
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "cache-control": "no-store" };
@@ -7,7 +8,7 @@ const CHANNEL_ID = "channel-hidden-systems", CONTRACT = "V7_V23_4_V281";
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null>; run(): Promise<{ meta?: { changes?: number } }> };
 type DB = ProductionIntegrityDB & { prepare(query: string): Statement };
-type Env = { DB?: DB; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; SEQUENTIAL_EXECUTOR_TOKEN?: string };
+type Env = { DB?: DB; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; SEQUENTIAL_EXECUTOR_TOKEN?: string; FP3_1_RUNTIME_QA_TOKEN?: string };
 const clean = (value: unknown) => String(value ?? "").trim();
 async function runtime() { const { env } = await import("cloudflare:workers"); return env as unknown as Env; }
 async function first(db: DB, query: string, ...values: unknown[]) { return db.prepare(query).bind(...values).first<Row>(); }
@@ -18,6 +19,7 @@ async function authorized(request: Request) {
   const env = await runtime(); if (!env.DB) throw new ProductionIntegrityError("CANONICAL_DATABASE_UNAVAILABLE", 503, "Production integrity requires canonical D1");
   let user = await getChatGPTUser();
   if (!user && await secretMatches(request.headers.get("x-sequential-executor-token") || "", env.SEQUENTIAL_EXECUTOR_TOKEN || "")) { const email = clean(env.FACTORY_AUTOMATION_ACTOR_EMAIL); if (email) user = { email, displayName: clean(env.FACTORY_AUTOMATION_ACTOR_NAME) || email, fullName: null }; }
+  if (!user && await secretMatches(request.headers.get("x-fp3-1-runtime-qa-token") || "", env.FP3_1_RUNTIME_QA_TOKEN || "")) { const email = clean(env.FACTORY_AUTOMATION_ACTOR_EMAIL); if (email) user = { email, displayName: "FP3.1 runtime QA", fullName: null }; }
   if (!user) throw new ProductionIntegrityError("SIWC_AUTHENTICATION_REQUIRED", 401, "Owner or scoped automation authentication is required");
   const allowlist = new Set(clean(env.FACTORY_EXPERT_EMAILS).split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
   if (!allowlist.has(user.email.toLowerCase())) throw new ProductionIntegrityError("CHANNEL_OWNER_AUTHORIZATION_REQUIRED", 403, "This identity cannot operate production integrity controls");
@@ -53,7 +55,14 @@ export async function POST(request: Request) {
     const ctx = await context(env.DB!, stageKey);
     if (action === "HEARTBEAT_LEASE") return Response.json(await heartbeatProductionLease(env.DB!, { programId: clean(ctx.program.id), queueId: clean(ctx.queue.id), stageKey, ...readFencingHeaders(request), actor }), { status: 200, headers: NO_STORE });
     if (action === "RECONCILE_ORPHAN") return Response.json(await reconcileExpiredProductionLease(env.DB!, { programId: clean(ctx.program.id), queueId: clean(ctx.queue.id), stageKey, actor }), { status: 200, headers: NO_STORE });
-    throw new ProductionIntegrityError("INTEGRITY_ACTION_INVALID", 400, "Use HEARTBEAT_LEASE or RECONCILE_ORPHAN");
+    if (action === "PROBE_DISPATCH_FIREWALL") {
+      const safety = await first(env.DB!, "SELECT lifecycle_state FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version='VIDEO_PRODUCTION_QUALITY_STANDARD_V2' AND standard_id='VQ-M0-SAFETY-SCOPE' ORDER BY evaluation_number DESC LIMIT 1", ctx.queue.id);
+      const safetyState = clean(safety?.lifecycle_state) || "NOT_EVALUATED";
+      const probe = evaluateDispatchFirewall({ capabilityQualified: false, capabilitySettingsCurrent: false, leaseEligible: false, reservationState: "MISSING", rightsState: "BLOCKED", allowedRightsStates: ["COMMERCIAL_LICENSE_VERIFIED"], idempotencyKey: "", safetyRequired: true, safetyState: safetyState as "PASS" | "FAIL" | "BLOCKED" | "NOT_EVALUATED" });
+      if (probe.authorized) throw new ProductionIntegrityError("FAIL_CLOSED_PROBE_UNEXPECTEDLY_AUTHORIZED", 500, "The zero-dispatch firewall probe must remain blocked");
+      return Response.json({ outcome: "BLOCKED_AS_EXPECTED", reasons: probe.reasons, providerRequests: 0, spendUsd: 0 }, { status: 200, headers: NO_STORE });
+    }
+    throw new ProductionIntegrityError("INTEGRITY_ACTION_INVALID", 400, "Use HEARTBEAT_LEASE, RECONCILE_ORPHAN or PROBE_DISPATCH_FIREWALL");
   } catch (error) {
     if (error instanceof ProductionIntegrityError) return Response.json({ error: { code: error.code, message: error.message, reasons: error.reasons }, providerRequests: 0, spendUsd: 0 }, { status: error.status, headers: NO_STORE });
     return Response.json({ error: { code: "INTEGRITY_COMMAND_FAILED", message: error instanceof Error ? error.message : "Integrity command failed" } }, { status: 503, headers: NO_STORE });

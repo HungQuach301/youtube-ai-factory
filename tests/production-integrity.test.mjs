@@ -157,6 +157,10 @@ test("every currently reachable sequential provider route imports the shared fir
   const integrityRoute = read("app/api/factory/sequential-production/integrity/route.ts");
   assert.match(integrityRoute, /export async function GET\(request: Request\)/);
   assert.match(integrityRoute, /const \{ env \} = await authorized\(request\)/);
+  assert.match(integrityRoute, /FP3_1_RUNTIME_QA_TOKEN/);
+  assert.match(integrityRoute, /PROBE_DISPATCH_FIREWALL/);
+  assert.match(integrityRoute, /BLOCKED_AS_EXPECTED/);
+  assert.doesNotMatch(integrityRoute, /fetch\(/);
   assert.match(read("app/api/factory/sequential-production/media/route.ts"), /canonicalStringify\(JSON\.parse\(value\)\)/);
   assert.match(read("app/api/factory/sequential-production/quality/route.ts"), /canonicalStringify\(JSON\.parse\(value\)\)/);
   assert.match(read("lib/production-integrity-runtime.ts"), /INTEGRITY_IDEMPOTENT_REPLAY_BLOCKED/);
