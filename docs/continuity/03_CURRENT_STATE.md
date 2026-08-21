@@ -2,23 +2,36 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
-## Wave 3 corpus verification source checkpoint — 2026-08-21
+## Wave 3 corpus verification production acceptance — 2026-08-21
 
 ```text
 CORPUS_VERIFICATION_POLICY = CORPUS_VERIFICATION_POLICY_V1
-CORPUS_VERIFICATION_SOURCE = IMPLEMENTED_TESTED
-CORPUS_VERIFICATION_SCHEMA = MIGRATION_0053_PENDING_PRODUCTION
+CORPUS_VERIFICATION_SOURCE = PRODUCTION_ACTIVE_SITES_V395_TO_V397
+CORPUS_VERIFICATION_SCHEMA = MIGRATION_0053_PRODUCTION_ACTIVE
 RUNTIME_BATCH_LIMIT = 20_CANDIDATES
 RUNTIME_OBJECT_LIMIT = 100000000_BYTES
 R2_BINDING = CANDIDATE_TO_SOURCE_ARTIFACT_TO_OBJECT_METADATA
 RIGHTS_POLICY = PROVIDER_MEDIA_RECEIPT_REQUIRED
+VERIFICATION_RUNS = 30
+HISTORICAL_CANDIDATES = 595
+PENDING_CANDIDATES = 0
+BYTES_READ = 851549647
+BYTE_VERIFIED = 595
+CHECKSUM_PASS = 588
+PROVENANCE_PASS = 583
+RIGHTS_PASS = 520
+RIGHTS_PENDING = 63
+VERIFICATION_BLOCKED = 12
+VERIFIED_FIXTURES = 0
+GOLD_ELIGIBLE_FIXTURES = 0
+RELEASE_ELIGIBLE_FIXTURES = 0
 PROVIDER_REQUESTS_THIS_SLICE = 0
 PROVIDER_SPEND_USD_THIS_SLICE = 0
-PRODUCTION_RUNTIME = PENDING_DEPLOYMENT_AND_LIVE_SWEEP
-NEXT_PROTECTED_ACTION = DEPLOY_MIGRATION_0053_AND_RUN_BOUNDED_BYTE_VERIFICATION
+PRODUCTION_RUNTIME = CORPUS_BYTE_RECONCILIATION_COMPLETE
+NEXT_PROTECTED_ACTION = TRIAGE_12_BLOCKED__COLLECT_63_RIGHTS_RECEIPTS__OWNER_LABEL_AND_CORRELATION_CONTROL
 ```
 
-The source now contains an owner-bound, idempotent and read-only verification command. Each receipt stores recomputed hash, actual byte size, exact R2 metadata reconciliation, provenance result, rights basis, explicit reasons and a canonical evidence hash. Byte verification alone cannot promote a candidate: owner decision, defect label, rights, correlation and de-duplication gates remain closed. Document 47 records source execution evidence.
+Sites v395 activated migration `0053` and the bounded read-only verifier. Sites v396 bound form idempotency to the pending cursor; Sites v397 added cursor-bearing no-store redirects after production QA exposed a stale projection replay. Thirty durable runs read all 595 R2 objects and 851,549,647 bytes. Exact reconciliation produced 588 checksum PASS, 583 provenance PASS, 520 rights PASS, 63 rights-pending and 12 blocked candidates. No blocked or rights-pending row was promoted or rewritten. Verified fixtures, gold eligibility, sealed datasets and release eligibility remain zero. The slice created zero provider request and zero spend; global production remains 56 historical requests, zero active and `$13.247131145833333`. Documents 47 and 48 record source and production evidence.
 
 ## Wave 3 Evaluation Foundation source checkpoint — 2026-08-21
 

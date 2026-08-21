@@ -46,5 +46,6 @@ Historical bundles, patches, archives and Library copies may be used only for di
 - FP1, FP2 mechanism and FP3 are implemented.
 - Only one of 22 capability/operation bindings is qualified.
 - Golden r10, Stage 11, Videos 2–15 and auto-publish remain blocked.
-- The next implementation boundary is FP3.1 Production Integrity.
+- Wave 3 corpus byte reconciliation is production-complete: 595 read, 12 blocked and 63 rights-pending.
+- The next implementation boundary is WP7 evidence repair, owner labels and correlation control.
 - Do not skip to paid FP4 dispatch.

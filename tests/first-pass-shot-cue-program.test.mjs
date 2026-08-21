@@ -73,11 +73,12 @@ test("operator projection activates bounded WP7 corpus verification without unlo
   const contract = read("app/production-control-contract.ts");
   const workspace = read("app/video-engine/production-engine-workspace.tsx");
   assert.match(projection, /currentSlice: "WAVE_3"/);
-  assert.match(projection, /currentSliceState: "CORPUS_VERIFICATION_ACTIVE"/);
-  assert.match(projection, /nextSlice: "WP7_CORPUS_VERIFICATION"/);
+  assert.match(projection, /"CORPUS_BYTE_RECONCILIATION_COMPLETE" : "CORPUS_VERIFICATION_ACTIVE"/);
+  assert.match(projection, /"WP7_EVIDENCE_REPAIR_AND_LABELING" : "WP7_CORPUS_VERIFICATION"/);
   assert.match(projection, /goldenR10Eligible = false/);
   assert.match(contract, /state: "VERIFIED"/);
   assert.match(workspace, /Verify the WP7 failure corpus/);
+  assert.match(workspace, /Repair and label the WP7 evidence corpus/);
   assert.match(workspace, /Eight schemas bind the full operating loop/);
   assert.match(workspace, /Candidate evidence only/);
   assert.match(workspace, /evaluation fixtures have release eligibility/);

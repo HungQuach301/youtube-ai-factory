@@ -17,7 +17,7 @@
 - FP3.1 runtime QA: zero-dispatch acceptance passed in Sites v390; Sites v391 removed the temporary QA authorization path, the environment key is absent and a retired QA header is rejected with `401`.
 - Wave 2 Learning-ready Contract Pack: production-runtime accepted in Sites v392 with migration `0051` active and zero-dispatch read-back passed.
 - Wave 3 Evaluation Foundation phase 1: production-runtime accepted in Sites v393.
-- Wave 3 corpus verification source: implemented and tested under `CORPUS_VERIFICATION_POLICY_V1`; migration `0053`, deployment and live sweep are next.
+- Wave 3 corpus verification: production-accepted through Sites v397; all 595 candidates were read back, with 12 blocked and 63 rights-pending retained for evidence repair.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -80,7 +80,7 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
-Status: `PHASE_2_SOURCE_IMPLEMENTED_TESTED__PRODUCTION_VERIFICATION_PENDING`.
+Status: `PHASE_2_PRODUCTION_ACCEPTED__LABEL_RIGHTS_AND_CORRELATION_NEXT`.
 
 Scope:
 
@@ -96,7 +96,7 @@ The reported 595 outputs and 15 rejected masters are candidate evidence, not aut
 
 Evidence on 2026-08-21: `EVALUATION_FOUNDATION_V1` defines six zero-spend components, candidate verification, correlation/de-duplication, blinded dataset splits, controlled-injection lineage, eleven initial defect families and per-family precision/recall/repeatability/cost results. Sites v393 applied migration `0052`. Direct live read-back reports 595 candidate artifacts, 15 rejected packages, zero verified/gold/release-eligible fixtures, zero sealed datasets and unchanged provider/spend totals. No assurance capability is qualified. Exact next gate: read back exact R2 bytes, recompute checksums, verify provenance/rights and bind owner labels before de-duplicated calibration data can be sealed.
 
-Phase 2 source adds migration `0053`, bounded idempotent verification runs, exact-byte receipts and three-way candidate/source/R2 metadata reconciliation. Each batch is limited to 20 candidates and 100,000,000 bytes per object. Provider-bound media remains rights-pending without an explicit receipt. This source creates zero provider authority and cannot promote a fixture. Production deployment, migration and the 595-candidate live sweep remain required evidence.
+Phase 2 production evidence: Sites v395 activated migration `0053`; v396 and v397 hardened browser idempotency and redirect freshness without weakening authorization. Thirty durable runs read all 595 objects and 851,549,647 bytes. Results are 595 byte-verified, 588 checksum PASS, 583 provenance PASS, 520 rights PASS, 63 rights-pending and 12 blocked. Provider requests and spend are zero; verified/gold/release-eligible fixtures and sealed datasets remain zero. The next gate is to investigate the 12 exact failures, collect the 63 missing rights receipts, bind owner-confirmed defect labels, then remove duplicate/correlated revisions before sealing calibration data.
 
 ## Wave 4 — Upstream and technical standards
 

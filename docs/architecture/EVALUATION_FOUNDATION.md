@@ -82,8 +82,8 @@ No overall average can compensate for a failed P0 family. Missing floors or meas
 
 ## Current phase
 
-The first phase inventories production-history artifacts as `CANDIDATE_EVIDENCE`. The reported production corpus is expected to contain 595 artifact records associated with 15 rejected packages, but production migration and direct read-back must establish the exact live counts. At source checkpoint, verified fixtures, gold-eligible fixtures, sealed datasets, provider requests and spend are all zero.
+Production byte reconciliation is complete under `CORPUS_VERIFICATION_POLICY_V1`. Thirty bounded runs read 595 objects and 851,549,647 bytes. The exact states are 595 byte-verified, 588 checksum PASS, 583 provenance PASS, 520 rights PASS, 63 rights-pending and 12 blocked. These remain candidate-evidence states: verified fixtures, gold eligibility, sealed datasets and release eligibility are all zero. The verification plane used zero provider request and zero spend.
 
 ## Next phase
 
-Deploy migration `0053` and execute bounded read-only corpus verification. Byte/checksum/provenance PASS does not imply rights PASS: provider-bound material without a receipt remains `RECEIPT_REQUIRED`. After the sweep, collect missing rights evidence and owner labels, then de-duplicate and partition independent fixtures before creating any dataset or calling an assurance provider.
+Investigate the 12 blocked candidates without rewriting their receipts, collect explicit evidence for the 63 rights-pending candidates, and bind owner-confirmed defect labels. Then de-duplicate and remove correlated revisions before partitioning independent fixtures. No dataset may be sealed and no assurance provider may be called until those gates pass.

@@ -73,6 +73,7 @@ When facts conflict, use this order:
 | Wave 3 Evaluation Foundation source evidence | [`continuity/45_WAVE_3_EVALUATION_FOUNDATION_EXECUTION_RECORD.md`](continuity/45_WAVE_3_EVALUATION_FOUNDATION_EXECUTION_RECORD.md) |
 | Wave 3 production runtime acceptance | [`continuity/46_WAVE_3_EVALUATION_FOUNDATION_PRODUCTION_ACCEPTANCE.md`](continuity/46_WAVE_3_EVALUATION_FOUNDATION_PRODUCTION_ACCEPTANCE.md) |
 | Wave 3 corpus-verification source evidence | [`continuity/47_WAVE_3_CORPUS_VERIFICATION_EXECUTION_RECORD.md`](continuity/47_WAVE_3_CORPUS_VERIFICATION_EXECUTION_RECORD.md) |
+| Wave 3 corpus-verification production acceptance | [`continuity/48_WAVE_3_CORPUS_VERIFICATION_PRODUCTION_ACCEPTANCE.md`](continuity/48_WAVE_3_CORPUS_VERIFICATION_PRODUCTION_ACCEPTANCE.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 
