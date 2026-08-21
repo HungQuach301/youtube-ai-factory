@@ -99,7 +99,9 @@ test("FP3.1 migration defines durable integrity state and atomic budget guards",
 test("all migrations replay and the real SQLite guards close concurrent and actual-cost overruns", () => {
   const db = new DatabaseSync(":memory:");
   const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
-  for (const migration of migrations.slice(0, -1)) db.exec(read(`drizzle/${migration}`));
+  const integrityMigrationIndex = migrations.indexOf("0050_fp3_1_production_integrity.sql");
+  assert.ok(integrityMigrationIndex > 0);
+  for (const migration of migrations.slice(0, integrityMigrationIndex)) db.exec(read(`drizzle/${migration}`));
   db.exec(`
     INSERT INTO v7_sequential_stage_runs
       (id,queue_id,stage_key,sequence,stage_name,owner_plane,lifecycle_state,gate_version,required_artifacts_json)
@@ -113,8 +115,9 @@ test("all migrations replay and the real SQLite guards close concurrent and actu
       ('historical-lease-3','YTAF-V7-SEQUENTIAL','historical-queue','09','ACTIVE','owner@example.test','2026-08-20T02:00:00.000Z','2026-08-20T02:15:00.000Z',NULL),
       ('historical-lease-4','YTAF-V7-SEQUENTIAL','historical-queue','09','ACTIVE','owner@example.test','2026-08-21T00:00:00.000Z','2999-08-21T00:15:00.000Z',NULL);
   `);
-  db.exec(read(`drizzle/${migrations.at(-1)}`));
-  assert.equal(migrations.at(-1), "0050_fp3_1_production_integrity.sql");
+  db.exec(read("drizzle/0050_fp3_1_production_integrity.sql"));
+  for (const migration of migrations.slice(integrityMigrationIndex + 1)) db.exec(read(`drizzle/${migration}`));
+  assert.equal(migrations.at(-1), "0051_learning_ready_contract_pack.sql");
   const historicalLeases = db.prepare("SELECT id,fencing_token,lifecycle_state FROM v7_sequential_leases WHERE program_id='YTAF-V7-SEQUENTIAL' ORDER BY fencing_token").all();
   assert.deepEqual(historicalLeases.map((lease) => [lease.id, lease.fencing_token, lease.lifecycle_state]), [
     ["historical-lease-1", 1, "RELEASED"],

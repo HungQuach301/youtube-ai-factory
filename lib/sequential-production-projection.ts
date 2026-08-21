@@ -189,7 +189,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   if (!current) throw new Error("EXCLUSIVE_ACTIVE_VIDEO_NOT_FOUND");
   const stages = await rows(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? ORDER BY sequence", current.id);
   const activeStage = stages.find((stage) => ["READY","RUNNING","REPAIR_REQUIRED","ESCALATED"].includes(text(stage.lifecycle_state))) ?? stages[0];
-  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows] = await Promise.all([
+  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows] = await Promise.all([
     rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION),
     rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
     db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
@@ -200,6 +200,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     rows(db, "SELECT archetype_id,lifecycle_state FROM v7_first_pass_fixtures WHERE hardest_fixture=1 ORDER BY archetype_id,fixture_version"),
     rows(db, "SELECT * FROM v7_first_pass_qualifications ORDER BY capability_id,archetype_id,qualification_version"),
     rows(db, "SELECT * FROM v7_first_pass_operation_requirements WHERE active=1 ORDER BY capability_id,archetype_id"),
+    rows(db, "SELECT * FROM v7_learning_ready_contract_registry WHERE active=1 ORDER BY contract_key"),
   ]);
   const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
   const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json,scan_json,error_code FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
@@ -334,14 +335,14 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       effectiveStateSummary: effectiveSummary,
       rootStageKeys,
       rootStageLabels,
-      nextMilestone: "Wave 2 · Learning-ready Contract Pack",
+      nextMilestone: "Wave 3 · WP7 Evaluation Foundation",
     },
     firstPass: {
       standardVersion: "FIRST_PASS_QUALITY_V1",
-      currentSlice: "FP3.1",
-      currentSliceState: "PRODUCTION_RUNTIME_ACCEPTED",
-      nextSlice: "LEARNING_READY_CONTRACT_PACK",
-      nextSliceLabel: "Channel identity, packaging, prediction and learning contracts",
+      currentSlice: "WAVE_2",
+      currentSliceState: "CONTRACT_SCHEMA_ACTIVE",
+      nextSlice: "WP7_EVALUATION_FOUNDATION",
+      nextSliceLabel: "Verified failure corpus and qualified assurance gold sets",
       capabilityRegistryState,
       dispatchGuardState: "ENFORCED",
       goldenR10Eligible,
@@ -366,12 +367,25 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       fixturesDesigned: fixtureRows.filter((fixture) => ["DESIGNED", "READY", "EXECUTED", "VERIFIED"].includes(text(fixture.lifecycle_state))).length,
       capabilities: capabilitySummaries,
       archetypes: archetypeSummaries,
+      contractPack: {
+        version: "LEARNING_READY_CONTRACT_PACK_V1",
+        state: "CONTRACT_SCHEMA_ACTIVE",
+        contractsDefined: contractRows.length,
+        contractsSealed: 0,
+        providerRequests: 0,
+        spendUsd: 0,
+        definitions: contractRows.map((item) => ({
+          key: text(item.contract_key), artifactType: text(item.artifact_type), ownerPlane: text(item.owner_plane),
+          stageBindings: json<string[]>(item.stage_bindings_json, []), lifecycleState: text(item.lifecycle_state),
+        })),
+      },
       readiness: [
         { id: "EFFECTIVE_PROJECTION", label: "Effective production state", passed: true, evidence: `${effectiveLabels[effectiveState]} projected from canonical evidence`, owningStages: ["00"] },
         { id: "CAPABILITY_REGISTRY", label: "Capability Registry runtime", passed: true, evidence: `${capabilitySummaries.length} versioned capabilities, ${archetypeSummaries.length} hardest archetypes and fail-closed dispatch auditing are active`, owningStages: ["07A", "07B", "09", "10", "13", "14"] },
         { id: "CAPABILITY_QUALIFICATION", label: "Capability qualification", passed: capabilityRegistryState === "QUALIFIED", evidence: `${qualifiedRequirementPairs.length}/${uniqueRequirementPairs.length} capability–archetype bindings qualified; ${fixtureRows.length} fixtures designed`, owningStages: ["07A", "07B", "09", "10", "13", "14"] },
         { id: "EXECUTABLE_CONTRACT", label: "Executable shot and cue contract", passed: true, evidence: `${FP3_GOLDEN_CONTRACT_SUMMARY.shotCount} typed shots cover ${FP3_GOLDEN_CONTRACT_SUMMARY.durationSeconds.toFixed(3)}s with ${FP3_GOLDEN_CONTRACT_SUMMARY.timelineGaps} gaps, ${FP3_GOLDEN_CONTRACT_SUMMARY.timelineOverlaps} overlaps, ${FP3_GOLDEN_CONTRACT_SUMMARY.schemaGaps} schema gaps and zero provider dispatch`, owningStages: ["08"] },
         { id: "PRODUCTION_INTEGRITY", label: "FP3.1 production runtime", passed: true, evidence: "Migration 0050 is production-active; historical fencing backfill, stale-writer rejection, orphan reconciliation and the zero-dispatch firewall probe passed with no new provider request or spend", owningStages: ["00", "03", "06"] },
+        { id: "LEARNING_READY_CONTRACTS", label: "Learning-ready contract schemas", passed: contractRows.length === 8, evidence: `${contractRows.length}/8 channel identity, packaging, prediction, experiment, learning, rights/compliance, animatic and master-delivery schemas active; zero provider authority`, owningStages: ["04", "05", "08", "11", "13", "15", "16"] },
         { id: "VISUAL_PLANE", label: "Qualified visual plane", passed: false, evidence: "FP4 must pass real-pixel, semantic-motion and variety gates", owningStages: ["07B", "09"] },
         { id: "AUDIO_PLANE", label: "Qualified audio plane", passed: false, evidence: "FP5 must pass narration, music, ambience, SFX and perceptual-mix gates", owningStages: ["07A", "10"] },
         { id: "GOLDEN_R10", label: "Golden r10", passed: goldenR10Eligible, evidence: goldenR10Eligible ? "Capability requirements are qualified; later FP3–FP5 gates still control production" : "Forbidden until all capability bindings and FP3–FP5 gates are green", owningStages: ["11", "12", "13", "14"] },

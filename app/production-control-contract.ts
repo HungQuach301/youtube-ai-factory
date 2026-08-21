@@ -63,9 +63,9 @@ export type SequentialProductionProjection = {
   };
   firstPass: {
     standardVersion: "FIRST_PASS_QUALITY_V1";
-    currentSlice: "FP3.1";
-    currentSliceState: "PRODUCTION_RUNTIME_ACCEPTED";
-    nextSlice: "LEARNING_READY_CONTRACT_PACK";
+    currentSlice: "WAVE_2";
+    currentSliceState: "CONTRACT_SCHEMA_ACTIVE";
+    nextSlice: "WP7_EVALUATION_FOUNDATION";
     nextSliceLabel: string;
     capabilityRegistryState: "QUALIFICATION_REQUIRED" | "PARTIALLY_QUALIFIED" | "QUALIFIED";
     dispatchGuardState: "ENFORCED";
@@ -114,6 +114,15 @@ export type SequentialProductionProjection = {
       capabilityLabels: string[];
       evidence: string[];
     }>;
+    contractPack: {
+      version: "LEARNING_READY_CONTRACT_PACK_V1";
+      state: "CONTRACT_SCHEMA_ACTIVE";
+      contractsDefined: number;
+      contractsSealed: number;
+      providerRequests: 0;
+      spendUsd: 0;
+      definitions: Array<{ key: string; artifactType: string; ownerPlane: string; stageBindings: string[]; lifecycleState: string }>;
+    };
     readiness: Array<{ id: string; label: string; passed: boolean; evidence: string; owningStages: string[] }>;
   };
   operations: {

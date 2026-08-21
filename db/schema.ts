@@ -2301,3 +2301,76 @@ export const v7GoldenMasterJobs = sqliteTable("v7_golden_master_jobs", {
   renderSpecJson: text("render_spec_json").notNull(), masterAssetId: text("master_asset_id"), probeJson: text("probe_json"), scanJson: text("scan_json"), playbackJson: text("playback_json"), errorCode: text("error_code"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("v7_golden_master_job_sequence_uq").on(table.goldenSequenceId, table.revision), index("v7_golden_master_job_state_idx").on(table.lifecycleState, table.updatedAt)]);
+
+export const v7LearningReadyContractRegistry = sqliteTable("v7_learning_ready_contract_registry", {
+  id: text("id").primaryKey(), contractKey: text("contract_key").notNull(), artifactType: text("artifact_type").notNull(), contractVersion: text("contract_version").notNull(),
+  ownerPlane: text("owner_plane").notNull(), stageBindingsJson: text("stage_bindings_json").notNull(), requiredParentTypesJson: text("required_parent_types_json").notNull(),
+  exitEvidenceJson: text("exit_evidence_json").notNull(), lifecycleState: text("lifecycle_state").notNull().default("SCHEMA_DEFINED"), providerRequests: integer("provider_requests").notNull().default(0),
+  spendUsd: real("spend_usd").notNull().default(0), active: integer("active", { mode: "boolean" }).notNull().default(true), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_learning_ready_registry_key_version_uq").on(table.contractKey, table.contractVersion), uniqueIndex("v7_learning_ready_registry_artifact_version_uq").on(table.artifactType, table.contractVersion)]);
+
+export const v7ChannelIdentityContracts = sqliteTable("v7_channel_identity_contracts", {
+  id: text("id").primaryKey(), channelId: text("channel_id").notNull(), version: integer("version").notNull(), lifecycleState: text("lifecycle_state").notNull().default("DRAFT"),
+  strategyBindingHash: text("strategy_binding_hash").notNull(), voiceJson: text("voice_json").notNull(), voiceSettingsHash: text("voice_settings_hash").notNull(), visualGrammarJson: text("visual_grammar_json").notNull(),
+  musicPolicyJson: text("music_policy_json").notNull(), pronunciationLexiconRef: text("pronunciation_lexicon_ref").notNull(), terminologyLedgerRef: text("terminology_ledger_ref").notNull(),
+  contentHash: text("content_hash"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), sealedAt: text("sealed_at"), supersededAt: text("superseded_at"),
+}, (table) => [uniqueIndex("v7_channel_identity_version_uq").on(table.channelId, table.version), index("v7_channel_identity_state_idx").on(table.channelId, table.lifecycleState)]);
+
+export const v7PackagingPromiseContracts = sqliteTable("v7_packaging_promise_contracts", {
+  id: text("id").primaryKey(), queueId: text("queue_id").notNull(), version: integer("version").notNull(), lifecycleState: text("lifecycle_state").notNull().default("DRAFT"),
+  creativeRouteId: text("creative_route_id").notNull(), channelIdentityHash: text("channel_identity_hash").notNull(), titleVariantsJson: text("title_variants_json").notNull(), thumbnailConceptJson: text("thumbnail_concept_json").notNull(),
+  audiencePromise: text("audience_promise").notNull(), differentiationHypothesis: text("differentiation_hypothesis").notNull(), promisedClaimIdsJson: text("promised_claim_ids_json").notNull(),
+  mobileLegibilityState: text("mobile_legibility_state").notNull().default("NOT_EVALUATED"), contentHash: text("content_hash"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), sealedAt: text("sealed_at"), supersededAt: text("superseded_at"),
+}, (table) => [uniqueIndex("v7_packaging_promise_queue_version_uq").on(table.queueId, table.version), index("v7_packaging_promise_state_idx").on(table.queueId, table.lifecycleState)]);
+
+export const v7PredictedPerformanceArtifacts = sqliteTable("v7_predicted_performance_artifacts", {
+  id: text("id").primaryKey(), queueId: text("queue_id").notNull(), version: integer("version").notNull(), lifecycleState: text("lifecycle_state").notNull().default("DRAFT"),
+  baselineRef: text("baseline_ref").notNull(), packagingPromiseHash: text("packaging_promise_hash").notNull(), compositionStageHashesJson: text("composition_stage_hashes_json").notNull(),
+  retentionCurveJson: text("retention_curve_json").notNull(), beatRisksJson: text("beat_risks_json").notNull(), predictedCtrJson: text("predicted_ctr_json").notNull(), criticPredictionsJson: text("critic_predictions_json").notNull(),
+  contentHash: text("content_hash"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), sealedAt: text("sealed_at"), supersededAt: text("superseded_at"),
+}, (table) => [uniqueIndex("v7_predicted_performance_queue_version_uq").on(table.queueId, table.version), index("v7_predicted_performance_state_idx").on(table.queueId, table.lifecycleState)]);
+
+export const v7ExperimentDefinitions = sqliteTable("v7_experiment_definitions", {
+  id: text("id").primaryKey(), channelId: text("channel_id").notNull(), version: integer("version").notNull(), lifecycleState: text("lifecycle_state").notNull().default("DRAFT"),
+  hypothesis: text("hypothesis").notNull(), variableTested: text("variable_tested").notNull(), variablesHeldConstantJson: text("variables_held_constant_json").notNull(), minimumSampleSize: integer("minimum_sample_size").notNull(),
+  decisionCriterionJson: text("decision_criterion_json").notNull(), packagingPromiseHash: text("packaging_promise_hash").notNull(), predictionHash: text("prediction_hash").notNull(), contentHash: text("content_hash"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), activatedAt: text("activated_at"), concludedAt: text("concluded_at"),
+}, (table) => [uniqueIndex("v7_experiment_channel_version_uq").on(table.channelId, table.version), index("v7_experiment_state_idx").on(table.channelId, table.lifecycleState)]);
+
+export const v7LearningCandidates = sqliteTable("v7_learning_candidates", {
+  id: text("id").primaryKey(), channelId: text("channel_id").notNull(), experimentId: text("experiment_id").notNull(), lifecycleState: text("lifecycle_state").notNull().default("INSUFFICIENT_EVIDENCE"),
+  target: text("target").notNull(), targetVersion: integer("target_version").notNull(), independentVideoIdsJson: text("independent_video_ids_json").notNull(), observedSampleSize: integer("observed_sample_size").notNull().default(0),
+  actualVsPredictedJson: text("actual_vs_predicted_json").notNull(), consistentDirection: integer("consistent_direction", { mode: "boolean" }).notNull().default(false), evidenceHash: text("evidence_hash"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), eligibleAt: text("eligible_at"), promotedAt: text("promoted_at"),
+}, (table) => [uniqueIndex("v7_learning_candidate_experiment_target_uq").on(table.experimentId, table.target), index("v7_learning_candidate_state_idx").on(table.channelId, table.lifecycleState)]);
+
+export const v7LearningPromotionReceipts = sqliteTable("v7_learning_promotion_receipts", {
+  id: text("id").primaryKey(), learningCandidateId: text("learning_candidate_id").notNull(), commandVersion: text("command_version").notNull(), idempotencyKey: text("idempotency_key").notNull(),
+  actorEmail: text("actor_email").notNull(), ownerIdentityBound: integer("owner_identity_bound", { mode: "boolean" }).notNull(), target: text("target").notNull(), priorVersion: integer("prior_version").notNull(),
+  newVersion: integer("new_version").notNull(), evidenceHash: text("evidence_hash").notNull(), outcome: text("outcome").notNull(), providerRequests: integer("provider_requests").notNull().default(0), spendUsd: real("spend_usd").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("v7_learning_promotion_idempotency_uq").on(table.idempotencyKey), uniqueIndex("v7_learning_promotion_candidate_uq").on(table.learningCandidateId)]);
+
+export const v7RightsComplianceManifests = sqliteTable("v7_rights_compliance_manifests", {
+  id: text("id").primaryKey(), queueId: text("queue_id").notNull(), version: integer("version").notNull(), lifecycleState: text("lifecycle_state").notNull().default("NOT_EVALUATED"),
+  licenseTermsJson: text("license_terms_json").notNull(), territoryJson: text("territory_json").notNull(), validFrom: text("valid_from").notNull(), validUntil: text("valid_until").notNull(),
+  commercialUse: integer("commercial_use", { mode: "boolean" }).notNull(), editorialOnly: integer("editorial_only", { mode: "boolean" }).notNull(), contentIdState: text("content_id_state").notNull().default("NOT_EVALUATED"),
+  aiDisclosureState: text("ai_disclosure_state").notNull().default("NOT_EVALUATED"), advertiserFriendlyState: text("advertiser_friendly_state").notNull().default("NOT_EVALUATED"), reusedContentState: text("reused_content_state").notNull().default("NOT_EVALUATED"),
+  evidenceHash: text("evidence_hash"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), sealedAt: text("sealed_at"),
+}, (table) => [uniqueIndex("v7_rights_compliance_queue_version_uq").on(table.queueId, table.version), index("v7_rights_compliance_state_idx").on(table.queueId, table.lifecycleState)]);
+
+export const v7AnimaticContracts = sqliteTable("v7_animatic_contracts", {
+  id: text("id").primaryKey(), queueId: text("queue_id").notNull(), version: integer("version").notNull(), lifecycleState: text("lifecycle_state").notNull().default("DRAFT"),
+  packagingPromiseHash: text("packaging_promise_hash").notNull(), predictionHash: text("prediction_hash").notNull(), shotCueProgramHash: text("shot_cue_program_hash").notNull(), draftAudioHash: text("draft_audio_hash").notNull(),
+  durationSeconds: real("duration_seconds").notNull(), timedFramesJson: text("timed_frames_json").notNull(), promiseToContentState: text("promise_to_content_state").notNull().default("NOT_EVALUATED"),
+  storyRetentionState: text("story_retention_state").notNull().default("NOT_EVALUATED"), evidenceHash: text("evidence_hash"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), sealedAt: text("sealed_at"),
+}, (table) => [uniqueIndex("v7_animatic_queue_version_uq").on(table.queueId, table.version), index("v7_animatic_state_idx").on(table.queueId, table.lifecycleState)]);
+
+export const v7MasterDeliveryContracts = sqliteTable("v7_master_delivery_contracts", {
+  id: text("id").primaryKey(), queueId: text("queue_id").notNull(), version: integer("version").notNull(), lifecycleState: text("lifecycle_state").notNull().default("DRAFT"),
+  archivalCodec: text("archival_codec").notNull(), archivalContainer: text("archival_container").notNull(), archivalAudioCodec: text("archival_audio_codec").notNull(), archivalSampleRate: integer("archival_sample_rate").notNull(),
+  archivalFileHash: text("archival_file_hash"), archivalStreamHash: text("archival_stream_hash"), distributionCodec: text("distribution_codec").notNull(), distributionContainer: text("distribution_container").notNull(),
+  distributionFileHash: text("distribution_file_hash"), distributionStreamHash: text("distribution_stream_hash"), derivedFromArchivalHash: text("derived_from_archival_hash"),
+  r2ReconciliationState: text("r2_reconciliation_state").notNull().default("NOT_EVALUATED"), driveReconciliationState: text("drive_reconciliation_state").notNull().default("NOT_EVALUATED"), rightsManifestHash: text("rights_manifest_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), sealedAt: text("sealed_at"),
+}, (table) => [uniqueIndex("v7_master_delivery_queue_version_uq").on(table.queueId, table.version), index("v7_master_delivery_state_idx").on(table.queueId, table.lifecycleState)]);

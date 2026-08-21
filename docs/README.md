@@ -62,10 +62,12 @@ When facts conflict, use this order:
 | Stage techniques and tools | [`continuity/31_STAGE_TECHNIQUES_TOOLS_QUALITY_CONTROLS.md`](continuity/31_STAGE_TECHNIQUES_TOOLS_QUALITY_CONTROLS.md) |
 | Video quality standard | [`continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md`](continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md) |
 | First-pass architecture | [`continuity/37_FIRST_PASS_QUALITY_ARCHITECTURE.md`](continuity/37_FIRST_PASS_QUALITY_ARCHITECTURE.md) |
+| Learning-ready Contract Pack | [`architecture/LEARNING_READY_CONTRACT_PACK.md`](architecture/LEARNING_READY_CONTRACT_PACK.md) |
 | Capability Registry evidence | [`continuity/38_FP2_CAPABILITY_REGISTRY_EXECUTION_RECORD.md`](continuity/38_FP2_CAPABILITY_REGISTRY_EXECUTION_RECORD.md) |
 | FP3 ShotCueProgram evidence | [`continuity/39_FP3_EXECUTABLE_SHOT_CUE_PROGRAM_EXECUTION_RECORD.md`](continuity/39_FP3_EXECUTABLE_SHOT_CUE_PROGRAM_EXECUTION_RECORD.md) |
 | FP3.1 source implementation evidence | [`continuity/41_FP3_1_PRODUCTION_INTEGRITY_EXECUTION_RECORD.md`](continuity/41_FP3_1_PRODUCTION_INTEGRITY_EXECUTION_RECORD.md) |
 | FP3.1 production runtime acceptance | [`continuity/42_FP3_1_PRODUCTION_RUNTIME_ACCEPTANCE.md`](continuity/42_FP3_1_PRODUCTION_RUNTIME_ACCEPTANCE.md) |
+| Wave 2 source implementation evidence | [`continuity/43_WAVE_2_LEARNING_READY_CONTRACT_PACK_EXECUTION_RECORD.md`](continuity/43_WAVE_2_LEARNING_READY_CONTRACT_PACK_EXECUTION_RECORD.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

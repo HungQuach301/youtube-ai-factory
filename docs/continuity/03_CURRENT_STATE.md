@@ -2,6 +2,25 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Wave 2 Learning-ready Contract Pack source checkpoint — 2026-08-21
+
+```text
+WAVE_2_SOURCE = IMPLEMENTED_TESTED
+WAVE_2_CONTRACT_VERSION = LEARNING_READY_CONTRACT_PACK_V1
+WAVE_2_CONTRACT_TYPES = 8_OF_8
+WAVE_2_SCHEMA = MIGRATION_0051_PREPARED_NOT_APPLIED
+WAVE_2_RUNTIME = PRODUCTION_UNCHANGED_SITES_V391
+PROMOTE_LEARNING = CONTRACT_DEFINED__RUNTIME_COMMAND_NOT_ACTIVATED
+PROVIDER_REQUESTS_THIS_SLICE = 0
+PROVIDER_SPEND_USD_THIS_SLICE = 0
+VQ_M0_SAFETY_SCOPE = NOT_EVALUATED__PROVIDER_DISPATCH_BLOCKED
+GOLDEN_R10 = BLOCKED
+STAGE_11 = BLOCKED
+NEXT_PROTECTED_ACTION = AUTHORIZED_PRODUCTION_CHECKPOINT_AND_ZERO_DISPATCH_READBACK
+```
+
+Source now defines the eight channel identity, packaging promise, predicted performance, experiment, learning candidate, rights/compliance, animatic and master-delivery boundaries. Migration `0051` seeds schema definitions only; it does not create or seal any video artifact. `PROMOTE_LEARNING_V1` is constrained to sufficient evidence, two independent videos, owner identity and a new target version, but no production route activates it. Production remains Sites v391 on the accepted FP3.1 runtime until a separately authorized checkpoint applies the additive migration and passes zero-dispatch read-back. Document 43 is the source execution record; the architecture contract is `docs/architecture/LEARNING_READY_CONTRACT_PACK.md`.
+
 ## FP3.1 Production Integrity source checkpoint — 2026-08-21
 
 ```text

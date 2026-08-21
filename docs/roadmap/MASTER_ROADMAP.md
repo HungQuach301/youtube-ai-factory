@@ -15,7 +15,8 @@
 - FP3.1 source, additive migration and local regression: implemented and tested.
 - FP3.1 production migration: active in Sites v389 after v388 failed safely before publish and exposed the historical fencing-token backfill defect.
 - FP3.1 runtime QA: zero-dispatch acceptance passed in Sites v390; Sites v391 removed the temporary QA authorization path, the environment key is absent and a retired QA header is rejected with `401`.
-- Next implementation milestone: begin the zero-spend Learning-ready Contract Pack, not paid FP4 dispatch.
+- Wave 2 Learning-ready Contract Pack: source implemented and tested; production migration `0051` is prepared but not applied.
+- Next protected milestone: an explicitly authorized Wave 2 production checkpoint and zero-dispatch read-back, followed by WP7 Evaluation Foundation.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -58,6 +59,8 @@ Source evidence on 2026-08-21: all 52 migrations replay through `0050`; canonica
 
 ## Wave 2 — Learning-ready Contract Pack
 
+Status: `SOURCE_IMPLEMENTED_TESTED__PRODUCTION_MIGRATION_PENDING`.
+
 Scope:
 
 - `ChannelIdentityContract`.
@@ -70,7 +73,11 @@ Scope:
 
 This wave changes schemas and policy only. It does not authorize paid production.
 
+Source evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight zero-dispatch registry entries and adds append-only persistence for channel identity, packaging promise, predicted performance, experiment definition, learning candidate/promotion receipt, rights/compliance, animatic and archival/distribution delivery. Validators fail closed on unsealed prediction, underpowered experiments, non-owner promotion, unevaluated compliance, failed animatic gates and invalid master lineage. This checkpoint creates no actual Video #1 artifacts and activates no learning command. Wave 2 becomes production-active only after authorized migration `0051` and zero-dispatch runtime read-back.
+
 ## Wave 3 — WP7 Evaluation Foundation
+
+Entry gate: Wave 2 migration active in production with eight definitions, zero provider requests/spend and no protected-lock regression.
 
 Scope:
 
