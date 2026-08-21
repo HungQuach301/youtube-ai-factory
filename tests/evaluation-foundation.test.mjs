@@ -17,6 +17,7 @@ import {
   evaluateProviderRightsEvidence,
   evaluateOwnerLabelSubmission,
   isOwnerObservableDefect,
+  normalizeOwnerLabelsForReceipt,
   evaluateCorrelationAssignments,
   reconcileCorpusArtifactEvidence,
   standingAuthorityCovers,
@@ -24,6 +25,7 @@ import {
   summarizeEvaluationRightsQueue,
   summarizeEvaluationInventory,
 } from "../lib/evaluation-foundation.ts";
+import { canonicalStringify } from "../lib/canonical-json.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -255,6 +257,20 @@ test("owner labels bind exact bytes, require full taxonomy coverage and keep dec
   assert.ok(wrongHash.reasons.includes("EXACT_ARTIFACT_HASH_BINDING_REQUIRED"));
 });
 
+test("owner form labels are canonical-safe before request hashing", () => {
+  const labels = normalizeOwnerLabelsForReceipt([
+    { defectKey: "AUDIO_SEAM", status: "PRESENT", confidence: 1 },
+    { defectKey: "RIGHTS_LINEAGE_MISSING", status: "NOT_APPLICABLE" },
+    { defectKey: "MASTER_LINEAGE_INVALID", status: "NOT_APPLICABLE", confidence: undefined },
+  ]);
+  assert.deepEqual(labels, [
+    { defectKey: "AUDIO_SEAM", status: "PRESENT", confidence: 1 },
+    { defectKey: "MASTER_LINEAGE_INVALID", status: "NOT_APPLICABLE", confidence: null },
+    { defectKey: "RIGHTS_LINEAGE_MISSING", status: "NOT_APPLICABLE", confidence: null },
+  ]);
+  assert.doesNotThrow(() => canonicalStringify({ action: "RECORD_OWNER_LABEL_RECEIPT", labels }));
+});
+
 test("owner review exposes only defects observable from the candidate media", () => {
   assert.equal(EVALUATION_OWNER_REVIEW_UX_VERSION, "EVALUATION_OWNER_REVIEW_UX_V2");
   assert.equal(isOwnerObservableDefect({ defectModality: "AUDIO", candidateKind: "AUDIO", mimeType: "audio/mpeg" }), true);
@@ -301,6 +317,8 @@ test("migration 0058 creates immutable zero-spend owner-label tasks without fixt
   assert.match(route, /OWNER_LABEL_ARTIFACT_HASH_MISMATCH/);
   assert.match(route, /Chỉ cần làm 3 việc/);
   assert.match(route, /Xác nhận và sang mẫu tiếp theo/);
+  assert.match(route, /labels: normalizedLabels/);
+  assert.match(route, /ĐÁNH GIÁ CHƯA ĐƯỢC GHI/);
   assert.match(route, /ownerObservableDefectKeys/);
   assert.match(read("lib/evaluation-foundation.ts"), /SYSTEM_EVIDENCE_LABEL_MUST_BE_NOT_APPLICABLE/);
   assert.match(route, /env\.DB\.batch\(statements\)/);

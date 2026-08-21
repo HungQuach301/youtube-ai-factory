@@ -2,6 +2,25 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Owner-review canonical form hotfix source checkpoint — 2026-08-21
+
+```text
+INCIDENT = OWNER_REVIEW_NOT_APPLICABLE_CONFIDENCE_UNDEFINED
+USER_ACTION = VALID__SYSTEM_DEFECT
+FAILED_SUBMISSION_DURABLE_RECEIPT = NO__FAILED_BEFORE_REQUEST_HASH_AND_INSERT
+ROOT_CAUSE = PRE_NORMALIZED_FORM_LABEL_WITH_UNDEFINED_CONFIDENCE_REACHED_JCS_NFC_V1
+CORRECTION = NOT_APPLICABLE_CONFIDENCE_NULL__ONE_NORMALIZED_INTENT_FOR_HASH_AND_RECEIPT
+ERROR_UX = INLINE_PRESERVE_FORM__HTML_FALLBACK__NO_RAW_JSON
+IDEMPOTENT_REPLAY = REDIRECT_TO_NEXT_SAMPLE
+SOURCE_STATE = IMPLEMENTED__PRODUCTION_PENDING
+TECHNICAL_QA = PASS_165_OF_165
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+NEXT_PROTECTED_ACTION = DEPLOY_HOTFIX__OWNER_RESUBMIT_SAMPLE_1__VERIFY_SAMPLE_2_OF_82
+```
+
+The first real owner submission exposed a transport-to-canonical-contract defect: system-owned `NOT_APPLICABLE` labels carried an in-memory `undefined` confidence into request hashing. Canonical JSON correctly rejected it before any receipt was written. The root adapter now emits explicit `null`, transport and evidence share one normalized label set, replay redirects correctly and any future error remains in the form instead of replacing it with raw JSON. Document 57 is the execution record; Production remains unchanged until the checkpoint succeeds.
+
 ## Mandatory Browser assurance source checkpoint — 2026-08-21
 
 ```text

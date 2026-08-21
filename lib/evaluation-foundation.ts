@@ -122,6 +122,18 @@ export type CorpusArtifactEvidence = {
 };
 
 const clean = (value: unknown) => String(value ?? "").trim();
+
+export function normalizeOwnerLabelsForReceipt(labels: OwnerLabelSubmission["labels"]) {
+  return labels.map((item) => {
+    const status = clean(item.status);
+    return {
+      defectKey: clean(item.defectKey),
+      status,
+      confidence: status === "NOT_APPLICABLE" ? null : Number(item.confidence ?? 0),
+    };
+  }).sort((left, right) => left.defectKey.localeCompare(right.defectKey));
+}
+
 const acceptedRightsDeclarations = new Set(["CHANNEL_OWNED_OR_PROVIDER_COMMERCIAL", "CHANNEL_OWNED_ORIGINAL", "COMMERCIAL_LICENSE_VERIFIED"]);
 const knownConflictReasons = new Set([
   "OBJECT_MISSING", "OBJECT_SIZE_LIMIT_EXCEEDED", "BYTE_SIZE_MISMATCH", "DECLARED_HASH_MISSING", "CHECKSUM_MISMATCH",
