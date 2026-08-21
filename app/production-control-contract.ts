@@ -148,6 +148,9 @@ export type SequentialProductionProjection = {
       metadataReviewRequired: number;
       quarantinedCandidates: number;
       metadataBindingsAccepted: number;
+      rightsReceiptsAccepted: number;
+      rightsBasisCounts: Array<{ key: string; count: number }>;
+      rightsKindCounts: Array<{ key: string; count: number }>;
       verificationBytesRead: number;
       blockedReasonCounts: Array<{ key: string; count: number }>;
       blockedFactCounts: Array<{ key: string; count: number }>;

@@ -42,8 +42,11 @@ An accepted receipt changes only the candidate projection from provenance `FAIL`
 - Targeted migration, Evaluation Foundation and integrity regression: 26/26 PASS.
 - The fixture proves a stale observed artifact ID can rebind only through a unique exact storage-key/hash source.
 - Rights remain `RECEIPT_REQUIRED` and lifecycle remains `CANDIDATE_EVIDENCE` after the rebind.
-- Production migration/read-back: pending checkpoint.
+- Production migration/read-back: PASS in Sites v402.
+- Exact result: 5 binding receipts, 0 blocked, 0 open incidents, 7 quarantined and 68 rights-pending.
+- Verified fixtures, gold eligibility, sealed datasets and release eligibility remain zero.
+- Provider slice stayed zero; global totals remain 56 historical requests, zero active and `$13.247131145833333`.
 
 ## Next gate
 
-Deploy migration `0055`. Expected production result is zero blocked metadata candidates, five accepted metadata rebind receipts, seven quarantined candidates and 68 rights-pending candidates. Gold eligibility, sealed datasets, release eligibility, provider requests and spend must remain zero.
+Apply a separate rights reconciliation only to channel-authored, non-provider, non-audio/video candidates; then classify the remaining rights queue by basis and modality.

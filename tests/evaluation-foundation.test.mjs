@@ -11,6 +11,7 @@ import {
   reconcileCorpusArtifactEvidence,
   standingAuthorityCovers,
   summarizeCorpusEvidenceConflicts,
+  summarizeEvaluationRightsQueue,
   summarizeEvaluationInventory,
 } from "../lib/evaluation-foundation.ts";
 
@@ -171,6 +172,20 @@ test("blocked corpus diagnostics aggregate sanitized immutable receipt conflicts
   assert.equal(summary.stateCounts.length, 2);
 });
 
+test("rights queue diagnostics expose only allowlisted basis and modality counts", () => {
+  const summary = summarizeEvaluationRightsQueue([
+    { candidateKind: "AUDIO", rightsBasis: "PROVIDER_TERMS_RECEIPT_MISSING" },
+    { candidateKind: "CLIP", rightsBasis: "AUTHORSHIP_EVIDENCE_INCOMPLETE" },
+    { candidateKind: "CLIP", rightsBasis: "UNSAFE_RAW_DETAIL" },
+  ]);
+  assert.deepEqual(summary.basisCounts, [
+    { key: "AUTHORSHIP_EVIDENCE_INCOMPLETE", count: 1 },
+    { key: "PROVIDER_TERMS_RECEIPT_MISSING", count: 1 },
+    { key: "UNKNOWN_RIGHTS_BASIS", count: 1 },
+  ]);
+  assert.deepEqual(summary.kindCounts, [{ key: "CLIP", count: 2 }, { key: "AUDIO", count: 1 }]);
+});
+
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {
   const migration = read("drizzle/0053_evaluation_corpus_verification.sql");
   for (const table of ["v7_evaluation_verification_runs", "v7_evaluation_verification_receipts"]) assert.match(migration, new RegExp(table));
@@ -240,7 +255,7 @@ test("migration 0054 quarantines byte-divergent evidence and retains metadata-on
   assert.throws(() => db.prepare("UPDATE v7_evaluation_evidence_incidents SET incident_state='OPEN'").run(), /EVALUATION_EVIDENCE_INCIDENT_IMMUTABLE/);
 });
 
-test("migration 0055 accepts only a unique exact storage-hash metadata rebind and keeps rights pending", () => {
+test("migrations 0055 and 0056 rebind exact metadata then separately prove channel-authored rights", () => {
   const migration = read("drizzle/0055_evaluation_metadata_binding_reconciliation.sql");
   for (const table of ["v7_evaluation_metadata_binding_receipts", "v7_evaluation_incident_resolutions"]) assert.match(migration, new RegExp(table));
   assert.match(migration, /METADATA_BINDING_RECONCILIATION_V1/);
@@ -264,8 +279,8 @@ test("migration 0055 accepts only a unique exact storage-hash metadata rebind an
     (id,channel_id,foundation_version,policy_version,idempotency_key,intent_hash,candidate_ids_json,maximum_candidates,maximum_object_bytes,planned_candidates,actor)
     VALUES ('run-0055','channel-test','EVALUATION_FOUNDATION_V1','CORPUS_VERIFICATION_POLICY_V1','0055-idempotency','0055-intent','["candidate-0055"]',20,100000000,1,'owner')`).run();
   db.prepare(`INSERT INTO v7_evaluation_candidates
-    (id,channel_id,source_family,source_table,source_id,candidate_kind,artifact_type,storage_key,mime_type,byte_size,content_hash,bytes_state,checksum_state,provenance_state,rights_verification_state,correlation_group,verification_state)
-    VALUES ('candidate-0055','channel-test','PRODUCTION_V2_REJECTED','production_v2_artifacts','source-0055','CLIP','VISUAL_FRAME','r2/0055.svg','image/svg+xml',10,?,'READBACK_VERIFIED','PASS','FAIL','RECEIPT_REQUIRED','package-0055','BLOCKED')`).run("e".repeat(64));
+    (id,channel_id,source_family,source_table,source_id,candidate_kind,artifact_type,storage_key,mime_type,byte_size,content_hash,bytes_state,checksum_state,provenance_state,rights_declared_state,rights_verification_state,correlation_group,verification_state)
+    VALUES ('candidate-0055','channel-test','PRODUCTION_V2_REJECTED','production_v2_artifacts','source-0055','CLIP','VISUAL_FRAME','r2/0055.svg','image/svg+xml',10,?,'READBACK_VERIFIED','PASS','FAIL','CHANNEL_OWNED_OR_PROVIDER_COMMERCIAL','RECEIPT_REQUIRED','package-0055','BLOCKED')`).run("e".repeat(64));
   db.prepare(`INSERT INTO v7_evaluation_verification_receipts
     (id,run_id,candidate_id,source_artifact_id,storage_key,declared_hash,computed_hash,declared_bytes,actual_bytes,bytes_state,checksum_state,provenance_state,rights_verification_state,rights_basis,object_metadata_json,reconciliation_reasons_json,evidence_hash)
     VALUES ('receipt-0055','run-0055','candidate-0055','source-0055','r2/0055.svg',?,?,10,10,'READBACK_VERIFIED','PASS','FAIL','RECEIPT_REQUIRED','AUTHORSHIP_EVIDENCE_INCOMPLETE',?,'["R2_OBJECT_METADATA_MISMATCH","AUTHORSHIP_EVIDENCE_INCOMPLETE"]','evidence-0055')`)
@@ -281,4 +296,16 @@ test("migration 0055 accepts only a unique exact storage-hash metadata rebind an
   });
   assert.throws(() => db.prepare("DELETE FROM v7_evaluation_metadata_binding_receipts").run(), /EVALUATION_METADATA_BINDING_RECEIPT_IMMUTABLE/);
   assert.throws(() => db.prepare("UPDATE v7_evaluation_incident_resolutions SET actor='other'").run(), /EVALUATION_INCIDENT_RESOLUTION_IMMUTABLE/);
+
+  const rightsMigration = read("drizzle/0056_evaluation_rights_reconciliation.sql");
+  assert.match(rightsMigration, /EVALUATION_RIGHTS_RECONCILIATION_V1/);
+  assert.match(rightsMigration, /CHANNEL_AUTHORED_EVALUATION_USE/);
+  assert.match(rightsMigration, /basis_metadata_binding_receipt_id/);
+  assert.doesNotMatch(rightsMigration, /DELETE FROM|api\.openai\.com|elevenlabs\.io/);
+  db.exec(rightsMigration);
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM v7_evaluation_rights_receipts").get().count, 1);
+  assert.deepEqual({ ...db.prepare("SELECT provenance_state,rights_verification_state,verification_state,lifecycle_state FROM v7_evaluation_candidates WHERE id='candidate-0055'").get() }, {
+    provenance_state: "PASS", rights_verification_state: "PASS", verification_state: "EVIDENCE_VERIFIED", lifecycle_state: "CANDIDATE_EVIDENCE",
+  });
+  assert.throws(() => db.prepare("DELETE FROM v7_evaluation_rights_receipts").run(), /EVALUATION_RIGHTS_RECEIPT_IMMUTABLE/);
 });

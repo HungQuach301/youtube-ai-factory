@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_3_PHASE_5_METADATA_REBIND_SOURCE_READY__PRODUCTION_MIGRATION_NEXT`
+**Current source classification:** `WAVE_3_PHASE_6_RIGHTS_RECONCILIATION_SOURCE_READY__PRODUCTION_MIGRATION_NEXT`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -43,7 +43,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - The next protected action is to investigate the 12 blocked candidates, collect 63 rights receipts and owner-confirmed labels, then de-duplicate/correlation-control the corpus before any dataset is sealed or assurance provider is called.
 - Sites v399 activated blocked-evidence diagnostic v1. Sites v400 field-fact read-back proves seven source/object hash and byte-size divergences plus five checksum-PASS metadata-only binding conflicts. Rights bases are eight incomplete-authorship and four missing-provider-terms records; no identifiers, hashes, byte values or raw metadata are exposed.
 - Sites v401 applied migration `0054`: 12 immutable incidents, 7 immutable quarantine dispositions, 7 candidates `EXCLUDED` and 5 metadata-only clips still `BLOCKED`. Provider slice stayed zero; global totals remain 56 historical requests, zero active and `$13.247131145833333`; all release locks remain closed.
-- Migration `0055` and `METADATA_BINDING_RECONCILIATION_V1` are source-ready. They accept only a unique exact storage-key/hash rebind with matching package, bytes, hash, engine and zero-legacy provenance. Expected production result is 5 append-only receipts, zero technical blocks and 68 rights-pending candidates; no rights, label, gold, dataset or release authority is created.
+- Sites v402 applied migration `0055`: five exact append-only metadata rebinds, zero technical blocks, zero open incidents, seven quarantined and 68 rights-pending. Provenance PASS is 588; verified fixtures, gold eligibility, sealed datasets and release eligibility remain zero.
+- Migration `0056` and `EVALUATION_RIGHTS_RECONCILIATION_V1` are source-ready. Only metadata-rebound, non-provider, non-audio/video artifacts with explicit channel authorship and zero legacy sources may pass. Sanitized rights basis/kind counts will classify the rest; provider terms cannot be inferred.
 - `OWNER_STANDING_PRODUCTION_AUTHORITY_V1` permits future roadmap-bounded deploy, migration, production QA and provider calls without repeated chat confirmation, but never bypasses capability/settings, budget, rights, safety, idempotency or fencing gates and does not authorize publish/delete/weaken actions.
 
 ## Protected no-rerun list

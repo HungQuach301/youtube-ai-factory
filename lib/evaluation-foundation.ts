@@ -30,6 +30,9 @@ export type CorpusEvidenceConflictSummary = {
   kindCounts: Array<{ key: string; count: number }>;
 };
 
+export type EvaluationRightsQueueItem = { candidateKind?: string; rightsBasis?: string };
+export type EvaluationRightsQueueSummary = { basisCounts: Array<{ key: string; count: number }>; kindCounts: Array<{ key: string; count: number }> };
+
 export type CorpusArtifactEvidence = {
   candidateId: string;
   sourceArtifactId: string;
@@ -59,6 +62,17 @@ const knownConflictReasons = new Set([
 const increment = (target: Map<string, number>, key: string) => target.set(key, (target.get(key) ?? 0) + 1);
 const rankedCounts = (source: Map<string, number>) => [...source.entries()].map(([key, count]) => ({ key, count })).sort((left, right) => right.count - left.count || left.key.localeCompare(right.key));
 const comparableNumber = (value: unknown) => clean(value) !== "" && Number.isFinite(Number(value));
+const knownRightsBases = new Set(["DECLARATION_NOT_ELIGIBLE", "PROVIDER_TERMS_RECEIPT_MISSING", "AUTHORSHIP_EVIDENCE_INCOMPLETE"]);
+
+export function summarizeEvaluationRightsQueue(rows: EvaluationRightsQueueItem[]): EvaluationRightsQueueSummary {
+  const bases = new Map<string, number>(), kinds = new Map<string, number>();
+  for (const row of rows) {
+    const basis = clean(row.rightsBasis);
+    increment(bases, knownRightsBases.has(basis) ? basis : basis ? "UNKNOWN_RIGHTS_BASIS" : "RIGHTS_BASIS_MISSING");
+    increment(kinds, clean(row.candidateKind) || "UNKNOWN_KIND");
+  }
+  return { basisCounts: rankedCounts(bases), kindCounts: rankedCounts(kinds) };
+}
 
 export function summarizeCorpusEvidenceConflicts(rows: CorpusEvidenceConflict[]): CorpusEvidenceConflictSummary {
   const reasons = new Map<string, number>(), facts = new Map<string, number>(), states = new Map<string, number>(), kinds = new Map<string, number>();

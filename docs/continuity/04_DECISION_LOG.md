@@ -176,3 +176,9 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** a checksum-valid metadata-only candidate may append `METADATA_BINDING_RECONCILIATION_V1` evidence only when candidate, source, computed bytes, byte size, storage key, package, hash, engine version and zero-legacy provenance all agree, the observed artifact ID is present but stale, and the storage-key/hash pair uniquely identifies the source D1 row. The new receipt resolves provenance only; rights remain receipt-required and owner labels, fixture promotion, dataset membership and release eligibility remain untouched.
 
 **Reason:** Sites v401 leaves five candidates whose only technical conflict is the R2 artifact-ID field. Rewriting metadata would destroy the losing evidence, while treating the stale ID as fatal would discard byte-exact material. A strict append-only rebind uses the repository's unique storage/hash constraint as proof without weakening rights or semantic ground-truth gates.
+
+## ADR-085 — Rights are re-evaluated separately from provenance and only from explicit authorship
+
+**Decision:** a metadata-rebound evaluation candidate may acquire `CHANNEL_AUTHORED_EVALUATION_USE` rights PASS only through a separate immutable receipt proving accepted declaration, non-audio/non-video media, no provider, explicit channel author/actor/executor and zero legacy sources. Provider-bound material requires an explicit terms or license receipt and cannot use this lane. Rights PASS changes neither candidate-evidence lifecycle nor owner/label/gold/dataset/release state.
+
+**Reason:** Sites v402 correctly moved five candidates to rights-pending rather than allowing technical reconciliation to imply legal authority. Separating rights receipts preserves that boundary while allowing genuinely channel-authored evidence to avoid a fabricated provider-license requirement.

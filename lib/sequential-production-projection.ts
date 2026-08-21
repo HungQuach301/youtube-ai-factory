@@ -9,7 +9,7 @@ import {
 } from "@/lib/video-quality-standard";
 import { deriveRootStageKeys } from "@/lib/first-pass-quality-projection";
 import { FP3_GOLDEN_CONTRACT_SUMMARY } from "@/lib/first-pass-shot-cue-program";
-import { summarizeCorpusEvidenceConflicts } from "@/lib/evaluation-foundation";
+import { summarizeCorpusEvidenceConflicts, summarizeEvaluationRightsQueue } from "@/lib/evaluation-foundation";
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null> };
@@ -190,7 +190,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   if (!current) throw new Error("EXCLUSIVE_ACTIVE_VIDEO_NOT_FOUND");
   const stages = await rows(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? ORDER BY sequence", current.id);
   const activeStage = stages.find((stage) => ["READY","RUNNING","REPAIR_REQUIRED","ESCALATED"].includes(text(stage.lifecycle_state))) ?? stages[0];
-  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationVerification, evaluationDefects, evaluationDatasets, evaluationBlockedRows, evaluationIncidents] = await Promise.all([
+  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationVerification, evaluationDefects, evaluationDatasets, evaluationBlockedRows, evaluationIncidents, evaluationRightsRows, evaluationRightsReceipts] = await Promise.all([
     rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION),
     rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
     db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
@@ -224,6 +224,12 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       (SELECT COUNT(*) FROM v7_evaluation_candidate_dispositions d WHERE d.channel_id=? AND d.disposition='QUARANTINE_EVALUATION_ONLY') quarantined,
       (SELECT COUNT(*) FROM v7_evaluation_metadata_binding_receipts b WHERE b.channel_id=? AND b.binding_state='UNIQUE_STORAGE_HASH_REBIND_VERIFIED') metadata_bindings
       FROM v7_evaluation_evidence_incidents i WHERE channel_id=?`).bind(channelId, channelId, channelId).first<Row>(),
+    rows(db, `SELECT c.candidate_kind,r.rights_basis
+      FROM v7_evaluation_candidates c
+      JOIN v7_evaluation_verification_receipts r ON r.id=c.latest_verification_receipt_id
+      WHERE c.channel_id=? AND c.verification_state='PARTIAL_RIGHTS_PENDING'
+      ORDER BY c.candidate_kind,r.rights_basis`, channelId),
+    db.prepare("SELECT COUNT(*) accepted FROM v7_evaluation_rights_receipts WHERE channel_id=? AND rights_state='PASS'").bind(channelId).first<Row>(),
   ]);
   const evaluationConflicts = summarizeCorpusEvidenceConflicts(evaluationBlockedRows.map((row) => ({
     candidateKind: text(row.candidate_kind), artifactType: text(row.artifact_type), bytesState: text(row.bytes_state), checksumState: text(row.checksum_state),
@@ -232,6 +238,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     sourcePackageId: text(row.source_package_id), sourceHash: text(row.source_hash), sourceBytes: number(row.source_bytes), sourceEngineVersion: text(row.source_engine_version),
     computedHash: text(row.computed_hash), actualBytes: number(row.actual_bytes), objectMetadataJson: text(row.object_metadata_json),
   })));
+  const evaluationRightsQueue = summarizeEvaluationRightsQueue(evaluationRightsRows.map((row) => ({ candidateKind: text(row.candidate_kind), rightsBasis: text(row.rights_basis) })));
   const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
   const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json,scan_json,error_code FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
   const goldenAssetUrl = (role: string) => { const asset = goldenAssets.find((item) => text(item.role) === role); return asset ? `/api/factory/sequential-production/quality?asset=${encodeURIComponent(text(asset.id))}` : undefined; };
@@ -434,6 +441,9 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         metadataReviewRequired: number(evaluationIncidents?.metadata_review),
         quarantinedCandidates: number(evaluationIncidents?.quarantined),
         metadataBindingsAccepted: number(evaluationIncidents?.metadata_bindings),
+        rightsReceiptsAccepted: number(evaluationRightsReceipts?.accepted),
+        rightsBasisCounts: evaluationRightsQueue.basisCounts,
+        rightsKindCounts: evaluationRightsQueue.kindCounts,
         verificationBytesRead: number(evaluationVerification?.bytes_read),
         blockedReasonCounts: evaluationConflicts.reasonCounts,
         blockedFactCounts: evaluationConflicts.factCounts,

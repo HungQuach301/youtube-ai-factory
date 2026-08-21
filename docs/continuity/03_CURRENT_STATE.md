@@ -2,24 +2,43 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Wave 3 rights reconciliation source checkpoint — 2026-08-21
+
+```text
+RIGHTS_POLICY = EVALUATION_RIGHTS_RECONCILIATION_V1
+SCHEMA = MIGRATION_0056_PENDING_PRODUCTION
+PRODUCTION_BASIS = SITES_V402__68_RIGHTS_PENDING
+CHANNEL_AUTHORSHIP_LANE = METADATA_REBOUND__NON_PROVIDER__NON_AUDIO_VIDEO__EXPLICIT_AUTHOR__ZERO_LEGACY
+MAXIMUM_AUTOMATIC_RIGHTS_TARGET = 5
+PROVIDER_TERMS_INFERENCE = FORBIDDEN
+RIGHTS_QUEUE_DIAGNOSTIC = SANITIZED_BASIS_AND_KIND_COUNTS
+FIXTURE_PROMOTIONS = 0
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+NEXT_PROTECTED_ACTION = DEPLOY_0056_AND_CLASSIFY_REMAINING_RIGHTS_QUEUE
+```
+
+Source migration `0056` creates a separate immutable channel-authorship rights receipt only after technical metadata reconciliation and strict non-provider authorship proof. It cannot pass provider media, promote a fixture or create release authority. The operator projection now classifies the remaining queue by allowlisted rights basis and candidate kind. Document 52 and ADR-085 are authoritative.
+
 ## Wave 3 metadata-binding reconciliation source checkpoint — 2026-08-21
 
 ```text
 RECONCILIATION_POLICY = METADATA_BINDING_RECONCILIATION_V1
-SCHEMA = MIGRATION_0055_PENDING_PRODUCTION
+SCHEMA = MIGRATION_0055_PRODUCTION_ACTIVE_SITES_V402
 PRODUCTION_BASIS = SITES_V401__5_METADATA_ONLY_BLOCKED_CLIPS
 REQUIRED_BINDING = UNIQUE_STORAGE_HASH__EXACT_PACKAGE_BYTES_HASH_ENGINE__ZERO_LEGACY
-EXPECTED_METADATA_REBINDS = 5
-EXPECTED_BLOCKED_AFTER_MIGRATION = 0
-EXPECTED_RIGHTS_PENDING_AFTER_MIGRATION = 68
+PRODUCTION_METADATA_REBINDS = 5
+PRODUCTION_BLOCKED = 0
+PRODUCTION_OPEN_INCIDENTS = 0
+PRODUCTION_RIGHTS_PENDING = 68
 RIGHTS_MUTATIONS = 0
 FIXTURE_PROMOTIONS = 0
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-NEXT_PROTECTED_ACTION = DEPLOY_0055_AND_VERIFY_ZERO_BLOCKED__68_RIGHTS_PENDING
+NEXT_PROTECTED_ACTION = APPLY_SEPARATE_RIGHTS_RECONCILIATION_0056
 ```
 
-Source migration `0055` appends a metadata-binding receipt and incident resolution only for a byte-exact candidate whose storage-key/hash pair uniquely identifies its source row and whose package, hash, byte size, engine and zero-legacy provenance all agree. It changes only provenance and verification projections; rights remain receipt-required. Document 51 and ADR-084 are authoritative.
+Sites v402 applied migration `0055` exactly: five metadata-binding receipts, zero technical blocks, zero open incidents, seven quarantined candidates and 68 rights-pending candidates. It changed only provenance and verification projections; rights remained receipt-required. Gold/dataset/release stayed zero and provider/spend did not change. Document 51 and ADR-084 are authoritative.
 
 ## Wave 3 evidence disposition source checkpoint — 2026-08-21
 
