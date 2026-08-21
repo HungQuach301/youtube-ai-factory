@@ -217,10 +217,13 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       WHERE c.channel_id=? AND c.verification_state='BLOCKED'
       ORDER BY c.candidate_kind,c.artifact_type`, channelId),
     db.prepare(`SELECT COUNT(*) incidents,
+      COALESCE(SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM v7_evaluation_candidate_dispositions d WHERE d.candidate_id=i.candidate_id AND d.basis_receipt_id=i.basis_receipt_id)
+        AND NOT EXISTS (SELECT 1 FROM v7_evaluation_incident_resolutions x WHERE x.incident_id=i.id) THEN 1 ELSE 0 END),0) open_incidents,
       COALESCE(SUM(CASE WHEN incident_type='SOURCE_OBJECT_BYTE_DIVERGENCE' THEN 1 ELSE 0 END),0) byte_divergence,
-      COALESCE(SUM(CASE WHEN incident_type='R2_METADATA_BINDING_MISMATCH' THEN 1 ELSE 0 END),0) metadata_review,
-      (SELECT COUNT(*) FROM v7_evaluation_candidate_dispositions d WHERE d.channel_id=? AND d.disposition='QUARANTINE_EVALUATION_ONLY') quarantined
-      FROM v7_evaluation_evidence_incidents WHERE channel_id=?`).bind(channelId, channelId).first<Row>(),
+      COALESCE(SUM(CASE WHEN incident_type='R2_METADATA_BINDING_MISMATCH' AND NOT EXISTS (SELECT 1 FROM v7_evaluation_incident_resolutions x WHERE x.incident_id=i.id) THEN 1 ELSE 0 END),0) metadata_review,
+      (SELECT COUNT(*) FROM v7_evaluation_candidate_dispositions d WHERE d.channel_id=? AND d.disposition='QUARANTINE_EVALUATION_ONLY') quarantined,
+      (SELECT COUNT(*) FROM v7_evaluation_metadata_binding_receipts b WHERE b.channel_id=? AND b.binding_state='UNIQUE_STORAGE_HASH_REBIND_VERIFIED') metadata_bindings
+      FROM v7_evaluation_evidence_incidents i WHERE channel_id=?`).bind(channelId, channelId, channelId).first<Row>(),
   ]);
   const evaluationConflicts = summarizeCorpusEvidenceConflicts(evaluationBlockedRows.map((row) => ({
     candidateKind: text(row.candidate_kind), artifactType: text(row.artifact_type), bytesState: text(row.bytes_state), checksumState: text(row.checksum_state),
@@ -425,10 +428,12 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         rightsPending: number(evaluationCandidates?.rights_pending),
         verificationBlocked: number(evaluationCandidates?.verification_blocked),
         verificationExcluded: number(evaluationCandidates?.verification_excluded),
-        openEvidenceIncidents: number(evaluationIncidents?.incidents),
+        evidenceIncidents: number(evaluationIncidents?.incidents),
+        openEvidenceIncidents: number(evaluationIncidents?.open_incidents),
         byteDivergenceIncidents: number(evaluationIncidents?.byte_divergence),
         metadataReviewRequired: number(evaluationIncidents?.metadata_review),
         quarantinedCandidates: number(evaluationIncidents?.quarantined),
+        metadataBindingsAccepted: number(evaluationIncidents?.metadata_bindings),
         verificationBytesRead: number(evaluationVerification?.bytes_read),
         blockedReasonCounts: evaluationConflicts.reasonCounts,
         blockedFactCounts: evaluationConflicts.factCounts,
@@ -440,7 +445,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         releaseEligibleFixtures: number(evaluationCandidates?.release_eligible),
         providerRequests: 0,
         spendUsd: 0,
-        nextAction: number(evaluationCandidates?.verification_pending) === 0 ? "Review the five metadata-binding incidents, collect missing rights evidence and owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset." : "Verify R2 bytes, recompute checksums, reconcile provenance and rights, collect owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset.",
+        nextAction: number(evaluationCandidates?.verification_pending) === 0 && number(evaluationCandidates?.verification_blocked) === 0 ? "Collect the 68 missing rights receipts and owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset." : number(evaluationCandidates?.verification_pending) === 0 ? "Review unresolved metadata-binding incidents, collect missing rights evidence and owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset." : "Verify R2 bytes, recompute checksums, reconcile provenance and rights, collect owner-confirmed defect labels, then remove duplicate and correlated revisions before sealing any dataset.",
       },
       readiness: [
         { id: "EFFECTIVE_PROJECTION", label: "Effective production state", passed: true, evidence: `${effectiveLabels[effectiveState]} projected from canonical evidence`, owningStages: ["00"] },

@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_3_PHASE_4_DISPOSITION_SOURCE_READY__PRODUCTION_MIGRATION_NEXT`
+**Current source classification:** `WAVE_3_PHASE_5_METADATA_REBIND_SOURCE_READY__PRODUCTION_MIGRATION_NEXT`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -42,7 +42,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Verified fixtures, gold-eligible fixtures, sealed datasets and release-eligible fixtures remain zero. Production provider totals remain 56 historical requests, zero active and `$13.247131145833333`; corpus verification added zero requests and zero spend. M0 Safety Scope is still `NOT_EVALUATED` and Golden r10 remains ineligible.
 - The next protected action is to investigate the 12 blocked candidates, collect 63 rights receipts and owner-confirmed labels, then de-duplicate/correlation-control the corpus before any dataset is sealed or assurance provider is called.
 - Sites v399 activated blocked-evidence diagnostic v1. Sites v400 field-fact read-back proves seven source/object hash and byte-size divergences plus five checksum-PASS metadata-only binding conflicts. Rights bases are eight incomplete-authorship and four missing-provider-terms records; no identifiers, hashes, byte values or raw metadata are exposed.
-- Migration `0054` and `EVALUATION_EVIDENCE_DISPOSITION_V1` are source-ready: append twelve immutable incidents, quarantine seven byte-divergent candidates as `EXCLUDED`, retain five metadata-only candidates as `BLOCKED`, and preserve every R2 object, D1 artifact and verification receipt. Production migration/read-back is pending.
+- Sites v401 applied migration `0054`: 12 immutable incidents, 7 immutable quarantine dispositions, 7 candidates `EXCLUDED` and 5 metadata-only clips still `BLOCKED`. Provider slice stayed zero; global totals remain 56 historical requests, zero active and `$13.247131145833333`; all release locks remain closed.
+- Migration `0055` and `METADATA_BINDING_RECONCILIATION_V1` are source-ready. They accept only a unique exact storage-key/hash rebind with matching package, bytes, hash, engine and zero-legacy provenance. Expected production result is 5 append-only receipts, zero technical blocks and 68 rights-pending candidates; no rights, label, gold, dataset or release authority is created.
 - `OWNER_STANDING_PRODUCTION_AUTHORITY_V1` permits future roadmap-bounded deploy, migration, production QA and provider calls without repeated chat confirmation, but never bypasses capability/settings, budget, rights, safety, idempotency or fencing gates and does not authorize publish/delete/weaken actions.
 
 ## Protected no-rerun list

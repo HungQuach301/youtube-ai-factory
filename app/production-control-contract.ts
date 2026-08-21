@@ -142,10 +142,12 @@ export type SequentialProductionProjection = {
       rightsPending: number;
       verificationBlocked: number;
       verificationExcluded: number;
+      evidenceIncidents: number;
       openEvidenceIncidents: number;
       byteDivergenceIncidents: number;
       metadataReviewRequired: number;
       quarantinedCandidates: number;
+      metadataBindingsAccepted: number;
       verificationBytesRead: number;
       blockedReasonCounts: Array<{ key: string; count: number }>;
       blockedFactCounts: Array<{ key: string; count: number }>;

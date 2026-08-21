@@ -239,3 +239,46 @@ test("migration 0054 quarantines byte-divergent evidence and retains metadata-on
   assert.throws(() => db.prepare("DELETE FROM v7_evaluation_candidate_dispositions").run(), /EVALUATION_CANDIDATE_DISPOSITION_IMMUTABLE/);
   assert.throws(() => db.prepare("UPDATE v7_evaluation_evidence_incidents SET incident_state='OPEN'").run(), /EVALUATION_EVIDENCE_INCIDENT_IMMUTABLE/);
 });
+
+test("migration 0055 accepts only a unique exact storage-hash metadata rebind and keeps rights pending", () => {
+  const migration = read("drizzle/0055_evaluation_metadata_binding_reconciliation.sql");
+  for (const table of ["v7_evaluation_metadata_binding_receipts", "v7_evaluation_incident_resolutions"]) assert.match(migration, new RegExp(table));
+  assert.match(migration, /METADATA_BINDING_RECONCILIATION_V1/);
+  assert.match(migration, /UNIQUE_STORAGE_HASH_REBIND_VERIFIED/);
+  assert.match(migration, /NOT EXISTS \(SELECT 1 FROM production_v2_artifacts other/);
+  assert.doesNotMatch(migration, /DELETE FROM|api\.openai\.com|elevenlabs\.io/);
+
+  const db = new DatabaseSync(":memory:");
+  const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
+  const dispositionIndex = migrations.indexOf("0054_evaluation_evidence_disposition.sql");
+  for (const file of migrations.slice(0, dispositionIndex)) db.exec(read(`drizzle/${file}`));
+  db.exec("PRAGMA foreign_keys=OFF");
+  db.prepare(`INSERT INTO production_v2_packages
+    (id,channel_id,policy_id,source_brief_id,episode_concept_id,title,lifecycle_state,target_duration_seconds,shot_count,content_hash)
+    VALUES ('package-0055','channel-test','policy-test','brief-0055','episode-0055','Metadata fixture','REJECTED_QUALITY',600,1,?)`).run("d".repeat(64));
+  db.prepare(`INSERT INTO production_v2_artifacts
+    (id,package_id,artifact_type,storage_key,mime_type,byte_size,sha256,rights_state,provenance_json,engine_version)
+    VALUES ('source-0055','package-0055','VISUAL_FRAME','r2/0055.svg','image/svg+xml',10,?,'CHANNEL_OWNED_OR_PROVIDER_COMMERCIAL','{"author":"engine","legacySources":0}','ENGINE-V1')`).run("e".repeat(64));
+  db.exec("PRAGMA foreign_keys=ON");
+  db.prepare(`INSERT INTO v7_evaluation_verification_runs
+    (id,channel_id,foundation_version,policy_version,idempotency_key,intent_hash,candidate_ids_json,maximum_candidates,maximum_object_bytes,planned_candidates,actor)
+    VALUES ('run-0055','channel-test','EVALUATION_FOUNDATION_V1','CORPUS_VERIFICATION_POLICY_V1','0055-idempotency','0055-intent','["candidate-0055"]',20,100000000,1,'owner')`).run();
+  db.prepare(`INSERT INTO v7_evaluation_candidates
+    (id,channel_id,source_family,source_table,source_id,candidate_kind,artifact_type,storage_key,mime_type,byte_size,content_hash,bytes_state,checksum_state,provenance_state,rights_verification_state,correlation_group,verification_state)
+    VALUES ('candidate-0055','channel-test','PRODUCTION_V2_REJECTED','production_v2_artifacts','source-0055','CLIP','VISUAL_FRAME','r2/0055.svg','image/svg+xml',10,?,'READBACK_VERIFIED','PASS','FAIL','RECEIPT_REQUIRED','package-0055','BLOCKED')`).run("e".repeat(64));
+  db.prepare(`INSERT INTO v7_evaluation_verification_receipts
+    (id,run_id,candidate_id,source_artifact_id,storage_key,declared_hash,computed_hash,declared_bytes,actual_bytes,bytes_state,checksum_state,provenance_state,rights_verification_state,rights_basis,object_metadata_json,reconciliation_reasons_json,evidence_hash)
+    VALUES ('receipt-0055','run-0055','candidate-0055','source-0055','r2/0055.svg',?,?,10,10,'READBACK_VERIFIED','PASS','FAIL','RECEIPT_REQUIRED','AUTHORSHIP_EVIDENCE_INCOMPLETE',?,'["R2_OBJECT_METADATA_MISMATCH","AUTHORSHIP_EVIDENCE_INCOMPLETE"]','evidence-0055')`)
+    .run("e".repeat(64), "e".repeat(64), JSON.stringify({ artifactId: "stale-artifact-id", packageId: "package-0055", sha256: "e".repeat(64), engineVersion: "ENGINE-V1" }));
+  db.prepare("UPDATE v7_evaluation_candidates SET latest_verification_receipt_id='receipt-0055' WHERE id='candidate-0055'").run();
+  db.exec(read("drizzle/0054_evaluation_evidence_disposition.sql"));
+  db.exec(migration);
+
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM v7_evaluation_metadata_binding_receipts").get().count, 1);
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM v7_evaluation_incident_resolutions").get().count, 1);
+  assert.deepEqual({ ...db.prepare("SELECT provenance_state,rights_verification_state,verification_state,lifecycle_state FROM v7_evaluation_candidates WHERE id='candidate-0055'").get() }, {
+    provenance_state: "PASS", rights_verification_state: "RECEIPT_REQUIRED", verification_state: "PARTIAL_RIGHTS_PENDING", lifecycle_state: "CANDIDATE_EVIDENCE",
+  });
+  assert.throws(() => db.prepare("DELETE FROM v7_evaluation_metadata_binding_receipts").run(), /EVALUATION_METADATA_BINDING_RECEIPT_IMMUTABLE/);
+  assert.throws(() => db.prepare("UPDATE v7_evaluation_incident_resolutions SET actor='other'").run(), /EVALUATION_INCIDENT_RESOLUTION_IMMUTABLE/);
+});

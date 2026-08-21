@@ -76,6 +76,7 @@ When facts conflict, use this order:
 | Wave 3 corpus-verification production acceptance | [`continuity/48_WAVE_3_CORPUS_VERIFICATION_PRODUCTION_ACCEPTANCE.md`](continuity/48_WAVE_3_CORPUS_VERIFICATION_PRODUCTION_ACCEPTANCE.md) |
 | Wave 3 blocked-evidence diagnostic source evidence | [`continuity/49_WAVE_3_BLOCKED_EVIDENCE_DIAGNOSTIC_EXECUTION_RECORD.md`](continuity/49_WAVE_3_BLOCKED_EVIDENCE_DIAGNOSTIC_EXECUTION_RECORD.md) |
 | Wave 3 evidence-disposition source evidence | [`continuity/50_WAVE_3_EVIDENCE_DISPOSITION_EXECUTION_RECORD.md`](continuity/50_WAVE_3_EVIDENCE_DISPOSITION_EXECUTION_RECORD.md) |
+| Wave 3 metadata-binding reconciliation evidence | [`continuity/51_WAVE_3_METADATA_BINDING_RECONCILIATION_EXECUTION_RECORD.md`](continuity/51_WAVE_3_METADATA_BINDING_RECONCILIATION_EXECUTION_RECORD.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

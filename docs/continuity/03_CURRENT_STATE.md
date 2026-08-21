@@ -2,11 +2,30 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Wave 3 metadata-binding reconciliation source checkpoint — 2026-08-21
+
+```text
+RECONCILIATION_POLICY = METADATA_BINDING_RECONCILIATION_V1
+SCHEMA = MIGRATION_0055_PENDING_PRODUCTION
+PRODUCTION_BASIS = SITES_V401__5_METADATA_ONLY_BLOCKED_CLIPS
+REQUIRED_BINDING = UNIQUE_STORAGE_HASH__EXACT_PACKAGE_BYTES_HASH_ENGINE__ZERO_LEGACY
+EXPECTED_METADATA_REBINDS = 5
+EXPECTED_BLOCKED_AFTER_MIGRATION = 0
+EXPECTED_RIGHTS_PENDING_AFTER_MIGRATION = 68
+RIGHTS_MUTATIONS = 0
+FIXTURE_PROMOTIONS = 0
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+NEXT_PROTECTED_ACTION = DEPLOY_0055_AND_VERIFY_ZERO_BLOCKED__68_RIGHTS_PENDING
+```
+
+Source migration `0055` appends a metadata-binding receipt and incident resolution only for a byte-exact candidate whose storage-key/hash pair uniquely identifies its source row and whose package, hash, byte size, engine and zero-legacy provenance all agree. It changes only provenance and verification projections; rights remain receipt-required. Document 51 and ADR-084 are authoritative.
+
 ## Wave 3 evidence disposition source checkpoint — 2026-08-21
 
 ```text
 DISPOSITION_POLICY = EVALUATION_EVIDENCE_DISPOSITION_V1
-SCHEMA = MIGRATION_0054_PENDING_PRODUCTION
+SCHEMA = MIGRATION_0054_PRODUCTION_ACTIVE_SITES_V401
 PRODUCTION_BASIS = SITES_V400_FIELD_FACT_READBACK
 BYTE_DIVERGENT_TARGET = 7_QUARANTINE_EVALUATION_ONLY
 METADATA_ONLY_TARGET = 5_RETAIN_BLOCKED_FOR_REVIEW
@@ -16,10 +35,15 @@ RECEIPT_REWRITES = 0
 FIXTURE_PROMOTIONS = 0
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-NEXT_PROTECTED_ACTION = DEPLOY_0054_AND_VERIFY_7_EXCLUDED__5_BLOCKED
+PRODUCTION_INCIDENTS = 12
+PRODUCTION_QUARANTINED = 7
+PRODUCTION_METADATA_REVIEW = 5
+PRODUCTION_BLOCKED = 5
+PRODUCTION_EXCLUDED = 7
+NEXT_PROTECTED_ACTION = APPLY_METADATA_BINDING_RECONCILIATION_0055
 ```
 
-Source migration `0054` records twelve immutable incidents, writes quarantine dispositions only for the seven candidates whose declared source bytes diverge from the recomputed R2 object, and changes only those candidate projections to `EXCLUDED`. The five checksum-PASS metadata-binding conflicts remain `BLOCKED`. Document 50 and ADR-083 define this fail-closed split.
+Sites v401 applied migration `0054` exactly: twelve immutable incidents, seven immutable quarantine dispositions and seven `EXCLUDED` candidates; five checksum-PASS metadata-binding conflicts remain `BLOCKED`. R2 objects and losing receipts remain intact. Provider/spend and release locks did not change. Document 50 and ADR-083 define this fail-closed split.
 
 ## Wave 3 blocked-evidence diagnostic production checkpoint — 2026-08-21
 

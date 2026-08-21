@@ -19,7 +19,8 @@
 - Wave 3 Evaluation Foundation phase 1: production-runtime accepted in Sites v393.
 - Wave 3 corpus verification: production-accepted through Sites v397; all 595 candidates were read back, with 12 blocked and 63 rights-pending retained for evidence repair.
 - Wave 3 blocked-evidence diagnostics: v2 production-active in Sites v400; seven source/object byte divergences and five metadata-only conflicts are proven.
-- Wave 3 evidence disposition: migration `0054` is source-ready to quarantine the seven byte-divergent candidates and retain the five metadata-only candidates for append-only review.
+- Wave 3 evidence disposition: migration `0054` is production-active in Sites v401 with exactly 7 quarantined and 5 metadata-only blocked candidates.
+- Wave 3 metadata reconciliation: migration `0055` is source-ready to accept only unique exact storage/hash rebinds and keep rights fail-closed.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -82,7 +83,7 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
-Status: `PHASE_4_DISPOSITION_SOURCE_READY__PRODUCTION_MIGRATION_NEXT`.
+Status: `PHASE_5_METADATA_REBIND_SOURCE_READY__PRODUCTION_MIGRATION_NEXT`.
 
 Scope:
 
@@ -102,7 +103,9 @@ Phase 2 production evidence: Sites v395 activated migration `0053`; v396 and v39
 
 Phase 3 diagnostics aggregate the latest immutable receipt for each blocked candidate. Sites v399 reported 12 R2 metadata conflicts, including seven byte-size/checksum failures. Sites v400 proved seven source-hash/object-byte and source-size/object-size divergences; the other five are checksum-PASS metadata-binding failures. It also resolved the rights bases to eight incomplete-authorship and four missing-provider-terms records. Identifiers, storage keys, hashes, byte values and object metadata remain server-side; diagnostic work used zero provider request and zero spend.
 
-Phase 4 source adds migration `0054` and `EVALUATION_EVIDENCE_DISPOSITION_V1`. It creates immutable incidents for all twelve, immutable quarantine dispositions for the seven byte-divergent candidates, changes only those candidate projections to `EXCLUDED`, and retains the five metadata-only candidates as `BLOCKED`. It deletes no object or evidence, rewrites no receipt, promotes no fixture and cannot create release eligibility. Production migration and exact 7/5 read-back are the next gate.
+Phase 4 adds migration `0054` and `EVALUATION_EVIDENCE_DISPOSITION_V1`. Sites v401 production acceptance reports twelve incidents, seven immutable quarantine dispositions, seven `EXCLUDED` and five metadata-review `BLOCKED` candidates. It deleted no object or evidence, rewrote no receipt, promoted no fixture and changed no provider/spend or release lock.
+
+Phase 5 source adds migration `0055` and `METADATA_BINDING_RECONCILIATION_V1`. It can append a provenance rebind only when a present stale artifact ID is the sole conflict and the unique storage-key/hash source, package, bytes, hash, engine and zero-legacy facts all agree. Acceptance moves only provenance/verification to PASS/rights-pending. Expected production result is five receipts, zero technical blocks, seven quarantined and 68 rights-pending; all gold, dataset and release counts remain zero.
 
 ## Wave 4 — Upstream and technical standards
 

@@ -36,8 +36,10 @@ The seven byte-divergent candidate projections become `EXCLUDED` with reason `DE
 - Migration replay covers one byte-divergent and one metadata-only fixture.
 - Immutability triggers reject incident update and disposition delete.
 - Changed-scope ESLint: PASS.
-- Production migration/read-back: pending checkpoint.
+- Production migration/read-back: PASS in Sites v401.
+- Exact result: 12 incidents, 7 quarantine dispositions, 7 `EXCLUDED`, 5 metadata-review `BLOCKED`.
+- Provider slice: zero request and zero spend; global totals unchanged at 56 historical requests, zero active and `$13.247131145833333`.
 
 ## Next gate
 
-Deploy migration `0054`, verify exactly seven quarantined candidates and five retained metadata-review candidates, and confirm provider/spend and every release lock remain unchanged. Then define the append-only metadata re-adjudication receipt before collecting rights evidence or owner defect labels.
+Deploy the strict append-only metadata rebind for the five checksum-valid candidates. Rights evidence and owner defect labels remain later gates.
