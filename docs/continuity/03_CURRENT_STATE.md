@@ -2,6 +2,24 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
+## Wave 3 blocked-evidence diagnostic source checkpoint — 2026-08-21
+
+```text
+DIAGNOSTIC_POLICY = IMMUTABLE_RECEIPT_AGGREGATION_V1
+SOURCE = IMPLEMENTED_TESTED
+BLOCKED_TARGET = 12_CANDIDATES
+OUTPUT = SANITIZED_REASON_STATE_KIND_COUNTS
+STORAGE_KEYS_AND_HASHES_EXPOSED = 0
+CANDIDATE_MUTATIONS = 0
+FIXTURE_PROMOTIONS = 0
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+PRODUCTION_RUNTIME = PENDING_CHECKPOINT_AND_LIVE_READBACK
+NEXT_PROTECTED_ACTION = DEPLOY_DIAGNOSTIC_AND_CLASSIFY_EXACT_BLOCKED_CAUSES
+```
+
+The source now derives blocked-evidence reason, state and candidate-kind counts only from each candidate's latest immutable verification receipt. Unknown reason text is collapsed to a safe category; storage keys, object metadata, hashes and source IDs are not exposed in the operator projection. This diagnostic creates no repair authority. Document 49 records the source evidence and ADR-082 fixes the rule that a diagnostic may select a repair lane but may never rewrite the losing receipt.
+
 ## Wave 3 corpus verification production acceptance — 2026-08-21
 
 ```text

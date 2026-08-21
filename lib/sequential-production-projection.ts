@@ -9,6 +9,7 @@ import {
 } from "@/lib/video-quality-standard";
 import { deriveRootStageKeys } from "@/lib/first-pass-quality-projection";
 import { FP3_GOLDEN_CONTRACT_SUMMARY } from "@/lib/first-pass-shot-cue-program";
+import { summarizeCorpusEvidenceConflicts } from "@/lib/evaluation-foundation";
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null> };
@@ -189,7 +190,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   if (!current) throw new Error("EXCLUSIVE_ACTIVE_VIDEO_NOT_FOUND");
   const stages = await rows(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? ORDER BY sequence", current.id);
   const activeStage = stages.find((stage) => ["READY","RUNNING","REPAIR_REQUIRED","ESCALATED"].includes(text(stage.lifecycle_state))) ?? stages[0];
-  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationVerification, evaluationDefects, evaluationDatasets] = await Promise.all([
+  const [standardRows, evidenceRows, goldenSequence, budgetPlan, requestSummary, capabilityRows, archetypeRows, fixtureRows, qualificationRows, requirementRows, contractRows, evaluationComponents, evaluationSources, evaluationCandidates, evaluationVerification, evaluationDefects, evaluationDatasets, evaluationBlockedRows] = await Promise.all([
     rows(db, "SELECT * FROM v7_video_quality_standards WHERE standard_version=? AND active=1 ORDER BY scope,id", VIDEO_QUALITY_STANDARD_VERSION),
     rows(db, "SELECT * FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? ORDER BY created_at,evaluation_number", current.id, VIDEO_QUALITY_STANDARD_VERSION),
     db.prepare("SELECT * FROM v7_golden_sequences WHERE queue_id=? AND standard_version=? ORDER BY revision DESC LIMIT 1").bind(current.id, VIDEO_QUALITY_STANDARD_VERSION).first<Row>(),
@@ -207,7 +208,16 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
     db.prepare("SELECT COUNT(*) runs,COALESCE(SUM(bytes_read),0) bytes_read,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend FROM v7_evaluation_verification_runs WHERE channel_id=?").bind(channelId).first<Row>(),
     rows(db, "SELECT * FROM v7_evaluation_defect_taxonomy WHERE active=1 ORDER BY severity,defect_key"),
     rows(db, "SELECT * FROM v7_evaluation_datasets ORDER BY dataset_key,dataset_version"),
+    rows(db, `SELECT c.candidate_kind,c.artifact_type,r.bytes_state,r.checksum_state,r.provenance_state,r.reconciliation_reasons_json
+      FROM v7_evaluation_candidates c
+      JOIN v7_evaluation_verification_receipts r ON r.id=c.latest_verification_receipt_id
+      WHERE c.channel_id=? AND c.verification_state='BLOCKED'
+      ORDER BY c.candidate_kind,c.artifact_type`, channelId),
   ]);
+  const evaluationConflicts = summarizeCorpusEvidenceConflicts(evaluationBlockedRows.map((row) => ({
+    candidateKind: text(row.candidate_kind), artifactType: text(row.artifact_type), bytesState: text(row.bytes_state), checksumState: text(row.checksum_state),
+    provenanceState: text(row.provenance_state), reconciliationReasonsJson: text(row.reconciliation_reasons_json),
+  })));
   const goldenAssets = goldenSequence ? await rows(db, "SELECT id,role,temporal_state FROM v7_golden_sequence_assets WHERE golden_sequence_id=? AND role='GOLDEN_MASTER_VIDEO' ORDER BY created_at DESC LIMIT 1", goldenSequence.id) : [];
   const goldenMasterJob = goldenSequence ? await db.prepare("SELECT lifecycle_state,probe_json,scan_json,error_code FROM v7_golden_master_jobs WHERE golden_sequence_id=? AND revision=? LIMIT 1").bind(goldenSequence.id, goldenSequence.revision).first<Row>() : null;
   const goldenAssetUrl = (role: string) => { const asset = goldenAssets.find((item) => text(item.role) === role); return asset ? `/api/factory/sequential-production/quality?asset=${encodeURIComponent(text(asset.id))}` : undefined; };
@@ -404,6 +414,9 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         rightsPending: number(evaluationCandidates?.rights_pending),
         verificationBlocked: number(evaluationCandidates?.verification_blocked),
         verificationBytesRead: number(evaluationVerification?.bytes_read),
+        blockedReasonCounts: evaluationConflicts.reasonCounts,
+        blockedStateCounts: evaluationConflicts.stateCounts,
+        blockedKindCounts: evaluationConflicts.kindCounts,
         defectFamilies: evaluationDefects.length,
         p0DefectFamilies: evaluationDefects.filter((item) => text(item.severity) === "P0").length,
         sealedDatasets: evaluationDatasets.filter((item) => text(item.lifecycle_state) === "SEALED").length,

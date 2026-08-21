@@ -10,6 +10,7 @@ import {
   evaluateCandidateVerification,
   reconcileCorpusArtifactEvidence,
   standingAuthorityCovers,
+  summarizeCorpusEvidenceConflicts,
   summarizeEvaluationInventory,
 } from "../lib/evaluation-foundation.ts";
 
@@ -148,6 +149,22 @@ test("migration 0052 inventories rejected artifacts as unverified non-release ev
   assert.throws(() => db.prepare("UPDATE v7_evaluation_candidates SET release_eligible=1 WHERE id='evaluation-candidate:historical-a'").run(), /CHECK constraint failed/);
 });
 
+test("blocked corpus diagnostics aggregate sanitized immutable receipt conflicts", () => {
+  const summary = summarizeCorpusEvidenceConflicts([
+    { candidateKind: "SHOT", bytesState: "READBACK_VERIFIED", checksumState: "FAIL", provenanceState: "FAIL", reconciliationReasonsJson: '["CHECKSUM_MISMATCH","R2_OBJECT_METADATA_MISMATCH"]' },
+    { candidateKind: "SHOT", bytesState: "READBACK_VERIFIED", checksumState: "PASS", provenanceState: "FAIL", reconciliationReasonsJson: '["R2_OBJECT_METADATA_MISMATCH"]' },
+    { candidateKind: "AUDIO", bytesState: "READBACK_VERIFIED", checksumState: "FAIL", provenanceState: "FAIL", reconciliationReasonsJson: '["UNRECOGNIZED_DETAIL"]' },
+  ]);
+  assert.equal(summary.blockedCandidates, 3);
+  assert.deepEqual(summary.reasonCounts, [
+    { key: "R2_OBJECT_METADATA_MISMATCH", count: 2 },
+    { key: "CHECKSUM_MISMATCH", count: 1 },
+    { key: "UNKNOWN_RECONCILIATION_REASON", count: 1 },
+  ]);
+  assert.deepEqual(summary.kindCounts, [{ key: "SHOT", count: 2 }, { key: "AUDIO", count: 1 }]);
+  assert.equal(summary.stateCounts.length, 2);
+});
+
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {
   const migration = read("drizzle/0053_evaluation_corpus_verification.sql");
   for (const table of ["v7_evaluation_verification_runs", "v7_evaluation_verification_receipts"]) assert.match(migration, new RegExp(table));
@@ -164,12 +181,16 @@ test("migration 0053 adds bounded zero-spend verification runs and durable recei
     VALUES ('bad','channel','EVALUATION_FOUNDATION_V1','CORPUS_VERIFICATION_POLICY_V1','key','hash','[]',20,100000000,0,1,0,'owner')`).run(), /CHECK constraint failed/);
   const route = read("app/api/factory/sequential-production/evaluation/route.ts");
   assert.match(route, /RUN_CORPUS_VERIFICATION_BATCH/);
+  assert.match(route, /summarizeCorpusEvidenceConflicts/);
   assert.match(route, /CORPUS_VERIFICATION_MAXIMUM_BATCH/);
   assert.match(route, /x-sequential-executor-token/);
   assert.doesNotMatch(route, /authorizeProductionDispatch|api\.openai\.com|elevenlabs\.io/);
   const control = read("app/video-engine/corpus-verification-control.tsx");
+  const triage = read("app/video-engine/corpus-evidence-triage.tsx");
   assert.match(control, /corpus-form:pending-\$\{initial\.pending\}/);
   assert.match(route, /searchParams\.set\("corpusPending", String\(corpus\.pending\)\)/);
   assert.match(route, /status: 303, headers: \{ \.\.\.NO_STORE, location: destination\.toString\(\) \}/);
   assert.doesNotMatch(control, /randomUUID/);
+  assert.match(triage, /Receipts remain immutable/);
+  assert.doesNotMatch(triage, /storage_key|computed_hash|source_artifact_id/);
 });

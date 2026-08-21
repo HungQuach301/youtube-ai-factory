@@ -6,6 +6,7 @@ import {
   CORPUS_VERIFICATION_POLICY_VERSION,
   EVALUATION_FOUNDATION_VERSION,
   reconcileCorpusArtifactEvidence,
+  summarizeCorpusEvidenceConflicts,
 } from "@/lib/evaluation-foundation";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +46,7 @@ async function authorized(request: Request) {
 }
 
 async function projection(db: DB) {
-  const [candidate, runSummary, latestRuns] = await Promise.all([
+  const [candidate, runSummary, latestRuns, blockedRows] = await Promise.all([
     first(db, `SELECT COUNT(*) candidates,
       COALESCE(SUM(CASE WHEN verification_state='PENDING' THEN 1 ELSE 0 END),0) pending,
       COALESCE(SUM(CASE WHEN bytes_state='READBACK_VERIFIED' THEN 1 ELSE 0 END),0) byte_verified,
@@ -57,13 +58,23 @@ async function projection(db: DB) {
       FROM v7_evaluation_candidates WHERE channel_id=?`, CHANNEL_ID),
     first(db, "SELECT COUNT(*) runs,COALESCE(SUM(provider_requests),0) provider_requests,COALESCE(SUM(spend_usd),0) spend_usd,COALESCE(SUM(bytes_read),0) bytes_read FROM v7_evaluation_verification_runs WHERE channel_id=?", CHANNEL_ID),
     rows(db, "SELECT id,lifecycle_state,planned_candidates,processed_candidates,byte_verified_candidates,checksum_pass_candidates,provenance_pass_candidates,rights_pass_candidates,blocked_candidates,bytes_read,created_at,completed_at FROM v7_evaluation_verification_runs WHERE channel_id=? ORDER BY created_at DESC LIMIT 10", CHANNEL_ID),
+    rows(db, `SELECT c.candidate_kind,c.artifact_type,r.bytes_state,r.checksum_state,r.provenance_state,r.reconciliation_reasons_json
+      FROM v7_evaluation_candidates c
+      JOIN v7_evaluation_verification_receipts r ON r.id=c.latest_verification_receipt_id
+      WHERE c.channel_id=? AND c.verification_state='BLOCKED'
+      ORDER BY c.candidate_kind,c.artifact_type`, CHANNEL_ID),
   ]);
+  const conflicts = summarizeCorpusEvidenceConflicts(blockedRows.map((row) => ({
+    candidateKind: clean(row.candidate_kind), artifactType: clean(row.artifact_type), bytesState: clean(row.bytes_state), checksumState: clean(row.checksum_state),
+    provenanceState: clean(row.provenance_state), reconciliationReasonsJson: clean(row.reconciliation_reasons_json),
+  })));
   return {
     foundationVersion: EVALUATION_FOUNDATION_VERSION,
     policyVersion: CORPUS_VERIFICATION_POLICY_VERSION,
     state: number(candidate?.pending) > 0 ? "CORPUS_VERIFICATION_ACTIVE" : "CORPUS_BYTE_RECONCILIATION_COMPLETE",
     candidates: number(candidate?.candidates), pending: number(candidate?.pending), byteVerified: number(candidate?.byte_verified), checksumPass: number(candidate?.checksum_pass), provenancePass: number(candidate?.provenance_pass), rightsPass: number(candidate?.rights_pass), rightsPending: number(candidate?.rights_pending), blocked: number(candidate?.blocked),
-    runs: number(runSummary?.runs), bytesRead: number(runSummary?.bytes_read), providerRequests: number(runSummary?.provider_requests), spendUsd: number(runSummary?.spend_usd), latestRuns,
+    runs: number(runSummary?.runs), bytesRead: number(runSummary?.bytes_read), providerRequests: number(runSummary?.provider_requests), spendUsd: number(runSummary?.spend_usd),
+    blockedReasonCounts: conflicts.reasonCounts, blockedStateCounts: conflicts.stateCounts, blockedKindCounts: conflicts.kindCounts, latestRuns,
   };
 }
 

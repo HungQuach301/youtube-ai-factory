@@ -3,6 +3,22 @@ export const CORPUS_VERIFICATION_POLICY_VERSION = "CORPUS_VERIFICATION_POLICY_V1
 export const CORPUS_VERIFICATION_MAXIMUM_BATCH = 20 as const;
 export const CORPUS_VERIFICATION_MAXIMUM_OBJECT_BYTES = 100_000_000 as const;
 
+export type CorpusEvidenceConflict = {
+  candidateKind?: string;
+  artifactType?: string;
+  bytesState?: string;
+  checksumState?: string;
+  provenanceState?: string;
+  reconciliationReasonsJson?: string;
+};
+
+export type CorpusEvidenceConflictSummary = {
+  blockedCandidates: number;
+  reasonCounts: Array<{ key: string; count: number }>;
+  stateCounts: Array<{ key: string; count: number }>;
+  kindCounts: Array<{ key: string; count: number }>;
+};
+
 export type CorpusArtifactEvidence = {
   candidateId: string;
   sourceArtifactId: string;
@@ -23,6 +39,26 @@ export type CorpusArtifactEvidence = {
 
 const clean = (value: unknown) => String(value ?? "").trim();
 const acceptedRightsDeclarations = new Set(["CHANNEL_OWNED_OR_PROVIDER_COMMERCIAL", "CHANNEL_OWNED_ORIGINAL", "COMMERCIAL_LICENSE_VERIFIED"]);
+const knownConflictReasons = new Set([
+  "OBJECT_MISSING", "OBJECT_SIZE_LIMIT_EXCEEDED", "BYTE_SIZE_MISMATCH", "DECLARED_HASH_MISSING", "CHECKSUM_MISMATCH",
+  "PROVENANCE_JSON_INVALID", "LEGACY_SOURCE_ISOLATION_UNPROVEN", "R2_OBJECT_METADATA_MISMATCH",
+]);
+
+const increment = (target: Map<string, number>, key: string) => target.set(key, (target.get(key) ?? 0) + 1);
+const rankedCounts = (source: Map<string, number>) => [...source.entries()].map(([key, count]) => ({ key, count })).sort((left, right) => right.count - left.count || left.key.localeCompare(right.key));
+
+export function summarizeCorpusEvidenceConflicts(rows: CorpusEvidenceConflict[]): CorpusEvidenceConflictSummary {
+  const reasons = new Map<string, number>(), states = new Map<string, number>(), kinds = new Map<string, number>();
+  for (const row of rows) {
+    const parsedReasons = (() => { try { const value = JSON.parse(clean(row.reconciliationReasonsJson)); return Array.isArray(value) ? value : []; } catch { return []; } })();
+    const normalizedReasons = parsedReasons.map(clean).filter(Boolean);
+    if (normalizedReasons.length === 0) increment(reasons, "RECONCILIATION_REASON_MISSING");
+    for (const reason of normalizedReasons) increment(reasons, knownConflictReasons.has(reason) ? reason : "UNKNOWN_RECONCILIATION_REASON");
+    increment(states, `${clean(row.bytesState) || "UNKNOWN_BYTES"}/${clean(row.checksumState) || "UNKNOWN_CHECKSUM"}/${clean(row.provenanceState) || "UNKNOWN_PROVENANCE"}`);
+    increment(kinds, clean(row.candidateKind) || "UNKNOWN_KIND");
+  }
+  return { blockedCandidates: rows.length, reasonCounts: rankedCounts(reasons), stateCounts: rankedCounts(states), kindCounts: rankedCounts(kinds) };
+}
 
 export function reconcileCorpusArtifactEvidence(input: CorpusArtifactEvidence) {
   const reasons: string[] = [];

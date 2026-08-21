@@ -45,6 +45,8 @@ Migration `0052_evaluation_foundation.sql` adds:
 
 Migration `0053_evaluation_corpus_verification.sql` adds bounded, idempotent verification runs and durable per-candidate receipts. `CORPUS_VERIFICATION_POLICY_V1` limits each runtime batch to 20 candidates and 100,000,000 bytes per object, binds recomputed bytes to source-artifact and R2 metadata, and database-constrains the verification plane to zero provider requests and zero spend.
 
+Blocked-evidence diagnostics aggregate only the latest immutable receipt bound to each blocked candidate. The public/operator projection may expose allowlisted reason codes, state combinations and candidate-kind counts. It must not expose source IDs, storage keys, hashes, raw object metadata or arbitrary receipt text. Diagnostics create no authority to repair, relabel, exclude, promote or release a candidate.
+
 D1 stores evidence state, relationships, decisions and metrics. R2 remains authoritative for media bytes. Migration backfill copies declared metadata but deliberately leaves byte, checksum, provenance, rights and labels unverified.
 
 ## Defect taxonomy
@@ -86,4 +88,4 @@ Production byte reconciliation is complete under `CORPUS_VERIFICATION_POLICY_V1`
 
 ## Next phase
 
-Investigate the 12 blocked candidates without rewriting their receipts, collect explicit evidence for the 63 rights-pending candidates, and bind owner-confirmed defect labels. Then de-duplicate and remove correlated revisions before partitioning independent fixtures. No dataset may be sealed and no assurance provider may be called until those gates pass.
+Deploy the sanitized diagnostic and read back the exact reason/state/kind distribution for the 12 blocked candidates. Select a repair lane only from that production evidence, without rewriting prior receipts. Then collect explicit evidence for the 63 rights-pending candidates and bind owner-confirmed defect labels before correlation control. No dataset may be sealed and no assurance provider may be called until those gates pass.

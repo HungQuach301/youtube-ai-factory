@@ -125,7 +125,7 @@ export type SequentialProductionProjection = {
     };
     evaluationFoundation: {
       version: "EVALUATION_FOUNDATION_V1";
-      state: "CANDIDATE_INVENTORY_ACTIVE" | "CORPUS_VERIFICATION_ACTIVE" | "GOLD_SETS_SEALED";
+      state: "CANDIDATE_INVENTORY_ACTIVE" | "CORPUS_VERIFICATION_ACTIVE" | "CORPUS_BYTE_RECONCILIATION_COMPLETE" | "GOLD_SETS_SEALED";
       componentsDefined: number;
       corpusSources: number;
       candidateArtifacts: number;
@@ -142,6 +142,9 @@ export type SequentialProductionProjection = {
       rightsPending: number;
       verificationBlocked: number;
       verificationBytesRead: number;
+      blockedReasonCounts: Array<{ key: string; count: number }>;
+      blockedStateCounts: Array<{ key: string; count: number }>;
+      blockedKindCounts: Array<{ key: string; count: number }>;
       defectFamilies: number;
       p0DefectFamilies: number;
       sealedDatasets: number;
