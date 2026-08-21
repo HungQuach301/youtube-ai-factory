@@ -39,6 +39,10 @@ No existing receipt, candidate, taxonomy row, correlation assignment or artifact
 - Slice spend: `$0`.
 - Agent-preview browser reached the Video Engine but local D1 intentionally failed closed because canonical Production fixtures are not copied into preview. Therefore no synthetic owner receipt was created and browser interaction on real owner evidence remains a Production verification step.
 
+## Production activation
+
+Sites v416 deployed source commit `5321ca67539c8a8cc534778e883fab7ad1f1a050`. The immutable deployment status is `succeeded` at the canonical Production URL. The post-deploy Worker error query returned zero events. The deployment performed no provider request, created no synthetic receipt and did not alter the owner queue; sample 1 remains open because the original failed request stopped before insertion.
+
 ## Next gate
 
-Deploy the hotfix, verify the exact production version and zero Worker errors, then have the owner reopen the owner-review workflow and resubmit sample 1. The success banner and `Mẫu 2/82` are the human-visible acceptance signals. Do not infer receipt success merely from a button click.
+Have the owner reopen the owner-review workflow and resubmit sample 1. The success banner and `Mẫu 2/82` are the human-visible acceptance signals. Do not infer receipt success merely from a button click.

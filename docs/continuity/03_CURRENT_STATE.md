@@ -12,14 +12,17 @@ ROOT_CAUSE = PRE_NORMALIZED_FORM_LABEL_WITH_UNDEFINED_CONFIDENCE_REACHED_JCS_NFC
 CORRECTION = NOT_APPLICABLE_CONFIDENCE_NULL__ONE_NORMALIZED_INTENT_FOR_HASH_AND_RECEIPT
 ERROR_UX = INLINE_PRESERVE_FORM__HTML_FALLBACK__NO_RAW_JSON
 IDEMPOTENT_REPLAY = REDIRECT_TO_NEXT_SAMPLE
-SOURCE_STATE = IMPLEMENTED__PRODUCTION_PENDING
+SOURCE_STATE = PRODUCTION_ACTIVE_SITES_V416__OWNER_RESUBMISSION_PENDING
 TECHNICAL_QA = PASS_165_OF_165
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-NEXT_PROTECTED_ACTION = DEPLOY_HOTFIX__OWNER_RESUBMIT_SAMPLE_1__VERIFY_SAMPLE_2_OF_82
+PRODUCTION_SOURCE_COMMIT = 5321ca67539c8a8cc534778e883fab7ad1f1a050
+PRODUCTION_DEPLOYMENT = SUCCEEDED
+POST_DEPLOY_WORKER_ERRORS = 0
+NEXT_PROTECTED_ACTION = OWNER_RESUBMIT_SAMPLE_1__VERIFY_SUCCESS_BANNER_AND_SAMPLE_2_OF_82
 ```
 
-The first real owner submission exposed a transport-to-canonical-contract defect: system-owned `NOT_APPLICABLE` labels carried an in-memory `undefined` confidence into request hashing. Canonical JSON correctly rejected it before any receipt was written. The root adapter now emits explicit `null`, transport and evidence share one normalized label set, replay redirects correctly and any future error remains in the form instead of replacing it with raw JSON. Document 57 is the execution record; Production remains unchanged until the checkpoint succeeds.
+The first real owner submission exposed a transport-to-canonical-contract defect: system-owned `NOT_APPLICABLE` labels carried an in-memory `undefined` confidence into request hashing. Canonical JSON correctly rejected it before any receipt was written. The root adapter now emits explicit `null`, transport and evidence share one normalized label set, replay redirects correctly and any future error remains in the form instead of replacing it with raw JSON. Sites v416 deployed exact source `5321ca67539c8a8cc534778e883fab7ad1f1a050`; deployment succeeded and the post-deploy Worker error query is empty. Document 57 is the execution record. The real acceptance step is owner resubmission of sample 1 followed by the durable success banner and sample 2.
 
 ## Mandatory Browser assurance source checkpoint — 2026-08-21
 
