@@ -62,6 +62,7 @@ export function CorpusEvidenceTriage({ blocked, excluded, metadataReview, metada
       <article><small>Field-level fact</small><h3>{facts[0] ? `${facts[0].count} · ${labels[facts[0].key] ?? facts[0].key}` : "No field mismatch"}</h3><p>{facts.slice(1, 4).map((item) => `${item.count} ${labels[item.key] ?? item.key}`).join(" · ") || "No secondary field mismatch"}</p></article>
       <article><small>State / modality</small><h3>{states[0] ? `${states[0].count} · ${states[0].key}` : "No blocked state"}</h3><p>{kinds.map((item) => `${item.count} ${item.key.toLowerCase()}`).join(" · ") || "No blocked candidate kind"}</p></article>
     </div>
-    <iframe style={{ display: "block", width: "calc(100% - 36px)", minHeight: 780, margin: 18, border: "1px solid #35604e", borderRadius: 14, background: "#101f19" }} src="/api/factory/sequential-production/evaluation?view=owner-label-workflow" title="Owner-confirmed corpus labeling" loading="lazy" />
+    <div style={{ display: "flex", justifyContent: "flex-end", margin: "18px 18px 0" }}><a href="/api/factory/sequential-production/evaluation?view=owner-label-workflow" target="_blank" rel="noreferrer" style={{ color: "#9fe0c2", fontSize: 12, fontWeight: 800 }}>Mở màn hình đánh giá toàn trang ↗</a></div>
+    <iframe style={{ display: "block", width: "calc(100% - 36px)", minHeight: 1120, margin: 18, border: "1px solid #35604e", borderRadius: 14, background: "#101f19" }} src="/api/factory/sequential-production/evaluation?view=owner-label-workflow" title="Đánh giá mẫu sản xuất bằng mắt và tai" loading="eager" />
   </section>;
 }

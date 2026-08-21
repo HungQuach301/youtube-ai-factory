@@ -14,6 +14,12 @@ Migration `0058_evaluation_owner_label_workflow.sql` creates immutable task and 
 
 The owner workflow is server-rendered inside the operator surface. It streams the eligible R2 artifact only after SIWC owner authentication, recomputes SHA-256 before playback and rejects changed bytes. Every active defect family must be classified `PRESENT`, `ABSENT` or `NOT_APPLICABLE`. A rejected decision requires at least one present defect; a clean negative forbids all present defects.
 
+## Owner-review usability hardening
+
+`EVALUATION_OWNER_REVIEW_UX_V2` reduces the task to three owner actions: play the full sample, choose one plain-language conclusion and—only when a defect is observed—select the visible/audible problem. The view includes media-specific Vietnamese instructions, completed/remaining progress, friendly defect descriptions, automatic clean/unusable rationale and a full-screen entry point.
+
+Complete-taxonomy coverage remains fail-closed. Only modalities observable from the candidate kind and MIME type appear as owner choices. Rights lineage and master-lineage integrity are system-evidence dimensions, so the form binds them as `NOT_APPLICABLE` to owner playback and the server rejects a fabricated owner verdict on those dimensions. No receipt or existing task is rewritten by this UI hardening.
+
 ## Safety boundary
 
 - Scoped automation credentials cannot view or record owner judgments.
@@ -36,4 +42,4 @@ The owner workflow is server-rendered inside the operator surface. It streams th
 
 ## Next gate
 
-The owner must now classify the 525 eligible tasks through an authenticated ChatGPT Site session. Receipt counts are evidence, not a sealed dataset. Correlation groups and duplicate hashes must be adjudicated before any calibration, qualification or regression split can be sealed. The 63 rights-pending tasks remain on their separate evidence-collection lanes.
+Deploy the usability hardening, then the owner classifies only the 82 actionable primary representatives through an authenticated ChatGPT Site session. Receipt counts are evidence, not a sealed dataset. The 63 rights-pending tasks remain on their separate evidence-collection lanes.

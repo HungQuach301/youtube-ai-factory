@@ -7,6 +7,7 @@ import {
   CORPUS_VERIFICATION_POLICY_VERSION,
   EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION,
   EVALUATION_OWNER_LABEL_POLICY_VERSION,
+  EVALUATION_OWNER_REVIEW_UX_VERSION,
   EVALUATION_CORRELATION_CONTROL_VERSION,
   OWNER_STANDING_AUTHORITY,
   evaluateAuthorshipEvidence,
@@ -15,6 +16,7 @@ import {
   evaluateCompositeRightsEvidence,
   evaluateProviderRightsEvidence,
   evaluateOwnerLabelSubmission,
+  isOwnerObservableDefect,
   evaluateCorrelationAssignments,
   reconcileCorpusArtifactEvidence,
   standingAuthorityCovers,
@@ -253,6 +255,31 @@ test("owner labels bind exact bytes, require full taxonomy coverage and keep dec
   assert.ok(wrongHash.reasons.includes("EXACT_ARTIFACT_HASH_BINDING_REQUIRED"));
 });
 
+test("owner review exposes only defects observable from the candidate media", () => {
+  assert.equal(EVALUATION_OWNER_REVIEW_UX_VERSION, "EVALUATION_OWNER_REVIEW_UX_V2");
+  assert.equal(isOwnerObservableDefect({ defectModality: "AUDIO", candidateKind: "AUDIO", mimeType: "audio/mpeg" }), true);
+  assert.equal(isOwnerObservableDefect({ defectModality: "VISUAL", candidateKind: "AUDIO", mimeType: "audio/mpeg" }), false);
+  assert.equal(isOwnerObservableDefect({ defectModality: "AUDIO_VISUAL", candidateKind: "MASTER", mimeType: "video/webm" }), true);
+  assert.equal(isOwnerObservableDefect({ defectModality: "CONTENT", candidateKind: "MASTER", mimeType: "video/webm" }), true);
+  assert.equal(isOwnerObservableDefect({ defectModality: "PACKAGING", candidateKind: "PACKAGING", mimeType: "image/png" }), true);
+  assert.equal(isOwnerObservableDefect({ defectModality: "RIGHTS", candidateKind: "MASTER", mimeType: "video/webm" }), false);
+  assert.equal(isOwnerObservableDefect({ defectModality: "MASTER", candidateKind: "MASTER", mimeType: "video/webm" }), false);
+
+  const scopedInput = {
+    taskArtifactHash: "a".repeat(64), expectedArtifactHash: "a".repeat(64), rightsVerificationState: "PASS",
+    verificationState: "EVIDENCE_VERIFIED", lifecycleState: "CANDIDATE_EVIDENCE", releaseEligible: false,
+    decisionState: "REJECTED_DEFECT_PRESENT", rationale: "Audible seam at 00:42 during owner playback.",
+    activeDefectKeys: ["AUDIO_SEAM", "RIGHTS_LINEAGE_MISSING"], ownerObservableDefectKeys: ["AUDIO_SEAM"],
+    labels: [{ defectKey: "AUDIO_SEAM", status: "PRESENT", confidence: 1 }, { defectKey: "RIGHTS_LINEAGE_MISSING", status: "NOT_APPLICABLE" }],
+  };
+  const scoped = evaluateOwnerLabelSubmission(scopedInput);
+  assert.equal(scoped.eligible, true);
+  const fabricatedSystemVerdict = evaluateOwnerLabelSubmission({ ...scopedInput, labels: [
+    { defectKey: "AUDIO_SEAM", status: "PRESENT", confidence: 1 }, { defectKey: "RIGHTS_LINEAGE_MISSING", status: "ABSENT", confidence: 1 },
+  ] });
+  assert.ok(fabricatedSystemVerdict.reasons.includes("SYSTEM_EVIDENCE_LABEL_MUST_BE_NOT_APPLICABLE:RIGHTS_LINEAGE_MISSING"));
+});
+
 test("migration 0058 creates immutable zero-spend owner-label tasks without fixture promotion", () => {
   const migration = read("drizzle/0058_evaluation_owner_label_workflow.sql");
   for (const table of ["v7_evaluation_owner_label_tasks", "v7_evaluation_owner_label_receipts", "v7_evaluation_defect_labels"]) assert.match(migration, new RegExp(table));
@@ -272,6 +299,10 @@ test("migration 0058 creates immutable zero-spend owner-label tasks without fixt
   assert.match(route, /RECORD_OWNER_LABEL_RECEIPT/);
   assert.match(route, /authorized\(request, false\)/);
   assert.match(route, /OWNER_LABEL_ARTIFACT_HASH_MISMATCH/);
+  assert.match(route, /Chỉ cần làm 3 việc/);
+  assert.match(route, /Xác nhận và sang mẫu tiếp theo/);
+  assert.match(route, /ownerObservableDefectKeys/);
+  assert.match(read("lib/evaluation-foundation.ts"), /SYSTEM_EVIDENCE_LABEL_MUST_BE_NOT_APPLICABLE/);
   assert.match(route, /env\.DB\.batch\(statements\)/);
   assert.doesNotMatch(route, /authorizeProductionDispatch|api\.openai\.com|api\.elevenlabs\.io/);
   const triage = read("app/video-engine/corpus-evidence-triage.tsx");

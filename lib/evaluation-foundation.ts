@@ -4,6 +4,7 @@ export const CORPUS_VERIFICATION_MAXIMUM_BATCH = 20 as const;
 export const CORPUS_VERIFICATION_MAXIMUM_OBJECT_BYTES = 100_000_000 as const;
 export const EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION = "EVALUATION_RIGHTS_EVIDENCE_POLICY_V1" as const;
 export const EVALUATION_OWNER_LABEL_POLICY_VERSION = "EVALUATION_OWNER_LABEL_POLICY_V1" as const;
+export const EVALUATION_OWNER_REVIEW_UX_VERSION = "EVALUATION_OWNER_REVIEW_UX_V2" as const;
 export const EVALUATION_CORRELATION_CONTROL_VERSION = "EVALUATION_CORRELATION_CONTROL_V1" as const;
 
 export type OwnerLabelStatus = "PRESENT" | "ABSENT" | "NOT_APPLICABLE";
@@ -18,7 +19,14 @@ export type OwnerLabelSubmission = {
   decisionState?: string;
   rationale?: string;
   activeDefectKeys: string[];
+  ownerObservableDefectKeys?: string[];
   labels: Array<{ defectKey?: string; status?: string; confidence?: number }>;
+};
+
+export type OwnerObservableDefectInput = {
+  defectModality?: string;
+  candidateKind?: string;
+  mimeType?: string;
 };
 
 export type CorrelationAssignment = {
@@ -147,8 +155,23 @@ export function summarizeEvaluationRightsQueue(rows: EvaluationRightsQueueItem[]
 const hash64 = (value: unknown) => /^[a-f0-9]{64}$/i.test(clean(value));
 const parseTime = (value: unknown) => { const time = Date.parse(clean(value)); return Number.isFinite(time) ? time : null; };
 
+export function isOwnerObservableDefect(input: OwnerObservableDefectInput) {
+  const modality = clean(input.defectModality).toUpperCase(), kind = clean(input.candidateKind).toUpperCase(), mime = clean(input.mimeType).toLowerCase();
+  const hasVisual = mime.startsWith("image/") || mime.startsWith("video/");
+  const hasAudio = mime.startsWith("audio/") || mime.startsWith("video/");
+  const hasContentContext = kind === "MASTER" || kind === "CLIP" || mime.startsWith("video/");
+  if (modality === "VISUAL") return hasVisual;
+  if (modality === "AUDIO") return hasAudio;
+  if (modality === "AUDIO_VISUAL") return hasAudio && hasVisual;
+  if (modality === "CONTENT") return hasContentContext;
+  if (modality === "CONTENT_VISUAL") return hasContentContext && hasVisual;
+  if (modality === "PACKAGING") return kind === "PACKAGING";
+  return false;
+}
+
 export function evaluateOwnerLabelSubmission(input: OwnerLabelSubmission) {
   const reasons: string[] = [], activeKeys = input.activeDefectKeys.map(clean).filter(Boolean), seen = new Set<string>();
+  const observableKeys = input.ownerObservableDefectKeys ? new Set(input.ownerObservableDefectKeys.map(clean).filter(Boolean)) : null;
   const expectedHash = clean(input.expectedArtifactHash).toLowerCase(), taskHash = clean(input.taskArtifactHash).toLowerCase();
   if (!hash64(expectedHash) || expectedHash !== taskHash) reasons.push("EXACT_ARTIFACT_HASH_BINDING_REQUIRED");
   if (input.rightsVerificationState !== "PASS") reasons.push("RIGHTS_PASS_REQUIRED");
@@ -165,12 +188,14 @@ export function evaluateOwnerLabelSubmission(input: OwnerLabelSubmission) {
     seen.add(key);
     if (!activeKeys.includes(key)) reasons.push(`UNKNOWN_DEFECT_KEY:${key || "EMPTY"}`);
     if (!["PRESENT", "ABSENT", "NOT_APPLICABLE"].includes(status)) reasons.push(`DEFECT_LABEL_STATUS_INVALID:${key || "EMPTY"}`);
+    if (observableKeys && !observableKeys.has(key) && status !== "NOT_APPLICABLE") reasons.push(`SYSTEM_EVIDENCE_LABEL_MUST_BE_NOT_APPLICABLE:${key || "EMPTY"}`);
     if (status !== "NOT_APPLICABLE" && (!Number.isFinite(label.confidence) || Number(label.confidence) < 0 || Number(label.confidence) > 1)) reasons.push(`DEFECT_LABEL_CONFIDENCE_INVALID:${key || "EMPTY"}`);
     if (status === "PRESENT") presentCount += 1;
     if (status === "ABSENT") absentCount += 1;
     if (status === "NOT_APPLICABLE") notApplicableCount += 1;
   }
   if (seen.size !== activeKeys.length || activeKeys.some((key) => !seen.has(key))) reasons.push("FULL_TAXONOMY_COVERAGE_REQUIRED");
+  if (observableKeys && [...observableKeys].some((key) => !activeKeys.includes(key))) reasons.push("OWNER_OBSERVABLE_TAXONOMY_INVALID");
   if (input.decisionState === "REJECTED_DEFECT_PRESENT" && presentCount === 0) reasons.push("REJECTED_DECISION_REQUIRES_PRESENT_DEFECT");
   if (input.decisionState === "CLEAN_NEGATIVE_CONTROL" && presentCount > 0) reasons.push("CLEAN_CONTROL_FORBIDS_PRESENT_DEFECT");
   return { eligible: reasons.length === 0, presentCount, absentCount, notApplicableCount, reasons: [...new Set(reasons)] };
