@@ -1,6 +1,7 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { sequentialProductionProjection, type SequentialProductionDB } from "@/lib/sequential-production-projection";
 import { SequentialCommandError, parseSequentialCommandBody, submitSequentialCommand, validateSequentialIdempotencyKey, type SequentialBucket, type SequentialCommandDB } from "@/lib/sequential-production-command";
+import { ProductionIntegrityError } from "@/lib/production-integrity-runtime";
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "cache-control": "no-store" };
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
     const body = parseSequentialCommandBody(value), receipt = await submitSequentialCommand({ DB: context.env.DB!, BUCKET: context.env.BUCKET! }, { body, actor: context.actor, idempotencyKey: validateSequentialIdempotencyKey(request.headers.get("idempotency-key")) });
     return Response.json(receipt, { status: receipt.outcome === "RECORDED" ? 201 : 200, headers: NO_STORE });
   } catch (error) {
+    if (error instanceof ProductionIntegrityError) return Response.json({ error: { code: error.code, message: error.message, reasons: error.reasons }, fallback: false, providerRequests: 0, spendUsd: 0 }, { status: error.status, headers: NO_STORE });
     if (error instanceof SequentialCommandError) return failure(error.code, error.message, error.status);
     return failure("SEQUENTIAL_COMMAND_FAILED", error instanceof Error ? error.message : "Sequential production command failed", 503);
   }

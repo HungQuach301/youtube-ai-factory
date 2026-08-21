@@ -1,7 +1,7 @@
 # AI Factory Master Roadmap
 
 **State:** `ACTIVE`
-**Reconciled:** 2026-08-20
+**Reconciled:** 2026-08-21
 **Code baseline at consolidation:** `5b669fc9230f5b012ebe4aa2c0b5c21fa50df890`
 
 ## Current position
@@ -12,7 +12,9 @@
 - FP3 executable ShotCueProgram: implemented and sealed with zero provider requests/spend.
 - Golden r10, Stage 11, Videos 2–15 and auto-publish: blocked.
 - Paid FP4 authority: not granted.
-- Next implementation milestone: FP3.1 Production Integrity, not paid FP4 dispatch.
+- FP3.1 source, additive migration and local regression: implemented and tested.
+- FP3.1 production migration and runtime QA: not authorized and not run.
+- Next implementation milestone: separately authorize and execute FP3.1 production migration plus zero-dispatch runtime QA, not paid FP4 dispatch.
 
 ## Wave 0 — Repository knowledge consolidation
 
@@ -29,6 +31,8 @@ Deliverables:
 Exit evidence: committed and pushed Git checkpoint; local HEAD equals `origin/main`; clean worktree.
 
 ## Wave 1 — FP3.1 Production Integrity
+
+Status: `SOURCE_IMPLEMENTED_TESTED__PRODUCTION_EVIDENCE_REQUIRED`.
 
 Scope:
 
@@ -48,6 +52,8 @@ Exit gates:
 - concurrent reservation tests cannot exceed ceiling;
 - canonicalization property tests pass;
 - no unqualified dispatch path remains.
+
+Source evidence on 2026-08-21: all 52 migrations replay through `0050`; canonicalization, stale fencing, real SQLite reservation ceilings, actual-cost ceilings, safety-state separation, settings supersede, failure taxonomy and route-firewall regressions pass. Production exit is still open because migration, production read-back, trace inspection and zero-dispatch runtime QA were not authorized. Wave 2 must not start as an active implementation slice until that checkpoint is reconciled.
 
 ## Wave 2 — Learning-ready Contract Pack
 

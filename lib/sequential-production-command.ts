@@ -1,4 +1,6 @@
 import { SEQUENTIAL_PRODUCTION_CONTRACT } from "@/app/production-control-contract";
+import { canonicalHash, canonicalStringify, sha256Hex } from "@/lib/canonical-json";
+import { assertCommandLease, issueFencingToken } from "@/lib/production-integrity-runtime";
 import {
   evaluateVideoQualityEligibility,
   resolveVideoQualityStandards,
@@ -23,6 +25,8 @@ export type SequentialCommandBody = {
   sequence: number;
   stageKey: string;
   expectedStageState: string;
+  leaseId?: string;
+  fencingToken?: number;
   artifactType?: string;
   artifactId?: string;
   content?: unknown;
@@ -58,11 +62,9 @@ const now = () => new Date().toISOString();
 const clean = (value: unknown) => String(value ?? "").trim();
 const json = (value: unknown) => JSON.stringify(value);
 const parseJson = <T>(value: unknown, fallback: T): T => { try { return JSON.parse(clean(value)) as T; } catch { return fallback; } };
-const bytes = (value: string) => new TextEncoder().encode(value);
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 async function sha256(value: string | Uint8Array) {
-  const input = typeof value === "string" ? bytes(value) : value;
-  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", input))].map((part) => part.toString(16).padStart(2, "0")).join("");
+  return sha256Hex(value);
 }
 async function rows(db: SequentialCommandDB, query: string, ...values: unknown[]) { return (await db.prepare(query).bind(...values).all<Row>()).results ?? []; }
 async function first(db: SequentialCommandDB, query: string, ...values: unknown[]) { return db.prepare(query).bind(...values).first<Row>(); }
@@ -81,6 +83,10 @@ export function parseSequentialCommandBody(value: unknown): SequentialCommandBod
     stageKey: text(row.stageKey, "stageKey", 2, 3),
     expectedStageState: text(row.expectedStageState, "expectedStageState", 3, 40),
   };
+  if (["PRODUCE_ARTIFACT", "VERIFY_ARTIFACT", "FREEZE_STAGE"].includes(action)) {
+    body.leaseId = text(row.leaseId, "leaseId", 8, 256);
+    body.fencingToken = integer(row.fencingToken, "fencingToken", 1, Number.MAX_SAFE_INTEGER);
+  }
   if (action === "PRODUCE_ARTIFACT") {
     body.artifactType = text(row.artifactType, "artifactType", 2, 160);
     body.content = object(row.content, "content");
@@ -170,15 +176,15 @@ async function startStage(db: SequentialCommandDB, context: Context, body: Seque
   }
   const running = await first(db, "SELECT stage_key FROM v7_sequential_stage_runs WHERE queue_id=? AND lifecycle_state='RUNNING' LIMIT 1", context.queue.id);
   if (running) throw new SequentialCommandError("ANOTHER_STAGE_RUNNING", 409, `Stage ${clean(running.stage_key)} already owns the production lease`);
-  const timestamp = now(), expires = new Date(Date.now() + 15 * 60_000).toISOString(), leaseId = id("seq-lease");
-  const result = await db.prepare("UPDATE v7_sequential_stage_runs SET lifecycle_state='RUNNING',attempt=attempt+1,blocker=NULL,updated_at=? WHERE id=? AND lifecycle_state='READY'").bind(timestamp, context.stage.id).run();
-  if (Number(result.meta?.changes || 0) !== 1) throw new SequentialCommandError("STAGE_START_CONFLICT", 409, "The stage could not acquire its execution state");
-  await db.batch([
-    db.prepare("UPDATE v7_sequential_leases SET lifecycle_state='EXPIRED',released_at=? WHERE program_id=? AND lifecycle_state='ACTIVE' AND expires_at<=?").bind(timestamp, context.program.id, timestamp),
-    db.prepare("INSERT INTO v7_sequential_leases (id,program_id,queue_id,stage_key,lifecycle_state,actor_email,acquired_at,expires_at) VALUES (?,?,?,?,'ACTIVE',?,?,?)").bind(leaseId, context.program.id, context.queue.id, body.stageKey, actor.email.toLowerCase(), timestamp, expires),
-    db.prepare("INSERT INTO v7_sequential_events (id,program_id,queue_id,event_type,actor_type,detail_json,evidence_hash) VALUES (?,?,?,?,?,?,?)").bind(id("seq-event"), context.program.id, context.queue.id, "STAGE_STARTED", actor.actorType, json({ stageKey: body.stageKey, leaseId, expiresAt: expires }), hash),
+  const timestamp = now(), expires = new Date(Date.now() + 15 * 60_000).toISOString(), leaseId = id("seq-lease"), fencingToken = await issueFencingToken(db, clean(context.program.id));
+  const results = await db.batch([
+    db.prepare("UPDATE v7_sequential_leases SET lifecycle_state='ORPHANED',orphaned_at=?,released_at=? WHERE program_id=? AND lifecycle_state='ACTIVE' AND expires_at<=?").bind(timestamp, timestamp, context.program.id, timestamp),
+    db.prepare("INSERT INTO v7_sequential_leases (id,program_id,queue_id,stage_key,lifecycle_state,actor_email,acquired_at,expires_at,fencing_token,heartbeat_at) VALUES (?,?,?,?,'ACTIVE',?,?,?,?,?)").bind(leaseId, context.program.id, context.queue.id, body.stageKey, actor.email.toLowerCase(), timestamp, expires, fencingToken, timestamp),
+    db.prepare("UPDATE v7_sequential_stage_runs SET lifecycle_state='RUNNING',eligibility_state='BLOCKED',active_fencing_token=?,attempt=attempt+1,blocker=NULL,updated_at=? WHERE id=? AND lifecycle_state='READY' AND active_fencing_token IS NULL").bind(fencingToken, timestamp, context.stage.id),
+    db.prepare("INSERT INTO v7_sequential_events (id,program_id,queue_id,event_type,actor_type,detail_json,evidence_hash) VALUES (?,?,?,?,?,?,?)").bind(id("seq-event"), context.program.id, context.queue.id, "STAGE_STARTED", actor.actorType, json({ stageKey: body.stageKey, leaseId, fencingToken, expiresAt: expires }), hash),
   ]);
-  return recordReceipt(db, { key, hash, body, actor, context, stageState: "RUNNING", detail: { leaseId, leaseExpiresAt: expires, zeroProviderRequests: true, zeroSpendUsd: 0 } });
+  if (Number(results[2]?.meta?.changes || 0) !== 1) throw new SequentialCommandError("STAGE_START_CONFLICT", 409, "The stage could not acquire its execution state");
+  return recordReceipt(db, { key, hash, body, actor, context, stageState: "RUNNING", detail: { leaseId, fencingToken, leaseExpiresAt: expires, heartbeatAt: timestamp, zeroProviderRequests: true, zeroSpendUsd: 0 } });
 }
 
 async function produceArtifact(runtime: SequentialCommandRuntime, context: Context, body: SequentialCommandBody, actor: SequentialActor, key: string, hash: string) {
@@ -192,10 +198,10 @@ async function produceArtifact(runtime: SequentialCommandRuntime, context: Conte
   }
   const parentIds = body.parentArtifactIds || [];
   for (const parentId of parentIds) {
-    const parent = await first(runtime.DB, "SELECT * FROM v7_sequential_artifacts WHERE id=? AND queue_id=? AND lifecycle_state='FROZEN' LIMIT 1", parentId, context.queue.id);
-    if (!parent) throw new SequentialCommandError("PARENT_ARTIFACT_INELIGIBLE", 409, `Parent artifact ${parentId} is not frozen and eligible`);
+    const parent = await first(runtime.DB, "SELECT * FROM v7_sequential_artifacts WHERE id=? AND queue_id=? AND lifecycle_state='FROZEN' AND immutability_state='SEALED' AND eligibility_state='ELIGIBLE' LIMIT 1", parentId, context.queue.id);
+    if (!parent) throw new SequentialCommandError("PARENT_ARTIFACT_INELIGIBLE", 409, `Parent artifact ${parentId} is not sealed and eligible`);
   }
-  const canonical = json(body.content), contentHash = await sha256(canonical);
+  const canonical = canonicalStringify(body.content), contentHash = await sha256(canonical);
   const legacy = await first(runtime.DB, "SELECT id FROM production_v2_artifacts WHERE sha256=? LIMIT 1", contentHash);
   if (legacy) throw new SequentialCommandError("LEGACY_HASH_BLOCKED", 409, "The Legacy Dependency Firewall rejected a prior artifact hash");
   const duplicate = await first(runtime.DB, "SELECT id FROM v7_sequential_artifacts WHERE queue_id=? AND sha256=? LIMIT 1", context.queue.id, contentHash);
@@ -206,9 +212,9 @@ async function produceArtifact(runtime: SequentialCommandRuntime, context: Conte
   const readback = await runtime.BUCKET.get(storageKey); if (!readback) throw new SequentialCommandError("R2_READBACK_FAILED", 503, "Stored artifact bytes could not be read back");
   const readbackBytes = new Uint8Array(await readback.arrayBuffer()), readbackHash = await sha256(readbackBytes);
   if (readbackHash !== contentHash) throw new SequentialCommandError("R2_HASH_MISMATCH", 503, "Stored artifact failed checksum verification");
-  const lineageRootHash = await sha256(json({ sourceBriefHash: context.queue.source_brief_hash, stageKey: body.stageKey, parentIds, contentHash })), timestamp = now();
+  const lineageRootHash = await canonicalHash({ sourceBriefHash: context.queue.source_brief_hash, stageKey: body.stageKey, parentIds, contentHash }), timestamp = now();
   await runtime.DB.batch([
-    runtime.DB.prepare("INSERT INTO v7_sequential_artifacts (id,program_id,queue_id,stage_run_id,stage_key,artifact_type,revision,lifecycle_state,content_json,storage_key,mime_type,byte_size,sha256,parent_artifact_ids_json,lineage_root_hash,rights_state,cost_state,provider,provider_request_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'PRODUCED',?,?,?,?,?,?,?,?,?,?,?,?,?)").bind(artifactId, context.program.id, context.queue.id, context.stage.id, body.stageKey, artifactType, revision, canonical, storageKey, "application/json", readbackBytes.byteLength, contentHash, json(parentIds), lineageRootHash, body.rightsState, body.costState, body.provider || null, body.providerRequestId || null, timestamp, timestamp),
+    runtime.DB.prepare("INSERT INTO v7_sequential_artifacts (id,program_id,queue_id,stage_run_id,stage_key,artifact_type,revision,lifecycle_state,content_json,storage_key,mime_type,byte_size,sha256,parent_artifact_ids_json,lineage_root_hash,rights_state,cost_state,provider,provider_request_id,created_at,updated_at,immutability_state,eligibility_state,eligibility_reason_json,canonicalization_version) VALUES (?,?,?,?,?,?,?,'PRODUCED',?,?,?,?,?,?,?,?,?,?,?,?,?,'MUTABLE','PENDING','[]','JCS_NFC_V1')").bind(artifactId, context.program.id, context.queue.id, context.stage.id, body.stageKey, artifactType, revision, canonical, storageKey, "application/json", readbackBytes.byteLength, contentHash, json(parentIds), lineageRootHash, body.rightsState, body.costState, body.provider || null, body.providerRequestId || null, timestamp, timestamp),
     runtime.DB.prepare("INSERT INTO v7_sequential_events (id,program_id,queue_id,event_type,actor_type,detail_json,evidence_hash) VALUES (?,?,?,?,?,?,?)").bind(id("seq-event"), context.program.id, context.queue.id, "ARTIFACT_PRODUCED", actor.actorType, json({ stageKey: body.stageKey, artifactId, artifactType, revision, storageKey, byteSize: readbackBytes.byteLength }), contentHash),
   ]);
   return recordReceipt(runtime.DB, { key, hash, body, actor, context, stageState: "RUNNING", artifactId, detail: { artifactType, revision, sha256: contentHash, lineageRootHash, storageReadback: true, legacySources: 0 }, providerRequests: body.provider ? 1 : 0, spendUsd: 0 });
@@ -251,9 +257,13 @@ async function verifyArtifact(runtime: SequentialCommandRuntime, context: Contex
   const object = await runtime.BUCKET.get(clean(artifact.storage_key)); if (!object) throw new SequentialCommandError("ARTIFACT_READBACK_MISSING", 503, "The artifact is missing from runtime storage");
   const readback = new Uint8Array(await object.arrayBuffer()), readbackHash = await sha256(readback);
   if (readbackHash !== clean(artifact.sha256)) throw new SequentialCommandError("ARTIFACT_READBACK_HASH_MISMATCH", 503, "The artifact read-back checksum does not match");
+  if (body.stageKey === "06") {
+    const safety = await first(runtime.DB, "SELECT lifecycle_state,evidence_hash FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version='VIDEO_PRODUCTION_QUALITY_STANDARD_V2' AND standard_id='VQ-M0-SAFETY-SCOPE' ORDER BY evaluation_number DESC,created_at DESC LIMIT 1", context.queue.id);
+    if (clean(safety?.lifecycle_state) !== "PASS" || !clean(safety?.evidence_hash)) throw new SequentialCommandError("M0_SAFETY_SCOPE_PASS_REQUIRED", 409, "Stage 06 artifacts cannot become eligible until M0 Safety Scope has PASS evidence");
+  }
   const deterministic = validateArtifactContent(body, context, artifact), verification = { ...body.verification, ...deterministic, checksumMatch: true, rightsState: artifact.rights_state, costState: artifact.cost_state, verifiedBy: actor.email, verifiedAt: now() };
   await runtime.DB.batch([
-    runtime.DB.prepare("UPDATE v7_sequential_artifacts SET lifecycle_state='VERIFIED',verification_json=?,verified_at=?,updated_at=? WHERE id=? AND lifecycle_state='PRODUCED'").bind(json(verification), verification.verifiedAt, verification.verifiedAt, artifact.id),
+    runtime.DB.prepare("UPDATE v7_sequential_artifacts SET lifecycle_state='VERIFIED',eligibility_state='ELIGIBLE',eligibility_reason_json='[]',verification_json=?,verified_at=?,updated_at=? WHERE id=? AND lifecycle_state='PRODUCED' AND immutability_state='MUTABLE'").bind(json(verification), verification.verifiedAt, verification.verifiedAt, artifact.id),
     runtime.DB.prepare("INSERT INTO v7_sequential_events (id,program_id,queue_id,event_type,actor_type,detail_json,evidence_hash) VALUES (?,?,?,?,?,?,?)").bind(id("seq-event"), context.program.id, context.queue.id, "ARTIFACT_VERIFIED", actor.actorType, json({ stageKey: body.stageKey, artifactId: artifact.id, verification }), hash),
   ]);
   return recordReceipt(runtime.DB, { key, hash, body, actor, context, stageState: "RUNNING", artifactId: clean(artifact.id), detail: { artifactType: artifact.artifact_type, verification } });
@@ -268,9 +278,9 @@ async function freezeStage(db: SequentialCommandDB, context: Context, body: Sequ
   const timestamp = now(), artifactIds = required.map((type) => clean(latestByType.get(type)?.id)), nextSequence = Number(context.stage.sequence) + 1;
   const next = await first(db, "SELECT * FROM v7_sequential_stage_runs WHERE queue_id=? AND sequence=? LIMIT 1", context.queue.id, nextSequence);
   await db.batch([
-    ...artifactIds.map((artifactId) => db.prepare("UPDATE v7_sequential_artifacts SET lifecycle_state='FROZEN',frozen_at=?,updated_at=? WHERE id=? AND lifecycle_state='VERIFIED'").bind(timestamp, timestamp, artifactId)),
-    db.prepare("UPDATE v7_sequential_stage_runs SET lifecycle_state='FROZEN',evidence_summary=?,blocker=NULL,frozen_at=?,updated_at=? WHERE id=? AND lifecycle_state='RUNNING'").bind(`${artifactIds.length}/${required.length} required artifacts frozen · checksum, lineage, rights and cost eligible`, timestamp, timestamp, context.stage.id),
-    db.prepare("UPDATE v7_sequential_leases SET lifecycle_state='RELEASED',released_at=? WHERE program_id=? AND queue_id=? AND stage_key=? AND lifecycle_state='ACTIVE'").bind(timestamp, context.program.id, context.queue.id, body.stageKey),
+    ...artifactIds.map((artifactId) => db.prepare("UPDATE v7_sequential_artifacts SET lifecycle_state='FROZEN',immutability_state='SEALED',eligibility_state='ELIGIBLE',frozen_at=?,updated_at=? WHERE id=? AND lifecycle_state='VERIFIED' AND immutability_state='MUTABLE' AND eligibility_state='ELIGIBLE'").bind(timestamp, timestamp, artifactId)),
+    db.prepare("UPDATE v7_sequential_stage_runs SET lifecycle_state='FROZEN',eligibility_state='ELIGIBLE',active_fencing_token=NULL,evidence_summary=?,blocker=NULL,frozen_at=?,updated_at=? WHERE id=? AND lifecycle_state='RUNNING' AND active_fencing_token=?").bind(`${artifactIds.length}/${required.length} required artifacts frozen · checksum, lineage, rights and cost eligible`, timestamp, timestamp, context.stage.id, body.fencingToken),
+    db.prepare("UPDATE v7_sequential_leases SET lifecycle_state='RELEASED',released_at=? WHERE id=? AND program_id=? AND queue_id=? AND stage_key=? AND fencing_token=? AND lifecycle_state='ACTIVE'").bind(timestamp, body.leaseId, context.program.id, context.queue.id, body.stageKey, body.fencingToken),
     ...(next ? [db.prepare("UPDATE v7_sequential_stage_runs SET lifecycle_state='READY',blocker=NULL,evidence_summary=?,updated_at=? WHERE id=? AND lifecycle_state='BLOCKED_UPSTREAM'").bind(`Stage ${body.stageKey} frozen; predecessor evidence is eligible`, timestamp, next.id)] : []),
     db.prepare("INSERT INTO v7_sequential_events (id,program_id,queue_id,event_type,actor_type,detail_json,evidence_hash) VALUES (?,?,?,?,?,?,?)").bind(id("seq-event"), context.program.id, context.queue.id, "STAGE_FROZEN", actor.actorType, json({ stageKey: body.stageKey, artifactIds, nextStageKey: next?.stage_key || null }), hash),
   ]);
@@ -281,9 +291,9 @@ async function reopenRootStage(db: SequentialCommandDB, context: Context, body: 
   if (Number(context.stage.attempt || 0) >= Number(context.program.maximum_repair_loops || 0) + 1) throw new SequentialCommandError("REPAIR_LIMIT_EXHAUSTED", 409, "The maximum root-cause repair loops have been exhausted");
   const timestamp = now(), downstream = await rows(db, "SELECT id,stage_key FROM v7_sequential_stage_runs WHERE queue_id=? AND sequence>? ORDER BY sequence", context.queue.id, context.stage.sequence);
   await db.batch([
-    db.prepare("UPDATE v7_sequential_stage_runs SET lifecycle_state='READY',blocker=?,frozen_at=NULL,updated_at=? WHERE id=?").bind(`Root-cause repair authorized: ${body.reason}`, timestamp, context.stage.id),
-    ...downstream.map((stage) => db.prepare("UPDATE v7_sequential_stage_runs SET lifecycle_state='BLOCKED_UPSTREAM',blocker=?,frozen_at=NULL,updated_at=? WHERE id=?").bind(`Stage ${body.stageKey} reopened for root-cause repair`, timestamp, stage.id)),
-    db.prepare("UPDATE v7_sequential_artifacts SET lifecycle_state='SUPERSEDED',updated_at=? WHERE queue_id=? AND stage_key=? AND lifecycle_state IN ('PRODUCED','VERIFIED','FROZEN')").bind(timestamp, context.queue.id, body.stageKey),
+    db.prepare("UPDATE v7_sequential_stage_runs SET lifecycle_state='READY',eligibility_state='BLOCKED',active_fencing_token=NULL,blocker=?,frozen_at=NULL,updated_at=? WHERE id=?").bind(`Root-cause repair authorized: ${body.reason}`, timestamp, context.stage.id),
+    ...downstream.map((stage) => db.prepare("UPDATE v7_sequential_stage_runs SET lifecycle_state='BLOCKED_UPSTREAM',eligibility_state='BLOCKED',active_fencing_token=NULL,blocker=?,frozen_at=NULL,updated_at=? WHERE id=?").bind(`Stage ${body.stageKey} reopened for root-cause repair`, timestamp, stage.id)),
+    db.prepare("UPDATE v7_sequential_artifacts SET lifecycle_state='SUPERSEDED',immutability_state='SUPERSEDED',eligibility_state='SUPERSEDED',eligibility_reason_json='[\"ROOT_STAGE_REOPENED\"]',updated_at=? WHERE queue_id=? AND stage_key=? AND lifecycle_state IN ('PRODUCED','VERIFIED','FROZEN')").bind(timestamp, context.queue.id, body.stageKey),
     db.prepare("UPDATE v7_sequential_leases SET lifecycle_state='RELEASED',released_at=? WHERE program_id=? AND lifecycle_state='ACTIVE'").bind(timestamp, context.program.id),
     db.prepare("INSERT INTO v7_sequential_events (id,program_id,queue_id,event_type,actor_type,detail_json,evidence_hash) VALUES (?,?,?,?,?,?,?)").bind(id("seq-event"), context.program.id, context.queue.id, "ROOT_STAGE_REOPENED", actor.actorType, json({ stageKey: body.stageKey, reason: body.reason, downstreamBlocked: downstream.map((stage) => stage.stage_key) }), hash),
   ]);
@@ -293,10 +303,11 @@ async function reopenRootStage(db: SequentialCommandDB, context: Context, body: 
 export async function submitSequentialCommand(runtime: SequentialCommandRuntime, command: { body: SequentialCommandBody; actor: SequentialActor; idempotencyKey: string }) {
   const body = parseSequentialCommandBody(command.body), key = validateSequentialIdempotencyKey(command.idempotencyKey), actorEmail = clean(command.actor.email).toLowerCase();
   if (!actorEmail) throw new SequentialCommandError("CHANNEL_OWNER_AUTHORIZATION_REQUIRED", 403, "Sequential production requires an authorized actor");
-  const requestHash = await sha256(json({ actorEmail, body })), replay = await first(runtime.DB, "SELECT * FROM v7_sequential_command_receipts WHERE idempotency_key=? LIMIT 1", key);
+  const requestHash = await canonicalHash({ actorEmail, body }), replay = await first(runtime.DB, "SELECT * FROM v7_sequential_command_receipts WHERE idempotency_key=? LIMIT 1", key);
   if (replay) { if (clean(replay.request_hash) !== requestHash) throw new SequentialCommandError("IDEMPOTENCY_KEY_REUSED", 409, "The idempotency key is bound to another command"); return receiptFromRow(replay, true); }
   const context = await commandContext(runtime.DB, body);
   if (body.action === "START_STAGE") return startStage(runtime.DB, context, body, command.actor, key, requestHash);
+  if (["PRODUCE_ARTIFACT", "VERIFY_ARTIFACT", "FREEZE_STAGE"].includes(body.action)) await assertCommandLease(runtime.DB, { programId: clean(context.program.id), queueId: clean(context.queue.id), stageKey: body.stageKey, leaseId: clean(body.leaseId), fencingToken: Number(body.fencingToken) });
   if (body.action === "PRODUCE_ARTIFACT") return produceArtifact(runtime, context, body, command.actor, key, requestHash);
   if (body.action === "VERIFY_ARTIFACT") return verifyArtifact(runtime, context, body, command.actor, key, requestHash);
   if (body.action === "FREEZE_STAGE") return freezeStage(runtime.DB, context, body, command.actor, key, requestHash);

@@ -1,6 +1,25 @@
 # Current State
 
-Last reconciled: 2026-08-20 (Asia/Bangkok)
+Last reconciled: 2026-08-21 (Asia/Bangkok)
+
+## FP3.1 Production Integrity source checkpoint — 2026-08-21
+
+```text
+FP3_1_SOURCE = IMPLEMENTED_TESTED
+FP3_1_SCHEMA = ADDITIVE_MIGRATION_0050_REPLAYED_LOCALLY
+FP3_1_PRODUCTION_MIGRATION = NOT_AUTHORIZED_NOT_RUN
+FP3_1_RUNTIME_QA = NOT_RUN
+PRODUCTION_DEPLOYMENT = NOT_AUTHORIZED_NOT_RUN
+PROVIDER_REQUESTS_THIS_SLICE = 0
+PROVIDER_SPEND_USD_THIS_SLICE = 0
+GOLDEN_R10 = BLOCKED
+STAGE_11 = BLOCKED
+NEXT_IMPLEMENTATION = FP3_1_PRODUCTION_MIGRATION_AND_RUNTIME_QA
+```
+
+Source now defines canonical `JCS_NFC_V1` hashing, independent immutability and eligibility state, monotonic fencing tokens, lease heartbeat/orphan reconciliation, atomic budget reservation and settlement, capability/settings supersede, M0 Safety Scope fail-closed behavior, provider-failure classification, redacted trace lineage and a shared production dispatch firewall. Historical artifacts are backfilled as blocked pending reconciliation; source implementation does not make them eligible.
+
+This is not a production-runtime completion claim. Migration `0050` has only been replayed in an isolated in-memory database. Production data, production schema and the deployed site remain unchanged until separately authorized migration, post-migration read-back and zero-dispatch runtime QA complete. Document 41 is the execution record.
 
 ## Repository knowledge consolidation — 2026-08-20
 
@@ -13,7 +32,7 @@ FP1 = IMPLEMENTED
 FP2_REGISTRY_MECHANISM = IMPLEMENTED
 FP2_QUALIFIED_OPERATION_BINDINGS = 1_OF_22
 FP3_SHOT_CUE_PROGRAM = IMPLEMENTED_SEALED
-NEXT_IMPLEMENTATION = FP3_1_PRODUCTION_INTEGRITY
+NEXT_IMPLEMENTATION = FP3_1_PRODUCTION_MIGRATION_AND_RUNTIME_QA
 PAID_FP4_AUTHORITY = NONE
 GOLDEN_R10 = BLOCKED
 STAGE_11 = BLOCKED

@@ -64,6 +64,7 @@ When facts conflict, use this order:
 | First-pass architecture | [`continuity/37_FIRST_PASS_QUALITY_ARCHITECTURE.md`](continuity/37_FIRST_PASS_QUALITY_ARCHITECTURE.md) |
 | Capability Registry evidence | [`continuity/38_FP2_CAPABILITY_REGISTRY_EXECUTION_RECORD.md`](continuity/38_FP2_CAPABILITY_REGISTRY_EXECUTION_RECORD.md) |
 | FP3 ShotCueProgram evidence | [`continuity/39_FP3_EXECUTABLE_SHOT_CUE_PROGRAM_EXECUTION_RECORD.md`](continuity/39_FP3_EXECUTABLE_SHOT_CUE_PROGRAM_EXECUTION_RECORD.md) |
+| FP3.1 source implementation evidence | [`continuity/41_FP3_1_PRODUCTION_INTEGRITY_EXECUTION_RECORD.md`](continuity/41_FP3_1_PRODUCTION_INTEGRITY_EXECUTION_RECORD.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

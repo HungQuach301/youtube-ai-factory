@@ -234,6 +234,8 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       && text(qualification?.capability_version) === text(capability?.capability_version)
       && text(qualification?.standard_version) === "FIRST_PASS_QUALITY_V1"
       && Boolean(text(qualification?.settings_hash))
+      && text(capability?.active_settings_hash) !== "UNRESOLVED"
+      && text(qualification?.settings_hash) === text(capability?.active_settings_hash)
       && number(qualification?.sample_size) >= number(requirement.minimum_sample_size)
       && number(qualification?.first_pass_yield) >= number(requirement.minimum_first_pass_yield)
       && number(qualification?.p0_escape_count) === 0
@@ -332,14 +334,14 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       effectiveStateSummary: effectiveSummary,
       rootStageKeys,
       rootStageLabels,
-      nextMilestone: "FP4 · Qualified visual capability plane",
+      nextMilestone: "FP3.1 · Runtime migration and integrity QA",
     },
     firstPass: {
       standardVersion: "FIRST_PASS_QUALITY_V1",
-      currentSlice: "FP3",
-      currentSliceState: "IMPLEMENTED",
-      nextSlice: "FP4",
-      nextSliceLabel: "Qualified visual capability plane",
+      currentSlice: "FP3.1",
+      currentSliceState: "SOURCE_IMPLEMENTED",
+      nextSlice: "FP3.1-RUNTIME",
+      nextSliceLabel: "Production migration and integrity QA",
       capabilityRegistryState,
       dispatchGuardState: "ENFORCED",
       goldenR10Eligible,
@@ -369,6 +371,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
         { id: "CAPABILITY_REGISTRY", label: "Capability Registry runtime", passed: true, evidence: `${capabilitySummaries.length} versioned capabilities, ${archetypeSummaries.length} hardest archetypes and fail-closed dispatch auditing are active`, owningStages: ["07A", "07B", "09", "10", "13", "14"] },
         { id: "CAPABILITY_QUALIFICATION", label: "Capability qualification", passed: capabilityRegistryState === "QUALIFIED", evidence: `${qualifiedRequirementPairs.length}/${uniqueRequirementPairs.length} capability–archetype bindings qualified; ${fixtureRows.length} fixtures designed`, owningStages: ["07A", "07B", "09", "10", "13", "14"] },
         { id: "EXECUTABLE_CONTRACT", label: "Executable shot and cue contract", passed: true, evidence: `${FP3_GOLDEN_CONTRACT_SUMMARY.shotCount} typed shots cover ${FP3_GOLDEN_CONTRACT_SUMMARY.durationSeconds.toFixed(3)}s with ${FP3_GOLDEN_CONTRACT_SUMMARY.timelineGaps} gaps, ${FP3_GOLDEN_CONTRACT_SUMMARY.timelineOverlaps} overlaps, ${FP3_GOLDEN_CONTRACT_SUMMARY.schemaGaps} schema gaps and zero provider dispatch`, owningStages: ["08"] },
+        { id: "PRODUCTION_INTEGRITY", label: "FP3.1 production runtime", passed: false, evidence: "Canonical hashing, split lifecycle state, fencing lease, atomic reservation, settings supersede, safety fail-closed and redacted tracing are implemented and tested in source; production migration and runtime QA remain separately authorized", owningStages: ["00", "03", "06"] },
         { id: "VISUAL_PLANE", label: "Qualified visual plane", passed: false, evidence: "FP4 must pass real-pixel, semantic-motion and variety gates", owningStages: ["07B", "09"] },
         { id: "AUDIO_PLANE", label: "Qualified audio plane", passed: false, evidence: "FP5 must pass narration, music, ambience, SFX and perceptual-mix gates", owningStages: ["07A", "10"] },
         { id: "GOLDEN_R10", label: "Golden r10", passed: goldenR10Eligible, evidence: goldenR10Eligible ? "Capability requirements are qualified; later FP3–FP5 gates still control production" : "Forbidden until all capability bindings and FP3–FP5 gates are green", owningStages: ["11", "12", "13", "14"] },

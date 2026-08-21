@@ -10,6 +10,7 @@ export type CapabilityRequirementEvidence = {
   capabilityKey: string;
   capabilityVersion: string;
   capabilityState: string;
+  activeSettingsHash: string;
   archetypeId: string;
   archetypeKey: string;
   archetypeLabel: string;
@@ -57,6 +58,8 @@ export function evaluateCapabilityEligibility(operation: string, stageKey: strin
     if (item.qualificationCapabilityVersion !== item.capabilityVersion) reasons.push("CAPABILITY_VERSION_MISMATCH");
     if (item.qualificationStandardVersion !== FIRST_PASS_QUALITY_STANDARD_VERSION) reasons.push("STANDARD_VERSION_MISMATCH");
     if (!item.settingsHash) reasons.push("SETTINGS_HASH_MISSING");
+    if (!item.activeSettingsHash || item.activeSettingsHash === "UNRESOLVED") reasons.push("ACTIVE_SETTINGS_HASH_UNRESOLVED");
+    else if (item.settingsHash !== item.activeSettingsHash) reasons.push("CAPABILITY_SETTINGS_MISMATCH");
     if (item.sampleSize < item.minimumSampleSize) reasons.push("SAMPLE_SIZE_BELOW_FLOOR");
     if (item.firstPassYield < item.minimumFirstPassYield) reasons.push("FIRST_PASS_YIELD_BELOW_FLOOR");
     if (item.p0EscapeCount !== 0) reasons.push("P0_ESCAPE_NOT_ZERO");
@@ -70,7 +73,7 @@ export function evaluateCapabilityEligibility(operation: string, stageKey: strin
 
 export async function inspectFirstPassCapabilityEligibility(db: FirstPassCapabilityDB, operation: string, stageKey: string) {
   const result = await db.prepare(`SELECT r.id binding_id,r.minimum_sample_size,r.minimum_first_pass_yield,
-    c.id capability_id,c.capability_key,c.capability_version,c.lifecycle_state capability_state,
+    c.id capability_id,c.capability_key,c.capability_version,c.lifecycle_state capability_state,c.active_settings_hash,
     a.id archetype_id,a.archetype_key,a.label archetype_label,
     q.id qualification_id,q.qualification_version,q.capability_version qualification_capability_version,q.standard_version qualification_standard_version,
     q.lifecycle_state qualification_state,q.settings_hash,q.sample_size,q.first_pass_yield,q.p0_escape_count,q.evidence_hashes_json,q.revoked_at
@@ -80,7 +83,7 @@ export async function inspectFirstPassCapabilityEligibility(db: FirstPassCapabil
     LEFT JOIN v7_first_pass_qualifications q ON q.id=(SELECT q2.id FROM v7_first_pass_qualifications q2 WHERE q2.capability_id=r.capability_id AND q2.archetype_id=r.archetype_id ORDER BY q2.qualification_version DESC LIMIT 1)
     WHERE r.operation=? AND r.stage_key=? AND r.active=1 ORDER BY c.plane,c.capability_key,a.archetype_key`).bind(operation, stageKey).all<Row>();
   const requirements = (result.results ?? []).map((row) => ({
-    bindingId: clean(row.binding_id), capabilityId: clean(row.capability_id), capabilityKey: clean(row.capability_key), capabilityVersion: clean(row.capability_version), capabilityState: clean(row.capability_state),
+    bindingId: clean(row.binding_id), capabilityId: clean(row.capability_id), capabilityKey: clean(row.capability_key), capabilityVersion: clean(row.capability_version), capabilityState: clean(row.capability_state), activeSettingsHash: clean(row.active_settings_hash),
     archetypeId: clean(row.archetype_id), archetypeKey: clean(row.archetype_key), archetypeLabel: clean(row.archetype_label), qualificationId: clean(row.qualification_id), qualificationVersion: numeric(row.qualification_version),
     qualificationCapabilityVersion: clean(row.qualification_capability_version), qualificationStandardVersion: clean(row.qualification_standard_version), qualificationState: clean(row.qualification_state), settingsHash: clean(row.settings_hash),
     sampleSize: numeric(row.sample_size), minimumSampleSize: numeric(row.minimum_sample_size), firstPassYield: numeric(row.first_pass_yield), minimumFirstPassYield: numeric(row.minimum_first_pass_yield),
@@ -90,6 +93,8 @@ export async function inspectFirstPassCapabilityEligibility(db: FirstPassCapabil
 }
 
 export async function assertFirstPassCapabilityEligibility(db: FirstPassCapabilityDB, input: { operation: string; stageKey: string; programId?: string; queueId?: string }) {
+  await db.prepare(`UPDATE v7_first_pass_qualifications SET lifecycle_state='SUPERSEDED',revoked_at=COALESCE(revoked_at,CURRENT_TIMESTAMP),blocker='Capability version or active settings hash changed; requalification required',updated_at=CURRENT_TIMESTAMP
+    WHERE lifecycle_state='QUALIFIED' AND EXISTS (SELECT 1 FROM v7_first_pass_capabilities c WHERE c.id=v7_first_pass_qualifications.capability_id AND (c.capability_version<>v7_first_pass_qualifications.capability_version OR c.active_settings_hash='UNRESOLVED' OR c.active_settings_hash<>v7_first_pass_qualifications.settings_hash))`).run();
   const eligibility = await inspectFirstPassCapabilityEligibility(db, input.operation, input.stageKey);
   await db.prepare("INSERT INTO v7_first_pass_dispatch_audits (id,program_id,queue_id,operation,stage_key,decision,standard_version,requirement_count,eligible_count,gap_json,provider_requests,spend_usd) VALUES (?,?,?,?,?,?,?,?,?,?,0,0)")
     .bind(`fp-dispatch-${crypto.randomUUID()}`, input.programId || null, input.queueId || null, input.operation, input.stageKey, eligibility.eligible ? "AUTHORIZED" : "BLOCKED", FIRST_PASS_QUALITY_STANDARD_VERSION, eligibility.requirementCount, eligibility.eligibleCount, JSON.stringify(eligibility.gaps)).run();

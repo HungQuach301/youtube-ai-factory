@@ -2,6 +2,9 @@ import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { measureOpenAIUsage } from "@/lib/ai-usage";
 import { VIDEO_QUALITY_STANDARD_VERSION } from "@/lib/video-quality-standard";
 import { assertFirstPassCapabilityEligibility, FirstPassCapabilityError } from "@/lib/first-pass-capability-registry";
+import { assertCommandLease, authorizeProductionDispatch, markDispatchStarted, ProductionIntegrityError, readFencingHeaders, settleProductionDispatch } from "@/lib/production-integrity-runtime";
+import { canonicalHash } from "@/lib/canonical-json";
+import { lintFinancialSafety } from "@/lib/production-integrity";
 import {
   SequentialCommandError,
   submitSequentialCommand,
@@ -213,13 +216,13 @@ async function stageContext(db: DB, stageKey: StageKey) {
   return { program, queue, stage, contract, parentArtifacts };
 }
 
-async function startCompilation(env: Env, stageKey: StageKey, idempotencyKey: string) {
+async function startCompilation(env: Env, actor: SequentialActor, stageKey: StageKey, idempotencyKey: string, fence: { leaseId: string; fencingToken: number }) {
   if (!env.OPENAI_API_KEY) throw new SequentialCommandError("OPENAI_API_KEY_REQUIRED", 424, "OpenAI is required for greenfield Stage 01–07B compilation");
   const context = await stageContext(env.DB!, stageKey);
   if (clean(context.stage.lifecycle_state) !== "RUNNING") throw new SequentialCommandError("STAGE_STATE_CONFLICT", 409, `Stage ${stageKey} must be RUNNING before compilation`);
   const existing = await first(env.DB!, "SELECT * FROM v7_sequential_provider_requests WHERE idempotency_key=? LIMIT 1", idempotencyKey);
   if (existing) return { outcome: "IDEMPOTENT_REPLAY", providerRequestId: existing.id, providerResponseId: existing.provider_response_id, providerStatus: existing.lifecycle_state, stageKey };
-  await assertFirstPassCapabilityEligibility(env.DB!, { operation: "COMPILE_STAGE_BUNDLE", stageKey, programId: clean(context.program.id), queueId: clean(context.queue.id) });
+  const capability = await assertFirstPassCapabilityEligibility(env.DB!, { operation: "COMPILE_STAGE_BUNDLE", stageKey, programId: clean(context.program.id), queueId: clean(context.queue.id) });
   const required = parseJson<string[]>(context.contract.required_artifacts_json, []);
   if (stageKey === "08") {
     const plan = await first(env.DB!, "SELECT * FROM v7_sequential_budget_plans WHERE queue_id=? AND lifecycle_state='APPROVED' ORDER BY version DESC LIMIT 1", context.queue.id);
@@ -229,8 +232,15 @@ async function startCompilation(env: Env, stageKey: StageKey, idempotencyKey: st
   const canonicalDuration = stageKey === "08" ? await canonicalNarrationDuration(env.DB!, context.queue.id) : null;
   const prompt = `You are the greenfield production compiler for YouTube AI Factory contract ${CONTRACT}.\n\nCreate Stage ${stageKey} for video #1, title: ${clean(context.queue.title)}. Market US. Language en-US. Format faceless premium documentary explainer, 16:9, 8–12 minutes. Never mention AI in audience-facing output.${canonicalDuration ? ` The exact measured canonical narration duration is ${canonicalDuration.toFixed(6)} seconds; the final shot must end at exactly this value within 0.05 seconds.` : ""}\n\nMANDATORY: use no legacy dossier, prompt, script, storyboard, media, master or artifact. Only the CURRENT FROZEN PARENT ARTIFACTS below are eligible. Produce exactly these artifact types, preserving spelling: ${required.join(" | ")}.\n\nStage directive: ${stageDirective[stageKey]}\n\nQuality release floors: overall >=92, critical >=90, every dimension >=86, P0=0, material P1=0. Do not claim PASS unless the actual deliverable meets those floors. Every artifact must be detailed enough to execute without guessing. documentMarkdown is the substantive deliverable, not a short summary.\n\nCURRENT FROZEN PARENT ARTIFACTS:\n${JSON.stringify(parentDigest)}\n\nReturn only the strict structured bundle.`;
   const requestId = makeId("seq-provider"), requestHash = await digest(prompt), startedAt = now(), model = env.OPENAI_QA_MODEL || MODEL;
-  await env.DB!.prepare("INSERT INTO v7_sequential_provider_requests (id,program_id,queue_id,stage_key,provider,operation,lifecycle_state,idempotency_key,request_hash,rights_state,cost_usd,started_at) VALUES (?,?,?,?,?,'COMPILE_STAGE_BUNDLE','RUNNING',?,?,?,0,?)")
-    .bind(requestId, context.program.id, context.queue.id, stageKey, "OPENAI", idempotencyKey, requestHash, stageKey === "01" || stageKey === "03" ? "PRIMARY_SOURCES_VERIFIED" : stageKey === "02" ? "REFERENCE_ANALYSIS_ONLY" : "CHANNEL_OWNED_ORIGINAL", startedAt).run();
+  const rightsState = stageKey === "01" || stageKey === "03" ? "PRIMARY_SOURCES_VERIFIED" : stageKey === "02" ? "REFERENCE_ANALYSIS_ONLY" : "CHANNEL_OWNED_ORIGINAL";
+  const integrity = await authorizeProductionDispatch(env.DB!, {
+    programId: clean(context.program.id), queueId: clean(context.queue.id), stageKey, operation: "COMPILE_STAGE_BUNDLE", actor: actor.email, providers: ["OPENAI"],
+    idempotencyKey, intent: { stageKey, requestHash, model, contract: CONTRACT }, ...fence, qualificationIds: capability.qualificationIds,
+    requestedProviderRequests: 1, rightsState, allowedRightsStates: [rightsState], safetyRequired: ["07A", "07B", "08"].includes(stageKey),
+  });
+  await markDispatchStarted(env.DB!, integrity.reservationId);
+  await env.DB!.prepare("INSERT INTO v7_sequential_provider_requests (id,program_id,queue_id,stage_key,provider,operation,lifecycle_state,idempotency_key,request_hash,rights_state,cost_usd,started_at,lease_id,fencing_token,reservation_id,trace_id) VALUES (?,?,?,?,?,'COMPILE_STAGE_BUNDLE','RUNNING',?,?,?,0,?,?,?,?,?)")
+    .bind(requestId, context.program.id, context.queue.id, stageKey, "OPENAI", idempotencyKey, requestHash, rightsState, startedAt, fence.leaseId, fence.fencingToken, integrity.reservationId, integrity.traceId).run();
   const tools = ["01", "02", "03"].includes(stageKey) ? [{ type: "web_search", return_token_budget: "unlimited" }] : undefined;
   const maxOutputTokens = stageKey === "08" ? 64000 : stageKey === "03" || stageKey === "06" ? 40000 : 24000;
   const responseSchema = structuredClone(stageKey === "08" ? stage08BundleSchema : bundleSchema) as Row;
@@ -238,16 +248,24 @@ async function startCompilation(env: Env, stageKey: StageKey, idempotencyKey: st
   const artifactItemSchema = artifactsSchema.items as Row;
   const artifactProperties = artifactItemSchema.properties as Row;
   artifactProperties.artifactType = { type: "string", enum: required };
-  const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": idempotencyKey }, body: JSON.stringify({ model, reasoning: { effort: "high" }, ...(tools ? { tools } : {}), background: true, store: true, max_output_tokens: maxOutputTokens, input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }], text: { format: { type: "json_schema", name: `sequential_stage_${stageKey.replace("A", "a").replace("B", "b")}_bundle`, strict: true, schema: responseSchema } } }), signal: AbortSignal.timeout(30000) });
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": idempotencyKey }, body: JSON.stringify({ model, reasoning: { effort: "high" }, ...(tools ? { tools } : {}), background: true, store: true, max_output_tokens: maxOutputTokens, input: [{ role: "user", content: [{ type: "input_text", text: prompt }] }], text: { format: { type: "json_schema", name: `sequential_stage_${stageKey.replace("A", "a").replace("B", "b")}_bundle`, strict: true, schema: responseSchema } } }), signal: AbortSignal.timeout(30000) });
+  } catch (error) {
+    const failureCode = error instanceof Error && error.name === "TimeoutError" ? "OPENAI_DISPATCH_TIMEOUT" : "OPENAI_DISPATCH_NETWORK_ERROR";
+    await settleProductionDispatch(env.DB!, { reservationId: integrity.reservationId, traceId: integrity.traceId, actualProviderRequests: 1, actualSpendUsd: 0, failureCode });
+    throw new SequentialCommandError(failureCode, 502, "OpenAI Stage compilation dispatch did not return a transport response");
+  }
   if (!response.ok) {
     const detail = (await response.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 500);
     await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,completed_at=? WHERE id=?").bind(`OPENAI_${response.status}`, now(), requestId).run();
+    await settleProductionDispatch(env.DB!, { reservationId: integrity.reservationId, traceId: integrity.traceId, actualProviderRequests: 1, actualSpendUsd: 0, failureCode: `OPENAI_${response.status}` });
     throw new SequentialCommandError("OPENAI_STAGE_COMPILATION_FAILED", 502, `OpenAI Stage ${stageKey} start failed (${response.status})${detail ? ` · ${detail}` : ""}`);
   }
   const payload = await response.json() as Row, providerResponseId = clean(payload.id);
-  if (!providerResponseId) throw new SequentialCommandError("OPENAI_RESPONSE_ID_MISSING", 502, "OpenAI did not return a response ID");
+  if (!providerResponseId) { await settleProductionDispatch(env.DB!, { reservationId: integrity.reservationId, traceId: integrity.traceId, actualProviderRequests: 1, actualSpendUsd: 0, failureCode: "OPENAI_RESPONSE_ID_MISSING" }); throw new SequentialCommandError("OPENAI_RESPONSE_ID_MISSING", 502, "OpenAI did not return a response ID"); }
   await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET provider_response_id=? WHERE id=?").bind(providerResponseId, requestId).run();
-  return { outcome: "STARTED", providerRequestId: requestId, providerResponseId, providerStatus: clean(payload.status) || "queued", stageKey, model };
+  return { outcome: "STARTED", providerRequestId: requestId, providerResponseId, providerStatus: clean(payload.status) || "queued", stageKey, model, integrity: { traceId: integrity.traceId, reservationId: integrity.reservationId, fencingToken: fence.fencingToken } };
 }
 
 async function finalizeCompilation(env: Env, actor: SequentialActor, stageKey: StageKey, providerRequestId: string) {
@@ -255,6 +273,7 @@ async function finalizeCompilation(env: Env, actor: SequentialActor, stageKey: S
   const context = await stageContext(env.DB!, stageKey);
   const request = await first(env.DB!, "SELECT * FROM v7_sequential_provider_requests WHERE id=? AND queue_id=? AND stage_key=? LIMIT 1", providerRequestId, context.queue.id, stageKey);
   if (!request || !clean(request.provider_response_id)) throw new SequentialCommandError("PROVIDER_REQUEST_NOT_FOUND", 404, "The provider request does not exist or has no response binding");
+  await assertCommandLease(env.DB!, { programId: clean(context.program.id), queueId: clean(context.queue.id), stageKey, leaseId: clean(request.lease_id), fencingToken: Number(request.fencing_token) });
   const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(clean(request.provider_response_id))}`, { headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` }, signal: AbortSignal.timeout(30000) });
   if (!response.ok) throw new SequentialCommandError("OPENAI_STAGE_STATUS_FAILED", 502, `OpenAI Stage ${stageKey} status failed (${response.status})`);
   const payload = await response.json() as Row, status = clean(payload.status);
@@ -263,6 +282,7 @@ async function finalizeCompilation(env: Env, actor: SequentialActor, stageKey: S
       const errorCode = `OPENAI_${status.toUpperCase()}`;
       const terminalUsage = measureOpenAIUsage(payload, env.OPENAI_QA_MODEL || MODEL);
       await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',error_code=?,cost_usd=?,completed_at=? WHERE id=?").bind(errorCode, terminalUsage.actualUsd, now(), providerRequestId).run();
+      await settleProductionDispatch(env.DB!, { reservationId: clean(request.reservation_id), traceId: clean(request.trace_id), actualProviderRequests: 1, actualSpendUsd: terminalUsage.actualUsd, failureCode: errorCode });
       return { outcome: "FAILED", stageKey, providerRequestId, providerStatus: status, errorCode, incompleteDetails: payload.incomplete_details || null, usage: terminalUsage };
     }
     return { outcome: "PENDING", stageKey, providerRequestId, providerStatus: status };
@@ -276,19 +296,33 @@ async function finalizeCompilation(env: Env, actor: SequentialActor, stageKey: S
   catch (error) {
     const errorCode = error instanceof SequentialCommandError ? error.code : "STAGE_BUNDLE_VALIDATION_FAILED";
     await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',response_hash=?,error_code=?,cost_usd=?,completed_at=? WHERE id=?").bind(responseHash, errorCode, usage.actualUsd, completedAt, providerRequestId).run();
+    await settleProductionDispatch(env.DB!, { reservationId: clean(request.reservation_id), traceId: clean(request.trace_id), actualProviderRequests: 1, actualSpendUsd: usage.actualUsd, failureCode: errorCode });
     return { outcome: "FAILED", stageKey, providerRequestId, providerStatus: status, errorCode, message: error instanceof Error ? error.message : "Stage bundle validation failed", usage };
   }
+  if (stageKey === "06") {
+    const safetyText = artifacts.map((artifact) => `${clean(artifact.title)}\n${clean(artifact.executiveSummary)}\n${clean(artifact.documentMarkdown)}`).join("\n"), safety = lintFinancialSafety(safetyText);
+    const evidenceHash = await canonicalHash({ standardId: "VQ-M0-SAFETY-SCOPE", state: safety.state, findings: safety.findings, sourceHash: responseHash }), evaluation = await first(env.DB!, "SELECT COALESCE(MAX(evaluation_number),0)+1 value FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? AND standard_id='VQ-M0-SAFETY-SCOPE'", context.queue.id, VIDEO_QUALITY_STANDARD_VERSION);
+    await env.DB!.prepare("INSERT INTO v7_video_quality_evidence (id,program_id,queue_id,standard_version,standard_id,evaluation_number,lifecycle_state,evidence_kind,evidence_hash,measured_value_json,findings_json,evaluated_by) VALUES (?,?,?,?,?,?,?,'SOURCE',?,?,?,?)")
+      .bind(makeId("seq-quality"), context.program.id, context.queue.id, VIDEO_QUALITY_STANDARD_VERSION, "VQ-M0-SAFETY-SCOPE", Number(evaluation?.value || 1), safety.state, evidenceHash, JSON.stringify({ deterministicLint: "FP3_1_FINANCIAL_SAFETY_V1", normalizedLength: safety.normalizedLength, personalizedAdviceCount: safety.findings.length }), JSON.stringify(safety.findings), actor.email.toLowerCase()).run();
+    if (safety.state !== "PASS") {
+      const errorCode = "VQ_M0_SAFETY_SCOPE_FAILED";
+      await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='FAILED',response_hash=?,error_code=?,cost_usd=?,completed_at=? WHERE id=?").bind(responseHash, errorCode, usage.actualUsd, completedAt, providerRequestId).run();
+      await settleProductionDispatch(env.DB!, { reservationId: clean(request.reservation_id), traceId: clean(request.trace_id), actualProviderRequests: 1, actualSpendUsd: usage.actualUsd, failureCode: errorCode });
+      return { outcome: "FAILED", stageKey, providerRequestId, providerStatus: status, errorCode, message: "Stage 06 failed the deterministic M0 financial safety scope", usage };
+    }
+  }
   await env.DB!.prepare("UPDATE v7_sequential_provider_requests SET lifecycle_state='COMPLETED',response_hash=?,cost_usd=?,completed_at=?,error_code=NULL WHERE id=?").bind(responseHash, usage.actualUsd, completedAt, providerRequestId).run();
+  await settleProductionDispatch(env.DB!, { reservationId: clean(request.reservation_id), traceId: clean(request.trace_id), actualProviderRequests: 1, actualSpendUsd: usage.actualUsd });
   const parentArtifactIds = context.parentArtifacts.map((artifact) => clean(artifact.id));
   const rightsState = stageKey === "01" || stageKey === "03" ? "PRIMARY_SOURCES_VERIFIED" : stageKey === "02" ? "REFERENCE_ANALYSIS_ONLY" : "CHANNEL_OWNED_ORIGINAL";
   const receipts = [];
   for (const [index, artifact] of artifacts.entries()) {
     const content = { schemaVersion: "V7_V23_4_V281_ARTIFACT_V1", stageKey, videoSequence: 1, sourceBriefHash: clean(context.queue.source_brief_hash), evidence: { items: artifact.evidence, providerResponseId: clean(request.provider_response_id), currentFrozenParentArtifactIds: parentArtifactIds, legacySources: 0 }, quality: artifact.quality, title: artifact.title, executiveSummary: artifact.executiveSummary, documentMarkdown: artifact.documentMarkdown, decisions: artifact.decisions, acceptanceTests: artifact.acceptanceTests, risks: artifact.risks, provenance: artifact.provenance, ...(stageKey === "08" && clean(artifact.artifactType) === "shot contracts" ? { productionRecords: bundle.productionRecords } : {}) };
-    const produced = await submitSequentialCommand({ DB: env.DB!, BUCKET: env.BUCKET! }, { body: { action: "PRODUCE_ARTIFACT", channelId: CHANNEL_ID, sequence: 1, stageKey, expectedStageState: "RUNNING", artifactType: clean(artifact.artifactType), content, parentArtifactIds, rightsState, costState: "WITHIN_APPROVED_PLAN", provider: "OPENAI", providerRequestId }, actor, idempotencyKey: `${providerRequestId}:produce:${index + 1}` });
-    const verified = await submitSequentialCommand({ DB: env.DB!, BUCKET: env.BUCKET! }, { body: { action: "VERIFY_ARTIFACT", channelId: CHANNEL_ID, sequence: 1, stageKey, expectedStageState: "RUNNING", artifactId: produced.artifactId || "", verification: { deterministic: true, providerResponseId: clean(request.provider_response_id), usageMeasured: true, qualityPolicy: "overall>=92;critical>=90;dimension>=86;P0=0;P1=0", legacySources: 0 } }, actor, idempotencyKey: `${providerRequestId}:verify:${index + 1}` });
+    const produced = await submitSequentialCommand({ DB: env.DB!, BUCKET: env.BUCKET! }, { body: { action: "PRODUCE_ARTIFACT", channelId: CHANNEL_ID, sequence: 1, stageKey, expectedStageState: "RUNNING", leaseId: clean(request.lease_id), fencingToken: Number(request.fencing_token), artifactType: clean(artifact.artifactType), content, parentArtifactIds, rightsState, costState: "WITHIN_APPROVED_PLAN", provider: "OPENAI", providerRequestId }, actor, idempotencyKey: `${providerRequestId}:produce:${index + 1}` });
+    const verified = await submitSequentialCommand({ DB: env.DB!, BUCKET: env.BUCKET! }, { body: { action: "VERIFY_ARTIFACT", channelId: CHANNEL_ID, sequence: 1, stageKey, expectedStageState: "RUNNING", leaseId: clean(request.lease_id), fencingToken: Number(request.fencing_token), artifactId: produced.artifactId || "", verification: { deterministic: true, providerResponseId: clean(request.provider_response_id), usageMeasured: true, qualityPolicy: "overall>=92;critical>=90;dimension>=86;P0=0;P1=0", legacySources: 0 } }, actor, idempotencyKey: `${providerRequestId}:verify:${index + 1}` });
     receipts.push({ artifactType: artifact.artifactType, artifactId: produced.artifactId, produceOutcome: produced.outcome, verifyOutcome: verified.outcome });
   }
-  const frozen = await submitSequentialCommand({ DB: env.DB!, BUCKET: env.BUCKET! }, { body: { action: "FREEZE_STAGE", channelId: CHANNEL_ID, sequence: 1, stageKey, expectedStageState: "RUNNING" }, actor, idempotencyKey: `${providerRequestId}:freeze` });
+  const frozen = await submitSequentialCommand({ DB: env.DB!, BUCKET: env.BUCKET! }, { body: { action: "FREEZE_STAGE", channelId: CHANNEL_ID, sequence: 1, stageKey, expectedStageState: "RUNNING", leaseId: clean(request.lease_id), fencingToken: Number(request.fencing_token) }, actor, idempotencyKey: `${providerRequestId}:freeze` });
   if (stageKey === "08") {
     const records = Array.isArray(bundle.productionRecords) ? bundle.productionRecords as Row[] : [], last = records.at(-1), evidenceHash = await digest(JSON.stringify(records.map((record) => [record.shotId, record.startSeconds, record.endSeconds]))), evaluation = await first(env.DB!, "SELECT COALESCE(MAX(evaluation_number),0)+1 value FROM v7_video_quality_evidence WHERE queue_id=? AND standard_version=? AND standard_id='VQ-M1-CANONICAL-COVERAGE'", context.queue.id, VIDEO_QUALITY_STANDARD_VERSION);
     await env.DB!.prepare("INSERT INTO v7_video_quality_evidence (id,program_id,queue_id,standard_version,standard_id,evaluation_number,lifecycle_state,evidence_kind,artifact_id,evidence_hash,measured_value_json,findings_json,evaluated_by) VALUES (?,?,?,?,?,?, 'PASS','MOTION',?,?,?,'[]',?)")
@@ -309,7 +343,7 @@ export async function POST(request: Request) {
     if (action === "START_COMPILATION") {
       const idempotencyKey = clean(request.headers.get("idempotency-key"));
       if (idempotencyKey.length < 16 || !/^[A-Za-z0-9._:-]+$/.test(idempotencyKey)) return failure("IDEMPOTENCY_KEY_INVALID", "A stable 16–200 character Idempotency-Key is required", 400);
-      return Response.json(await startCompilation(env, stageKey, idempotencyKey), { status: 202, headers: NO_STORE });
+      return Response.json(await startCompilation(env, actor, stageKey, idempotencyKey, readFencingHeaders(request)), { status: 202, headers: NO_STORE });
     }
     if (action === "FINALIZE_COMPILATION") {
       const providerRequestId = clean(body.providerRequestId);
@@ -319,6 +353,7 @@ export async function POST(request: Request) {
     }
     return failure("EXECUTOR_ACTION_INVALID", "Use START_COMPILATION or FINALIZE_COMPILATION", 400);
   } catch (error) {
+    if (error instanceof ProductionIntegrityError) return Response.json({ error: { code: error.code, message: error.message, reasons: error.reasons }, fallback: false, providerRequests: 0, spendUsd: 0 }, { status: error.status, headers: NO_STORE });
     if (error instanceof FirstPassCapabilityError) return Response.json({ error: { code: error.code, message: error.message, gaps: error.gaps }, fallback: false, providerRequests: 0, spendUsd: 0 }, { status: error.status, headers: NO_STORE });
     if (error instanceof SequentialCommandError) return failure(error.code, error.message, error.status);
     return failure("SEQUENTIAL_EXECUTOR_FAILED", error instanceof Error ? error.message : "Sequential executor failed", 503);

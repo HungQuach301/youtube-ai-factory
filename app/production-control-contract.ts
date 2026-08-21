@@ -63,9 +63,9 @@ export type SequentialProductionProjection = {
   };
   firstPass: {
     standardVersion: "FIRST_PASS_QUALITY_V1";
-    currentSlice: "FP3";
-    currentSliceState: "IMPLEMENTED";
-    nextSlice: "FP4";
+    currentSlice: "FP3.1";
+    currentSliceState: "SOURCE_IMPLEMENTED";
+    nextSlice: "FP3.1-RUNTIME";
     nextSliceLabel: string;
     capabilityRegistryState: "QUALIFICATION_REQUIRED" | "PARTIALLY_QUALIFIED" | "QUALIFIED";
     dispatchGuardState: "ENFORCED";

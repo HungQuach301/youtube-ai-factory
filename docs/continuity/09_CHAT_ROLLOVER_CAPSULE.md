@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `PRODUCTION_ACTIVE_WITH_BLOCKED_VIDEO_EXCELLENCE`
+**Current source classification:** `FP3_1_SOURCE_IMPLEMENTED__PRODUCTION_RUNTIME_UNCHANGED`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -26,10 +26,11 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - FP2 Capability Registry mechanism is implemented.
 - One of 22 capability/operation bindings is qualified.
 - FP3 deterministic ShotCueProgram is sealed: 80.252 seconds, eight typed shots/treatments, zero timing/schema gaps, zero provider requests and zero spend.
+- FP3.1 Production Integrity is implemented and tested in source. Migration `0050` replays locally but has not been applied to production.
 - Golden r9 is immutable rejected evidence.
 - Golden r10, Stage 11, Videos 2–15 and auto-publish are blocked.
 - Paid FP4 authority has not been granted.
-- The next implementation milestone is FP3.1 Production Integrity, followed by the Learning-ready Contract Pack and WP7 Evaluation Foundation.
+- The next implementation milestone is separately authorized FP3.1 production migration and zero-dispatch runtime QA. Only after that gate closes may the Learning-ready Contract Pack and WP7 Evaluation Foundation proceed.
 
 ## Protected no-rerun list
 

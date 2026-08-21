@@ -12,6 +12,7 @@ const qualified = {
   capabilityKey: "LAYERED_SCENE_COMPOSITOR",
   capabilityVersion: "1.0.0",
   capabilityState: "QUALIFIED",
+  activeSettingsHash: "sha256:settings",
   archetypeId: "archetype-1",
   archetypeKey: "TRANSACTION_STATE_PROOF",
   archetypeLabel: "Transaction state proof",
@@ -49,6 +50,7 @@ test("first-pass eligibility is fail-closed and version-bound", () => {
     "CAPABILITY_NOT_QUALIFIED",
     "ARCHETYPE_QUALIFICATION_NOT_PASSED",
     "SETTINGS_HASH_MISSING",
+    "CAPABILITY_SETTINGS_MISMATCH",
     "SAMPLE_SIZE_BELOW_FLOOR",
     "FIRST_PASS_YIELD_BELOW_FLOOR",
     "EVIDENCE_HASH_COVERAGE_INCOMPLETE",
@@ -92,9 +94,9 @@ test("all production dispatch boundaries require qualification before provider w
 test("operator UI projects registry coverage without implying production readiness", () => {
   const projection = read("lib/sequential-production-projection.ts");
   const workspace = read("app/video-engine/production-engine-workspace.tsx");
-  assert.match(projection, /currentSlice: "FP3"/);
-  assert.match(projection, /nextSlice: "FP4"/);
+  assert.match(projection, /currentSlice: "FP3\.1"/);
+  assert.match(projection, /nextSlice: "FP3\.1-RUNTIME"/);
   assert.match(projection, /dispatchGuardState: "ENFORCED"/);
   assert.match(workspace, /Qualification happens before production/);
-  assert.match(workspace, /Golden r10 remains forbidden/);
+  assert.match(workspace, /provider dispatch and Golden r10 remain separately blocked/);
 });

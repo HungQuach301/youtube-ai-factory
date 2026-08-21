@@ -1,7 +1,7 @@
 # Master Issue Registry
 
 **Registry version:** `MASTER_ISSUE_REGISTRY_V1`
-**Reconciled:** 2026-08-20
+**Reconciled:** 2026-08-21
 **Total original A–G findings:** 47 = 9 P0 + 28 P1 + 10 P2
 
 ## Status definitions
@@ -18,11 +18,11 @@
 
 | ID | Priority | Finding | Reconciled disposition | Owning wave |
 |---|---:|---|---|---|
-| A1 | P0 | `FROZEN` conflates immutable bytes with downstream eligibility | `PARTIAL`: UI projection separates control and quality, stored lifecycle still requires independent fields | FP3.1 |
-| A2 | P0 | M0 Safety Scope is not evaluated on financial content | `CONFIRMED_MANDATORY`: every owned M0/M1 gate must PASS; `NOT_EVALUATED` is ineligible | FP3.1 |
-| A3 | P0 | No automatic supersede when capability/settings version changes | `CONFIRMED_MANDATORY` | FP3.1 |
-| A4 | P1 | `NOT_EVALUATED` is presented with `FAIL` | `CONFIRMED_MANDATORY`: separate state and reporting semantics | FP3.1 |
-| A5 | P1 | Stage 11 control can appear READY while upstream repair is required | `PARTIAL`: evidence precedence blocks operation; persist fail-closed control state | FP3.1 |
+| A1 | P0 | `FROZEN` conflates immutable bytes with downstream eligibility | `SOURCE_IMPLEMENTED__PRODUCTION_EVIDENCE_REQUIRED`: migration adds independent stored state; historical lineage backfills blocked | FP3.1 |
+| A2 | P0 | M0 Safety Scope is not evaluated on financial content | `SOURCE_IMPLEMENTED__PRODUCTION_EVIDENCE_REQUIRED`: deterministic owner lint records PASS/FAIL; downstream `NOT_EVALUATED` remains ineligible | FP3.1 |
+| A3 | P0 | No automatic supersede when capability/settings version changes | `SOURCE_IMPLEMENTED__PRODUCTION_EVIDENCE_REQUIRED`: guard supersedes stale qualifications before authorization | FP3.1 |
+| A4 | P1 | `NOT_EVALUATED` is presented with `FAIL` | `SOURCE_IMPLEMENTED__PRODUCTION_EVIDENCE_REQUIRED`: state and reporting semantics are separate | FP3.1 |
+| A5 | P1 | Stage 11 control can appear READY while upstream repair is required | `SOURCE_IMPLEMENTED__PRODUCTION_EVIDENCE_REQUIRED`: stored eligibility and effective projection fail closed independently | FP3.1 |
 | A6 | P1 | Golden first-pass failure escalation lacks owner/SLA | `ACCEPTED_DESIGN`: architecture incident owner and bounded escalation required | FP3.1/WP7 |
 | A7 | P1 | Pilot mode exists; scale/sampling rules do not | `CONFIRMED_MANDATORY` before second channel | Scale |
 | A8 | P1 | Rejected fixture can be labelled release-ready | `CONFIRMED_MANDATORY`: qualification fixtures must never be release candidates | WP7 |
@@ -66,11 +66,11 @@
 |---|---:|---|---|---|
 | D1 | P1 | Compositor throughput/cost is unmeasured | `CONFIRMED_MANDATORY`: benchmark every archetype; qualify dependencies first | Technical media |
 | D2 | P1 | Rights are fields rather than a versioned licence-lineage object | `CONFIRMED_MANDATORY` | Contract Pack/Technical media |
-| D3 | P1 | Model aliases and updates can halt or silently change behavior | `CONFIRMED_MANDATORY`: use provider-supported immutable IDs where available and shadow qualification | FP3.1 |
+| D3 | P1 | Model aliases and updates can halt or silently change behavior | `PARTIAL__PRODUCTION_EVIDENCE_REQUIRED`: active settings hash and automatic supersede are source-enforced; immutable provider IDs and shadow qualification remain provider-specific work | FP3.1 |
 | D4 | P1 | Production-audio provider decision is incorrectly hidden inside FP5 | `CONFIRMED_MANDATORY`: commercial/legal selection runs before FP5 | Technical media |
 | D5 | P1 | FP4 qualifying all visual archetypes at once is big-bang | `CONFIRMED_MANDATORY`: benchmark all, qualify Video #1 dependency order first | FP4 |
 | D6 | P2 | Narrator identity has no provider-deprecation continuity | `ACCEPTED_DESIGN`; voice evidence requires rights, privacy and retention controls | Contract Pack |
-| D7 | P1 | Failed provider requests are not classified | `CONFIRMED_MANDATORY`: taxonomy, trace and reconciliation | FP3.1 |
+| D7 | P1 | Failed provider requests are not classified | `SOURCE_IMPLEMENTED__PRODUCTION_EVIDENCE_REQUIRED`: failure taxonomy, provider-row class, redacted trace and orphan reconciliation are implemented | FP3.1 |
 
 ## E — Economics
 
@@ -86,7 +86,7 @@
 | F2 | P1 | Story/retention/audience fail too late after full media spend | `CONFIRMED_MANDATORY`: animatic gate before Video #1 Stage 09 | Contract Pack |
 | F3 | P1 | Parity rewards similarity without differentiation | `CONFIRMED_MANDATORY`; metric thresholds require calibration | Upstream quality |
 | F4 | P1 | Stage 03 lacks a domain-aware source authority ladder | `CONFIRMED_MANDATORY` | Upstream quality |
-| F5 | P1 | Personalized financial advice is checked too late | `CONFIRMED_MANDATORY`: high-precision deterministic lint plus semantic/human safety path | FP3.1/Upstream quality |
+| F5 | P1 | Personalized financial advice is checked too late | `PARTIAL__PRODUCTION_EVIDENCE_REQUIRED`: high-precision deterministic Stage 06 lint is implemented; semantic/human safety remains upstream quality work | FP3.1/Upstream quality |
 
 ## G — Documentation and runtime consistency
 
@@ -100,10 +100,10 @@
 
 | ID | Priority | Finding | Disposition | Owning wave |
 |---|---:|---|---|---|
-| X1 | P0 | Canonical hashing is not unified across material lineage paths | `CONFIRMED_MANDATORY`; JCS and input normalization must be defined separately | FP3.1 |
-| X2 | P0 | Expiring leases do not prevent stale writers | `CONFIRMED_MANDATORY`: fencing, heartbeat and orphan reconciliation | FP3.1 |
-| X3 | P0 | Spend is recorded after provider completion without atomic reservation | `CONFIRMED_MANDATORY` | FP3.1 |
-| X4 | P1 | End-to-end trace/span and provider-failure evidence are incomplete | `CONFIRMED_MANDATORY` with redaction/encryption/retention | FP3.1 |
+| X1 | P0 | Canonical hashing is not unified across material lineage paths | `SOURCE_IMPLEMENTED__PRODUCTION_EVIDENCE_REQUIRED`: `JCS_NFC_V1` is shared by command, artifact, intent and lineage paths | FP3.1 |
+| X2 | P0 | Expiring leases do not prevent stale writers | `SOURCE_IMPLEMENTED__PRODUCTION_EVIDENCE_REQUIRED`: monotonic fencing, heartbeat and orphan reconciliation are implemented | FP3.1 |
+| X3 | P0 | Spend is recorded after provider completion without atomic reservation | `SOURCE_IMPLEMENTED__PRODUCTION_EVIDENCE_REQUIRED`: transactional reserve/dispatch/settle with reserved and actual ceiling triggers is implemented | FP3.1 |
+| X4 | P1 | End-to-end trace/span and provider-failure evidence are incomplete | `PARTIAL__PRODUCTION_EVIDENCE_REQUIRED`: redacted trace, reservation, lease and failure lineage are implemented; retention/encryption operations remain runtime work | FP3.1 |
 | X5 | P0 | Packaging and publishing are absent from the authoritative video path | `CONFIRMED_MANDATORY`: parallel packaging track and typed publish contract | Contract Pack/Video #1 |
 | X6 | P0 | Learning loop lacks prediction and typed promotion | `CONFIRMED_MANDATORY` | Contract Pack/Learning |
 | X7 | P1 | Experiment discipline is absent and N=1 can create false learning | `CONFIRMED_MANDATORY` | Contract Pack/Learning |
