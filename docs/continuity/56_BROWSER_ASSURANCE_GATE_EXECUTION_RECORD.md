@@ -58,6 +58,10 @@ The fixture therefore returned `PLAYBACK_AUDIO_MISSING` and `BROWSER_ZOOM_REFLOW
 - Owner receipts: zero.
 - Browser assurance PASS receipts: zero.
 
+## Production activation
+
+Sites v414 deployed source commit `3cfc3d9ddd8d99175eee112e5943029106559256` and migration `0060`. The immutable deployment status is `succeeded` at the canonical Production URL. Version provenance read-back matches the exact source commit, and the post-deployment Worker error query returned zero events. Activation created no Browser PASS receipt and did not alter provider request/spend authority, Golden eligibility or Stage 11 state.
+
 ## Next gate
 
-Deploy migration `0060` and the Browser surface, verify the exact production policy/version and route, then have the owner supplement audible-audio and zoom/reflow observations on the first eligible exact master. Golden r10 and Stage 11 remain blocked until every Browser criterion and all other M0/M1 gates pass.
+Have the owner supplement audible-audio and zoom/reflow observations on the first eligible exact master. Golden r10 and Stage 11 remain blocked until every Browser criterion and all other M0/M1 gates pass.

@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `BROWSER_ASSURANCE_GATE_SOURCE_READY__PRODUCTION_AND_HUMAN_SENSORY_OBSERVATIONS_PENDING`
+**Current source classification:** `BROWSER_ASSURANCE_GATE_PRODUCTION_ACTIVE__HUMAN_SENSORY_OBSERVATIONS_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -50,7 +50,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Sites v407 activated migration `0058` and `EVALUATION_OWNER_LABEL_POLICY_V1`: 525 open exact-byte tasks, zero receipts, zero owner-confirmed/labelled candidates, 63 rights-pending and seven quarantined candidates excluded. Owner playback recomputes the R2 hash, taxonomy coverage is complete and receipts are append-only. Next is real owner classification in parallel with collecting the 63 rights-evidence records; then correlation/de-duplication before dataset sealing.
 - Sites v409 activated migration `0059` and `EVALUATION_CORRELATION_CONTROL_V1` from source `213038f808911ce31a38a708346e9f790417c0bf`. All 525 immutable owner-label tasks remain; production exposes 82 actionable independent-count primaries, defers 443 correlated variants and found zero exact duplicates. Rights remain 525 PASS / 63 pending / seven excluded. No owner receipt, fixture, dataset, provider request or slice spend was created. Next is real owner classification of the 82 representatives in parallel with the 46 ElevenLabs / 16 composite-master / 1 clip rights-evidence lanes.
 - Sites v411 activates `EVALUATION_OWNER_REVIEW_UX_V2`. It replaces the eleven-row technical form with a three-step Vietnamese owner flow, exposes only media-observable defects, sends system-owned rights/master-lineage dimensions as `NOT_APPLICABLE` and enforces the same scope server-side. Read-back reports 82 actionable tasks, zero owner receipts, zero provider request/spend and zero Worker errors. Full regression passes 162/162; non-SIWC access remains rejected with `401`. Agent preview cannot enter the identity-bound route without a local D1/R2 fixture, so exact next action remains SIWC owner verification of the first production sample.
-- `BROWSER_ASSURANCE_GATE_V1` and migration `0060` are source-ready as a separate exact-master release gate. Agent-preview QA played a marked no-release fixture to completion, exercised pause/resume/seek, observed motion and verified keyboard focus; it caught and fixed a real `crypto.randomUUID` runtime defect. The gate refused PASS because agent audio perception and zoom/reflow were unavailable. Full regression passes 164/164, provider/spend remain zero and production activation is pending. The owner supplements audible-audio and zoom/reflow only; Browser assurance never replaces owner semantic evaluation.
+- Sites v414 deploys `BROWSER_ASSURANCE_GATE_V1` and migration `0060` as a separate exact-master release gate from source `3cfc3d9ddd8d99175eee112e5943029106559256`. Agent-preview QA played a marked no-release fixture to completion, exercised pause/resume/seek, observed motion and verified keyboard focus; it caught and fixed a real `crypto.randomUUID` runtime defect. The gate refused PASS because agent audio perception and zoom/reflow were unavailable. Full regression passes 164/164, provider/spend remain zero and post-deploy Worker errors are zero. The owner supplements audible-audio and zoom/reflow only; Browser assurance never replaces owner semantic evaluation.
 
 ## Protected no-rerun list
 

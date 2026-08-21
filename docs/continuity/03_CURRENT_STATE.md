@@ -6,8 +6,8 @@ Last reconciled: 2026-08-21 (Asia/Bangkok)
 
 ```text
 BROWSER_ASSURANCE_GATE = BROWSER_ASSURANCE_GATE_V1
-SOURCE_STATE = IMPLEMENTED__PRODUCTION_PENDING
-SCHEMA = MIGRATION_0060_SOURCE_READY
+SOURCE_STATE = PRODUCTION_ACTIVE_SITES_V414__QUALIFICATION_BLOCKED
+SCHEMA = MIGRATION_0060_DEPLOYED_SITES_V414
 RELEASE_BINDING = EXACT_GOLDEN_REVISION__MASTER_ARTIFACT__MASTER_SHA256
 PLAYBACK_REQUIREMENT = CONTINUOUS_COVERAGE_GTE_98_PERCENT__PAUSE_RESUME_SEEK_ENDED
 INDEPENDENCE = AUTOMATED_STATIC_QA__BROWSER_ASSURANCE__OWNER_SEMANTIC_REVIEW
@@ -20,10 +20,13 @@ BROWSER_PASS_RECEIPTS = 0
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
 TECHNICAL_QA = PASS_164_OF_164
-NEXT_PROTECTED_ACTION = DEPLOY_0060__VERIFY_PRODUCTION__OWNER_SUPPLEMENT_AUDIO_AND_REFLOW
+PRODUCTION_SOURCE_COMMIT = 3cfc3d9ddd8d99175eee112e5943029106559256
+PRODUCTION_DEPLOYMENT = SUCCEEDED
+WORKER_ERROR_EVENTS = 0
+NEXT_PROTECTED_ACTION = OWNER_SUPPLEMENT_AUDIO_AND_REFLOW_ON_FIRST_ELIGIBLE_EXACT_MASTER
 ```
 
-Browser QA exercised a real 1920×1080 VP9/Opus fixture, reached playback end, used pause/resume/seek, observed motion and verified visible keyboard focus. It caught and drove a source fix for a missing `crypto.randomUUID` runtime capability. Because the Browser agent cannot hear audio and the cloud runtime did not apply zoom, the gate correctly refused PASS instead of fabricating evidence. Migration `0060`, ADR-090 and document 56 are authoritative; production remains unchanged until the checkpoint succeeds.
+Browser QA exercised a real 1920×1080 VP9/Opus fixture, reached playback end, used pause/resume/seek, observed motion and verified visible keyboard focus. It caught and drove a source fix for a missing `crypto.randomUUID` runtime capability. Because the Browser agent cannot hear audio and the cloud runtime did not apply zoom, the gate correctly refused PASS instead of fabricating evidence. Sites v414 deployed exact source commit `3cfc3d9ddd8d99175eee112e5943029106559256`; deployment status is `succeeded` and the post-deploy error log is empty. Migration `0060`, ADR-090 and document 56 are authoritative. Production activation does not mean qualification: the first eligible exact master remains blocked until every criterion passes.
 
 ## Wave 3 owner-review usability production checkpoint — 2026-08-21
 
