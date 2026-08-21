@@ -2,7 +2,7 @@
 
 Last reconciled: 2026-08-21 (Asia/Bangkok)
 
-## Wave 3 owner-review usability source checkpoint — 2026-08-21
+## Wave 3 owner-review usability production checkpoint — 2026-08-21
 
 ```text
 OWNER_REVIEW_UX = EVALUATION_OWNER_REVIEW_UX_V2
@@ -14,11 +14,15 @@ OWNER_FLOW = PLAY_FULL_SAMPLE__CHOOSE_ONE_DECISION__SELECT_OBSERVED_DEFECTS_IF_A
 OWNER_RECEIPTS_CREATED = 0
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-PRODUCTION_ACTIVATION = PENDING_CHECKPOINT
-NEXT_PROTECTED_ACTION = DEPLOY_OWNER_REVIEW_UX_AND_OWNER_VERIFY_FIRST_SAMPLE
+PRODUCTION_ACTIVATION = PASS_SITES_V411
+PRODUCTION_VERSION_READBACK = EVALUATION_OWNER_REVIEW_UX_V2
+PRODUCTION_ACTIONABLE = 82
+PRODUCTION_RECEIPTS = 0
+WORKER_ERROR_EVENTS = 0
+NEXT_PROTECTED_ACTION = OWNER_VERIFY_FIRST_SAMPLE_USABILITY
 ```
 
-The owner workflow now separates human-observable playback defects from checks owned by deterministic evidence. It presents Vietnamese task guidance, three plain-language decisions, media-specific defect choices, progress and a full-screen path. Server validation rejects any attempt to record a system-owned dimension as an owner observation. Documents 54 and ADR-089 are authoritative.
+Sites v411 activates the owner workflow that separates human-observable playback defects from checks owned by deterministic evidence. Direct production read-back returns `EVALUATION_OWNER_REVIEW_UX_V2`, 82 actionable tasks, zero receipts, zero provider request/spend and zero Worker errors. It presents Vietnamese task guidance, three plain-language decisions, media-specific defect choices, progress and a full-screen path. Server validation rejects any attempt to record a system-owned dimension as an owner observation. The real owner must still verify the first sample's usability. Documents 54 and ADR-089 are authoritative.
 
 ## Wave 3 correlation-control production checkpoint — 2026-08-21
 

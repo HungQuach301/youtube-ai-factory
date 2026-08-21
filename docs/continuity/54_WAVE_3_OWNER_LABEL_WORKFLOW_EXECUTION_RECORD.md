@@ -39,7 +39,9 @@ Complete-taxonomy coverage remains fail-closed. Only modalities observable from 
 - Rights remained 525 PASS / 63 pending; seven quarantined candidates remained excluded.
 - Unauthenticated owner workflow request: rejected with `401`.
 - Provider requests/spend, fixture promotion, sealed datasets and release eligibility: unchanged at zero for this slice.
+- Sites v411 activates `EVALUATION_OWNER_REVIEW_UX_V2`; public production read-back returns the exact version, 82 actionable primaries, zero receipts and zero Worker errors.
+- Sites bypass without a real SIWC owner identity remains rejected with `401`; no automation path was added to view or submit owner judgments.
 
 ## Next gate
 
-Deploy the usability hardening, then the owner classifies only the 82 actionable primary representatives through an authenticated ChatGPT Site session. Receipt counts are evidence, not a sealed dataset. The 63 rights-pending tasks remain on their separate evidence-collection lanes.
+The real owner verifies the first sample's usability, then classifies only the 82 actionable primary representatives through an authenticated ChatGPT Site session. Receipt counts are evidence, not a sealed dataset. The 63 rights-pending tasks remain on their separate evidence-collection lanes.

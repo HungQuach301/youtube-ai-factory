@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WAVE_3_PHASE_9_CORRELATION_CONTROL_PRODUCTION_ACCEPTED__OWNER_REVIEW_UX_SOURCE_READY`
+**Current source classification:** `WAVE_3_OWNER_REVIEW_UX_PRODUCTION_ACTIVE__FIRST_OWNER_SAMPLE_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -49,7 +49,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - `OWNER_STANDING_PRODUCTION_AUTHORITY_V1` permits future roadmap-bounded deploy, migration, production QA and provider calls without repeated chat confirmation, but never bypasses capability/settings, budget, rights, safety, idempotency or fencing gates and does not authorize publish/delete/weaken actions.
 - Sites v407 activated migration `0058` and `EVALUATION_OWNER_LABEL_POLICY_V1`: 525 open exact-byte tasks, zero receipts, zero owner-confirmed/labelled candidates, 63 rights-pending and seven quarantined candidates excluded. Owner playback recomputes the R2 hash, taxonomy coverage is complete and receipts are append-only. Next is real owner classification in parallel with collecting the 63 rights-evidence records; then correlation/de-duplication before dataset sealing.
 - Sites v409 activated migration `0059` and `EVALUATION_CORRELATION_CONTROL_V1` from source `213038f808911ce31a38a708346e9f790417c0bf`. All 525 immutable owner-label tasks remain; production exposes 82 actionable independent-count primaries, defers 443 correlated variants and found zero exact duplicates. Rights remain 525 PASS / 63 pending / seven excluded. No owner receipt, fixture, dataset, provider request or slice spend was created. Next is real owner classification of the 82 representatives in parallel with the 46 ElevenLabs / 16 composite-master / 1 clip rights-evidence lanes.
-- `EVALUATION_OWNER_REVIEW_UX_V2` is source-ready. It replaces the eleven-row technical form with a three-step Vietnamese owner flow, exposes only media-observable defects, sends system-owned rights/master-lineage dimensions as `NOT_APPLICABLE` and enforces the same scope server-side. No owner receipt was created. Exact next action: deploy and have the real owner verify the first sample.
+- Sites v411 activates `EVALUATION_OWNER_REVIEW_UX_V2`. It replaces the eleven-row technical form with a three-step Vietnamese owner flow, exposes only media-observable defects, sends system-owned rights/master-lineage dimensions as `NOT_APPLICABLE` and enforces the same scope server-side. Read-back reports 82 actionable tasks, zero owner receipts, zero provider request/spend and zero Worker errors. Exact next action: the SIWC owner verifies the first sample's usability.
 
 ## Protected no-rerun list
 

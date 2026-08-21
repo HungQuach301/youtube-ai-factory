@@ -113,7 +113,7 @@
 | X11 | P1 | Exclusive one-video mode has no portfolio-scale successor | `ACCEPTED_DESIGN` before second channel | Scale |
 | X12 | P1 | Owner approval has no explicit attention budget | `PARTIAL__PRODUCTION_ACTIVE`: Sites v409 reduces the WP7 queue from 525 immutable tasks to 82 actionable primaries while preserving 443 correlated variants; scale-wide delegation and escalation budgets remain open | Evaluation/Scale |
 | X13 | P1 | External documentation and chat continuity were fragmented | `CONFIRMED_MANDATORY`; addressed by `GIT_REPOSITORY_SSOT_V1` | Wave 0 |
-| X14 | P1 | Owner-label UI exposes technical taxonomy and asks humans to judge non-observable evidence | `PARTIAL__SOURCE_READY`: V2 reduces the task to observable media defects and server-enforces system-evidence separation; production and first-owner-sample evidence pending | Evaluation |
+| X14 | P1 | Owner-label UI exposes technical taxonomy and asks humans to judge non-observable evidence | `PARTIAL__PRODUCTION_ACTIVE`: Sites v411 runs the three-step observable-media V2 and server-enforces system-evidence separation; first-owner-sample usability evidence remains pending | Evaluation |
 
 ## Closure rule
 
