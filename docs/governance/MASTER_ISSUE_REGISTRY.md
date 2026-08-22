@@ -33,7 +33,7 @@
 
 | ID | Priority | Finding | Reconciled disposition | Owning wave |
 |---|---:|---|---|---|
-| B1 | P0 | Assurance capability has no qualified ground truth | `PARTIAL__DIAGNOSTIC_SOURCE_READY`: the 595-object byte substrate is reconciled and blocked-reason aggregation is tested, but production cause read-back, 63 rights receipts, owner labels and independence control remain; no fixture, gold set or assurance capability is qualified | WP7 |
+| B1 | P0 | Assurance capability has no qualified ground truth | `PARTIAL__REGRESSION_CORPUS_SOURCE_READY`: migration `0067` preserves 33 independent visual failures as candidates and two owner anchors as references, but production read-back, 10–15 bounded owner-confirmed references, clean negatives, controlled injections and complete P0 coverage are still required; no dataset or assurance capability is qualified | WP7 |
 | B2 | P0 | ASR/alignment tool and error floor are not pinned/calibrated | `CONFIRMED_MANDATORY`; exact stack and thresholds require calibration | Technical media/WP7 |
 | B3 | P0 | Independent QA is procedural rather than architectural | `PARTIAL__PRODUCTION_ACTIVE`: blinded datasets and accountable label sources are live; independent provider/model-family or human P0 adjudication remains unqualified | WP7 |
 | B4 | P1 | Critic repeatability is unmeasured | `PARTIAL__PRODUCTION_ACTIVE`: repeat policy and per-family metric are live; actual provider repeatability remains calibration-required | WP7 |

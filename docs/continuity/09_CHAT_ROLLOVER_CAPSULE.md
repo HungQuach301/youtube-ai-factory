@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `FACTORY_BROWSER_QA_PRODUCTION_ACTIVE__47_JSON_ROUTING_CORRECTED__0_MEDIA_QUEUE`
+**Current source classification:** `WP7_REGRESSION_CORPUS_SOURCE_READY__PRODUCTION_MIGRATION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -24,6 +24,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Production confirms two exact-byte owner anchors. Sites v425 combined preserved V2 model receipts with separate deterministic SVG evidence and passed calibration at 2/2 without a third provider retry.
 - `FACTORY_FIRST_QA_POLICY_V1` completed all 80 non-anchor primaries: 33 image candidates are likely-defect, 47 JSON artifacts are `STRUCTURED_EVIDENCE_ONLY`, and there are zero actual Browser-required media, likely-clean or owner-attention outcomes. It never writes as the owner, never sets owner-confirmed state and cannot promote fixtures, datasets, assurance qualification or release eligibility.
 - The ledger contains 84 raw receipts, 37 provider requests and measured spend of $0.4314096 against hard ceilings of 84 / $6.75. `FACTORY_BROWSER_QA_POLICY_V1` is production-active for future real audio/video. Migration `0066` preserves and supersedes the 47 legacy JSON misroutes without rewriting them. The Browser fixture passes, the current eligible media queue is zero and the owner does not resume sequential review.
+- `WP7_REGRESSION_CORPUS_POLICY_V1` and migration `0067` are source-ready. Expected production backfill is 35 immutable items: 33 `INDEPENDENT_REVIEW_ONLY` visual failures and two `OWNER_CONFIRMED_REFERENCE` anchors. The readiness state must remain `INSUFFICIENT_GROUND_TRUTH` because there are fewer than 10 owner-confirmed references, zero clean negatives, zero controlled injections and incomplete P0 coverage. Full source regression passes 170/170; production deployment/read-back is next.
 
 - The latest code baseline before knowledge consolidation is `5b669fc9230f5b012ebe4aa2c0b5c21fa50df890`.
 - FP1 truthful operator projection is implemented.

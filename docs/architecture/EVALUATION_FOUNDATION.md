@@ -113,3 +113,9 @@ Sites v404 classified the 63 provider-terms-pending candidates as 46 ElevenLabs 
 `FACTORY_FIRST_QA_POLICY_V1` uses the two existing exact-byte owner receipts as calibration anchors, not as permission to imitate the owner. The independent lane must rediscover every owner-present defect on both anchors before any batch can run. It reads the exact R2 object, recomputes SHA-256, evaluates every media-observable taxonomy item and stores a separate append-only Factory receipt plus `INDEPENDENT_REVIEW` labels.
 
 Image review is structured vision evidence. Audio and temporal artifacts require full Browser playback and remain `BROWSER_REQUIRED` until that lane produces evidence. A still SHOT is judged as an intermediate visual: missing voice is not itself an image defect, while a visibly static slide/template or audience-visible production residue may be. Factory output cannot set owner-confirmed state, promote a fixture, seal a dataset, qualify assurance or create release eligibility. Owner attention is exception- and audit-sample-based after calibration.
+
+### WP7 regression-corpus contract
+
+`WP7_REGRESSION_CORPUS_POLICY_V1` converts durable QA failures into an immutable candidate ledger while preserving evidence authority. Factory findings remain `INDEPENDENT_REVIEW_ONLY`; only exact-byte owner receipts may create `OWNER_CONFIRMED_REFERENCE` items. Neither class enters a dataset automatically.
+
+The first readiness boundary requires 10–15 bounded owner-confirmed references, at least one clean negative control, at least one controlled-injection fixture and complete owner-confirmed coverage of every active P0 defect family. Meeting that boundary permits dataset design only. Blinding, split lineage, sealing and assurance qualification remain separate gates. Missing evidence produces `INSUFFICIENT_GROUND_TRUTH`; no average score or Factory candidate count may compensate.

@@ -9,6 +9,9 @@ export const FACTORY_FIRST_QA_POLICY_VERSION = "FACTORY_FIRST_QA_POLICY_V1" as c
 export const FACTORY_FIRST_QA_MAXIMUM_BATCH = 5;
 export const FACTORY_FIRST_QA_MAXIMUM_REQUEST_RESERVATION_USD = 0.08;
 export const FACTORY_BROWSER_QA_POLICY_VERSION = "FACTORY_BROWSER_QA_POLICY_V1" as const;
+export const WP7_REGRESSION_CORPUS_POLICY_VERSION = "WP7_REGRESSION_CORPUS_POLICY_V1" as const;
+export const WP7_REGRESSION_REFERENCE_MINIMUM = 10;
+export const WP7_REGRESSION_REFERENCE_MAXIMUM = 15;
 export const EVALUATION_CORRELATION_CONTROL_VERSION = "EVALUATION_CORRELATION_CONTROL_V1" as const;
 
 export type OwnerLabelStatus = "PRESENT" | "ABSENT" | "NOT_APPLICABLE";
@@ -174,6 +177,27 @@ export type CorpusArtifactEvidence = {
 };
 
 const clean = (value: unknown) => String(value ?? "").trim();
+
+export function assessWp7RegressionReadiness(input: {
+  ownerConfirmedReferences?: number;
+  cleanNegativeControls?: number;
+  controlledInjectionFixtures?: number;
+  p0FamiliesCovered?: number;
+  p0FamiliesRequired?: number;
+}) {
+  const ownerConfirmedReferences = Number(input.ownerConfirmedReferences ?? 0);
+  const cleanNegativeControls = Number(input.cleanNegativeControls ?? 0);
+  const controlledInjectionFixtures = Number(input.controlledInjectionFixtures ?? 0);
+  const p0FamiliesCovered = Number(input.p0FamiliesCovered ?? 0);
+  const p0FamiliesRequired = Number(input.p0FamiliesRequired ?? 0);
+  const reasons: string[] = [];
+  if (ownerConfirmedReferences < WP7_REGRESSION_REFERENCE_MINIMUM) reasons.push("OWNER_CONFIRMED_REFERENCES_BELOW_MINIMUM");
+  if (ownerConfirmedReferences > WP7_REGRESSION_REFERENCE_MAXIMUM) reasons.push("REFERENCE_SET_REQUIRES_BOUNDED_SELECTION");
+  if (cleanNegativeControls < 1) reasons.push("CLEAN_NEGATIVE_CONTROL_REQUIRED");
+  if (controlledInjectionFixtures < 1) reasons.push("CONTROLLED_INJECTION_FIXTURE_REQUIRED");
+  if (p0FamiliesRequired < 1 || p0FamiliesCovered < p0FamiliesRequired) reasons.push("P0_FAMILY_COVERAGE_INCOMPLETE");
+  return { eligible: reasons.length === 0, state: reasons.length ? "INSUFFICIENT_GROUND_TRUTH" as const : "READY_FOR_DATASET_DESIGN" as const, reasons };
+}
 
 export function normalizeOwnerLabelsForReceipt(labels: OwnerLabelSubmission["labels"]) {
   return labels.map((item) => {

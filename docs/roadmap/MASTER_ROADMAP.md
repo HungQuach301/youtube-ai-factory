@@ -143,6 +143,8 @@ Sites v425 passed zero-provider combined calibration at 2/2 and drained all 80 n
 
 Phase 11 adds `FACTORY_BROWSER_QA_POLICY_V1` and migration `0065` as a corpus-evaluation lane separate from `BROWSER_ASSURANCE_GATE_V1`. The execution surface accepts only real `audio/*` or `video/*`, preflights exact bytes and requires full visible playback, control/event ordering, audio/motion/focus/reflow/runtime checks and complete media-observable taxonomy labels before one immutable independent receipt can be stored. `UNCERTAIN` fails closed to owner attention. Migration `0066` fixes the historical route that treated every non-image as Browser media: all 47 source rows are JSON and now have preserved superseding adjudications. Sites v430 is active, tests pass 169/169, the fixture passes, the real media queue is zero and rights/gold gates remain independent.
 
+Phase 12 source adds `WP7_REGRESSION_CORPUS_POLICY_V1` and migration `0067`. It binds the 33 non-anchor visual failure receipts as immutable `INDEPENDENT_REVIEW_ONLY` candidates and separately binds the two owner receipts as `OWNER_CONFIRMED_REFERENCE`. The readiness firewall requires 10–15 bounded owner-confirmed references, a clean negative, a controlled injection and complete P0-family coverage before even entering dataset design. Source passes the verified build and 170/170 regressions; production migration and exact-count read-back are next. Dataset sealing, assurance qualification, release, FP4 and FP5 remain closed.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:

@@ -2,6 +2,30 @@
 
 Last reconciled: 2026-08-22 (Asia/Bangkok)
 
+## WP7 regression corpus source checkpoint — 2026-08-22
+
+```text
+POLICY = WP7_REGRESSION_CORPUS_POLICY_V1
+SCHEMA = MIGRATION_0067_SOURCE_READY__PRODUCTION_PENDING
+EXPECTED_CORPUS_ITEMS = 35
+EXPECTED_INDEPENDENT_REVIEW_ONLY = 33
+EXPECTED_OWNER_CONFIRMED_REFERENCES = 2
+TARGET_OWNER_CONFIRMED_REFERENCES = 10_TO_15
+EXPECTED_CLEAN_NEGATIVE_CONTROLS = 0
+EXPECTED_CONTROLLED_INJECTION_FIXTURES = 0
+EXPECTED_P0_FAMILY_COVERAGE = INCOMPLETE
+READINESS = INSUFFICIENT_GROUND_TRUTH
+DATASET_SEALING_AUTHORITY = FALSE
+ASSURANCE_QUALIFICATION_AUTHORITY = FALSE
+RELEASE_AUTHORITY = FALSE
+SOURCE_TESTS = FULL_170_OF_170_PASS__VERIFIED_BUILD_PASS
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+NEXT_PROTECTED_ACTION = DEPLOY_0067__READ_BACK_EXACT_COUNTS__THEN_RIGHTS_AND_GROUND_TRUTH_FIXTURES
+```
+
+The source now turns the 33 Factory-detected visual failures into immutable regression candidates and separately records the two owner-confirmed anchors as references. It does not call the 33 model findings ground truth, does not seal a dataset and cannot qualify assurance or release. Production counts remain expected until direct post-deploy read-back. Document 61 is authoritative for this slice.
+
 ## Factory Browser QA production checkpoint — 2026-08-22
 
 ```text

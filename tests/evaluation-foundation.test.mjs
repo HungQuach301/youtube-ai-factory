@@ -12,6 +12,9 @@ import {
   FACTORY_FIRST_QA_POLICY_VERSION,
   FACTORY_FIRST_QA_MAXIMUM_BATCH,
   FACTORY_BROWSER_QA_POLICY_VERSION,
+  WP7_REGRESSION_CORPUS_POLICY_VERSION,
+  WP7_REGRESSION_REFERENCE_MINIMUM,
+  WP7_REGRESSION_REFERENCE_MAXIMUM,
   OWNER_STANDING_AUTHORITY,
   evaluateAuthorshipEvidence,
   evaluateAssuranceQualification,
@@ -21,6 +24,7 @@ import {
   evaluateOwnerLabelSubmission,
   evaluateFactoryQaResult,
   evaluateFactoryBrowserQaEvidence,
+  assessWp7RegressionReadiness,
   isOwnerObservableDefect,
   normalizeOwnerLabelsForReceipt,
   evaluateCorrelationAssignments,
@@ -480,6 +484,73 @@ test("Factory QA routing adjudication preserves legacy receipts and excludes str
   assert.match(factoryRoute, /structuredEvidenceOnly/);
   assert.match(factoryRoute, /FACTORY_QA_REVIEW_SURFACE_UNSUPPORTED/);
   assert.match(factoryRoute, /\["audio\/", "video\/"\]/);
+});
+
+test("WP7 regression corpus preserves independent failures without promoting them to ground truth", () => {
+  assert.equal(WP7_REGRESSION_CORPUS_POLICY_VERSION, "WP7_REGRESSION_CORPUS_POLICY_V1");
+  assert.deepEqual([WP7_REGRESSION_REFERENCE_MINIMUM, WP7_REGRESSION_REFERENCE_MAXIMUM], [10, 15]);
+  const blocked = assessWp7RegressionReadiness({ ownerConfirmedReferences: 2, cleanNegativeControls: 0, controlledInjectionFixtures: 0, p0FamiliesCovered: 0, p0FamiliesRequired: 5 });
+  assert.equal(blocked.state, "INSUFFICIENT_GROUND_TRUTH");
+  for (const reason of ["OWNER_CONFIRMED_REFERENCES_BELOW_MINIMUM", "CLEAN_NEGATIVE_CONTROL_REQUIRED", "CONTROLLED_INJECTION_FIXTURE_REQUIRED", "P0_FAMILY_COVERAGE_INCOMPLETE"]) assert.ok(blocked.reasons.includes(reason));
+  const ready = assessWp7RegressionReadiness({ ownerConfirmedReferences: 12, cleanNegativeControls: 2, controlledInjectionFixtures: 5, p0FamiliesCovered: 5, p0FamiliesRequired: 5 });
+  assert.deepEqual({ eligible: ready.eligible, state: ready.state, reasons: ready.reasons }, { eligible: true, state: "READY_FOR_DATASET_DESIGN", reasons: [] });
+
+  const migration = read("drizzle/0067_wp7_regression_corpus.sql");
+  for (const table of ["v7_evaluation_regression_corpus_registry", "v7_evaluation_regression_corpus_items", "v7_evaluation_regression_readiness_snapshots"]) assert.match(migration, new RegExp(table));
+  assert.match(migration, /INDEPENDENT_REVIEW_ONLY/);
+  assert.match(migration, /OWNER_CONFIRMED_REFERENCE/);
+  assert.match(migration, /INSUFFICIENT_GROUND_TRUTH/);
+  assert.match(migration, /EVALUATION_REGRESSION_CORPUS_ITEM_IMMUTABLE/);
+  assert.doesNotMatch(migration, /release_eligible=1|qualification_eligible=1|lifecycle_state='GOLD_ELIGIBLE'|lifecycle_state='SEALED'/);
+  const route = read("app/api/factory/sequential-production/factory-qa/route.ts");
+  assert.match(route, /regressionCorpus/);
+  assert.match(route, /datasetSealingAuthority/);
+  assert.doesNotMatch(route, /UPDATE v7_evaluation_regression|api\.elevenlabs\.io/);
+
+  const db = new DatabaseSync(":memory:");
+  const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
+  const regressionIndex = migrations.indexOf("0067_wp7_regression_corpus.sql");
+  for (const file of migrations.slice(0, regressionIndex)) db.exec(read(`drizzle/${file}`));
+  const candidate = db.prepare(`INSERT INTO v7_evaluation_candidates
+    (id,channel_id,source_family,source_table,source_id,candidate_kind,artifact_type,lifecycle_state,mime_type,content_hash,bytes_state,checksum_state,provenance_state,owner_decision_state,defect_label_state,rights_declared_state,rights_verification_state,correlation_group,dedup_hash,verification_state,release_eligible,qualification_eligible)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,0)`);
+  candidate.run("candidate-owner","channel-hidden-systems","TEST","test","source-owner","SHOT","VISUAL_FRAME","CANDIDATE_EVIDENCE","image/svg+xml","a".repeat(64),"READBACK_VERIFIED","PASS","PASS","OWNER_CONFIRMED","LABELLED","COMMERCIAL_LICENSE_VERIFIED","PASS","lineage-owner","a".repeat(64),"EVIDENCE_VERIFIED");
+  candidate.run("candidate-factory","channel-hidden-systems","TEST","test","source-factory","SHOT","VISUAL_FRAME","CANDIDATE_EVIDENCE","image/svg+xml","b".repeat(64),"READBACK_VERIFIED","PASS","PASS","INHERITED_PACKAGE_REJECTION","NOT_LABELLED","COMMERCIAL_LICENSE_VERIFIED","PASS","lineage-factory","b".repeat(64),"EVIDENCE_VERIFIED");
+  const ownerTask = db.prepare(`INSERT INTO v7_evaluation_owner_label_tasks
+    (id,channel_id,candidate_id,exact_artifact_hash,candidate_kind,artifact_type,taxonomy_version,requirements_json,policy_version)
+    VALUES (?,?,?,?,?,?,'EVALUATION_DEFECT_TAXONOMY_V1','[]','EVALUATION_OWNER_LABEL_POLICY_V1')`);
+  ownerTask.run("owner-task-owner","channel-hidden-systems","candidate-owner","a".repeat(64),"SHOT","VISUAL_FRAME");
+  ownerTask.run("owner-task-factory","channel-hidden-systems","candidate-factory","b".repeat(64),"SHOT","VISUAL_FRAME");
+  db.prepare(`INSERT INTO v7_evaluation_owner_label_receipts
+    (id,channel_id,task_id,candidate_id,exact_artifact_hash,decision_state,rationale,labels_json,taxonomy_version,taxonomy_manifest_hash,present_count,absent_count,not_applicable_count,idempotency_key,request_hash,evidence_hash,actor)
+    VALUES ('owner-receipt','channel-hidden-systems','owner-task-owner','candidate-owner',?,'REJECTED_DEFECT_PRESENT','Owner confirmed visible defect','[{"defectKey":"PRODUCTION_RESIDUE","status":"PRESENT","confidence":1}]','EVALUATION_DEFECT_TAXONOMY_V1',?,1,0,0,'owner-receipt-key-0001',?,?, 'owner@example.test')`).run("a".repeat(64), "c".repeat(64), "d".repeat(64), "e".repeat(64));
+  db.prepare(`INSERT INTO v7_evaluation_correlation_snapshots
+    (id,channel_id,policy_version,candidate_count,primary_representative_count,exact_duplicate_deferred_count,correlated_variant_deferred_count,independent_count_eligible,evidence_json)
+    VALUES ('correlation-snapshot-test','channel-hidden-systems','EVALUATION_CORRELATION_CONTROL_V1',2,2,0,0,2,'{}')`).run();
+  const correlation = db.prepare(`INSERT INTO v7_evaluation_correlation_items
+    (id,snapshot_id,channel_id,candidate_id,exact_artifact_hash,lineage_group_key,representative_candidate_id,relation_class,queue_role,attention_state,independent_count_eligible,selection_rank,selection_basis_json,policy_version)
+    VALUES (?,'correlation-snapshot-test','channel-hidden-systems',?,?,?,?, 'INDEPENDENT_SINGLETON','PRIMARY_REPRESENTATIVE','READY_PRIMARY',1,1,'{}','EVALUATION_CORRELATION_CONTROL_V1')`);
+  correlation.run("correlation-owner","candidate-owner","a".repeat(64),"lineage-owner","candidate-owner");
+  correlation.run("correlation-factory","candidate-factory","b".repeat(64),"lineage-factory","candidate-factory");
+  const factoryTask = db.prepare(`INSERT INTO v7_evaluation_factory_qa_tasks
+    (id,channel_id,owner_task_id,candidate_id,exact_artifact_hash,candidate_kind,artifact_type,mime_type,task_class,policy_version)
+    VALUES (?,?,?,?,?,'SHOT','VISUAL_FRAME','image/svg+xml',?,'FACTORY_FIRST_QA_POLICY_V1')`);
+  factoryTask.run("factory-task-owner","channel-hidden-systems","owner-task-owner","candidate-owner","a".repeat(64),"OWNER_ANCHOR");
+  factoryTask.run("factory-task-failure","channel-hidden-systems","owner-task-factory","candidate-factory","b".repeat(64),"UNREVIEWED_PRIMARY");
+  const activeCalibration = db.prepare("SELECT calibration_version FROM v7_evaluation_factory_qa_registry WHERE channel_id='channel-hidden-systems'").get().calibration_version;
+  db.prepare(`INSERT INTO v7_evaluation_factory_qa_runs
+    (id,channel_id,run_mode,policy_version,lifecycle_state,candidate_ids_json,planned_candidates,processed_candidates,idempotency_key,intent_hash,actor,calibration_version)
+    VALUES ('factory-run-test','channel-hidden-systems','BATCH','FACTORY_FIRST_QA_POLICY_V1','COMPLETED','["candidate-factory"]',1,1,'factory-run-key-0001',?,'factory@example.test',?)`).run("f".repeat(64), activeCalibration);
+  db.prepare(`INSERT INTO v7_evaluation_factory_qa_receipts
+    (id,channel_id,run_id,task_id,candidate_id,exact_artifact_hash,review_surface,decision_state,owner_attention_state,labels_json,summary,provider_requests,spend_usd,request_hash,evidence_hash,actor,calibration_version)
+    VALUES ('factory-receipt-test','channel-hidden-systems','factory-run-test','factory-task-failure','candidate-factory',?,'OPENAI_VISION','LIKELY_DEFECT_PRESENT','NO_IMMEDIATE_OWNER_ACTION','[{"defectKey":"PRODUCTION_RESIDUE","status":"PRESENT","confidence":0.99}]','Independent visible defect',0,0,?,?, 'factory@example.test',?)`).run("b".repeat(64), "1".repeat(64), "2".repeat(64), activeCalibration);
+  db.exec(migration);
+  const corpus = db.prepare(`SELECT evidence_authority,COUNT(*) count FROM v7_evaluation_regression_corpus_items GROUP BY evidence_authority ORDER BY evidence_authority`).all().map((row) => ({ evidence_authority: row.evidence_authority, count: row.count }));
+  assert.deepEqual(corpus, [{ evidence_authority: "INDEPENDENT_REVIEW_ONLY", count: 1 }, { evidence_authority: "OWNER_CONFIRMED_REFERENCE", count: 1 }]);
+  const snapshot = db.prepare("SELECT * FROM v7_evaluation_regression_readiness_snapshots WHERE channel_id='channel-hidden-systems'").get();
+  assert.deepEqual({ state: snapshot.lifecycle_state, items: snapshot.candidate_items, independent: snapshot.independent_review_only, owner: snapshot.owner_confirmed_references, negative: snapshot.clean_negative_controls, injections: snapshot.controlled_injection_fixtures }, { state: "INSUFFICIENT_GROUND_TRUTH", items: 2, independent: 1, owner: 1, negative: 0, injections: 0 });
+  assert.equal(db.prepare("SELECT COUNT(*) total FROM v7_evaluation_dataset_items").get().total, 0);
+  assert.throws(() => db.prepare("UPDATE v7_evaluation_regression_corpus_items SET reference_eligible=1 WHERE evidence_authority='INDEPENDENT_REVIEW_ONLY'").run(), /EVALUATION_REGRESSION_CORPUS_ITEM_IMMUTABLE/);
 });
 
 test("correlation control permits one independent representative per lineage and exact hash", () => {

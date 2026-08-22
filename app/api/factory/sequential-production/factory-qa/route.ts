@@ -7,7 +7,9 @@ import {
   FACTORY_FIRST_QA_MAXIMUM_BATCH,
   FACTORY_FIRST_QA_MAXIMUM_REQUEST_RESERVATION_USD,
   FACTORY_FIRST_QA_POLICY_VERSION,
+  assessWp7RegressionReadiness,
   isOwnerObservableDefect,
+  WP7_REGRESSION_CORPUS_POLICY_VERSION,
   type FactoryQaResult,
 } from "@/lib/evaluation-foundation";
 
@@ -55,7 +57,7 @@ async function authorized(request: Request) {
 }
 
 async function status(db: DB) {
-  const [registry, taskSummary, receiptSummary, runSummary, anchorRows] = await Promise.all([
+  const [registry, taskSummary, receiptSummary, runSummary, anchorRows, regressionRegistry, regressionSnapshot] = await Promise.all([
     first(db, "SELECT * FROM v7_evaluation_factory_qa_registry WHERE channel_id=? AND policy_version=?", CHANNEL_ID, FACTORY_FIRST_QA_POLICY_VERSION),
     first(db, `SELECT COUNT(*) tasks,
       COALESCE(SUM(CASE WHEN task_class='OWNER_ANCHOR' THEN 1 ELSE 0 END),0) anchors,
@@ -77,12 +79,21 @@ async function status(db: DB) {
       WHERE q.channel_id=? AND q.task_class='OWNER_ANCHOR'
         AND f.calibration_version=(SELECT calibration_version FROM v7_evaluation_factory_qa_registry WHERE channel_id=q.channel_id AND policy_version=q.policy_version)
       ORDER BY q.created_at,q.id`, CHANNEL_ID),
+    first(db, "SELECT * FROM v7_evaluation_regression_corpus_registry WHERE channel_id=? AND policy_version=?", CHANNEL_ID, WP7_REGRESSION_CORPUS_POLICY_VERSION),
+    first(db, "SELECT * FROM v7_evaluation_regression_readiness_snapshots WHERE channel_id=? AND policy_version=?", CHANNEL_ID, WP7_REGRESSION_CORPUS_POLICY_VERSION),
   ]);
   const calibrationDiagnostics = anchorRows.map((row, index) => {
     const owner = json<Array<{ defectKey?: string; status?: string }>>(row.owner_labels_json, []), factory = json<Array<{ defectKey?: string; status?: string }>>(row.factory_labels_json, []);
     const ownerPresent = owner.filter((item) => clean(item.status) === "PRESENT").map((item) => clean(item.defectKey)).sort();
     const factoryStatus = new Map(factory.map((item) => [clean(item.defectKey), clean(item.status)]));
     return { anchor: index + 1, ownerPresent, factoryPresent: factory.filter((item) => clean(item.status) === "PRESENT").map((item) => clean(item.defectKey)).sort(), factoryUncertain: factory.filter((item) => clean(item.status) === "UNCERTAIN").map((item) => clean(item.defectKey)).sort(), missedOwnerPresent: ownerPresent.filter((key) => factoryStatus.get(key) !== "PRESENT") };
+  });
+  const regressionReadiness = assessWp7RegressionReadiness({
+    ownerConfirmedReferences: number(regressionSnapshot?.owner_confirmed_references),
+    cleanNegativeControls: number(regressionSnapshot?.clean_negative_controls),
+    controlledInjectionFixtures: number(regressionSnapshot?.controlled_injection_fixtures),
+    p0FamiliesCovered: number(regressionSnapshot?.p0_families_covered),
+    p0FamiliesRequired: number(regressionSnapshot?.p0_families_required),
   });
   return {
     policyVersion: FACTORY_FIRST_QA_POLICY_VERSION,
@@ -97,6 +108,23 @@ async function status(db: DB) {
     providerRequests: number(receiptSummary?.provider_requests), spendUsd: number(receiptSummary?.spend_usd),
     requestCeiling: number(registry?.provider_request_ceiling), spendCeilingUsd: number(registry?.spend_ceiling_usd),
     calibrationDiagnostics,
+    regressionCorpus: {
+      policyVersion: WP7_REGRESSION_CORPUS_POLICY_VERSION,
+      lifecycleState: clean(regressionRegistry?.lifecycle_state) || regressionReadiness.state,
+      candidateItems: number(regressionSnapshot?.candidate_items),
+      independentReviewOnly: number(regressionSnapshot?.independent_review_only),
+      ownerConfirmedReferences: number(regressionSnapshot?.owner_confirmed_references),
+      cleanNegativeControls: number(regressionSnapshot?.clean_negative_controls),
+      controlledInjectionFixtures: number(regressionSnapshot?.controlled_injection_fixtures),
+      p0FamiliesCovered: number(regressionSnapshot?.p0_families_covered),
+      p0FamiliesRequired: number(regressionSnapshot?.p0_families_required),
+      datasetSealingAuthority: Boolean(number(regressionRegistry?.dataset_sealing_authority)),
+      assuranceQualificationAuthority: Boolean(number(regressionRegistry?.assurance_qualification_authority)),
+      releaseAuthority: Boolean(number(regressionRegistry?.release_authority)),
+      readinessReasons: regressionReadiness.reasons,
+      providerRequests: number(regressionRegistry?.provider_requests),
+      spendUsd: number(regressionRegistry?.spend_usd),
+    },
   };
 }
 
