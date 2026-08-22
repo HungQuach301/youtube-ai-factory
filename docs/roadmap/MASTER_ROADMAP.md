@@ -147,6 +147,8 @@ Phase 12 production activates `WP7_REGRESSION_CORPUS_POLICY_V1` and migration `0
 
 Phase 13 activates `EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1` and migration `0068` in Sites v434, with a sanitized production projection in v435. Direct read-back diagnoses exactly 16 composite-master tasks and one authorship/clip task: all 17 are `SOURCE_LINEAGE_BINDING_MISSING`, none is declared-but-unverified, and every rights/dataset/assurance/release authority flag is false. The Production V2 upload path now requires exact manifest ID/SHA-256, R2 read-back and complete parent ID/hash reconciliation before storing future pilot/full masters. Full regression passes 171/171, zero provider request/spend was added and recent Worker errors are zero. The 46 historical ElevenLabs tasks remain a separate authoritative-terms lane.
 
+Phase 14 activates `EVALUATION_PROVIDER_BINDING_DIAGNOSTIC_V1` and migration `0069` in Sites v437. Direct production read-back diagnoses all 46 ElevenLabs audio tasks as unique legacy artifact-hash-prefix bindings, with zero missing/ambiguous internal matches but also zero provider-native IDs and zero time-bound terms/plan evidence. Rights/dataset/assurance/release authority remains zero. Future ElevenLabs and OpenAI narration now requires a provider-native response header plus exact response-byte SHA-256 and R2 read-back before the provider request can complete. Full regression passes 172/172 with zero provider request and zero spend. The next protected lane is authoritative historical terms/paid-plan evidence; unrecoverable native history remains rights-pending and must be replaced by newly generated controlled fixtures rather than inferred.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:

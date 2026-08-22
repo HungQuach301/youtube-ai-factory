@@ -228,6 +228,26 @@ NEXT_PROTECTED_ACTION = OWNER_CLASSIFY_ELIGIBLE_QUEUE__COLLECT_63_RIGHTS_EVIDENC
 
 Sites v407 activated migration `0058` and created exactly 525 open owner-label tasks for the 525 current rights-PASS candidates. No receipt or label was fabricated. The workflow cannot label rights-pending or quarantined evidence and cannot promote a fixture. Document 54 and ADR-087 are authoritative.
 
+## ElevenLabs provider-binding diagnostic production checkpoint — 2026-08-22
+
+```text
+POLICY = EVALUATION_PROVIDER_BINDING_DIAGNOSTIC_V1
+MIGRATION = 0069_ACTIVE_SITES_V437
+HISTORICAL_TARGETS = 46_ELEVENLABS_AUDIO_TASKS
+PRODUCTION_DIAGNOSTICS = 46_LEGACY_SYNTHETIC_BINDINGS__0_MISSING__0_AMBIGUOUS
+PROVIDER_NATIVE_IDS_VERIFIED = 0
+TERMS_PLAN_EVIDENCE_VERIFIED = 0
+NEW_AUDIO_GATE = INTERNAL_REQUEST_ID__PROVIDER_NATIVE_REQUEST_ID__FULL_RESPONSE_SHA256__R2_READBACK
+HISTORICAL_RIGHTS_PASS_MUTATION = 0
+RIGHTS_DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE_FALSE
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+FULL_REGRESSION = 172_OF_172_PASS
+NEXT_PROTECTED_ACTION = COLLECT_TIME_BOUND_ELEVENLABS_TERMS_AND_PAID_PLAN_EVIDENCE__REPLACE_UNRECOVERABLE_HISTORY_WITH_CONTROLLED_FIXTURES
+```
+
+Sites v437 proves all 46 historical audio rows have one internal hash-prefix match, but none has a provider-native ID or time-bound terms/plan evidence. They remain rights-pending. Future narration captures the provider-native response header and exact response-byte binding before completing its provider ledger row. Document 63 and ADR-094 are authoritative.
+
 ## Rights-lineage diagnostic source checkpoint — 2026-08-22
 
 ```text
