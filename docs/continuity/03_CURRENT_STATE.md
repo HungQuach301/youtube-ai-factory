@@ -2,18 +2,20 @@
 
 Last reconciled: 2026-08-22 (Asia/Bangkok)
 
-## WP7 regression corpus source checkpoint — 2026-08-22
+## WP7 regression corpus production checkpoint — 2026-08-22
 
 ```text
 POLICY = WP7_REGRESSION_CORPUS_POLICY_V1
-SCHEMA = MIGRATION_0067_SOURCE_READY__PRODUCTION_PENDING
-EXPECTED_CORPUS_ITEMS = 35
-EXPECTED_INDEPENDENT_REVIEW_ONLY = 33
-EXPECTED_OWNER_CONFIRMED_REFERENCES = 2
+SCHEMA = MIGRATION_0067_PRODUCTION_ACTIVE
+PRODUCTION_VERSION = SITES_V432
+PRODUCTION_SOURCE_COMMIT = 5cc7be4018f6399a705a682d840a293c5e3e24dd
+CORPUS_ITEMS = 35
+INDEPENDENT_REVIEW_ONLY = 33
+OWNER_CONFIRMED_REFERENCES = 2
 TARGET_OWNER_CONFIRMED_REFERENCES = 10_TO_15
-EXPECTED_CLEAN_NEGATIVE_CONTROLS = 0
-EXPECTED_CONTROLLED_INJECTION_FIXTURES = 0
-EXPECTED_P0_FAMILY_COVERAGE = INCOMPLETE
+CLEAN_NEGATIVE_CONTROLS = 0
+CONTROLLED_INJECTION_FIXTURES = 0
+P0_FAMILY_COVERAGE = 0_OF_5
 READINESS = INSUFFICIENT_GROUND_TRUTH
 DATASET_SEALING_AUTHORITY = FALSE
 ASSURANCE_QUALIFICATION_AUTHORITY = FALSE
@@ -21,10 +23,11 @@ RELEASE_AUTHORITY = FALSE
 SOURCE_TESTS = FULL_170_OF_170_PASS__VERIFIED_BUILD_PASS
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-NEXT_PROTECTED_ACTION = DEPLOY_0067__READ_BACK_EXACT_COUNTS__THEN_RIGHTS_AND_GROUND_TRUTH_FIXTURES
+POST_DEPLOY_WORKER_ERRORS = 0
+NEXT_PROTECTED_ACTION = RIGHTS_EVIDENCE_63__OWNER_CONFIRMED_AND_CONTROLLED_FIXTURE_DESIGN
 ```
 
-The source now turns the 33 Factory-detected visual failures into immutable regression candidates and separately records the two owner-confirmed anchors as references. It does not call the 33 model findings ground truth, does not seal a dataset and cannot qualify assurance or release. Production counts remain expected until direct post-deploy read-back. Document 61 is authoritative for this slice.
+The deployed runtime turns the 33 Factory-detected visual failures into immutable regression candidates and separately records the two owner-confirmed anchors as references. It does not call the 33 model findings ground truth, does not seal a dataset and cannot qualify assurance or release. Direct production read-back matched every expected count and found zero recent Worker errors. Document 61 is authoritative for this slice.
 
 ## Factory Browser QA production checkpoint — 2026-08-22
 

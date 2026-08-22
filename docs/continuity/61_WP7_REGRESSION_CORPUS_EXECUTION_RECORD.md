@@ -4,19 +4,19 @@
 
 **Policy:** `WP7_REGRESSION_CORPUS_POLICY_V1`
 
-**Source state:** `SOURCE_ACCEPTED__PRODUCTION_MIGRATION_PENDING`
+**Production state:** `ACTIVE__INSUFFICIENT_GROUND_TRUTH`
 
 ## Outcome
 
 Migration `0067_wp7_regression_corpus.sql` converts the completed Factory-first QA evidence into an immutable regression-corpus ledger without converting independent model review into ground truth.
 
-The expected production backfill is:
+Production read-back after Sites v432 is:
 
 - 33 non-anchor visual failures as `INDEPENDENT_REVIEW_ONLY` corpus candidates;
 - two exact-byte owner anchors as `OWNER_CONFIRMED_REFERENCE` items;
 - zero sealed dataset items, zero assurance qualification authority and zero release authority.
 
-The migration derives the counts from durable receipts at deployment time. These values remain expected, not accepted production evidence, until direct post-deploy read-back confirms them.
+The migration derived these counts from durable receipts at deployment time. Direct authenticated read-back confirmed 35 total items, 33 independent-review candidates and two owner-confirmed references.
 
 ## Ground-truth firewall
 
@@ -48,8 +48,28 @@ Item and readiness-snapshot updates/deletes are rejected by database triggers. T
 - Source diff check: PASS.
 - Provider requests/spend added by this slice: 0 / $0.
 
+## Production acceptance
+
+```text
+SITES_VERSION = 432
+SOURCE_COMMIT = 5cc7be4018f6399a705a682d840a293c5e3e24dd
+CORPUS_ITEMS = 35
+INDEPENDENT_REVIEW_ONLY = 33
+OWNER_CONFIRMED_REFERENCES = 2
+CLEAN_NEGATIVE_CONTROLS = 0
+CONTROLLED_INJECTION_FIXTURES = 0
+P0_FAMILIES_COVERED = 0_OF_5
+READINESS = INSUFFICIENT_GROUND_TRUTH
+DATASET_SEALING_AUTHORITY = FALSE
+ASSURANCE_QUALIFICATION_AUTHORITY = FALSE
+RELEASE_AUTHORITY = FALSE
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+RECENT_WORKER_ERRORS = 0
+```
+
+The pre-existing Factory ledger remains unchanged at 82 tasks, zero pending, 84 raw receipts, 37 likely-defect raw receipts, 47 structured-evidence adjudications, zero open Browser tasks, 37 provider requests and $0.4314096.
+
 ## Next protected action
 
-Deploy the private checkpoint, confirm migration `0067` and read the sanitized Factory QA projection. Expected truth is 35 corpus items = 33 independent-review candidates + two owner-confirmed references, with zero clean negatives, zero controlled injections, incomplete P0 coverage and `INSUFFICIENT_GROUND_TRUTH`. If the counts differ, stop and diagnose rather than editing receipts or promoting evidence.
-
-After production acceptance, continue the 63-item rights-evidence lane and design the bounded owner-confirmed/controlled-fixture set. Do not run assurance qualification, open FP4/FP5, render Golden r10 or open Stage 11.
+Continue the 63-item rights-evidence lane and design the bounded owner-confirmed/controlled-fixture set. Do not run assurance qualification, open FP4/FP5, render Golden r10 or open Stage 11.
