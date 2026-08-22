@@ -89,6 +89,7 @@ When facts conflict, use this order:
 | WP7 regression corpus | [`continuity/61_WP7_REGRESSION_CORPUS_EXECUTION_RECORD.md`](continuity/61_WP7_REGRESSION_CORPUS_EXECUTION_RECORD.md) |
 | Rights-lineage diagnostic and render hardening | [`continuity/62_RIGHTS_LINEAGE_DIAGNOSTIC_EXECUTION_RECORD.md`](continuity/62_RIGHTS_LINEAGE_DIAGNOSTIC_EXECUTION_RECORD.md) |
 | ElevenLabs provider-binding diagnostic and future audio hardening | [`continuity/63_ELEVENLABS_PROVIDER_BINDING_DIAGNOSTIC_EXECUTION_RECORD.md`](continuity/63_ELEVENLABS_PROVIDER_BINDING_DIAGNOSTIC_EXECUTION_RECORD.md) |
+| ElevenLabs history and exact-audio recovery | [`continuity/64_ELEVENLABS_HISTORY_AND_AUDIO_HASH_RECOVERY_EXECUTION_RECORD.md`](continuity/64_ELEVENLABS_HISTORY_AND_AUDIO_HASH_RECOVERY_EXECUTION_RECORD.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

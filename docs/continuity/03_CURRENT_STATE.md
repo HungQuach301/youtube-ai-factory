@@ -248,6 +248,24 @@ NEXT_PROTECTED_ACTION = COLLECT_TIME_BOUND_ELEVENLABS_TERMS_AND_PAID_PLAN_EVIDEN
 
 Sites v437 proves all 46 historical audio rows have one internal hash-prefix match, but none has a provider-native ID or time-bound terms/plan evidence. They remain rights-pending. Future narration captures the provider-native response header and exact response-byte binding before completing its provider ledger row. Document 63 and ADR-094 are authoritative.
 
+## ElevenLabs history metadata recovery — 2026-08-22
+
+```text
+POLICY = EVALUATION_PROVIDER_HISTORY_RECOVERY_V1
+MIGRATION = 0070_ACTIVE_SITES_V442
+HISTORY_ITEMS = 66
+NATIVE_REQUEST_IDS = 66
+CANDIDATES = 46
+METADATA_UNIQUE_MISSING_AMBIGUOUS = 0_0_46
+CURRENT_SUBSCRIPTION = PAYG_ACTIVE__CURRENT_ONLY
+PROVIDER_REQUESTS = 2
+SPEND_USD = 0
+RIGHTS_DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE_FALSE
+NEXT_PROTECTED_ACTION = EXACT_AUDIO_BYTE_HASH_RECOVERY_V1
+```
+
+The historical provider response identity is recoverable, but metadata cannot safely select the response for any candidate. Migration `0071` therefore adds a 16-item/two-attempt exact-audio download and SHA-256 lane capped at 132 reads, with zero TTS/spend and no rights mutation. Document 64 and ADR-095 are authoritative.
+
 ## Rights-lineage diagnostic source checkpoint — 2026-08-22
 
 ```text

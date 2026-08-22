@@ -9,6 +9,7 @@ import {
   EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_VERSION,
   EVALUATION_PROVIDER_BINDING_DIAGNOSTIC_VERSION,
   EVALUATION_PROVIDER_HISTORY_RECOVERY_VERSION,
+  EVALUATION_PROVIDER_AUDIO_HASH_RECOVERY_VERSION,
   EVALUATION_OWNER_LABEL_POLICY_VERSION,
   EVALUATION_OWNER_REVIEW_UX_VERSION,
   EVALUATION_CORRELATION_CONTROL_VERSION,
@@ -700,7 +701,25 @@ test("migration 0070 and recovery route bound provider-history discovery without
   assert.match(ownerBoundary, /provider-history-recovery/);
   assert.match(ownerBoundary, /DISCOVER_ELEVENLABS_HISTORY_METADATA/);
   assert.match(ownerBoundary, /discoverProviderHistoryAuthorized/);
-  assert.match(ownerBoundary, /Tối đa 2 provider requests, không TTS và không phát sinh spend/);
+  assert.match(ownerBoundary, /Metadata discovery: 2 provider reads, không TTS, không spend/);
+});
+
+test("migration 0071 recovers exact provider audio hashes in bounded immutable batches", () => {
+  assert.equal(EVALUATION_PROVIDER_AUDIO_HASH_RECOVERY_VERSION, "EVALUATION_PROVIDER_AUDIO_HASH_RECOVERY_V1");
+  const migration = read("drizzle/0071_evaluation_provider_audio_hash_recovery.sql"), route = read("app/api/factory/sequential-production/evaluation/provider-history/route.ts"), ownerBoundary = read("app/api/factory/sequential-production/evaluation/route.ts");
+  for (const table of ["v7_evaluation_provider_audio_hash_runs", "v7_evaluation_provider_audio_hash_receipts", "v7_evaluation_provider_audio_hash_candidate_diagnostics", "v7_evaluation_provider_audio_hash_snapshots"]) assert.match(migration, new RegExp(table));
+  for (const lock of ["historical_plan_coverage_verified", "rights_pass_authority", "dataset_sealing_authority", "assurance_qualification_authority", "release_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.match(migration, /planned_history_items` integer NOT NULL CHECK \(`planned_history_items` BETWEEN 1 AND 16\)/);
+  assert.match(migration, /attempt_number` integer NOT NULL CHECK \(`attempt_number` BETWEEN 1 AND 2\)/);
+  assert.match(migration, /provider_requests_cumulative` integer NOT NULL CHECK \(`provider_requests_cumulative` BETWEEN 0 AND 132\)/);
+  assert.match(route, /\/v1\/history\/\$\{encodeURIComponent\(historyItemId\)\}\/audio/);
+  assert.match(route, /MAXIMUM_AUDIO_HASH_BATCH = 16/);
+  assert.match(route, /UNIQUE_EXACT_AUDIO_HASH_MATCH/);
+  assert.match(route, /EQUIVALENT_BYTES_MULTIPLE_REQUESTS/);
+  assert.doesNotMatch(route, /\/v1\/text-to-speech|rights_verification_state='PASS'|release_eligible=1/);
+  assert.match(ownerBoundary, /HASH_ELEVENLABS_HISTORY_AUDIO/);
+  assert.match(ownerBoundary, /index<=10/);
+  assert.match(ownerBoundary, /không tự cấp rights/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

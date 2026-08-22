@@ -149,6 +149,8 @@ Phase 13 activates `EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1` and migration `0068
 
 Phase 14 activates `EVALUATION_PROVIDER_BINDING_DIAGNOSTIC_V1` and migration `0069` in Sites v437. Direct production read-back diagnoses all 46 ElevenLabs audio tasks as unique legacy artifact-hash-prefix bindings, with zero missing/ambiguous internal matches but also zero provider-native IDs and zero time-bound terms/plan evidence. Rights/dataset/assurance/release authority remains zero. Future ElevenLabs and OpenAI narration now requires a provider-native response header plus exact response-byte SHA-256 and R2 read-back before the provider request can complete. Full regression passes 172/172 with zero provider request and zero spend. The next protected lane is authoritative historical terms/paid-plan evidence; unrecoverable native history remains rights-pending and must be replaced by newly generated controlled fixtures rather than inferred.
 
+Phase 15 activates bounded provider-history recovery. Sites v442 seals 66 ElevenLabs TTS history items, all with native request IDs, but metadata leaves all 46 candidates ambiguous (`0` unique, `0` missing, `46` ambiguous). The current `payg · active` subscription is recorded as current-only and grants no historical rights. Migration `0071` adds exact-audio SHA-256 recovery in batches of 16 with at most two attempts/item, a 132-read ceiling, zero TTS/spend and immutable candidate diagnostics. Exact-byte binding remains separate from historical terms/paid-plan coverage; rights/dataset/assurance/release authority stays zero. FP4/FP5 remain closed until the rights lane and required ground truth are resolved.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:
