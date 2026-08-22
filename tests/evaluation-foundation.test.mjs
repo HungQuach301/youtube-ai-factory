@@ -29,6 +29,7 @@ import {
   summarizeEvaluationInventory,
 } from "../lib/evaluation-foundation.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
+import { detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -366,11 +367,25 @@ test("Factory-first QA is independent, exact-byte-bound and owner attention is e
   assert.match(route, /x-factory-qa-executor-token/);
   assert.match(route, /Two owner anchors must pass independent calibration first/);
   assert.match(route, /detail: "high"/);
+  assert.match(route, /prepareImageReviewSurface/);
+  assert.match(route, /reviewInputHash/);
   assert.match(route, /label_source,polarity/);
   assert.doesNotMatch(route, /owner_decision_state='OWNER_CONFIRMED'/);
   const ownerRoute = read("app/api/factory/sequential-production/evaluation/route.ts");
   assert.match(ownerRoute, /FACTORY QA TRƯỚC · OWNER XÁC MINH SAU/);
   assert.match(ownerRoute, /owner_attention_state IN \('OWNER_REQUIRED','OWNER_EXCEPTION'\)/);
+  const reviewSurfaceMigration = read("drizzle/0062_factory_qa_review_surface.sql");
+  assert.match(reviewSurfaceMigration, /review_input_hash/);
+  assert.match(reviewSurfaceMigration, /SVG_TO_PNG_1920X1080_V1/);
+});
+
+test("Factory QA renders self-contained SVG evidence to a hashable PNG review surface", async () => {
+  const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><rect width="100%" height="100%" fill="#123"/><text x="80" y="120">evidence-bound production proof</text></svg>');
+  const review = await prepareImageReviewSurface(svg);
+  assert.equal(review.mimeType, "image/png");
+  assert.equal(review.transform, "SVG_TO_PNG_1920X1080_V1");
+  assert.equal(detectedRasterMime(review.bytes), "image/png");
+  await assert.rejects(() => prepareImageReviewSurface(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.com/a.png"/></svg>')), /FACTORY_QA_SVG_REMOTE_RESOURCE_FORBIDDEN/);
 });
 
 test("correlation control permits one independent representative per lineage and exact hash", () => {

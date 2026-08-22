@@ -132,6 +132,8 @@ Browser assurance hardening adds `BROWSER_ASSURANCE_GATE_V1` as a separate manda
 
 Phase 10 replaces sequential owner labor with `FACTORY_FIRST_QA_POLICY_V1`. Two owner-saved exact-byte receipts are calibration anchors. Migration `0061` creates 82 Factory tasks, append-only independent receipts, a five-item batch limit and hard ceilings of 82 provider requests / $6.75. Batch execution remains locked until the independent vision reviewer rediscovers every owner-present defect on both anchors. Non-image evidence is routed to mandatory Browser playback without requesting owner action. The exact next gate is production deployment, anchor read-back and two-anchor calibration; no dataset, assurance qualification or release gate is opened by this phase.
 
+Sites v420 activated the task ledger and confirmed 82 tasks / two anchors / zero receipts. Calibration failed closed before receipt creation because the exact anchor bytes were not a supported raster image. Source migration `0062` binds a separate review-input hash and self-contained SVG-to-PNG transform while preserving the original R2 hash. The same calibration run is replayed only after `0062` is active; batch remains locked.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:

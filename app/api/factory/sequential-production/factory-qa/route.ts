@@ -1,6 +1,7 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { measureOpenAIUsage } from "@/lib/ai-usage";
 import { canonicalHash } from "@/lib/canonical-json";
+import { prepareImageReviewSurface } from "@/lib/image-review-surface";
 import {
   evaluateFactoryQaResult,
   FACTORY_FIRST_QA_MAXIMUM_BATCH,
@@ -89,6 +90,10 @@ async function inspectImage(env: Required<Pick<Env, "DB" | "BUCKET">> & Env, tas
   const bytes = new Uint8Array(await object.arrayBuffer());
   const computedHash = await sha256(bytes);
   if (computedHash !== clean(task.exact_artifact_hash).toLowerCase()) throw new FactoryQaError("FACTORY_QA_ARTIFACT_HASH_MISMATCH", 409, "R2 bytes no longer match the QA task");
+  let reviewSurface;
+  try { reviewSurface = await prepareImageReviewSurface(bytes); }
+  catch (error) { throw new FactoryQaError("FACTORY_QA_REVIEW_SURFACE_INVALID", 409, error instanceof Error ? error.message : "Image review surface could not be prepared"); }
+  const reviewInputHash = await sha256(reviewSurface.bytes);
   const allowed = observableTaxonomy(taxonomy, task).map((item) => ({ defectKey: clean(item.defect_key), label: clean(item.label), severity: clean(item.severity), description: clean(item.description) }));
   if (!allowed.length) throw new FactoryQaError("FACTORY_QA_OBSERVABLE_TAXONOMY_EMPTY", 409, "No observable defect applies to this artifact");
   const prompt = `You are an independent first-pass Factory QA reviewer for a US faceless financial explainer. Judge only evidence visible in the exact pixels. Do not pretend this is an owner decision and do not infer rights or hidden lineage. Candidate kind: ${clean(task.candidate_kind)}. Artifact type: ${clean(task.artifact_type)}. MIME: ${clean(task.mime_type)}. A SHOT image is an intermediate visual, so missing voice is not itself a defect. For a still SHOT, mark NEAR_STATIC_MOTION PRESENT only when the slide/template composition itself provides no meaningful visual progression and is visibly unsuitable as production motion material. Treat prompts, QA labels, URLs, filenames, debug text and phrases such as "evidence-bound production proof" as PRODUCTION_RESIDUE. Assess every allowed defect exactly once. Use UNCERTAIN when pixels cannot prove the issue. Allowed taxonomy: ${JSON.stringify(allowed)}.`;
@@ -103,11 +108,11 @@ async function inspectImage(env: Required<Pick<Env, "DB" | "BUCKET">> & Env, tas
     }, required: ["decisionState", "summary", "labels"],
   };
   const model = clean(env.OPENAI_QA_MODEL) || "gpt-5.6";
-  const requestIntent = { policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, candidateId: clean(task.candidate_id), exactArtifactHash: computedHash, model, detail: "high", allowed };
+  const requestIntent = { policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, candidateId: clean(task.candidate_id), exactArtifactHash: computedHash, reviewInputHash, reviewMimeType: reviewSurface.mimeType, reviewTransform: reviewSurface.transform, model, detail: "high", allowed };
   const requestHash = await canonicalHash(requestIntent);
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": `factory-qa:${clean(task.id)}` }, body: JSON.stringify({
     model, reasoning: { effort: "none" }, max_output_tokens: 2000,
-    input: [{ role: "user", content: [{ type: "input_text", text: prompt }, { type: "input_image", image_url: `data:${clean(task.mime_type)};base64,${base64(bytes)}`, detail: "high" }] }],
+    input: [{ role: "user", content: [{ type: "input_text", text: prompt }, { type: "input_image", image_url: `data:${reviewSurface.mimeType};base64,${base64(reviewSurface.bytes)}`, detail: "high" }] }],
     text: { format: { type: "json_schema", name: "factory_first_qa", strict: true, schema } },
   }), signal: AbortSignal.timeout(180000) });
   if (!response.ok) {
@@ -122,16 +127,16 @@ async function inspectImage(env: Required<Pick<Env, "DB" | "BUCKET">> & Env, tas
   const validation = evaluateFactoryQaResult({ result, observableDefectKeys: allowed.map((item) => item.defectKey) });
   if (clean(payload.status) !== "completed" || !validation.eligible) throw new FactoryQaError("FACTORY_QA_PROVIDER_OUTPUT_INVALID", 409, validation.reasons.join("; ") || "Provider output was incomplete");
   const usage = measureOpenAIUsage(payload, model);
-  return { result, validation, usage, requestHash, providerResponseId: clean(payload.id), model };
+  return { result, validation, usage, requestHash, providerResponseId: clean(payload.id), model, reviewInputHash, reviewMimeType: reviewSurface.mimeType, reviewTransform: reviewSurface.transform };
 }
 
-async function recordReceipt(db: DB, input: { runId: string; task: Row; taxonomy: Row[]; actor: string; reviewSurface: string; decisionState: string; ownerAttentionState: string; labels: Array<{ defectKey?: string; status?: string; confidence?: number; rationale?: string }>; summary: string; model?: string; providerResponseId?: string; providerRequests: number; spendUsd: number; requestHash: string }) {
+async function recordReceipt(db: DB, input: { runId: string; task: Row; taxonomy: Row[]; actor: string; reviewSurface: string; reviewInputHash: string; reviewMimeType: string; reviewTransform: string; decisionState: string; ownerAttentionState: string; labels: Array<{ defectKey?: string; status?: string; confidence?: number; rationale?: string }>; summary: string; model?: string; providerResponseId?: string; providerRequests: number; spendUsd: number; requestHash: string }) {
   const normalizedLabels = input.labels.map((label) => ({ defectKey: clean(label.defectKey), status: clean(label.status), confidence: number(label.confidence), rationale: clean(label.rationale) })).sort((left, right) => left.defectKey.localeCompare(right.defectKey));
-  const evidenceHash = await canonicalHash({ policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, taskId: clean(input.task.id), candidateId: clean(input.task.candidate_id), exactArtifactHash: clean(input.task.exact_artifact_hash), reviewSurface: input.reviewSurface, decisionState: input.decisionState, labels: normalizedLabels, summary: input.summary, model: input.model || null, providerResponseId: input.providerResponseId || null, actor: input.actor });
+  const evidenceHash = await canonicalHash({ policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, taskId: clean(input.task.id), candidateId: clean(input.task.candidate_id), exactArtifactHash: clean(input.task.exact_artifact_hash), reviewSurface: input.reviewSurface, reviewInputHash: input.reviewInputHash, reviewMimeType: input.reviewMimeType, reviewTransform: input.reviewTransform, decisionState: input.decisionState, labels: normalizedLabels, summary: input.summary, model: input.model || null, providerResponseId: input.providerResponseId || null, actor: input.actor });
   const receiptId = id("evaluation-factory-qa-receipt");
   const statements: Statement[] = [db.prepare(`INSERT INTO v7_evaluation_factory_qa_receipts
-    (id,channel_id,run_id,task_id,candidate_id,exact_artifact_hash,review_surface,decision_state,owner_attention_state,labels_json,summary,model_id,provider_response_id,provider_requests,spend_usd,request_hash,evidence_hash,actor)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(receiptId, CHANNEL_ID, input.runId, input.task.id, input.task.candidate_id, input.task.exact_artifact_hash, input.reviewSurface, input.decisionState, input.ownerAttentionState, JSON.stringify(normalizedLabels), input.summary, input.model || null, input.providerResponseId || null, input.providerRequests, input.spendUsd, input.requestHash, evidenceHash, input.actor)];
+    (id,channel_id,run_id,task_id,candidate_id,exact_artifact_hash,review_surface,review_input_hash,review_mime_type,review_transform,decision_state,owner_attention_state,labels_json,summary,model_id,provider_response_id,provider_requests,spend_usd,request_hash,evidence_hash,actor)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(receiptId, CHANNEL_ID, input.runId, input.task.id, input.task.candidate_id, input.task.exact_artifact_hash, input.reviewSurface, input.reviewInputHash, input.reviewMimeType, input.reviewTransform, input.decisionState, input.ownerAttentionState, JSON.stringify(normalizedLabels), input.summary, input.model || null, input.providerResponseId || null, input.providerRequests, input.spendUsd, input.requestHash, evidenceHash, input.actor)];
   const taxonomyIds = new Map(input.taxonomy.map((item) => [clean(item.defect_key), clean(item.id)]));
   for (const label of normalizedLabels.filter((item) => ["PRESENT", "ABSENT"].includes(item.status))) statements.push(db.prepare("INSERT INTO v7_evaluation_defect_labels (id,candidate_id,defect_id,label_source,polarity,confidence,evidence_hash,actor) VALUES (?,?,?,?,?,?,?,?)").bind(id("evaluation-defect-label"), input.task.candidate_id, taxonomyIds.get(label.defectKey), "INDEPENDENT_REVIEW", label.status, label.confidence, evidenceHash, input.actor));
   await db.batch(statements);
@@ -203,14 +208,14 @@ export async function POST(request: Request) {
       if (!task) continue;
       if (!clean(task.mime_type).startsWith("image/")) {
         const requestHash = await canonicalHash({ policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, candidateId, exactArtifactHash: task.exact_artifact_hash, reviewSurface: "BROWSER_REQUIRED" });
-        await recordReceipt(env.DB, { runId: clean(qaRun.id), task, taxonomy, actor, reviewSurface: "BROWSER_REQUIRED", decisionState: "BROWSER_REQUIRED", ownerAttentionState: "NO_IMMEDIATE_OWNER_ACTION", labels: [], summary: "Temporal or audible media is queued for full Factory Browser playback before any perceptual conclusion; no owner action is requested yet.", providerRequests: 0, spendUsd: 0, requestHash });
+        await recordReceipt(env.DB, { runId: clean(qaRun.id), task, taxonomy, actor, reviewSurface: "BROWSER_REQUIRED", reviewInputHash: clean(task.exact_artifact_hash), reviewMimeType: clean(task.mime_type), reviewTransform: "IDENTITY", decisionState: "BROWSER_REQUIRED", ownerAttentionState: "NO_IMMEDIATE_OWNER_ACTION", labels: [], summary: "Temporal or audible media is queued for full Factory Browser playback before any perceptual conclusion; no owner action is requested yet.", providerRequests: 0, spendUsd: 0, requestHash });
         continue;
       }
       const inspected = await inspectImage(env, task, taxonomy);
       const labels = inspected.result.labels ?? [], present = labels.filter((item) => clean(item.status) === "PRESENT"), uncertain = labels.filter((item) => clean(item.status) === "UNCERTAIN");
       const p0 = new Set(taxonomy.filter((item) => clean(item.severity) === "P0").map((item) => clean(item.defect_key)));
       const ownerAttentionState = uncertain.length || present.some((item) => p0.has(clean(item.defectKey))) ? "OWNER_REQUIRED" : "NO_IMMEDIATE_OWNER_ACTION";
-      await recordReceipt(env.DB, { runId: clean(qaRun.id), task, taxonomy, actor, reviewSurface: "OPENAI_VISION", decisionState: clean(inspected.result.decisionState), ownerAttentionState, labels, summary: clean(inspected.result.summary), model: inspected.model, providerResponseId: inspected.providerResponseId, providerRequests: 1, spendUsd: inspected.usage.actualUsd, requestHash: inspected.requestHash });
+      await recordReceipt(env.DB, { runId: clean(qaRun.id), task, taxonomy, actor, reviewSurface: "OPENAI_VISION", reviewInputHash: inspected.reviewInputHash, reviewMimeType: inspected.reviewMimeType, reviewTransform: inspected.reviewTransform, decisionState: clean(inspected.result.decisionState), ownerAttentionState, labels, summary: clean(inspected.result.summary), model: inspected.model, providerResponseId: inspected.providerResponseId, providerRequests: 1, spendUsd: inspected.usage.actualUsd, requestHash: inspected.requestHash });
       if (mode === "CALIBRATION" && await anchorAgreement(env.DB, candidateId, labels, clean(inspected.result.decisionState))) agreements += 1;
     }
     const runTotals = await first(env.DB, "SELECT COUNT(*) processed,COALESCE(SUM(provider_requests),0) requests,COALESCE(SUM(spend_usd),0) spend FROM v7_evaluation_factory_qa_receipts WHERE run_id=?", qaRun.id);
