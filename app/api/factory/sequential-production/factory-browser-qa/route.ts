@@ -57,7 +57,11 @@ async function status(db: DB) {
     FROM v7_evaluation_factory_browser_qa_tasks WHERE channel_id=? AND policy_version=?`, CHANNEL_ID, FACTORY_BROWSER_QA_POLICY_VERSION);
   const modality = await rows(db, `SELECT CASE WHEN mime_type LIKE 'audio/%' THEN 'AUDIO' ELSE 'VIDEO' END modality,COUNT(*) count
     FROM v7_evaluation_factory_browser_qa_tasks WHERE channel_id=? AND policy_version=? GROUP BY modality ORDER BY modality`, CHANNEL_ID, FACTORY_BROWSER_QA_POLICY_VERSION);
-  return { policyVersion: FACTORY_BROWSER_QA_POLICY_VERSION, authorityBoundary: "INDEPENDENT_REVIEW_ONLY", tasks: number(summary?.tasks), pending: number(summary?.pending), likelyDefect: number(summary?.likely_defect), likelyClean: number(summary?.likely_clean), needsOwner: number(summary?.needs_owner), modality: modality.map((item) => ({ modality: clean(item.modality), count: number(item.count) })), providerRequests: 0, spendUsd: 0 };
+  const sourceBreakdown = await rows(db, `SELECT q.candidate_kind,q.artifact_type,COALESCE(NULLIF(trim(q.mime_type),''),'MIME_MISSING') mime_type,COUNT(*) count
+    FROM v7_evaluation_factory_qa_tasks q JOIN v7_evaluation_factory_qa_receipts r ON r.task_id=q.id AND r.review_surface='BROWSER_REQUIRED'
+    WHERE q.channel_id=? GROUP BY q.candidate_kind,q.artifact_type,COALESCE(NULLIF(trim(q.mime_type),''),'MIME_MISSING')
+    ORDER BY count DESC,q.candidate_kind,q.artifact_type LIMIT 50`, CHANNEL_ID);
+  return { policyVersion: FACTORY_BROWSER_QA_POLICY_VERSION, authorityBoundary: "INDEPENDENT_REVIEW_ONLY", tasks: number(summary?.tasks), pending: number(summary?.pending), likelyDefect: number(summary?.likely_defect), likelyClean: number(summary?.likely_clean), needsOwner: number(summary?.needs_owner), modality: modality.map((item) => ({ modality: clean(item.modality), count: number(item.count) })), sourceBrowserRequired: sourceBreakdown.reduce((sum, item) => sum + number(item.count), 0), sourceBreakdown: sourceBreakdown.map((item) => ({ candidateKind: clean(item.candidate_kind), artifactType: clean(item.artifact_type), mimeType: clean(item.mime_type), count: number(item.count) })), providerRequests: 0, spendUsd: 0 };
 }
 
 async function reconcileTasks(db: DB, actor: string) {

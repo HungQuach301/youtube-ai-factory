@@ -461,6 +461,8 @@ test("Factory Browser QA is exact-byte-bound, full-playback, immutable and indep
   assert.match(route, /RECONCILE_FACTORY_BROWSER_QA_TASKS/);
   assert.match(route, /INSERT OR IGNORE INTO v7_evaluation_factory_browser_qa_tasks/);
   assert.match(route, /r\.review_surface='BROWSER_REQUIRED'/);
+  assert.match(route, /sourceBrowserRequired/);
+  assert.match(route, /MIME_MISSING/);
   assert.match(route, /SUBMIT_FACTORY_BROWSER_QA/);
   assert.match(route, /providerRequests: 0, spendUsd: 0/);
   assert.doesNotMatch(route, /api\.openai\.com|api\.elevenlabs\.io|owner_decision_state='OWNER_CONFIRMED'/);
