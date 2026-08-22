@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `FACTORY_FIRST_QA_PRODUCTION_ACTIVE__VISION_QUEUE_DRAINED__BROWSER_LANE_REQUIRED`
+**Current source classification:** `FACTORY_BROWSER_QA_SOURCE_READY__PRODUCTION_ACTIVATION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -23,7 +23,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 
 - Production confirms two exact-byte owner anchors. Sites v425 combined preserved V2 model receipts with separate deterministic SVG evidence and passed calibration at 2/2 without a third provider retry.
 - `FACTORY_FIRST_QA_POLICY_V1` completed all 80 non-anchor primaries: 33 likely-defect, 47 Browser-required, zero likely-clean and zero owner-attention. It never writes as the owner, never sets owner-confirmed state and cannot promote fixtures, datasets, assurance qualification or release eligibility.
-- The ledger contains 84 raw receipts, 37 provider requests and measured spend of $0.4314096 against hard ceilings of 84 / $6.75. Exact next action is the separately qualified Factory Browser execution lane for the 47 temporal/audio tasks; the owner does not resume the sequential queue.
+- The ledger contains 84 raw receipts, 37 provider requests and measured spend of $0.4314096 against hard ceilings of 84 / $6.75. `FACTORY_BROWSER_QA_POLICY_V1` and migration `0065` now implement the separate exact-byte execution lane for the 47 temporal/audio tasks. Source tests and build pass, and the no-authority Browser fixture passes; production activation/read-back is next. The owner does not resume the sequential queue.
 
 - The latest code baseline before knowledge consolidation is `5b669fc9230f5b012ebe4aa2c0b5c21fa50df890`.
 - FP1 truthful operator projection is implemented.
@@ -58,6 +58,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - The first real owner-label form submission exposed `OWNER_REVIEW_NOT_APPLICABLE_CONFIDENCE_UNDEFINED`: system-owned `NOT_APPLICABLE` labels reached canonical hashing with an in-memory `undefined` confidence. The request failed before any receipt insert, so sample 1 must be resubmitted. Sites v416 deploys the source fix from `5321ca67539c8a8cc534778e883fab7ad1f1a050`: explicit `null`, one normalized label set for request/evidence hashes, idempotent replay redirect and inline form preservation on server/network errors. Full regression passes 165/165, provider/spend remain zero and post-deploy Worker errors are zero. Exact next signal is success banner plus `Mẫu 2/82` after owner resubmission.
 - The second sample-1 submission preserved all selections/rationale inline but Production read-back proves it POSTed to `/api/factory/sequential-production/[object HTMLInputElement]` and returned 404. The hidden `action` input shadowed `HTMLFormElement.action`; the evaluation handler never ran and no receipt exists. Sites v418 deploys the endpoint correction from exact source `fce8dbc65da228d21b6526b5dd987716c7fdf3e6`; source resolves only `form.getAttribute('action')`, forbids `fetch(form.action`, passes 165/165 tests and has zero post-deploy Worker errors. The owner refreshes the already-open workflow and resubmits; screenshots/chat cannot substitute for the exact-artifact identity-bound receipt.
 - Sites v420–v424 deployed Factory-first tasking, exact SVG review surfaces and two preserved calibration versions. Both model-only calibrations correctly found near-static motion but missed mobile legibility and production residue on both anchors. Sites v425 adds immutable deterministic adjudication for those two closed exact-byte conditions, passes combined calibration at 2/2 and drains all 80 non-anchor primaries through sixteen bounded batches. Production now reports 33 likely-defect, 47 Browser-required, zero likely-clean, zero owner attention, 37 requests, $0.4314096 spend and no recent Worker errors. Next is the Factory Browser execution lane; no manual owner queue resumes.
+- Migration `0065` and `FACTORY_BROWSER_QA_POLICY_V1` add the separate corpus Browser lane without touching the release-specific Browser gate. Each task is derived from a preserved `BROWSER_REQUIRED` receipt, preflights full R2 bytes against SHA-256 and requires >=98% visible playback, pause/resume/seek/end ordering, audio/motion/focus/reflow/runtime checks and complete observable taxonomy labels. Receipts are immutable independent-review evidence with zero provider/spend and no owner/gold/dataset/assurance/release authority. Target tests pass 22/22, full regression passes 168/168, verified build passes and the agent-preview fixture completed. Production activation and 47-task modality read-back are next.
 
 ## Protected no-rerun list
 

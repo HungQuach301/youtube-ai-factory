@@ -11,6 +11,7 @@ import {
   EVALUATION_CORRELATION_CONTROL_VERSION,
   FACTORY_FIRST_QA_POLICY_VERSION,
   FACTORY_FIRST_QA_MAXIMUM_BATCH,
+  FACTORY_BROWSER_QA_POLICY_VERSION,
   OWNER_STANDING_AUTHORITY,
   evaluateAuthorshipEvidence,
   evaluateAssuranceQualification,
@@ -19,6 +20,7 @@ import {
   evaluateProviderRightsEvidence,
   evaluateOwnerLabelSubmission,
   evaluateFactoryQaResult,
+  evaluateFactoryBrowserQaEvidence,
   isOwnerObservableDefect,
   normalizeOwnerLabelsForReceipt,
   evaluateCorrelationAssignments,
@@ -400,6 +402,65 @@ test("Factory QA renders self-contained SVG evidence to a hashable PNG review su
   ] }, review.deterministicSignals);
   assert.deepEqual(adjudicated.labels.map((item) => item.status), ["PRESENT", "PRESENT"]);
   await assert.rejects(() => prepareImageReviewSurface(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.com/a.png"/></svg>')), /FACTORY_QA_SVG_REMOTE_RESOURCE_FORBIDDEN/);
+});
+
+test("Factory Browser QA is exact-byte-bound, full-playback, immutable and independent-only", () => {
+  assert.equal(FACTORY_BROWSER_QA_POLICY_VERSION, "FACTORY_BROWSER_QA_POLICY_V1");
+  const base = {
+    policyVersion: FACTORY_BROWSER_QA_POLICY_VERSION,
+    sessionId: "factory-browser-qa-session-0001",
+    taskId: "browser-task-1",
+    exactArtifactHash: "a".repeat(64),
+    mimeType: "video/webm",
+    metadataLoaded: true,
+    playable: true,
+    ended: true,
+    metadataDurationSeconds: 8,
+    watchedSeconds: 8,
+    continuousCoverageRatio: 1,
+    timeProgressed: true,
+    pauseResumePassed: true,
+    seekPassed: true,
+    audioTrackObserved: true,
+    motionObserved: true,
+    focusTraversalPassed: true,
+    zoomReflowPassed: true,
+    consoleErrorCount: 0,
+    hiddenDuringPlaybackCount: 0,
+    viewportWidth: 390,
+    viewportHeight: 844,
+    devicePixelRatio: 2,
+    userAgent: "Qualification browser",
+    events: [
+      { type: "LOADED_METADATA", mediaTimeSeconds: 0, monotonicMilliseconds: 1 },
+      { type: "PLAY", mediaTimeSeconds: 0, monotonicMilliseconds: 2 },
+      { type: "PAUSE", mediaTimeSeconds: 2, monotonicMilliseconds: 3 },
+      { type: "PLAY", mediaTimeSeconds: 2, monotonicMilliseconds: 4 },
+      { type: "SEEKED", mediaTimeSeconds: 1.5, monotonicMilliseconds: 5 },
+      { type: "ENDED", mediaTimeSeconds: 8, monotonicMilliseconds: 6 },
+    ],
+    result: { decisionState: "LIKELY_DEFECT_PRESENT", summary: "Visible production residue remains in the exact rendered media.", labels: [
+      { defectKey: "PRODUCTION_RESIDUE", status: "PRESENT", confidence: 0.99, rationale: "Internal QA copy is visible." },
+    ] },
+  };
+  const valid = evaluateFactoryBrowserQaEvidence({ evidence: base, expectedTaskId: "browser-task-1", expectedArtifactHash: "a".repeat(64), expectedMimeType: "video/webm", observableDefectKeys: ["PRODUCTION_RESIDUE"] });
+  assert.equal(valid.eligible, true);
+  const hidden = evaluateFactoryBrowserQaEvidence({ evidence: { ...base, hiddenDuringPlaybackCount: 1 }, expectedTaskId: "browser-task-1", expectedArtifactHash: "a".repeat(64), expectedMimeType: "video/webm", observableDefectKeys: ["PRODUCTION_RESIDUE"] });
+  assert.ok(hidden.reasons.includes("FACTORY_BROWSER_QA_PLAYBACK_NOT_VISIBLE"));
+  const wrongHash = evaluateFactoryBrowserQaEvidence({ evidence: { ...base, exactArtifactHash: "b".repeat(64) }, expectedTaskId: "browser-task-1", expectedArtifactHash: "a".repeat(64), expectedMimeType: "video/webm", observableDefectKeys: ["PRODUCTION_RESIDUE"] });
+  assert.ok(wrongHash.reasons.includes("FACTORY_BROWSER_QA_EXACT_HASH_BINDING_REQUIRED"));
+
+  const migration = read("drizzle/0065_factory_browser_qa.sql"), route = read("app/api/factory/sequential-production/factory-browser-qa/route.ts");
+  for (const table of ["v7_evaluation_factory_browser_qa_registry", "v7_evaluation_factory_browser_qa_tasks", "v7_evaluation_factory_browser_qa_receipts"]) assert.match(migration, new RegExp(table));
+  assert.match(migration, /INDEPENDENT_REVIEW_ONLY/);
+  assert.match(migration, /EVALUATION_FACTORY_BROWSER_QA_RECEIPT_IMMUTABLE/);
+  assert.match(migration, /review_surface='BROWSER_REQUIRED'/);
+  assert.doesNotMatch(migration, /release_eligible=1|GOLD_ELIGIBLE|OWNER_CONFIRMED/);
+  assert.match(route, /x-factory-qa-executor-token/);
+  assert.match(route, /FACTORY_BROWSER_QA_ARTIFACT_HASH_MISMATCH/);
+  assert.match(route, /SUBMIT_FACTORY_BROWSER_QA/);
+  assert.match(route, /providerRequests: 0, spendUsd: 0/);
+  assert.doesNotMatch(route, /api\.openai\.com|api\.elevenlabs\.io|owner_decision_state='OWNER_CONFIRMED'/);
 });
 
 test("correlation control permits one independent representative per lineage and exact hash", () => {

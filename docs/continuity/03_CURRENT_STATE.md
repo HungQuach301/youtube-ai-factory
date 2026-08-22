@@ -2,7 +2,29 @@
 
 Last reconciled: 2026-08-22 (Asia/Bangkok)
 
-## Factory-first QA source checkpoint — 2026-08-22
+## Factory Browser QA source checkpoint — 2026-08-22
+
+```text
+POLICY = FACTORY_BROWSER_QA_POLICY_V1
+SOURCE = READY
+SCHEMA = MIGRATION_0065
+INPUT = 47_IMMUTABLE_BROWSER_REQUIRED_RECEIPTS
+AUTHORITY = INDEPENDENT_REVIEW_ONLY
+EXACT_BYTE_PREFLIGHT = FULL_R2_READBACK_AND_SHA256
+PLAYBACK = GTE_98_PERCENT__PAUSE_RESUME_SEEK_ENDED__VISIBLE
+OBSERVATION = AUDIO_TRACK__VIDEO_MOTION__FOCUS__REFLOW__ZERO_PAGE_ERRORS
+LABELS = FULL_MEDIA_OBSERVABLE_TAXONOMY__UNCERTAIN_FAILS_CLOSED
+FIXTURE_BROWSER_QA = PASS__NO_PRODUCTION_OR_RELEASE_AUTHORITY
+SOURCE_TESTS = TARGET_22_OF_22_PASS__FULL_168_OF_168_PASS__VERIFIED_BUILD_PASS
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+PRODUCTION_STATE = ACTIVATION_PENDING
+NEXT_PROTECTED_ACTION = DEPLOY_0065__READ_BACK_47_TASK_MODALITY_SPLIT__RUN_BROWSER_QUEUE
+```
+
+The corpus Browser lane is separate from the Golden release Browser gate. It creates one exact-byte task from every preserved `BROWSER_REQUIRED` Factory receipt, requires real playback plus complete media-observable taxonomy coverage and stores one immutable independent receipt. It cannot write owner-confirmed, gold, dataset, assurance-qualification or release state. Document 60 is authoritative for this slice.
+
+## Factory-first QA production checkpoint — 2026-08-22
 
 ```text
 OWNER_REPORTED_DURABLE_ANCHORS = 2
@@ -20,7 +42,7 @@ FACTORY_QA_PRIMARY_OUTCOMES = 33_LIKELY_DEFECT__47_BROWSER_REQUIRED__0_LIKELY_CL
 FACTORY_QA_OWNER_ATTENTION = 0
 FACTORY_QA_PROVIDER_REQUESTS = 37_OF_84
 FACTORY_QA_MEASURED_SPEND_USD = 0.4314096_OF_6.75
-NEXT_PROTECTED_ACTION = IMPLEMENT_FACTORY_BROWSER_QA_EXECUTION_LANE_FOR_47_TEMPORAL_AUDIO_TASKS
+NEXT_PROTECTED_ACTION = DEPLOY_FACTORY_BROWSER_QA_EXECUTION_LANE_FOR_47_TEMPORAL_AUDIO_TASKS
 ```
 
 The owner stopped after saving two materially similar failed SHOT samples. Production read-back confirmed both exact-byte receipts and their three owner-present defects. The Factory now owns first-pass QA; it may not write under the owner identity or convert independent review into gold, assurance or release authority.

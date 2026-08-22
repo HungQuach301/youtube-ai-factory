@@ -8,6 +8,7 @@ export const EVALUATION_OWNER_REVIEW_UX_VERSION = "EVALUATION_OWNER_REVIEW_UX_V2
 export const FACTORY_FIRST_QA_POLICY_VERSION = "FACTORY_FIRST_QA_POLICY_V1" as const;
 export const FACTORY_FIRST_QA_MAXIMUM_BATCH = 5;
 export const FACTORY_FIRST_QA_MAXIMUM_REQUEST_RESERVATION_USD = 0.08;
+export const FACTORY_BROWSER_QA_POLICY_VERSION = "FACTORY_BROWSER_QA_POLICY_V1" as const;
 export const EVALUATION_CORRELATION_CONTROL_VERSION = "EVALUATION_CORRELATION_CONTROL_V1" as const;
 
 export type OwnerLabelStatus = "PRESENT" | "ABSENT" | "NOT_APPLICABLE";
@@ -37,6 +38,41 @@ export type FactoryQaResult = {
   decisionState?: string;
   summary?: string;
   labels?: FactoryQaLabel[];
+};
+
+export type FactoryBrowserQaEvent = {
+  type?: string;
+  mediaTimeSeconds?: number;
+  monotonicMilliseconds?: number;
+};
+
+export type FactoryBrowserQaEvidence = {
+  policyVersion?: string;
+  sessionId?: string;
+  taskId?: string;
+  exactArtifactHash?: string;
+  mimeType?: string;
+  metadataLoaded?: boolean;
+  playable?: boolean;
+  ended?: boolean;
+  metadataDurationSeconds?: number;
+  watchedSeconds?: number;
+  continuousCoverageRatio?: number;
+  timeProgressed?: boolean;
+  pauseResumePassed?: boolean;
+  seekPassed?: boolean;
+  audioTrackObserved?: boolean;
+  motionObserved?: boolean;
+  focusTraversalPassed?: boolean;
+  zoomReflowPassed?: boolean;
+  consoleErrorCount?: number;
+  hiddenDuringPlaybackCount?: number;
+  viewportWidth?: number;
+  viewportHeight?: number;
+  devicePixelRatio?: number;
+  userAgent?: string;
+  events?: FactoryBrowserQaEvent[];
+  result?: FactoryQaResult;
 };
 
 export type OwnerObservableDefectInput = {
@@ -253,6 +289,31 @@ export function evaluateFactoryQaResult(input: { result: FactoryQaResult; observ
   if (input.result.decisionState === "LIKELY_CLEAN" && (presentCount > 0 || uncertainCount > 0)) reasons.push("FACTORY_QA_CLEAN_REQUIRES_ALL_ABSENT");
   if (input.result.decisionState === "NEEDS_OWNER" && uncertainCount === 0) reasons.push("FACTORY_QA_OWNER_DECISION_REQUIRES_UNCERTAINTY");
   return { eligible: reasons.length === 0, presentCount, uncertainCount, reasons: [...new Set(reasons)] };
+}
+
+export function evaluateFactoryBrowserQaEvidence(input: { evidence: FactoryBrowserQaEvidence; expectedTaskId: string; expectedArtifactHash: string; expectedMimeType: string; observableDefectKeys: string[] }) {
+  const evidence = input.evidence, reasons: string[] = [], mime = clean(input.expectedMimeType).toLowerCase();
+  const events = Array.isArray(evidence.events) ? evidence.events : [], types = events.map((event) => clean(event.type));
+  const first = (type: string, from = 0) => types.indexOf(type, from);
+  const metadata = first("LOADED_METADATA"), play = first("PLAY"), pause = first("PAUSE"), resume = pause >= 0 ? first("PLAY", pause + 1) : -1, seek = first("SEEKED"), ended = types.lastIndexOf("ENDED");
+  if (evidence.policyVersion !== FACTORY_BROWSER_QA_POLICY_VERSION) reasons.push("FACTORY_BROWSER_QA_POLICY_VERSION_INVALID");
+  if (clean(evidence.taskId) !== clean(input.expectedTaskId)) reasons.push("FACTORY_BROWSER_QA_TASK_BINDING_INVALID");
+  if (!hash64(evidence.exactArtifactHash) || clean(evidence.exactArtifactHash).toLowerCase() !== clean(input.expectedArtifactHash).toLowerCase()) reasons.push("FACTORY_BROWSER_QA_EXACT_HASH_BINDING_REQUIRED");
+  if (clean(evidence.mimeType).toLowerCase() !== mime || (!mime.startsWith("audio/") && !mime.startsWith("video/"))) reasons.push("FACTORY_BROWSER_QA_MEDIA_TYPE_INVALID");
+  if (clean(evidence.sessionId).length < 16 || clean(evidence.sessionId).length > 180) reasons.push("FACTORY_BROWSER_QA_SESSION_INVALID");
+  if (!evidence.metadataLoaded || !evidence.playable || !evidence.timeProgressed) reasons.push("FACTORY_BROWSER_QA_PLAYBACK_NOT_PROVEN");
+  if (!evidence.ended || Number(evidence.watchedSeconds) <= 0 || Number(evidence.continuousCoverageRatio) < 0.98) reasons.push("FACTORY_BROWSER_QA_CONTINUOUS_PLAYBACK_INCOMPLETE");
+  if (!evidence.pauseResumePassed || !evidence.seekPassed) reasons.push("FACTORY_BROWSER_QA_CONTROLS_FAILED");
+  if (mime.startsWith("video/") && !evidence.motionObserved) reasons.push("FACTORY_BROWSER_QA_MOTION_NOT_OBSERVED");
+  if (!evidence.audioTrackObserved) reasons.push("FACTORY_BROWSER_QA_AUDIO_NOT_OBSERVED");
+  if (!evidence.focusTraversalPassed || !evidence.zoomReflowPassed) reasons.push("FACTORY_BROWSER_QA_ACCESSIBILITY_CHECK_FAILED");
+  if (Number(evidence.consoleErrorCount) !== 0) reasons.push("FACTORY_BROWSER_QA_CONSOLE_ERRORS_OPEN");
+  if (Number(evidence.hiddenDuringPlaybackCount) !== 0) reasons.push("FACTORY_BROWSER_QA_PLAYBACK_NOT_VISIBLE");
+  if (!Number.isFinite(Number(evidence.viewportWidth)) || Number(evidence.viewportWidth) < 320 || !Number.isFinite(Number(evidence.viewportHeight)) || Number(evidence.viewportHeight) < 480 || !clean(evidence.userAgent)) reasons.push("FACTORY_BROWSER_QA_BROWSER_CONTEXT_INVALID");
+  if (metadata < 0 || play <= metadata || pause <= play || resume <= pause || seek <= play || ended <= Math.max(resume, seek)) reasons.push("FACTORY_BROWSER_QA_REQUIRED_EVENT_ORDER_MISSING");
+  const resultValidation = evaluateFactoryQaResult({ result: evidence.result ?? {}, observableDefectKeys: input.observableDefectKeys });
+  reasons.push(...resultValidation.reasons);
+  return { eligible: reasons.length === 0, presentCount: resultValidation.presentCount, uncertainCount: resultValidation.uncertainCount, reasons: [...new Set(reasons)] };
 }
 
 export function evaluateCorrelationAssignments(items: CorrelationAssignment[]) {
