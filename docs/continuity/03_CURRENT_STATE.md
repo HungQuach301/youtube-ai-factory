@@ -2,27 +2,32 @@
 
 Last reconciled: 2026-08-22 (Asia/Bangkok)
 
-## Factory Browser QA source checkpoint — 2026-08-22
+## Factory Browser QA production checkpoint — 2026-08-22
 
 ```text
 POLICY = FACTORY_BROWSER_QA_POLICY_V1
-SOURCE = READY
-SCHEMA = MIGRATION_0065
-INPUT = 47_IMMUTABLE_BROWSER_REQUIRED_RECEIPTS
+ROUTING_ADJUDICATION_POLICY = FACTORY_QA_ROUTING_ADJUDICATION_V1
+SCHEMA = MIGRATIONS_0065_AND_0066
+PRODUCTION_VERSION = SITES_V430
+PRODUCTION_SOURCE_COMMIT = 9f129087d030392d56e3bb9eedfe8890785ca141
 AUTHORITY = INDEPENDENT_REVIEW_ONLY
 EXACT_BYTE_PREFLIGHT = FULL_R2_READBACK_AND_SHA256
 PLAYBACK = GTE_98_PERCENT__PAUSE_RESUME_SEEK_ENDED__VISIBLE
 OBSERVATION = AUDIO_TRACK__VIDEO_MOTION__FOCUS__REFLOW__ZERO_PAGE_ERRORS
 LABELS = FULL_MEDIA_OBSERVABLE_TAXONOMY__UNCERTAIN_FAILS_CLOSED
 FIXTURE_BROWSER_QA = PASS__NO_PRODUCTION_OR_RELEASE_AUTHORITY
-SOURCE_TESTS = TARGET_22_OF_22_PASS__FULL_168_OF_168_PASS__VERIFIED_BUILD_PASS
+SOURCE_TESTS = TARGET_23_OF_23_PASS__FULL_169_OF_169_PASS__VERIFIED_BUILD_PASS
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-PRODUCTION_STATE = ACTIVATION_PENDING
-NEXT_PROTECTED_ACTION = DEPLOY_0065__READ_BACK_47_TASK_MODALITY_SPLIT__RUN_BROWSER_QUEUE
+LEGACY_BROWSER_REQUIRED = 0_OPEN
+STRUCTURED_EVIDENCE_ONLY = 47_APPLICATION_JSON
+ELIGIBLE_MEDIA_TASKS = 0
+PRODUCTION_STATE = ACTIVE__NO_ELIGIBLE_MEDIA_QUEUE
+POST_DEPLOY_WORKER_ERRORS = 0
+NEXT_PROTECTED_ACTION = USE_33_VISUAL_DEFECTS_AS_REGRESSION_CORPUS__KEEP_47_JSON_OUTSIDE_PERCEPTUAL_QA
 ```
 
-The corpus Browser lane is separate from the Golden release Browser gate. It creates one exact-byte task from every preserved `BROWSER_REQUIRED` Factory receipt, requires real playback plus complete media-observable taxonomy coverage and stores one immutable independent receipt. It cannot write owner-confirmed, gold, dataset, assurance-qualification or release state. Document 60 is authoritative for this slice.
+The corpus Browser lane is separate from the Golden release Browser gate and is now production-active for actual audio/video candidates. Production diagnosis proved that all 47 legacy `BROWSER_REQUIRED` receipts were JSON manifests or QA evidence, not temporal media. Migration `0066` preserves each original receipt and appends an immutable `STRUCTURED_EVIDENCE_ONLY` adjudication; no history is rewritten and no Browser receipt is fabricated. Document 60 is authoritative for this slice.
 
 ## Factory-first QA production checkpoint — 2026-08-22
 
@@ -38,16 +43,16 @@ SPEND_CEILING_USD = 6.75
 SOURCE_TESTS = FULL_REGRESSION_167_OF_167_PASS__VERIFIED_BUILD_PASS
 PRODUCTION_STATE = V425_ACTIVE__FACTORY_FIRST_QUEUE_DRAINED
 FACTORY_QA_CALIBRATION = PASS_2_OF_2_COMBINED_MODEL_AND_DETERMINISTIC
-FACTORY_QA_PRIMARY_OUTCOMES = 33_LIKELY_DEFECT__47_BROWSER_REQUIRED__0_LIKELY_CLEAN
+FACTORY_QA_PRIMARY_OUTCOMES = 33_LIKELY_DEFECT__47_STRUCTURED_EVIDENCE_ONLY__0_BROWSER_REQUIRED__0_LIKELY_CLEAN
 FACTORY_QA_OWNER_ATTENTION = 0
 FACTORY_QA_PROVIDER_REQUESTS = 37_OF_84
 FACTORY_QA_MEASURED_SPEND_USD = 0.4314096_OF_6.75
-NEXT_PROTECTED_ACTION = DEPLOY_FACTORY_BROWSER_QA_EXECUTION_LANE_FOR_47_TEMPORAL_AUDIO_TASKS
+NEXT_PROTECTED_ACTION = REGRESSION_CORPUS_FROM_33_VISUAL_DEFECTS__RIGHTS_AND_GOLD_SET_REMAIN_SEPARATE
 ```
 
 The owner stopped after saving two materially similar failed SHOT samples. Production read-back confirmed both exact-byte receipts and their three owner-present defects. The Factory now owns first-pass QA; it may not write under the owner identity or convert independent review into gold, assurance or release authority.
 
-Production read-back now confirms the two exact owner anchors and an immutable combined calibration PASS. The 80 non-anchor primaries are fully drained from the Factory queue: 33 received independent likely-defect receipts and 47 remain fail-closed for mandatory Browser playback; none were labelled likely clean and none requested owner attention. Raw receipt count is 84 because both V1 and V2 model receipts for each of the two anchors are preserved. No fixture, dataset, assurance capability or release state was promoted.
+Production read-back now confirms the two exact owner anchors and an immutable combined calibration PASS. The 80 non-anchor primaries are fully drained: 33 image candidates received independent likely-defect receipts, while 47 JSON manifest/evidence artifacts were immutably superseded from the legacy Browser route to `STRUCTURED_EVIDENCE_ONLY`. There are zero actual audio/video Browser tasks, zero likely-clean outcomes and zero owner-attention exceptions. Raw receipt count is 84 because both V1 and V2 model receipts for each of the two anchors are preserved. No fixture, dataset, assurance capability or release state was promoted.
 
 ## Owner-review form-action collision source checkpoint — 2026-08-22
 

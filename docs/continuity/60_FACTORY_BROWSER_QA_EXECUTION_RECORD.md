@@ -2,15 +2,25 @@
 
 **Class:** `EXECUTION_EVIDENCE`
 
-**Policy:** `FACTORY_BROWSER_QA_POLICY_V1`
+**Policies:** `FACTORY_BROWSER_QA_POLICY_V1`, `FACTORY_QA_ROUTING_ADJUDICATION_V1`
 
-**Source state:** `SOURCE_READY__BROWSER_FIXTURE_PASS__PRODUCTION_ACTIVATION_PENDING`
+**Production state:** `ACTIVE__FIXTURE_PASS__NO_ELIGIBLE_MEDIA_TASKS`
 
 ## Outcome
 
-The 47 temporal/audio candidates left by Factory-first image triage now have a separate exact-byte Browser execution lane. This lane is corpus evaluation evidence only. It is deliberately separate from `BROWSER_ASSURANCE_GATE_V1`, which remains an exact-Golden-master release gate.
+The exact-byte Factory Browser execution lane is deployed and qualified for future `audio/*` and `video/*` corpus candidates. Production reconciliation found zero eligible media tasks.
 
-Migration `0065_factory_browser_qa.sql` derives one task from each immutable Factory receipt whose review surface is `BROWSER_REQUIRED`. It preserves the original Factory receipt and candidate, binds the exact candidate SHA-256, and accepts exactly one immutable Browser receipt per task.
+The 47 legacy Factory receipts previously reported as temporal/audio were all `application/json`: 15 `FULL_VIDEO_MANIFEST`, 15 `FULL_VIDEO_QA1_EVIDENCE`, 15 `FULL_VIDEO_QA2_EVIDENCE`, one `PILOT_MANIFEST` and one `PILOT_QA_EVIDENCE`. The legacy dispatcher had treated every non-image MIME as Browser-required. Migration `0066_factory_qa_routing_adjudication.sql` preserves those immutable receipts and adds immutable superseding adjudications with corrected surface `STRUCTURED_EVIDENCE_ONLY`. JSON is not rendered as video and no Browser receipt is fabricated.
+
+Production read-back after Sites v430:
+
+- Factory tasks: 82 total, zero pending.
+- Independent image outcomes: 37 likely-defect receipts including the four preserved calibration receipts; 33 are non-anchor primaries.
+- Legacy JSON routing adjudicated: 47 `STRUCTURED_EVIDENCE_ONLY`.
+- Open Factory Browser tasks: 0.
+- Factory Browser provider requests/spend: 0 / $0.
+- Factory-first cumulative provider requests/spend: 37 / $0.4314096.
+- Recent production Worker errors: 0.
 
 ## Executable contract
 
@@ -32,15 +42,16 @@ Fixture đã hoàn tất ở Browser · không ghi production receipt.
 
 The fixture carries no production or release authority. A Browser interaction quirk required keyboard activation of the final button during qualification; the application handler itself completed and returned the expected result. No production receipt was created.
 
-## Source verification
+## Verification
 
-- Evaluation Foundation target tests: 22/22 PASS.
-- Full regression: 168/168 PASS.
+- Evaluation Foundation target tests: 23/23 PASS.
+- Full regression: 169/169 PASS.
 - Verified production build: PASS.
 - Browser fixture: PASS.
-- Provider requests: 0.
-- Spend: $0.
+- Sites production version: v430.
+- Source commit: `9f129087d030392d56e3bb9eedfe8890785ca141`.
+- Provider requests/spend added by routing correction and Browser layer: 0 / $0.
 
 ## Next protected action
 
-Checkpoint and deploy the exact source, confirm migration `0065`, read back the 47-task modality split and run the bounded Browser queue. Browser receipts remain evaluation evidence; they do not close the separately open 63 rights tasks and cannot open Golden r10, Stage 11, FP4 or FP5.
+Use the 33 independent visual defect receipts as regression/failure-corpus evidence while keeping the 47 structured JSON artifacts outside perceptual QA. The separately open 63 rights tasks, M0 Safety Scope, gold-set qualification, Golden r10, Stage 11, FP4 and FP5 remain blocked. Future real audio/video evaluation candidates must automatically enter the qualified Browser lane.
