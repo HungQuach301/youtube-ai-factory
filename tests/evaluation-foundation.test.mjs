@@ -654,6 +654,10 @@ test("migration 0068 diagnoses historical render-lineage gaps without manufactur
   assert.match(scale, /verifyProductionV2RenderLineage/);
   assert.match(route, /x-source-manifest-id/);
   assert.match(route, /x-source-manifest-sha256/);
+  const projectionRoute = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(projectionRoute, /rightsLineageDiagnostic/);
+  assert.match(projectionRoute, /source_lineage_binding_missing/);
+  assert.doesNotMatch(projectionRoute, /rightsLineageDiagnostic:[\s\S]{0,1200}(source_artifact_id|artifact_hash|declared_source_manifest_id)/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

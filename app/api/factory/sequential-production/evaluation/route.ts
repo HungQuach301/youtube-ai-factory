@@ -71,7 +71,7 @@ async function authorized(request: Request, allowAutomation = true) {
 }
 
 async function projection(db: DB) {
-  const [candidate, runSummary, latestRuns, blockedRows, incidentSummary, rightsRows, rightsReceiptSummary, rightsTasks, labelSummary, correlationSummary] = await Promise.all([
+  const [candidate, runSummary, latestRuns, blockedRows, incidentSummary, rightsRows, rightsReceiptSummary, rightsTasks, rightsLineageDiagnostic, labelSummary, correlationSummary] = await Promise.all([
     first(db, `SELECT COUNT(*) candidates,
       COALESCE(SUM(CASE WHEN verification_state='PENDING' THEN 1 ELSE 0 END),0) pending,
       COALESCE(SUM(CASE WHEN bytes_state='READBACK_VERIFIED' THEN 1 ELSE 0 END),0) byte_verified,
@@ -108,6 +108,9 @@ async function projection(db: DB) {
       ORDER BY c.candidate_kind,r.rights_basis`, CHANNEL_ID),
     first(db, "SELECT COUNT(*) accepted FROM v7_evaluation_rights_receipts WHERE channel_id=? AND rights_state='PASS'", CHANNEL_ID),
     rows(db, "SELECT task_type,COUNT(*) count FROM v7_evaluation_rights_evidence_tasks WHERE channel_id=? GROUP BY task_type ORDER BY count DESC,task_type", CHANNEL_ID),
+    first(db, `SELECT policy_version,tasks_diagnosed,composite_tasks,authorship_tasks,source_lineage_binding_missing,source_lineage_declared_unverified,
+      rights_pass_authority,dataset_sealing_authority,assurance_qualification_authority,release_authority,provider_requests,spend_usd
+      FROM v7_evaluation_rights_lineage_diagnostic_snapshots WHERE channel_id=? AND policy_version='EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1' LIMIT 1`, CHANNEL_ID),
     first(db, `SELECT
       (SELECT COUNT(*) FROM v7_evaluation_owner_label_tasks t WHERE t.channel_id=?) tasks,
       (SELECT COUNT(*) FROM v7_evaluation_owner_label_receipts r WHERE r.channel_id=?) receipts,
@@ -137,6 +140,12 @@ async function projection(db: DB) {
     evidenceIncidents: number(incidentSummary?.incidents), openEvidenceIncidents: number(incidentSummary?.open_incidents), byteDivergenceIncidents: number(incidentSummary?.byte_divergence), metadataReviewRequired: number(incidentSummary?.metadata_review), quarantinedCandidates: number(incidentSummary?.quarantined), metadataBindingsAccepted: number(incidentSummary?.metadata_bindings),
     rightsReceiptsAccepted: number(rightsReceiptSummary?.accepted), rightsBasisCounts: rightsQueue.basisCounts, rightsKindCounts: rightsQueue.kindCounts, rightsProviderCounts: rightsQueue.providerCounts,
     rightsEvidenceTaskCounts: rightsTasks.map((item) => ({ key: clean(item.task_type), count: number(item.count) })),
+    rightsLineageDiagnostic: rightsLineageDiagnostic ? {
+      policyVersion: clean(rightsLineageDiagnostic.policy_version), tasksDiagnosed: number(rightsLineageDiagnostic.tasks_diagnosed), compositeTasks: number(rightsLineageDiagnostic.composite_tasks), authorshipTasks: number(rightsLineageDiagnostic.authorship_tasks),
+      sourceLineageBindingMissing: number(rightsLineageDiagnostic.source_lineage_binding_missing), sourceLineageDeclaredUnverified: number(rightsLineageDiagnostic.source_lineage_declared_unverified),
+      rightsPassAuthority: Boolean(number(rightsLineageDiagnostic.rights_pass_authority)), datasetSealingAuthority: Boolean(number(rightsLineageDiagnostic.dataset_sealing_authority)), assuranceQualificationAuthority: Boolean(number(rightsLineageDiagnostic.assurance_qualification_authority)), releaseAuthority: Boolean(number(rightsLineageDiagnostic.release_authority)),
+      providerRequests: number(rightsLineageDiagnostic.provider_requests), spendUsd: number(rightsLineageDiagnostic.spend_usd),
+    } : null,
     ownerLabelPolicyVersion: EVALUATION_OWNER_LABEL_POLICY_VERSION,
     ownerReviewUxVersion: EVALUATION_OWNER_REVIEW_UX_VERSION,
     ownerLabelTasks: number(labelSummary?.tasks), ownerLabelReceipts: number(labelSummary?.receipts), ownerLabelOpen: number(labelSummary?.open_tasks),
