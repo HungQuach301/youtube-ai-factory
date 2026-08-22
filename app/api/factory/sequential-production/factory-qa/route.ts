@@ -14,6 +14,8 @@ import {
 export const dynamic = "force-dynamic";
 const NO_STORE = { "cache-control": "no-store" };
 const CHANNEL_ID = "channel-hidden-systems";
+const CALIBRATION_V1 = "FACTORY_QA_CALIBRATION_V1";
+const CALIBRATION_V2 = "FACTORY_QA_CALIBRATION_V2";
 type Row = Record<string, unknown>;
 type RunResult = { meta?: { changes?: number } };
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null>; run(): Promise<RunResult> };
@@ -70,6 +72,7 @@ async function status(db: DB) {
       JOIN v7_evaluation_factory_qa_receipts f ON f.task_id=q.id
       JOIN v7_evaluation_owner_label_receipts o ON o.task_id=q.owner_task_id
       WHERE q.channel_id=? AND q.task_class='OWNER_ANCHOR'
+        AND f.calibration_version=(SELECT calibration_version FROM v7_evaluation_factory_qa_registry WHERE channel_id=q.channel_id AND policy_version=q.policy_version)
       ORDER BY q.created_at,q.id`, CHANNEL_ID),
   ]);
   const calibrationDiagnostics = anchorRows.map((row, index) => {
@@ -80,6 +83,7 @@ async function status(db: DB) {
   });
   return {
     policyVersion: FACTORY_FIRST_QA_POLICY_VERSION,
+    calibrationVersion: clean(registry?.calibration_version),
     lifecycleState: clean(registry?.lifecycle_state),
     ownerAttentionPolicy: clean(registry?.owner_attention_policy),
     tasks: number(taskSummary?.tasks), anchors: number(taskSummary?.anchors), pending: number(taskSummary?.pending),
@@ -109,7 +113,7 @@ async function inspectImage(env: Required<Pick<Env, "DB" | "BUCKET">> & Env, tas
   const reviewInputHash = await sha256(reviewSurface.bytes);
   const allowed = observableTaxonomy(taxonomy, task).map((item) => ({ defectKey: clean(item.defect_key), label: clean(item.label), severity: clean(item.severity), description: clean(item.description) }));
   if (!allowed.length) throw new FactoryQaError("FACTORY_QA_OBSERVABLE_TAXONOMY_EMPTY", 409, "No observable defect applies to this artifact");
-  const prompt = `You are an independent first-pass Factory QA reviewer for a US faceless financial explainer. Judge only evidence visible in the exact pixels. Do not pretend this is an owner decision and do not infer rights or hidden lineage. Candidate kind: ${clean(task.candidate_kind)}. Artifact type: ${clean(task.artifact_type)}. MIME: ${clean(task.mime_type)}. A SHOT image is an intermediate visual, so missing voice is not itself a defect. For a still SHOT, mark NEAR_STATIC_MOTION PRESENT only when the slide/template composition itself provides no meaningful visual progression and is visibly unsuitable as production motion material. Treat prompts, QA labels, URLs, filenames, debug text and phrases such as "evidence-bound production proof" as PRODUCTION_RESIDUE. Assess every allowed defect exactly once. Use UNCERTAIN when pixels cannot prove the issue. Allowed taxonomy: ${JSON.stringify(allowed)}.`;
+  const prompt = `You are an independent first-pass Factory QA reviewer for a US faceless financial explainer. Judge only evidence visible in the exact pixels. Do not pretend this is an owner decision and do not infer rights or hidden lineage. Candidate kind: ${clean(task.candidate_kind)}. Artifact type: ${clean(task.artifact_type)}. MIME: ${clean(task.mime_type)}. A SHOT image is an intermediate visual, so missing voice is not itself a defect. For a still SHOT, mark NEAR_STATIC_MOTION PRESENT when the slide/template composition itself provides no meaningful visual progression and is visibly unsuitable as production motion material. For MOBILE_LEGIBILITY, simulate the full 1920×1080 frame displayed about 360 CSS pixels wide: essential copy, qualifiers or charts that become tiny, dense or low-contrast are PRESENT even if readable while zoomed on a desktop. For PRODUCTION_RESIDUE, audience-visible prompts, QA labels, URLs, filenames, debug copy or the exact internal phrase "evidence-bound production proof" are always PRESENT even when styled as a footer or brand line. Assess every allowed defect exactly once. Use UNCERTAIN when pixels cannot prove the issue. Allowed taxonomy: ${JSON.stringify(allowed)}.`;
   const schema = {
     type: "object", additionalProperties: false,
     properties: {
@@ -143,13 +147,13 @@ async function inspectImage(env: Required<Pick<Env, "DB" | "BUCKET">> & Env, tas
   return { result, validation, usage, requestHash, providerResponseId: clean(payload.id), model, reviewInputHash, reviewMimeType: reviewSurface.mimeType, reviewTransform: reviewSurface.transform };
 }
 
-async function recordReceipt(db: DB, input: { runId: string; task: Row; taxonomy: Row[]; actor: string; reviewSurface: string; reviewInputHash: string; reviewMimeType: string; reviewTransform: string; decisionState: string; ownerAttentionState: string; labels: Array<{ defectKey?: string; status?: string; confidence?: number; rationale?: string }>; summary: string; model?: string; providerResponseId?: string; providerRequests: number; spendUsd: number; requestHash: string }) {
+async function recordReceipt(db: DB, input: { runId: string; task: Row; taxonomy: Row[]; actor: string; calibrationVersion: string; reviewSurface: string; reviewInputHash: string; reviewMimeType: string; reviewTransform: string; decisionState: string; ownerAttentionState: string; labels: Array<{ defectKey?: string; status?: string; confidence?: number; rationale?: string }>; summary: string; model?: string; providerResponseId?: string; providerRequests: number; spendUsd: number; requestHash: string }) {
   const normalizedLabels = input.labels.map((label) => ({ defectKey: clean(label.defectKey), status: clean(label.status), confidence: number(label.confidence), rationale: clean(label.rationale) })).sort((left, right) => left.defectKey.localeCompare(right.defectKey));
-  const evidenceHash = await canonicalHash({ policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, taskId: clean(input.task.id), candidateId: clean(input.task.candidate_id), exactArtifactHash: clean(input.task.exact_artifact_hash), reviewSurface: input.reviewSurface, reviewInputHash: input.reviewInputHash, reviewMimeType: input.reviewMimeType, reviewTransform: input.reviewTransform, decisionState: input.decisionState, labels: normalizedLabels, summary: input.summary, model: input.model || null, providerResponseId: input.providerResponseId || null, actor: input.actor });
+  const evidenceHash = await canonicalHash({ policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, calibrationVersion: input.calibrationVersion, taskId: clean(input.task.id), candidateId: clean(input.task.candidate_id), exactArtifactHash: clean(input.task.exact_artifact_hash), reviewSurface: input.reviewSurface, reviewInputHash: input.reviewInputHash, reviewMimeType: input.reviewMimeType, reviewTransform: input.reviewTransform, decisionState: input.decisionState, labels: normalizedLabels, summary: input.summary, model: input.model || null, providerResponseId: input.providerResponseId || null, actor: input.actor });
   const receiptId = id("evaluation-factory-qa-receipt");
   const statements: Statement[] = [db.prepare(`INSERT INTO v7_evaluation_factory_qa_receipts
-    (id,channel_id,run_id,task_id,candidate_id,exact_artifact_hash,review_surface,review_input_hash,review_mime_type,review_transform,decision_state,owner_attention_state,labels_json,summary,model_id,provider_response_id,provider_requests,spend_usd,request_hash,evidence_hash,actor)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(receiptId, CHANNEL_ID, input.runId, input.task.id, input.task.candidate_id, input.task.exact_artifact_hash, input.reviewSurface, input.reviewInputHash, input.reviewMimeType, input.reviewTransform, input.decisionState, input.ownerAttentionState, JSON.stringify(normalizedLabels), input.summary, input.model || null, input.providerResponseId || null, input.providerRequests, input.spendUsd, input.requestHash, evidenceHash, input.actor)];
+    (id,channel_id,run_id,task_id,candidate_id,exact_artifact_hash,review_surface,review_input_hash,review_mime_type,review_transform,decision_state,owner_attention_state,labels_json,summary,model_id,provider_response_id,provider_requests,spend_usd,request_hash,evidence_hash,actor,calibration_version)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(receiptId, CHANNEL_ID, input.runId, input.task.id, input.task.candidate_id, input.task.exact_artifact_hash, input.reviewSurface, input.reviewInputHash, input.reviewMimeType, input.reviewTransform, input.decisionState, input.ownerAttentionState, JSON.stringify(normalizedLabels), input.summary, input.model || null, input.providerResponseId || null, input.providerRequests, input.spendUsd, input.requestHash, evidenceHash, input.actor, input.calibrationVersion)];
   const taxonomyIds = new Map(input.taxonomy.map((item) => [clean(item.defect_key), clean(item.id)]));
   for (const label of normalizedLabels.filter((item) => ["PRESENT", "ABSENT"].includes(item.status))) statements.push(db.prepare("INSERT INTO v7_evaluation_defect_labels (id,candidate_id,defect_id,label_source,polarity,confidence,evidence_hash,actor) VALUES (?,?,?,?,?,?,?,?)").bind(id("evaluation-defect-label"), input.task.candidate_id, taxonomyIds.get(label.defectKey), "INDEPENDENT_REVIEW", label.status, label.confidence, evidenceHash, input.actor));
   await db.batch(statements);
@@ -184,8 +188,12 @@ export async function POST(request: Request) {
     if (idempotencyKey.length < 16 || idempotencyKey.length > 160) throw new FactoryQaError("FACTORY_QA_IDEMPOTENCY_KEY_INVALID", 400, "A stable 16-160 character idempotency key is required");
     const { env, actor } = await authorized(request), registry = await first(env.DB, "SELECT * FROM v7_evaluation_factory_qa_registry WHERE channel_id=? AND policy_version=?", CHANNEL_ID, FACTORY_FIRST_QA_POLICY_VERSION);
     if (!registry) throw new FactoryQaError("FACTORY_QA_REGISTRY_REQUIRED", 409, "Factory QA registry is unavailable");
+    const requestedCalibrationVersion = clean(body?.calibrationVersion) || (mode === "CALIBRATION" ? CALIBRATION_V1 : clean(registry.calibration_version) || CALIBRATION_V1);
+    if (![CALIBRATION_V1, CALIBRATION_V2].includes(requestedCalibrationVersion)) throw new FactoryQaError("FACTORY_QA_CALIBRATION_VERSION_INVALID", 400, "Unsupported Factory QA calibration version");
+    if (mode === "CALIBRATION" && clean(registry.lifecycle_state) === "CALIBRATION_FAILED" && requestedCalibrationVersion !== CALIBRATION_V2) throw new FactoryQaError("FACTORY_QA_CALIBRATION_VERSION_ADVANCE_REQUIRED", 409, "A failed calibration must advance to the next immutable calibration version");
+    if (mode === "BATCH" && requestedCalibrationVersion !== clean(registry.calibration_version)) throw new FactoryQaError("FACTORY_QA_CALIBRATION_VERSION_STALE", 409, "Batch must use the active passed calibration version");
     if (mode === "BATCH" && !["CALIBRATION_PASS", "ACTIVE"].includes(clean(registry.lifecycle_state))) throw new FactoryQaError("FACTORY_QA_CALIBRATION_REQUIRED", 409, "Two owner anchors must pass independent calibration first");
-    const intentHash = await canonicalHash({ action, mode, limit, policyVersion: FACTORY_FIRST_QA_POLICY_VERSION });
+    const intentHash = await canonicalHash({ action, mode, limit, policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, calibrationVersion: requestedCalibrationVersion });
     let qaRun = await first(env.DB, "SELECT * FROM v7_evaluation_factory_qa_runs WHERE channel_id=? AND idempotency_key=?", CHANNEL_ID, idempotencyKey);
     if (qaRun && clean(qaRun.intent_hash) !== intentHash) throw new FactoryQaError("FACTORY_QA_IDEMPOTENCY_CONFLICT", 409, "Idempotency key already belongs to another intent");
     if (!qaRun) {
@@ -193,8 +201,8 @@ export async function POST(request: Request) {
         FROM v7_evaluation_factory_qa_tasks q JOIN v7_evaluation_candidates c ON c.id=q.candidate_id
         WHERE q.channel_id=? AND q.task_class=?
           AND c.verification_state='EVIDENCE_VERIFIED' AND c.rights_verification_state='PASS' AND c.lifecycle_state='CANDIDATE_EVIDENCE' AND c.release_eligible=0
-          AND NOT EXISTS (SELECT 1 FROM v7_evaluation_factory_qa_receipts r WHERE r.task_id=q.id)
-        ORDER BY q.created_at,q.id LIMIT ?`, CHANNEL_ID, mode === "CALIBRATION" ? "OWNER_ANCHOR" : "UNREVIEWED_PRIMARY", limit);
+          AND NOT EXISTS (SELECT 1 FROM v7_evaluation_factory_qa_receipts r WHERE r.task_id=q.id AND r.calibration_version=?)
+        ORDER BY q.created_at,q.id LIMIT ?`, CHANNEL_ID, mode === "CALIBRATION" ? "OWNER_ANCHOR" : "UNREVIEWED_PRIMARY", requestedCalibrationVersion, limit);
       if (mode === "CALIBRATION" && selected.length !== 2) throw new FactoryQaError("FACTORY_QA_TWO_ANCHORS_REQUIRED", 409, "Calibration requires exactly two saved owner anchors");
       const imageRequests = selected.filter((item) => clean(item.mime_type).startsWith("image/")).length;
       const reservedUsd = imageRequests * FACTORY_FIRST_QA_MAXIMUM_REQUEST_RESERVATION_USD;
@@ -203,8 +211,8 @@ export async function POST(request: Request) {
         FROM v7_evaluation_factory_qa_receipts WHERE channel_id=?`, CHANNEL_ID, CHANNEL_ID);
       if (number(totals?.requests) + imageRequests > number(registry.provider_request_ceiling) || number(totals?.spend) + number(totals?.reserved) + reservedUsd > number(registry.spend_ceiling_usd)) throw new FactoryQaError("FACTORY_QA_BUDGET_EXHAUSTED", 409, "Factory QA request or spend ceiling would be exceeded");
       const runId = id("evaluation-factory-qa-run");
-      await run(env.DB, `INSERT INTO v7_evaluation_factory_qa_runs (id,channel_id,run_mode,policy_version,lifecycle_state,candidate_ids_json,planned_candidates,reserved_usd,idempotency_key,intent_hash,actor)
-        VALUES (?,?,?,?,'PLANNED',?,?,?,?,?,?)`, runId, CHANNEL_ID, mode, FACTORY_FIRST_QA_POLICY_VERSION, JSON.stringify(selected.map((item) => clean(item.candidate_id))), selected.length, reservedUsd, idempotencyKey, intentHash, actor);
+      await run(env.DB, `INSERT INTO v7_evaluation_factory_qa_runs (id,channel_id,run_mode,policy_version,lifecycle_state,candidate_ids_json,planned_candidates,reserved_usd,idempotency_key,intent_hash,actor,calibration_version)
+        VALUES (?,?,?,?,'PLANNED',?,?,?,?,?,?,?)`, runId, CHANNEL_ID, mode, FACTORY_FIRST_QA_POLICY_VERSION, JSON.stringify(selected.map((item) => clean(item.candidate_id))), selected.length, reservedUsd, idempotencyKey, intentHash, actor, requestedCalibrationVersion);
       qaRun = await first(env.DB, "SELECT * FROM v7_evaluation_factory_qa_runs WHERE id=?", runId);
     }
     if (!qaRun) throw new FactoryQaError("FACTORY_QA_RUN_NOT_DURABLE", 503, "Factory QA run could not be read back");
@@ -214,28 +222,28 @@ export async function POST(request: Request) {
     const candidateIds = json<string[]>(qaRun.candidate_ids_json, []);
     let agreements = 0;
     for (const candidateId of candidateIds) {
-      const existing = await first(env.DB, "SELECT * FROM v7_evaluation_factory_qa_receipts WHERE candidate_id=?", candidateId);
+      const existing = await first(env.DB, "SELECT * FROM v7_evaluation_factory_qa_receipts WHERE candidate_id=? AND calibration_version=?", candidateId, qaRun.calibration_version);
       if (existing) { if (mode === "CALIBRATION" && await anchorAgreement(env.DB, candidateId, json(existing.labels_json, []), clean(existing.decision_state))) agreements += 1; continue; }
       const task = await first(env.DB, `SELECT q.*,c.storage_key,c.verification_state,c.rights_verification_state,c.lifecycle_state,c.release_eligible
         FROM v7_evaluation_factory_qa_tasks q JOIN v7_evaluation_candidates c ON c.id=q.candidate_id WHERE q.candidate_id=?`, candidateId);
       if (!task) continue;
       if (!clean(task.mime_type).startsWith("image/")) {
         const requestHash = await canonicalHash({ policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, candidateId, exactArtifactHash: task.exact_artifact_hash, reviewSurface: "BROWSER_REQUIRED" });
-        await recordReceipt(env.DB, { runId: clean(qaRun.id), task, taxonomy, actor, reviewSurface: "BROWSER_REQUIRED", reviewInputHash: clean(task.exact_artifact_hash), reviewMimeType: clean(task.mime_type), reviewTransform: "IDENTITY", decisionState: "BROWSER_REQUIRED", ownerAttentionState: "NO_IMMEDIATE_OWNER_ACTION", labels: [], summary: "Temporal or audible media is queued for full Factory Browser playback before any perceptual conclusion; no owner action is requested yet.", providerRequests: 0, spendUsd: 0, requestHash });
+        await recordReceipt(env.DB, { runId: clean(qaRun.id), task, taxonomy, actor, calibrationVersion: clean(qaRun.calibration_version), reviewSurface: "BROWSER_REQUIRED", reviewInputHash: clean(task.exact_artifact_hash), reviewMimeType: clean(task.mime_type), reviewTransform: "IDENTITY", decisionState: "BROWSER_REQUIRED", ownerAttentionState: "NO_IMMEDIATE_OWNER_ACTION", labels: [], summary: "Temporal or audible media is queued for full Factory Browser playback before any perceptual conclusion; no owner action is requested yet.", providerRequests: 0, spendUsd: 0, requestHash });
         continue;
       }
       const inspected = await inspectImage(env, task, taxonomy);
       const labels = inspected.result.labels ?? [], present = labels.filter((item) => clean(item.status) === "PRESENT"), uncertain = labels.filter((item) => clean(item.status) === "UNCERTAIN");
       const p0 = new Set(taxonomy.filter((item) => clean(item.severity) === "P0").map((item) => clean(item.defect_key)));
       const ownerAttentionState = uncertain.length || present.some((item) => p0.has(clean(item.defectKey))) ? "OWNER_REQUIRED" : "NO_IMMEDIATE_OWNER_ACTION";
-      await recordReceipt(env.DB, { runId: clean(qaRun.id), task, taxonomy, actor, reviewSurface: "OPENAI_VISION", reviewInputHash: inspected.reviewInputHash, reviewMimeType: inspected.reviewMimeType, reviewTransform: inspected.reviewTransform, decisionState: clean(inspected.result.decisionState), ownerAttentionState, labels, summary: clean(inspected.result.summary), model: inspected.model, providerResponseId: inspected.providerResponseId, providerRequests: 1, spendUsd: inspected.usage.actualUsd, requestHash: inspected.requestHash });
+      await recordReceipt(env.DB, { runId: clean(qaRun.id), task, taxonomy, actor, calibrationVersion: clean(qaRun.calibration_version), reviewSurface: "OPENAI_VISION", reviewInputHash: inspected.reviewInputHash, reviewMimeType: inspected.reviewMimeType, reviewTransform: inspected.reviewTransform, decisionState: clean(inspected.result.decisionState), ownerAttentionState, labels, summary: clean(inspected.result.summary), model: inspected.model, providerResponseId: inspected.providerResponseId, providerRequests: 1, spendUsd: inspected.usage.actualUsd, requestHash: inspected.requestHash });
       if (mode === "CALIBRATION" && await anchorAgreement(env.DB, candidateId, labels, clean(inspected.result.decisionState))) agreements += 1;
     }
     const runTotals = await first(env.DB, "SELECT COUNT(*) processed,COALESCE(SUM(provider_requests),0) requests,COALESCE(SUM(spend_usd),0) spend FROM v7_evaluation_factory_qa_receipts WHERE run_id=?", qaRun.id);
     const processed = number(runTotals?.processed), complete = processed === candidateIds.length;
     const lifecycleState = mode === "CALIBRATION" ? complete && agreements === 2 ? "CALIBRATION_PASS" : "CALIBRATION_FAILED" : complete ? "COMPLETED" : "PARTIAL";
     await run(env.DB, "UPDATE v7_evaluation_factory_qa_runs SET lifecycle_state=?,processed_candidates=?,provider_requests=?,spend_usd=?,anchor_agreements=?,reserved_usd=0,completed_at=? WHERE id=?", lifecycleState, processed, runTotals?.requests, runTotals?.spend, agreements, now(), qaRun.id);
-    if (mode === "CALIBRATION") await run(env.DB, "UPDATE v7_evaluation_factory_qa_registry SET lifecycle_state=?,updated_at=? WHERE channel_id=? AND policy_version=?", lifecycleState === "CALIBRATION_PASS" ? "CALIBRATION_PASS" : "CALIBRATION_FAILED", now(), CHANNEL_ID, FACTORY_FIRST_QA_POLICY_VERSION);
+    if (mode === "CALIBRATION") await run(env.DB, "UPDATE v7_evaluation_factory_qa_registry SET lifecycle_state=?,calibration_version=?,updated_at=? WHERE channel_id=? AND policy_version=?", lifecycleState === "CALIBRATION_PASS" ? "CALIBRATION_PASS" : "CALIBRATION_FAILED", qaRun.calibration_version, now(), CHANNEL_ID, FACTORY_FIRST_QA_POLICY_VERSION);
     if (mode === "BATCH" && complete) { const pending = await first(env.DB, "SELECT COUNT(*) pending FROM v7_evaluation_factory_qa_tasks t WHERE channel_id=? AND NOT EXISTS (SELECT 1 FROM v7_evaluation_factory_qa_receipts r WHERE r.task_id=t.id)", CHANNEL_ID); if (number(pending?.pending) === 0) await run(env.DB, "UPDATE v7_evaluation_factory_qa_registry SET lifecycle_state='ACTIVE',updated_at=? WHERE channel_id=? AND policy_version=?", now(), CHANNEL_ID, FACTORY_FIRST_QA_POLICY_VERSION); }
     return Response.json({ outcome: lifecycleState, run: await first(env.DB, "SELECT * FROM v7_evaluation_factory_qa_runs WHERE id=?", qaRun.id), factoryQa: await status(env.DB) }, { headers: NO_STORE });
   } catch (error) {

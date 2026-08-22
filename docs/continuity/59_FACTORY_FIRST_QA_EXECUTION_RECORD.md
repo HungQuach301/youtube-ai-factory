@@ -23,7 +23,7 @@ The Evaluation Foundation no longer requires the owner to label every independen
 ```text
 CALIBRATION_ANCHORS = 2
 MAXIMUM_BATCH = 5
-PROVIDER_REQUEST_CEILING = 82
+PROVIDER_REQUEST_CEILING = 84
 SPEND_CEILING_USD = 6.75
 MAXIMUM_IMAGE_REQUEST_RESERVATION_USD = 0.08
 DEFAULT_MODEL = gpt-5.6
@@ -52,3 +52,5 @@ Production activated migration `0061` and read back exactly 82 tasks, two owner 
 The bounded diagnostic proved the candidate bytes were not one of the raster formats accepted by OpenAI vision; it did not by itself establish the underlying format. Migration `0062` adds the hash, MIME and transform identity of the exact review input. The Factory now sniffs bytes rather than trusting a declared MIME type, passes JPEG/PNG/GIF/WebP unchanged and renders only a positively detected self-contained SVG to a 1920×1080 PNG. Active SVG content, remote resources, doctypes, entities and unknown formats fail closed. The original R2 hash remains the candidate authority; the derived PNG hash is separate review evidence.
 
 Sites v422 replayed the same calibration intent after `0062`. Both anchors produced `LIKELY_DEFECT_PRESENT`, two immutable Factory receipts and measured spend of $0.03106, but anchor agreement was 0/2. The registry correctly became `CALIBRATION_FAILED`; 80 tasks remain pending and batch is locked. A sanitized diagnostic projection now exposes only owner-present, Factory-present, Factory-uncertain and missed owner-present defect keys so prompt/model calibration can be evidence-driven without exposing bytes, rationales or identities.
+
+Production diagnostics show the same misses on both anchors: `MOBILE_LEGIBILITY` and `PRODUCTION_RESIDUE`; `NEAR_STATIC_MOTION` was correctly detected. `FACTORY_QA_CALIBRATION_V2` preserves both V1 receipts, adds a calibration version to runs/receipts/registry, defines mobile review at an approximately 360 CSS-pixel presentation width and treats the exact internal phrase as residue even when styled as footer copy. The cumulative request ceiling becomes 84 solely to retain two failed V1 calibration calls plus two V2 calls and the original 80 pending tasks; the $6.75 spend ceiling is unchanged.

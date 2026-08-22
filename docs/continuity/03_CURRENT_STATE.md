@@ -11,12 +11,12 @@ POLICY = FACTORY_FIRST_QA_POLICY_V1
 CALIBRATION_REQUIREMENT = BOTH_OWNER_ANCHORS_FULL_PRESENT_DEFECT_RECALL
 FACTORY_TASK_SCOPE = 82_READY_PRIMARY
 OWNER_ATTENTION = EXCEPTIONS_AND_AUDIT_SAMPLE_ONLY
-PROVIDER_REQUEST_CEILING = 82
+PROVIDER_REQUEST_CEILING = 84
 SPEND_CEILING_USD = 6.75
 SOURCE_TESTS = TARGET_20_OF_20_PASS__VERIFIED_BUILD_PASS
 PRODUCTION_STATE = V422_ACTIVE__CALIBRATION_FAILED_0_OF_2_AGREEMENTS
 FACTORY_QA_MEASURED_SPEND_USD = 0.03106
-NEXT_PROTECTED_ACTION = READ_SANITIZED_ANCHOR_DEFECT_DIFF__VERSION_CALIBRATION_POLICY
+NEXT_PROTECTED_ACTION = DEPLOY_0063__RUN_CALIBRATION_V2_ON_SAME_TWO_ANCHORS
 ```
 
 The owner stopped after saving two materially similar failed SHOT samples. Both were described as static slide-like visuals with weak visual communication and audience-visible production residue. Those reports are discovery context until production migration read-back confirms the two exact owner receipts. The Factory now owns first-pass QA; it may not write under the owner identity or convert independent review into gold, assurance or release authority.

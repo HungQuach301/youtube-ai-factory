@@ -378,6 +378,10 @@ test("Factory-first QA is independent, exact-byte-bound and owner attention is e
   const reviewSurfaceMigration = read("drizzle/0062_factory_qa_review_surface.sql");
   assert.match(reviewSurfaceMigration, /review_input_hash/);
   assert.match(reviewSurfaceMigration, /SVG_TO_PNG_1920X1080_V1/);
+  const calibrationV2Migration = read("drizzle/0063_factory_qa_calibration_v2.sql");
+  assert.match(calibrationV2Migration, /FACTORY_QA_CALIBRATION_V2/);
+  assert.match(calibrationV2Migration, /provider_request_ceiling`=84/);
+  assert.match(route, /360 CSS pixels wide/);
 });
 
 test("Factory QA renders self-contained SVG evidence to a hashable PNG review surface", async () => {
