@@ -4,7 +4,9 @@
 
 **Policies:** `EVALUATION_HISTORICAL_RECOVERY_CLOSURE_V1` · `CONTROLLED_FIXTURE_PLAN_V1`
 
-**Source state:** `MIGRATION_0072_SOURCE_READY__PRODUCTION_ACCEPTANCE_PENDING`
+**Production state:** `SITES_V444_ACTIVE__MIGRATION_0072_DEPLOYED__MATERIALIZATION_BLOCKED`
+
+**Production source commit:** `f7f9823fa6d7770e87c4c7b115415c501ca70383`
 
 ## Exact-audio result
 
@@ -51,6 +53,12 @@ Every new provider-derived base must preserve:
 
 All fixtures are evaluation-only and permanently release-ineligible. A planned blueprint does not count as a controlled injection and cannot make the WP7 corpus ready.
 
+## Production acceptance
+
+Sites v444 deployed exact source commit `f7f9823fa6d7770e87c4c7b115415c501ca70383` and migration `0072`. The verified build and full regression pass 175/175. The owner-authenticated terminal snapshot is the production input for the immutable closure, and post-deploy error-only Worker logs contain zero events.
+
+The bounded database connector does not project the newer `v7_*` tables, so a separate direct row listing is unavailable through that surface. Acceptance therefore does not claim an independent table-row read-back beyond the successful migration deployment, exact migration replay test, terminal owner UI snapshot and zero-error runtime evidence. The owner UI now renders the fail-closed conclusion and sealed plan from the live database; it does not expose raw identifiers or add an action that could bypass materialization gates.
+
 ## Next protected action
 
-Apply migration `0072`, read back the immutable closure and thirteen-blueprint registry, then implement bounded fixture materialization. Materialization must create the clean parents first, derive one isolated defect per positive, and keep FP4/FP5, Golden r10, Stage 11 and publication closed until the resulting dataset and assurance capability pass their own gates.
+Implement bounded fixture materialization. Create the clean parents first, derive one isolated defect per positive, and keep FP4/FP5, Golden r10, Stage 11 and publication closed until the resulting dataset and assurance capability pass their own gates.

@@ -9,18 +9,21 @@ EXACT_AUDIO_RECOVERY = COMPLETE
 HISTORY_AUDIO_HASHES = 66_OF_66
 UNIQUE_EQUIVALENT_NO_MATCH = 0_0_46
 HISTORICAL_CANDIDATE_DISPOSITION = QUARANTINE_FAILURE_EVIDENCE_ONLY
-MIGRATION_0072 = SOURCE_READY__PRODUCTION_ACCEPTANCE_PENDING
+MIGRATION_0072 = PRODUCTION_ACTIVE_SITES_V444
+PRODUCTION_SOURCE_COMMIT = f7f9823fa6d7770e87c4c7b115415c501ca70383
 CONTROLLED_FIXTURE_BLUEPRINTS = 13
 DEFECT_POSITIVE_CLEAN_NEGATIVE = 11_2
 P0_FAMILIES_PLANNED = 5_OF_5
 MATERIALIZED_FIXTURES = 0
 DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
+SOURCE_TESTS = FULL_175_OF_175_PASS__VERIFIED_BUILD_PASS
 PROVIDER_REQUESTS_THIS_DESIGN_SLICE = 0
 SPEND_USD_THIS_DESIGN_SLICE = 0
-NEXT_PROTECTED_ACTION = APPLY_0072__READ_BACK_CLOSURE_AND_PLAN__IMPLEMENT_BOUNDED_MATERIALIZATION
+POST_DEPLOY_WORKER_ERRORS = 0
+NEXT_PROTECTED_ACTION = IMPLEMENT_BOUNDED_MATERIALIZATION__CLEAN_PARENTS_FIRST
 ```
 
-The exact-byte recovery lane is exhausted: none of the 46 historical audio candidate hashes appears in the 66 retained ElevenLabs history audio objects. The old candidates remain quarantined evidence and cannot be promoted. Migration `0072` defines an immutable terminal closure plus thirteen controlled-fixture blueprints covering all eleven active defect families, all five P0 families and two clean controls. A blueprint is not a materialized fixture and creates no ground-truth, dataset, qualification or release authority. Document 65 is authoritative for this slice.
+The exact-byte recovery lane is exhausted: none of the 46 historical audio candidate hashes appears in the 66 retained ElevenLabs history audio objects. The old candidates remain quarantined evidence and cannot be promoted. Sites v444 deploys migration `0072`, an immutable terminal closure and thirteen controlled-fixture blueprints covering all eleven active defect families, all five P0 families and two clean controls. The build and 175/175 regressions pass and post-deploy error logs are empty. A blueprint is not a materialized fixture and creates no ground-truth, dataset, qualification or release authority. Document 65 is authoritative for this slice.
 
 ## WP7 regression corpus production checkpoint — 2026-08-22
 
