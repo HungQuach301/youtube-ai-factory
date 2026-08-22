@@ -5,6 +5,9 @@ export const CORPUS_VERIFICATION_MAXIMUM_OBJECT_BYTES = 100_000_000 as const;
 export const EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION = "EVALUATION_RIGHTS_EVIDENCE_POLICY_V1" as const;
 export const EVALUATION_OWNER_LABEL_POLICY_VERSION = "EVALUATION_OWNER_LABEL_POLICY_V1" as const;
 export const EVALUATION_OWNER_REVIEW_UX_VERSION = "EVALUATION_OWNER_REVIEW_UX_V2" as const;
+export const FACTORY_FIRST_QA_POLICY_VERSION = "FACTORY_FIRST_QA_POLICY_V1" as const;
+export const FACTORY_FIRST_QA_MAXIMUM_BATCH = 5;
+export const FACTORY_FIRST_QA_MAXIMUM_REQUEST_RESERVATION_USD = 0.08;
 export const EVALUATION_CORRELATION_CONTROL_VERSION = "EVALUATION_CORRELATION_CONTROL_V1" as const;
 
 export type OwnerLabelStatus = "PRESENT" | "ABSENT" | "NOT_APPLICABLE";
@@ -21,6 +24,19 @@ export type OwnerLabelSubmission = {
   activeDefectKeys: string[];
   ownerObservableDefectKeys?: string[];
   labels: Array<{ defectKey?: string; status?: string; confidence?: number }>;
+};
+
+export type FactoryQaLabel = {
+  defectKey?: string;
+  status?: string;
+  confidence?: number;
+  rationale?: string;
+};
+
+export type FactoryQaResult = {
+  decisionState?: string;
+  summary?: string;
+  labels?: FactoryQaLabel[];
 };
 
 export type OwnerObservableDefectInput = {
@@ -211,6 +227,32 @@ export function evaluateOwnerLabelSubmission(input: OwnerLabelSubmission) {
   if (input.decisionState === "REJECTED_DEFECT_PRESENT" && presentCount === 0) reasons.push("REJECTED_DECISION_REQUIRES_PRESENT_DEFECT");
   if (input.decisionState === "CLEAN_NEGATIVE_CONTROL" && presentCount > 0) reasons.push("CLEAN_CONTROL_FORBIDS_PRESENT_DEFECT");
   return { eligible: reasons.length === 0, presentCount, absentCount, notApplicableCount, reasons: [...new Set(reasons)] };
+}
+
+export function evaluateFactoryQaResult(input: { result: FactoryQaResult; observableDefectKeys: string[] }) {
+  const reasons: string[] = [];
+  const expected = [...new Set(input.observableDefectKeys.map(clean).filter(Boolean))].sort();
+  const labels = Array.isArray(input.result.labels) ? input.result.labels : [];
+  const seen = new Set<string>();
+  if (!["LIKELY_DEFECT_PRESENT", "LIKELY_CLEAN", "NEEDS_OWNER"].includes(clean(input.result.decisionState))) reasons.push("FACTORY_QA_DECISION_INVALID");
+  if (clean(input.result.summary).length < 12 || clean(input.result.summary).length > 1200) reasons.push("FACTORY_QA_SUMMARY_INVALID");
+  let presentCount = 0, uncertainCount = 0;
+  for (const label of labels) {
+    const key = clean(label.defectKey), status = clean(label.status), confidence = Number(label.confidence);
+    if (!key || seen.has(key)) reasons.push("FACTORY_QA_LABEL_DUPLICATE_OR_MISSING");
+    seen.add(key);
+    if (!expected.includes(key)) reasons.push(`FACTORY_QA_LABEL_NOT_OBSERVABLE:${key || "EMPTY"}`);
+    if (!["PRESENT", "ABSENT", "UNCERTAIN"].includes(status)) reasons.push(`FACTORY_QA_LABEL_STATUS_INVALID:${key || "EMPTY"}`);
+    if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) reasons.push(`FACTORY_QA_CONFIDENCE_INVALID:${key || "EMPTY"}`);
+    if (clean(label.rationale).length < 4 || clean(label.rationale).length > 500) reasons.push(`FACTORY_QA_RATIONALE_INVALID:${key || "EMPTY"}`);
+    if (status === "PRESENT") presentCount += 1;
+    if (status === "UNCERTAIN") uncertainCount += 1;
+  }
+  if (seen.size !== expected.length || expected.some((key) => !seen.has(key))) reasons.push("FACTORY_QA_FULL_OBSERVABLE_COVERAGE_REQUIRED");
+  if (input.result.decisionState === "LIKELY_DEFECT_PRESENT" && presentCount === 0) reasons.push("FACTORY_QA_DEFECT_DECISION_REQUIRES_PRESENT");
+  if (input.result.decisionState === "LIKELY_CLEAN" && (presentCount > 0 || uncertainCount > 0)) reasons.push("FACTORY_QA_CLEAN_REQUIRES_ALL_ABSENT");
+  if (input.result.decisionState === "NEEDS_OWNER" && uncertainCount === 0) reasons.push("FACTORY_QA_OWNER_DECISION_REQUIRES_UNCERTAINTY");
+  return { eligible: reasons.length === 0, presentCount, uncertainCount, reasons: [...new Set(reasons)] };
 }
 
 export function evaluateCorrelationAssignments(items: CorrelationAssignment[]) {

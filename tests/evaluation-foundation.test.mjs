@@ -9,6 +9,8 @@ import {
   EVALUATION_OWNER_LABEL_POLICY_VERSION,
   EVALUATION_OWNER_REVIEW_UX_VERSION,
   EVALUATION_CORRELATION_CONTROL_VERSION,
+  FACTORY_FIRST_QA_POLICY_VERSION,
+  FACTORY_FIRST_QA_MAXIMUM_BATCH,
   OWNER_STANDING_AUTHORITY,
   evaluateAuthorshipEvidence,
   evaluateAssuranceQualification,
@@ -16,6 +18,7 @@ import {
   evaluateCompositeRightsEvidence,
   evaluateProviderRightsEvidence,
   evaluateOwnerLabelSubmission,
+  evaluateFactoryQaResult,
   isOwnerObservableDefect,
   normalizeOwnerLabelsForReceipt,
   evaluateCorrelationAssignments,
@@ -315,8 +318,8 @@ test("migration 0058 creates immutable zero-spend owner-label tasks without fixt
   assert.match(route, /RECORD_OWNER_LABEL_RECEIPT/);
   assert.match(route, /authorized\(request, false\)/);
   assert.match(route, /OWNER_LABEL_ARTIFACT_HASH_MISMATCH/);
-  assert.match(route, /Chỉ cần làm 3 việc/);
-  assert.match(route, /Xác nhận và sang mẫu tiếp theo/);
+  assert.match(route, /Factory đã QA trước/);
+  assert.match(route, /Xác nhận ngoại lệ/);
   assert.match(route, /labels: normalizedLabels/);
   assert.match(route, /ĐÁNH GIÁ CHƯA ĐƯỢC GHI/);
   assert.match(route, /form\.getAttribute\('action'\)/);
@@ -327,6 +330,47 @@ test("migration 0058 creates immutable zero-spend owner-label tasks without fixt
   assert.doesNotMatch(route, /authorizeProductionDispatch|api\.openai\.com|api\.elevenlabs\.io/);
   const triage = read("app/video-engine/corpus-evidence-triage.tsx");
   assert.match(triage, /owner-label-workflow/);
+});
+
+test("Factory-first QA is independent, exact-byte-bound and owner attention is exception-only", () => {
+  assert.equal(FACTORY_FIRST_QA_POLICY_VERSION, "FACTORY_FIRST_QA_POLICY_V1");
+  assert.equal(FACTORY_FIRST_QA_MAXIMUM_BATCH, 5);
+  const valid = evaluateFactoryQaResult({
+    observableDefectKeys: ["PRODUCTION_RESIDUE", "NEAR_STATIC_MOTION", "MOBILE_LEGIBILITY"],
+    result: {
+      decisionState: "LIKELY_DEFECT_PRESENT",
+      summary: "Static slide contains visible production residue and weak mobile information design.",
+      labels: [
+        { defectKey: "PRODUCTION_RESIDUE", status: "PRESENT", confidence: 0.99, rationale: "Visible QA phrase remains." },
+        { defectKey: "NEAR_STATIC_MOTION", status: "PRESENT", confidence: 0.93, rationale: "Static slide composition." },
+        { defectKey: "MOBILE_LEGIBILITY", status: "PRESENT", confidence: 0.88, rationale: "Dense small text on mobile." },
+      ],
+    },
+  });
+  assert.equal(valid.eligible, true);
+  const incomplete = evaluateFactoryQaResult({
+    observableDefectKeys: ["PRODUCTION_RESIDUE", "NEAR_STATIC_MOTION"],
+    result: { decisionState: "LIKELY_CLEAN", summary: "The artifact appears clean enough for the current review.", labels: [
+      { defectKey: "PRODUCTION_RESIDUE", status: "ABSENT", confidence: 0.9, rationale: "No residue." },
+    ] },
+  });
+  assert.ok(incomplete.reasons.includes("FACTORY_QA_FULL_OBSERVABLE_COVERAGE_REQUIRED"));
+
+  const migration = read("drizzle/0061_factory_first_qa.sql");
+  for (const table of ["v7_evaluation_factory_qa_registry", "v7_evaluation_factory_qa_tasks", "v7_evaluation_factory_qa_runs", "v7_evaluation_factory_qa_receipts"]) assert.match(migration, new RegExp(table));
+  assert.match(migration, /EXCEPTIONS_AND_AUDIT_SAMPLE_ONLY/);
+  assert.match(migration, /spend_ceiling_usd.*6\.75/s);
+  assert.match(migration, /EVALUATION_FACTORY_QA_RECEIPT_IMMUTABLE/);
+  assert.doesNotMatch(migration, /release_eligible=1|GOLD_ELIGIBLE|VERIFIED_FIXTURE/);
+  const route = read("app/api/factory/sequential-production/factory-qa/route.ts");
+  assert.match(route, /x-factory-qa-executor-token/);
+  assert.match(route, /Two owner anchors must pass independent calibration first/);
+  assert.match(route, /detail: "high"/);
+  assert.match(route, /label_source,polarity/);
+  assert.doesNotMatch(route, /owner_decision_state='OWNER_CONFIRMED'/);
+  const ownerRoute = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(ownerRoute, /FACTORY QA TRƯỚC · OWNER XÁC MINH SAU/);
+  assert.match(ownerRoute, /owner_attention_state IN \('OWNER_REQUIRED','OWNER_EXCEPTION'\)/);
 });
 
 test("correlation control permits one independent representative per lineage and exact hash", () => {

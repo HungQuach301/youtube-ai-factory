@@ -92,7 +92,7 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
-Status: `PHASE_9_CORRELATION_CONTROL_PRODUCTION_ACCEPTED__OWNER_AND_RIGHTS_EVIDENCE_NEXT`.
+Status: `PHASE_10_FACTORY_FIRST_QA_SOURCE_READY__PRODUCTION_CALIBRATION_NEXT`.
 
 Scope:
 
@@ -129,6 +129,8 @@ Phase 9 adds migration `0059` and `EVALUATION_CORRELATION_CONTROL_V1`. It preser
 Owner-review usability hardening adds `EVALUATION_OWNER_REVIEW_UX_V2`: a three-step Vietnamese workflow, full-screen entry, media-specific owner-observable defects and server-enforced separation from rights/master-lineage evidence. Sites v411 production read-back returns the exact UX version, 82 actionable primaries, zero receipts, zero request/spend and zero Worker errors. Full regression passes 162/162 and non-SIWC access remains fail-closed at `401`; agent preview cannot enter the owner route without a local evidence fixture and owner identity. The SIWC owner must still verify the first real sample before usability acceptance closes.
 
 Browser assurance hardening adds `BROWSER_ASSURANCE_GATE_V1` as a separate mandatory exact-master release gate. Migration `0060` creates append-only tasks and receipts; the server-rendered surface requires at least 98% continuous playback plus pause/resume/seek/end, visibility, motion, audible audio, keyboard focus, zoom/reflow and zero console errors. Browser QA discovered and resolved one runtime defect, then passed playback/motion/focus while correctly remaining blocked on audio perception and zoom/reflow. Full regression passes 164/164 with zero provider request/spend. Sites v414 deployed exact source commit `3cfc3d9ddd8d99175eee112e5943029106559256` with zero post-deploy Worker errors. The two owner-supplemented observations are next; this work does not open FP4, Golden r10 or Stage 11.
+
+Phase 10 replaces sequential owner labor with `FACTORY_FIRST_QA_POLICY_V1`. Two owner-saved exact-byte receipts are calibration anchors. Migration `0061` creates 82 Factory tasks, append-only independent receipts, a five-item batch limit and hard ceilings of 82 provider requests / $6.75. Batch execution remains locked until the independent vision reviewer rediscovers every owner-present defect on both anchors. Non-image evidence is routed to mandatory Browser playback without requesting owner action. The exact next gate is production deployment, anchor read-back and two-anchor calibration; no dataset, assurance qualification or release gate is opened by this phase.
 
 ## Wave 4 — Upstream and technical standards
 

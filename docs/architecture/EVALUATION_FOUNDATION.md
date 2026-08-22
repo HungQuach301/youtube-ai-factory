@@ -107,3 +107,9 @@ Sites v404 classified the 63 provider-terms-pending candidates as 46 ElevenLabs 
 ### Correlation and owner-attention contract
 
 `EVALUATION_CORRELATION_CONTROL_V1` never deletes a task. It first collapses exact SHA-256 copies, then groups the surviving unique hashes by shot/artifact family or package/kind/artifact family. One deterministic representative receives primary attention and independent-count eligibility. Other bytes remain append-only as deferred exact duplicates or correlated variants. Deferred items may be reopened only through a later typed coverage-gap policy; they cannot silently enter counts or bypass the primary queue.
+
+### Factory-first QA contract
+
+`FACTORY_FIRST_QA_POLICY_V1` uses the two existing exact-byte owner receipts as calibration anchors, not as permission to imitate the owner. The independent lane must rediscover every owner-present defect on both anchors before any batch can run. It reads the exact R2 object, recomputes SHA-256, evaluates every media-observable taxonomy item and stores a separate append-only Factory receipt plus `INDEPENDENT_REVIEW` labels.
+
+Image review is structured vision evidence. Audio and temporal artifacts require full Browser playback and remain `BROWSER_REQUIRED` until that lane produces evidence. A still SHOT is judged as an intermediate visual: missing voice is not itself an image defect, while a visibly static slide/template or audience-visible production residue may be. Factory output cannot set owner-confirmed state, promote a fixture, seal a dataset, qualify assurance or create release eligibility. Owner attention is exception- and audit-sample-based after calibration.

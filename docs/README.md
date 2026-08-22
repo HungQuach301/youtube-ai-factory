@@ -84,6 +84,7 @@ When facts conflict, use this order:
 | Mandatory Browser assurance gate | [`continuity/56_BROWSER_ASSURANCE_GATE_EXECUTION_RECORD.md`](continuity/56_BROWSER_ASSURANCE_GATE_EXECUTION_RECORD.md) |
 | Owner-review canonical form hotfix | [`continuity/57_OWNER_REVIEW_CANONICAL_FORM_HOTFIX_EXECUTION_RECORD.md`](continuity/57_OWNER_REVIEW_CANONICAL_FORM_HOTFIX_EXECUTION_RECORD.md) |
 | Owner-review form-action hotfix | [`continuity/58_OWNER_REVIEW_FORM_ACTION_SHADOWING_HOTFIX_EXECUTION_RECORD.md`](continuity/58_OWNER_REVIEW_FORM_ACTION_SHADOWING_HOTFIX_EXECUTION_RECORD.md) |
+| Factory-first QA | [`continuity/59_FACTORY_FIRST_QA_EXECUTION_RECORD.md`](continuity/59_FACTORY_FIRST_QA_EXECUTION_RECORD.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

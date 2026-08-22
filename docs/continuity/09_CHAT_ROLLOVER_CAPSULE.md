@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `OWNER_REVIEW_FORM_ACTION_COLLISION_PRODUCTION_ACTIVE__OWNER_RESUBMISSION_PENDING`
+**Current source classification:** `FACTORY_FIRST_QA_SOURCE_READY__PRODUCTION_CALIBRATION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,10 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- The owner has reported two successfully saved failed samples and has stopped the sequential 82-sample workflow. Production read-back after migration `0061` must confirm exactly two anchor receipts; screenshots and chat descriptions are not database authority.
+- `FACTORY_FIRST_QA_POLICY_V1` moves first-pass QA to a separate independent evidence lane. Calibration requires full recall of every owner-present defect on both anchors. It never writes as the owner, never sets owner-confirmed state and cannot promote fixtures, datasets, assurance qualification or release eligibility.
+- Source includes a five-item batch ceiling, 82-request / $6.75 hard envelope, exact R2 SHA-256 verification, structured high-detail vision review and a mandatory Browser-required state for non-image media. Exact next action is deploy migration `0061`, read back anchors, run calibration, then process bounded batches only on PASS.
 
 - The latest code baseline before knowledge consolidation is `5b669fc9230f5b012ebe4aa2c0b5c21fa50df890`.
 - FP1 truthful operator projection is implemented.

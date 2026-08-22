@@ -59,8 +59,14 @@ function countWebSearchCalls(payload: UsageRecord) {
 }
 
 function ratesFor(model: string) {
-  if (model.startsWith("gpt-5.6")) {
-    return { input: 5, cachedInput: 0.5, output: 30, known: true };
+  if (model.startsWith("gpt-5.6-luna")) {
+    return { input: 0.2, cachedInput: 0.02, output: 1.2, known: true };
+  }
+  if (model.startsWith("gpt-5.6-terra")) {
+    return { input: 2, cachedInput: 0.2, output: 12, known: true };
+  }
+  if (model === "gpt-5.6" || model.startsWith("gpt-5.6-sol")) {
+    return { input: 4, cachedInput: 0.4, output: 20, known: true };
   }
   return { input: 0, cachedInput: 0, output: 0, known: false };
 }
