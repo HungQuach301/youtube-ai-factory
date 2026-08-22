@@ -730,6 +730,7 @@ test("migration 0053 adds bounded zero-spend verification runs and durable recei
   assert.match(route, /status: 303, headers: \{ \.\.\.NO_STORE, location: destination\.toString\(\) \}/);
   assert.doesNotMatch(control, /randomUUID/);
   assert.match(triage, /Receipts remain immutable/);
+  assert.match(triage, /Khôi phục evidence ElevenLabs/);
   assert.doesNotMatch(triage, /storage_key|computed_hash|source_artifact_id/);
 });
 
