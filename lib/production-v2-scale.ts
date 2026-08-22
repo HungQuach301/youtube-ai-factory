@@ -75,22 +75,30 @@ export async function prepareFullVideo(runtime: Runtime, sequence: number, actor
     for (let index = 0; index < parts.length; index += 1) {
       const requestId = await provider(runtime, row, jobId, "ELEVENLABS", "FULL_VIDEO_NARRATION_CHUNK", `${idempotencyKey}:tts:${index + 1}`, await hash(parts[index])); ttsRequests.push(requestId);
       const tts = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(clean(selected.voice_id))}?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": runtime.ELEVENLABS_API_KEY, "content-type": "application/json" }, body: JSON.stringify({ text: parts[index], model_id: "eleven_multilingual_v2", language_code: "en", voice_settings: { stability: .58, similarity_boost: .76, style: .14, use_speaker_boost: true, speed: 1.0 } }), signal: AbortSignal.timeout(180_000) });
-      let audioBytes: Uint8Array, provenance: Record<string, unknown>;
+      let audioBytes: Uint8Array, provenance: Record<string, unknown>, completedRequestId = requestId, providerNativeRequestId = "", responseCost = 0;
       if (tts.ok) {
+        providerNativeRequestId = clean(tts.headers.get("request-id"));
+        if (!providerNativeRequestId) throw new ProductionV2CommandError("ELEVENLABS_REQUEST_ID_MISSING", 502, `ElevenLabs narration chunk ${index + 1} omitted the required provider-native request ID`);
         audioBytes = new Uint8Array(await tts.arrayBuffer()); narrationSpend += 3 / parts.length;
+        responseCost = 3 / parts.length;
         provenance = { provider: "ElevenLabs", voiceId: selected.voice_id, voiceName: selected.name, model: "eleven_multilingual_v2" };
-        await completeProvider(runtime, requestId, await hash(audioBytes).then((value) => value.slice(0, 24)), 0, parts[index].length, 3 / parts.length);
       } else {
         await failProvider(runtime, requestId, `ELEVENLABS_HTTP_${tts.status}`);
         const fallbackId = await provider(runtime, row, jobId, "OPENAI", "FULL_VIDEO_NARRATION_FALLBACK", `${idempotencyKey}:tts-fallback:${index + 1}`, await hash(parts[index])); ttsRequests.push(fallbackId);
         const fallback = await fetch("https://api.openai.com/v1/audio/speech", { method: "POST", headers: { authorization: `Bearer ${runtime.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": `${idempotencyKey}:tts-fallback:${index + 1}` }, body: JSON.stringify({ model: "gpt-4o-mini-tts", voice: "coral", input: parts[index], instructions: "Calm premium US-English documentary narration. Precise, restrained, natural pacing. Do not add or omit words.", response_format: "mp3" }), signal: AbortSignal.timeout(180_000) });
         if (!fallback.ok) { await failProvider(runtime, fallbackId, `OPENAI_TTS_HTTP_${fallback.status}`); throw new ProductionV2CommandError("OPENAI_TTS_FALLBACK_FAILED", 502, `OpenAI narration fallback chunk ${index + 1} failed (${fallback.status})`); }
+        providerNativeRequestId = clean(fallback.headers.get("x-request-id"));
+        if (!providerNativeRequestId) throw new ProductionV2CommandError("OPENAI_TTS_REQUEST_ID_MISSING", 502, `OpenAI narration fallback chunk ${index + 1} omitted the required provider-native request ID`);
         audioBytes = new Uint8Array(await fallback.arrayBuffer()); narrationSpend += .25;
+        completedRequestId = fallbackId; responseCost = .25;
         provenance = { provider: "OpenAI", voice: "coral", model: "gpt-4o-mini-tts", fallbackFrom: `ELEVENLABS_HTTP_${tts.status}` };
-        await completeProvider(runtime, fallbackId, fallback.headers.get("x-request-id") || (await hash(audioBytes)).slice(0, 24), 0, parts[index].length, .25);
       }
       if (audioBytes.byteLength < 150_000) throw new ProductionV2CommandError("FULL_NARRATION_EMPTY", 502, `Narration chunk ${index + 1} is incomplete`);
-      const audio = await store(runtime, packageId, "FULL_NARRATION_CHUNK", `production-v2/${packageId}/full-v1/narration-${String(index + 1).padStart(2, "0")}.mp3`, "audio/mpeg", audioBytes, { ...provenance, chunk: index + 1, chunks: parts.length }); audioChunks.push(audio);
+      const providerResponseArtifactHash = await hash(audioBytes);
+      const audio = await store(runtime, packageId, "FULL_NARRATION_CHUNK", `production-v2/${packageId}/full-v1/narration-${String(index + 1).padStart(2, "0")}.mp3`, "audio/mpeg", audioBytes, { ...provenance, chunk: index + 1, chunks: parts.length, providerRequestId: completedRequestId, providerNativeRequestId, providerResponseArtifactHash, providerBindingVersion: "PROVIDER_RESPONSE_BINDING_V1" });
+      if (audio.sha256 !== providerResponseArtifactHash) throw new ProductionV2CommandError("PROVIDER_ARTIFACT_BINDING_MISMATCH", 503, `Stored narration chunk ${index + 1} does not match the provider response bytes`);
+      await completeProvider(runtime, completedRequestId, providerNativeRequestId, 0, parts[index].length, responseCost);
+      audioChunks.push(audio);
     }
     const scenes = []; for (let index = 0; index < generated.scenes.length; index += 1) scenes.push(await store(runtime, packageId, "FULL_SCENE", `production-v2/${packageId}/full-v1/scene-${String(index + 1).padStart(2, "0")}.svg`, "image/svg+xml", sceneSvg(clean(row.title), generated.scenes[index], index), { sceneIndex: index + 1, author: ENGINE, claim: generated.scenes[index].claim }));
     const manifestValue = JSON.stringify({ engineVersion: ENGINE, packageId, jobId, sequence, targetDurationSeconds: 720, width: 1280, height: 720, fps: 30, narration: generated.narration, audioChunks, scenes, scenePlan: generated.scenes, legacySources: 0 }); const manifest = await store(runtime, packageId, "FULL_VIDEO_MANIFEST", `production-v2/${packageId}/full-v1/manifest.json`, "application/json", manifestValue, { author: ENGINE, upstreamContractCount: contracts.length, artifactIds: [...audioChunks.map((item) => item.id), ...scenes.map((item) => item.id)] });

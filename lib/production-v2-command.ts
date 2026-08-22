@@ -106,9 +106,13 @@ export async function startGoldenPilot(runtime: ProductionV2Runtime, actorEmail:
     const voice = await elevenLabsVoice(runtime.ELEVENLABS_API_KEY);
     const tts = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voice.id)}/with-timestamps?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": runtime.ELEVENLABS_API_KEY, "content-type": "application/json" }, body: JSON.stringify({ text: narration, model_id: "eleven_multilingual_v2", language_code: "en", voice_settings: { stability: 0.55, similarity_boost: 0.75, style: 0.18, use_speaker_boost: true, speed: 1.02 } }), signal: AbortSignal.timeout(120_000) });
     if (!tts.ok) throw new ProductionV2CommandError("ELEVENLABS_TTS_FAILED", 502, `ElevenLabs narration failed (${tts.status})`);
+    const providerNativeRequestId = clean(tts.headers.get("request-id"));
+    if (!providerNativeRequestId) throw new ProductionV2CommandError("ELEVENLABS_REQUEST_ID_MISSING", 502, "ElevenLabs returned narration bytes without the required provider-native request ID");
     const ttsPayload = await tts.json() as { audio_base64?: string; alignment?: unknown }; if (!ttsPayload.audio_base64) throw new ProductionV2CommandError("ELEVENLABS_AUDIO_EMPTY", 502, "ElevenLabs returned no narration bytes");
     const binary = Uint8Array.from(atob(ttsPayload.audio_base64), (character) => character.charCodeAt(0));
-    const audio = await storeArtifact(runtime, packageId, null, "PILOT_NARRATION", `production-v2/${packageId}/pilot/narration.mp3`, "audio/mpeg", binary, { provider: "ElevenLabs", voiceId: voice.id, voiceName: voice.name, model: "eleven_multilingual_v2", narration, alignment: ttsPayload.alignment });
+    const providerResponseArtifactHash = await digest(binary);
+    const audio = await storeArtifact(runtime, packageId, null, "PILOT_NARRATION", `production-v2/${packageId}/pilot/narration.mp3`, "audio/mpeg", binary, { provider: "ElevenLabs", voiceId: voice.id, voiceName: voice.name, model: "eleven_multilingual_v2", narration, alignment: ttsPayload.alignment, providerRequestId: requestId, providerNativeRequestId, providerResponseArtifactHash, providerBindingVersion: "ELEVENLABS_RESPONSE_BINDING_V1" });
+    if (audio.sha256 !== providerResponseArtifactHash) throw new ProductionV2CommandError("ELEVENLABS_ARTIFACT_BINDING_MISMATCH", 503, "Stored narration does not match the provider response bytes");
     const scenes = [];
     for (let index = 0; index < 10; index += 1) {
       const contract = contracts[index % contracts.length], svg = authoredScene(clean(packageRow.title), clean(contract.claim), index);
@@ -116,7 +120,7 @@ export async function startGoldenPilot(runtime: ProductionV2Runtime, actorEmail:
     }
     const manifestValue = JSON.stringify({ engineVersion: ENGINE, packageId, jobId, durationSeconds: 30, width: 1280, height: 720, fps: 30, audio, scenes, narration, legacySources: 0 });
     const manifest = await storeArtifact(runtime, packageId, null, "PILOT_MANIFEST", `production-v2/${packageId}/pilot/manifest.json`, "application/json", manifestValue, { author: ENGINE, artifactIds: [audio.id, ...scenes.map((scene) => scene.id)] });
-    await exec(db, "UPDATE production_v2_provider_requests SET lifecycle_state='COMPLETED',provider_response_id=?,cost_usd=?,completed_at=? WHERE id=?", audio.sha256.slice(0, 24), estimated, now(), requestId);
+    await exec(db, "UPDATE production_v2_provider_requests SET lifecycle_state='COMPLETED',provider_response_id=?,cost_usd=?,completed_at=? WHERE id=?", providerNativeRequestId, estimated, now(), requestId);
     await exec(db, "UPDATE production_v2_packages SET lifecycle_state='PILOT_ASSETS_READY',provider_requests=provider_requests+1,spend_usd=spend_usd+? WHERE id=?", estimated, packageId);
     await exec(db, "UPDATE production_v2_jobs SET lifecycle_state='AWAITING_MOTION_PROOF',updated_at=? WHERE id=?", now(), jobId);
     await exec(db, "UPDATE production_v2_scale_waves SET lifecycle_state='RUNNING' WHERE channel_id=? AND wave_number=0", packageRow.channel_id);

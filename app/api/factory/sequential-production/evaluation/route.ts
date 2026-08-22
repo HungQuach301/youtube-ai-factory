@@ -71,7 +71,7 @@ async function authorized(request: Request, allowAutomation = true) {
 }
 
 async function projection(db: DB) {
-  const [candidate, runSummary, latestRuns, blockedRows, incidentSummary, rightsRows, rightsReceiptSummary, rightsTasks, rightsLineageDiagnostic, labelSummary, correlationSummary] = await Promise.all([
+  const [candidate, runSummary, latestRuns, blockedRows, incidentSummary, rightsRows, rightsReceiptSummary, rightsTasks, rightsLineageDiagnostic, providerBindingDiagnostic, labelSummary, correlationSummary] = await Promise.all([
     first(db, `SELECT COUNT(*) candidates,
       COALESCE(SUM(CASE WHEN verification_state='PENDING' THEN 1 ELSE 0 END),0) pending,
       COALESCE(SUM(CASE WHEN bytes_state='READBACK_VERIFIED' THEN 1 ELSE 0 END),0) byte_verified,
@@ -111,6 +111,9 @@ async function projection(db: DB) {
     first(db, `SELECT policy_version,tasks_diagnosed,composite_tasks,authorship_tasks,source_lineage_binding_missing,source_lineage_declared_unverified,
       rights_pass_authority,dataset_sealing_authority,assurance_qualification_authority,release_authority,provider_requests,spend_usd
       FROM v7_evaluation_rights_lineage_diagnostic_snapshots WHERE channel_id=? AND policy_version='EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1' LIMIT 1`, CHANNEL_ID),
+    first(db, `SELECT policy_version,tasks_diagnosed,legacy_synthetic_bindings,request_binding_missing,request_binding_ambiguous,
+      provider_native_response_ids_verified,terms_plan_evidence_verified,rights_pass_authority,dataset_sealing_authority,assurance_qualification_authority,release_authority,provider_requests,spend_usd
+      FROM v7_evaluation_provider_binding_diagnostic_snapshots WHERE channel_id=? AND policy_version='EVALUATION_PROVIDER_BINDING_DIAGNOSTIC_V1' LIMIT 1`, CHANNEL_ID),
     first(db, `SELECT
       (SELECT COUNT(*) FROM v7_evaluation_owner_label_tasks t WHERE t.channel_id=?) tasks,
       (SELECT COUNT(*) FROM v7_evaluation_owner_label_receipts r WHERE r.channel_id=?) receipts,
@@ -145,6 +148,12 @@ async function projection(db: DB) {
       sourceLineageBindingMissing: number(rightsLineageDiagnostic.source_lineage_binding_missing), sourceLineageDeclaredUnverified: number(rightsLineageDiagnostic.source_lineage_declared_unverified),
       rightsPassAuthority: Boolean(number(rightsLineageDiagnostic.rights_pass_authority)), datasetSealingAuthority: Boolean(number(rightsLineageDiagnostic.dataset_sealing_authority)), assuranceQualificationAuthority: Boolean(number(rightsLineageDiagnostic.assurance_qualification_authority)), releaseAuthority: Boolean(number(rightsLineageDiagnostic.release_authority)),
       providerRequests: number(rightsLineageDiagnostic.provider_requests), spendUsd: number(rightsLineageDiagnostic.spend_usd),
+    } : null,
+    providerBindingDiagnostic: providerBindingDiagnostic ? {
+      policyVersion: clean(providerBindingDiagnostic.policy_version), tasksDiagnosed: number(providerBindingDiagnostic.tasks_diagnosed), legacySyntheticBindings: number(providerBindingDiagnostic.legacy_synthetic_bindings),
+      requestBindingMissing: number(providerBindingDiagnostic.request_binding_missing), requestBindingAmbiguous: number(providerBindingDiagnostic.request_binding_ambiguous), providerNativeResponseIdsVerified: number(providerBindingDiagnostic.provider_native_response_ids_verified), termsPlanEvidenceVerified: number(providerBindingDiagnostic.terms_plan_evidence_verified),
+      rightsPassAuthority: Boolean(number(providerBindingDiagnostic.rights_pass_authority)), datasetSealingAuthority: Boolean(number(providerBindingDiagnostic.dataset_sealing_authority)), assuranceQualificationAuthority: Boolean(number(providerBindingDiagnostic.assurance_qualification_authority)), releaseAuthority: Boolean(number(providerBindingDiagnostic.release_authority)),
+      providerRequests: number(providerBindingDiagnostic.provider_requests), spendUsd: number(providerBindingDiagnostic.spend_usd),
     } : null,
     ownerLabelPolicyVersion: EVALUATION_OWNER_LABEL_POLICY_VERSION,
     ownerReviewUxVersion: EVALUATION_OWNER_REVIEW_UX_VERSION,

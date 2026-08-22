@@ -7,6 +7,7 @@ import {
   CORPUS_VERIFICATION_POLICY_VERSION,
   EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION,
   EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_VERSION,
+  EVALUATION_PROVIDER_BINDING_DIAGNOSTIC_VERSION,
   EVALUATION_OWNER_LABEL_POLICY_VERSION,
   EVALUATION_OWNER_REVIEW_UX_VERSION,
   EVALUATION_CORRELATION_CONTROL_VERSION,
@@ -658,6 +659,27 @@ test("migration 0068 diagnoses historical render-lineage gaps without manufactur
   assert.match(projectionRoute, /rightsLineageDiagnostic/);
   assert.match(projectionRoute, /source_lineage_binding_missing/);
   assert.doesNotMatch(projectionRoute, /rightsLineageDiagnostic:[\s\S]{0,1200}(source_artifact_id|artifact_hash|declared_source_manifest_id)/);
+});
+
+test("migration 0069 diagnoses legacy provider bindings and future TTS captures native request IDs fail-closed", () => {
+  assert.equal(EVALUATION_PROVIDER_BINDING_DIAGNOSTIC_VERSION, "EVALUATION_PROVIDER_BINDING_DIAGNOSTIC_V1");
+  const migration = read("drizzle/0069_evaluation_provider_binding_diagnostics.sql");
+  for (const table of ["v7_evaluation_provider_binding_diagnostics", "v7_evaluation_provider_binding_diagnostic_snapshots"]) assert.match(migration, new RegExp(table));
+  for (const state of ["LEGACY_SYNTHETIC_RESPONSE_BINDING_DISCOVERED", "REQUEST_BINDING_MISSING", "REQUEST_BINDING_AMBIGUOUS"]) assert.match(migration, new RegExp(state));
+  for (const lock of ["provider_native_response_id_verified", "terms_plan_evidence_verified", "rights_pass_authority", "dataset_sealing_authority", "assurance_qualification_authority", "release_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.match(migration, /LEGACY_ARTIFACT_HASH_PREFIX_MATCH_ONLY/);
+  assert.doesNotMatch(migration, /UPDATE `v7_evaluation_candidates`|INSERT INTO `v7_evaluation_candidate_provider_rights_receipts`|api\.elevenlabs\.io|api\.openai\.com/);
+
+  const command = read("lib/production-v2-command.ts"), scale = read("lib/production-v2-scale.ts"), projectionRoute = read("app/api/factory/sequential-production/evaluation/route.ts");
+  for (const source of [command, scale]) {
+    assert.match(source, /headers\.get\("request-id"\)|headers\.get\("x-request-id"\)/);
+    assert.match(source, /providerNativeRequestId/);
+    assert.match(source, /providerResponseArtifactHash/);
+  }
+  assert.match(command, /ELEVENLABS_REQUEST_ID_MISSING/);
+  assert.match(scale, /PROVIDER_ARTIFACT_BINDING_MISMATCH/);
+  assert.match(projectionRoute, /providerBindingDiagnostic/);
+  assert.doesNotMatch(projectionRoute, /providerBindingDiagnostic:[\s\S]{0,1400}(source_artifact_id|artifact_hash|provider_response_id)/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {
