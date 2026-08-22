@@ -87,6 +87,7 @@ When facts conflict, use this order:
 | Factory-first QA | [`continuity/59_FACTORY_FIRST_QA_EXECUTION_RECORD.md`](continuity/59_FACTORY_FIRST_QA_EXECUTION_RECORD.md) |
 | Factory Browser QA | [`continuity/60_FACTORY_BROWSER_QA_EXECUTION_RECORD.md`](continuity/60_FACTORY_BROWSER_QA_EXECUTION_RECORD.md) |
 | WP7 regression corpus | [`continuity/61_WP7_REGRESSION_CORPUS_EXECUTION_RECORD.md`](continuity/61_WP7_REGRESSION_CORPUS_EXECUTION_RECORD.md) |
+| Rights-lineage diagnostic and render hardening | [`continuity/62_RIGHTS_LINEAGE_DIAGNOSTIC_EXECUTION_RECORD.md`](continuity/62_RIGHTS_LINEAGE_DIAGNOSTIC_EXECUTION_RECORD.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

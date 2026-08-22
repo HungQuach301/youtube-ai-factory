@@ -6,6 +6,7 @@ import {
   EVALUATION_FOUNDATION_VERSION,
   CORPUS_VERIFICATION_POLICY_VERSION,
   EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION,
+  EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_VERSION,
   EVALUATION_OWNER_LABEL_POLICY_VERSION,
   EVALUATION_OWNER_REVIEW_UX_VERSION,
   EVALUATION_CORRELATION_CONTROL_VERSION,
@@ -635,6 +636,24 @@ test("migration 0057 creates immutable zero-spend rights collection lanes withou
   assert.throws(() => db.prepare(`INSERT INTO v7_evaluation_provider_terms_receipts
     (id,channel_id,provider_family,jurisdiction_scope,terms_version,terms_effective_at,terms_source_url,terms_snapshot_hash,account_plan,plan_valid_from,plan_evidence_hash,commercial_use_state,supplemental_terms_json,evidence_hash,actor,provider_requests)
     VALUES ('bad','channel','ELEVENLABS','NON_EEA','v1','2026-01-01','https://example.test',?,'paid','2026-01-01',?,'VERIFIED_PAID_COMMERCIAL_USE','[]',?,'owner',1)`).run("a".repeat(64), "b".repeat(64), "c".repeat(64)), /CHECK constraint failed/);
+});
+
+test("migration 0068 diagnoses historical render-lineage gaps without manufacturing rights authority", () => {
+  assert.equal(EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_VERSION, "EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1");
+  const migration = read("drizzle/0068_evaluation_rights_lineage_diagnostics.sql");
+  for (const table of ["v7_evaluation_rights_lineage_diagnostics", "v7_evaluation_rights_lineage_diagnostic_snapshots"]) assert.match(migration, new RegExp(table));
+  for (const state of ["SOURCE_LINEAGE_BINDING_MISSING", "SOURCE_LINEAGE_DECLARED_UNVERIFIED"]) assert.match(migration, new RegExp(state));
+  for (const lock of ["rights_pass_authority", "dataset_sealing_authority", "assurance_qualification_authority", "release_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.match(migration, /SAME_PACKAGE_MANIFEST_IS_NOT_EXACT_RENDER_BINDING/);
+  assert.doesNotMatch(migration, /UPDATE `v7_evaluation_candidates`|INSERT INTO `v7_evaluation_composite_rights_manifests`|INSERT INTO `v7_evaluation_authorship_receipts`|api\.elevenlabs\.io|api\.openai\.com/);
+
+  const command = read("lib/production-v2-command.ts"), scale = read("lib/production-v2-scale.ts"), route = read("app/api/factory/production-v2/route.ts");
+  assert.match(command, /SOURCE_MANIFEST_BINDING_REQUIRED/);
+  assert.match(command, /EXACT_SOURCE_MANIFEST_AND_PARENT_SET_VERIFIED/);
+  assert.match(command, /SOURCE_MANIFEST_PARENT_BINDING_MISMATCH/);
+  assert.match(scale, /verifyProductionV2RenderLineage/);
+  assert.match(route, /x-source-manifest-id/);
+  assert.match(route, /x-source-manifest-sha256/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

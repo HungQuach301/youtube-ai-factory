@@ -7,6 +7,7 @@ export type ProductionV2CommandDB = { prepare(query: string): Statement };
 type StoredObject = { body: ReadableStream<Uint8Array> | null; arrayBuffer(): Promise<ArrayBuffer>; httpMetadata?: { contentType?: string }; size?: number };
 export type ProductionV2Bucket = { put(key: string, value: ArrayBuffer | Uint8Array | string, options?: Record<string, unknown>): Promise<void>; get(key: string): Promise<StoredObject | null>; head(key: string): Promise<{ size?: number } | null> };
 export type ProductionV2Runtime = { DB: ProductionV2CommandDB; BUCKET: ProductionV2Bucket; ELEVENLABS_API_KEY?: string };
+export type ProductionV2RenderLineageBinding = { sourceManifestId?: string; sourceManifestSha256?: string };
 
 const ENGINE = PRODUCTION_ENGINE_V2;
 const now = () => new Date().toISOString();
@@ -57,6 +58,28 @@ async function storeArtifact(runtime: ProductionV2Runtime, packageId: string, sh
   const readbackBytes = new Uint8Array(await readback.arrayBuffer()), readbackHash = await digest(readbackBytes); if (readbackHash !== sha) throw new ProductionV2CommandError("R2_HASH_MISMATCH", 503, "Stored production evidence failed checksum verification");
   await exec(runtime.DB, "INSERT INTO production_v2_artifacts (id,package_id,shot_contract_id,artifact_type,lifecycle_state,storage_key,mime_type,byte_size,sha256,rights_state,provenance_json,engine_version,frozen_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", artifactId, packageId, shotContractId, artifactType, "STORED_VERIFIED", storageKey, mimeType, readbackBytes.byteLength, sha, "CHANNEL_OWNED_OR_PROVIDER_COMMERCIAL", JSON.stringify({ ...provenance, storageReadback: true, legacySources: 0 }), ENGINE, now());
   return { id: artifactId, storageKey, mimeType, byteSize: readbackBytes.byteLength, sha256: sha };
+}
+
+export async function verifyProductionV2RenderLineage(runtime: ProductionV2Runtime, packageId: string, manifestType: "PILOT_MANIFEST" | "FULL_VIDEO_MANIFEST", binding: ProductionV2RenderLineageBinding = {}) {
+  const sourceManifestId = clean(binding.sourceManifestId), declaredManifestHash = clean(binding.sourceManifestSha256).toLowerCase();
+  if (!sourceManifestId || !/^[a-f0-9]{64}$/.test(declaredManifestHash)) throw new ProductionV2CommandError("SOURCE_MANIFEST_BINDING_REQUIRED", 409, "Rendered video requires an exact source-manifest ID and SHA-256 binding");
+  const manifest = await runtime.DB.prepare("SELECT * FROM production_v2_artifacts WHERE id=? AND package_id=? AND artifact_type=? LIMIT 1").bind(sourceManifestId, packageId, manifestType).first<Row>();
+  if (!manifest || clean(manifest.sha256).toLowerCase() !== declaredManifestHash) throw new ProductionV2CommandError("SOURCE_MANIFEST_BINDING_MISMATCH", 409, "The declared source manifest does not match the canonical package artifact");
+  const object = await runtime.BUCKET.get(clean(manifest.storage_key));
+  if (!object) throw new ProductionV2CommandError("SOURCE_MANIFEST_BYTES_MISSING", 503, "The exact source-manifest bytes are unavailable");
+  const manifestBytes = new Uint8Array(await object.arrayBuffer()), computedManifestHash = await digest(manifestBytes);
+  if (computedManifestHash !== declaredManifestHash) throw new ProductionV2CommandError("SOURCE_MANIFEST_HASH_MISMATCH", 409, "Source-manifest read-back bytes do not match the declared SHA-256");
+  let payload: Record<string, unknown>;
+  try { payload = JSON.parse(new TextDecoder().decode(manifestBytes)) as Record<string, unknown>; } catch { throw new ProductionV2CommandError("SOURCE_MANIFEST_JSON_INVALID", 409, "Source-manifest bytes are not canonical JSON"); }
+  const values = (value: unknown) => Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)) : [];
+  const parentRows = [...values(payload.audioChunks), ...values(payload.scenes), ...(payload.audio && typeof payload.audio === "object" && !Array.isArray(payload.audio) ? [payload.audio as Record<string, unknown>] : [])];
+  const parentArtifactIds = parentRows.map((item) => clean(item.id)), parentArtifactHashes = parentRows.map((item) => clean(item.sha256).toLowerCase());
+  if (parentArtifactIds.length === 0 || parentArtifactIds.some((value) => !value) || parentArtifactHashes.some((value) => !/^[a-f0-9]{64}$/.test(value)) || new Set(parentArtifactIds).size !== parentArtifactIds.length) throw new ProductionV2CommandError("SOURCE_MANIFEST_PARENT_SET_INVALID", 409, "Source manifest must declare one unique exact parent ID and SHA-256 for every render input");
+  for (let index = 0; index < parentArtifactIds.length; index += 1) {
+    const parent = await runtime.DB.prepare("SELECT sha256 FROM production_v2_artifacts WHERE id=? AND package_id=? LIMIT 1").bind(parentArtifactIds[index], packageId).first<Row>();
+    if (!parent || clean(parent.sha256).toLowerCase() !== parentArtifactHashes[index]) throw new ProductionV2CommandError("SOURCE_MANIFEST_PARENT_BINDING_MISMATCH", 409, `Render parent ${index + 1} does not match the canonical artifact ledger`);
+  }
+  return { sourceManifestId, sourceManifestHash: declaredManifestHash, parentArtifactIds, parentArtifactHashes, parentCount: parentArtifactIds.length, lineageState: "EXACT_SOURCE_MANIFEST_AND_PARENT_SET_VERIFIED" as const };
 }
 
 async function elevenLabsVoice(apiKey: string) {
@@ -113,14 +136,15 @@ export async function readArtifact(runtime: ProductionV2Runtime, artifactId: str
   return { artifact, object };
 }
 
-export async function storePilotUpload(runtime: ProductionV2Runtime, packageId: string, kind: "PILOT_VIDEO" | "PILOT_QA", value: Uint8Array, actorEmail: string) {
+export async function storePilotUpload(runtime: ProductionV2Runtime, packageId: string, kind: "PILOT_VIDEO" | "PILOT_QA", value: Uint8Array, actorEmail: string, lineageBinding: ProductionV2RenderLineageBinding = {}) {
   const packageRow = await runtime.DB.prepare("SELECT * FROM production_v2_packages WHERE id=? AND engine_version=? LIMIT 1").bind(packageId, ENGINE).first<Row>();
   if (!packageRow) throw new ProductionV2CommandError("PACKAGE_NOT_FOUND", 404, "Production V2 package not found");
   const job = await runtime.DB.prepare("SELECT * FROM production_v2_jobs WHERE package_id=? AND job_type='GOLDEN_PILOT' ORDER BY created_at DESC LIMIT 1").bind(packageId).first<Row>();
   if (!job) throw new ProductionV2CommandError("PILOT_JOB_NOT_FOUND", 409, "Start the golden pilot before uploading evidence");
   if (kind === "PILOT_VIDEO") {
     if (value.byteLength < 100_000 || value.byteLength > 25_000_000) throw new ProductionV2CommandError("PILOT_VIDEO_SIZE_INVALID", 422, "Pilot video bytes are outside the 100 KB–25 MB evidence boundary");
-    const artifact = await storeArtifact(runtime, packageId, null, "PILOT_MOTION_PROOF", `production-v2/${packageId}/pilot/motion-proof.webm`, "video/webm", value, { executor: "PRODUCTION_V2_GREENFIELD_EXECUTOR", requestedDurationSeconds: 30, legacySources: 0 });
+    const lineage = await verifyProductionV2RenderLineage(runtime, packageId, "PILOT_MANIFEST", lineageBinding);
+    const artifact = await storeArtifact(runtime, packageId, null, "PILOT_MOTION_PROOF", `production-v2/${packageId}/pilot/motion-proof.webm`, "video/webm", value, { executor: "PRODUCTION_V2_GREENFIELD_EXECUTOR", requestedDurationSeconds: 30, ...lineage, legacySources: 0 });
     await exec(runtime.DB, "UPDATE production_v2_jobs SET lifecycle_state='QUALITY_PENDING',updated_at=? WHERE id=?", now(), job.id);
     return { outcome: "STORED", packageId, artifact };
   }

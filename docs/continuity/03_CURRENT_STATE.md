@@ -228,6 +228,23 @@ NEXT_PROTECTED_ACTION = OWNER_CLASSIFY_ELIGIBLE_QUEUE__COLLECT_63_RIGHTS_EVIDENC
 
 Sites v407 activated migration `0058` and created exactly 525 open owner-label tasks for the 525 current rights-PASS candidates. No receipt or label was fabricated. The workflow cannot label rights-pending or quarantined evidence and cannot promote a fixture. Document 54 and ADR-087 are authoritative.
 
+## Rights-lineage diagnostic source checkpoint — 2026-08-22
+
+```text
+POLICY = EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1
+MIGRATION = 0068_SOURCE_READY__PRODUCTION_PENDING
+HISTORICAL_TARGETS = 16_COMPOSITE_MASTER__1_AUTHORSHIP_CLIP
+SAME_PACKAGE_MANIFEST_AUTHORITY = FORBIDDEN
+HISTORICAL_RIGHTS_PASS_MUTATION = 0
+NEW_RENDER_GATE = EXACT_SOURCE_MANIFEST_ID_SHA256_AND_PARENT_SET
+RIGHTS_DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE_FALSE
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+NEXT_PROTECTED_ACTION = DEPLOY_AND_READ_BACK_17_LINEAGE_DIAGNOSTICS
+```
+
+Migration `0068` records the historical lineage gap without inventing evidence, and the Production V2 upload path now refuses new unbound pilot/full renders. Document 62 and ADR-093 are authoritative for this source checkpoint.
+
 ## Wave 3 rights evidence collection source checkpoint — 2026-08-21
 
 ```text

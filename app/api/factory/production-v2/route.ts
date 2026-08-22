@@ -83,8 +83,9 @@ export async function PUT(request: Request) {
     const allowed = new Set(["PILOT_VIDEO", "PILOT_QA", "FULL_VIDEO", "FULL_QA1", "FULL_QA_VISUAL", "FULL_QA2"]); if (!packageId || !kind || !allowed.has(kind)) return failure("UPLOAD_SCOPE_INVALID", "A valid package and Production V2 evidence kind are required", 400);
     const declared = Number(request.headers.get("content-length") || 0); if (declared > 90_000_000) return failure("UPLOAD_TOO_LARGE", "Production V2 evidence exceeds 90 MB", 413);
     const value = new Uint8Array(await request.arrayBuffer());
-    if (kind === "FULL_VIDEO" || kind === "FULL_QA1" || kind === "FULL_QA_VISUAL" || kind === "FULL_QA2") return Response.json(await storeFullEvidence(context.runtime, packageId, kind, value, context.user.email), { status: 201, headers: NO_STORE });
-    return Response.json(await storePilotUpload(context.runtime, packageId, kind as "PILOT_VIDEO" | "PILOT_QA", value, context.user.email), { status: 201, headers: NO_STORE });
+    const lineageBinding = { sourceManifestId: request.headers.get("x-source-manifest-id") || undefined, sourceManifestSha256: request.headers.get("x-source-manifest-sha256") || undefined };
+    if (kind === "FULL_VIDEO" || kind === "FULL_QA1" || kind === "FULL_QA_VISUAL" || kind === "FULL_QA2") return Response.json(await storeFullEvidence(context.runtime, packageId, kind, value, context.user.email, lineageBinding), { status: 201, headers: NO_STORE });
+    return Response.json(await storePilotUpload(context.runtime, packageId, kind as "PILOT_VIDEO" | "PILOT_QA", value, context.user.email, lineageBinding), { status: 201, headers: NO_STORE });
   } catch (error) {
     if (error instanceof ProductionV2CommandError) return failure(error.code, error.message, error.status);
     return failure("PRODUCTION_V2_UPLOAD_FAILED", error instanceof Error ? error.message : "Production V2 evidence upload failed", 503);

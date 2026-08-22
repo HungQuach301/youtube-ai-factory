@@ -65,7 +65,7 @@
 | ID | Priority | Finding | Reconciled disposition | Owning wave |
 |---|---:|---|---|---|
 | D1 | P1 | Compositor throughput/cost is unmeasured | `CONFIRMED_MANDATORY`: benchmark every archetype; qualify dependencies first | Technical media |
-| D2 | P1 | Rights are fields rather than a versioned licence-lineage object | `PARTIAL__PRODUCTION_ACTIVE`: versioned rights/compliance schema and exact reconciliation are live; 520 candidates pass while 63 require explicit provider receipts, and the 12 blocked candidates have a sanitized diagnostic pending production read-back | Contract Pack/Technical media |
+| D2 | P1 | Rights are fields rather than a versioned licence-lineage object | `PARTIAL__SOURCE_READY`: versioned rights/compliance schema and exact reconciliation are live; 525 candidates pass while 63 require explicit evidence. Migration `0068` refuses package-level lineage inference and the new render path requires exact manifest/parent binding; historical 16 master + 1 clip diagnostics await production activation and 46 ElevenLabs records still require authoritative time-bound terms/plan evidence | Contract Pack/Technical media |
 | D3 | P1 | Model aliases and updates can halt or silently change behavior | `PARTIAL__PRODUCTION_ACTIVE`: settings-hash supersede is deployed; immutable provider IDs and shadow qualification remain provider-specific work | FP3.1 |
 | D4 | P1 | Production-audio provider decision is incorrectly hidden inside FP5 | `CONFIRMED_MANDATORY`: commercial/legal selection runs before FP5 | Technical media |
 | D5 | P1 | FP4 qualifying all visual archetypes at once is big-bang | `CONFIRMED_MANDATORY`: benchmark all, qualify Video #1 dependency order first | FP4 |
