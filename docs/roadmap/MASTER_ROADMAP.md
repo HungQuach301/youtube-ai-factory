@@ -136,6 +136,8 @@ Sites v420 activated the task ledger and confirmed 82 tasks / two anchors / zero
 
 Sites v422 then completed Calibration V1 but missed `MOBILE_LEGIBILITY` and `PRODUCTION_RESIDUE` on both anchors, so agreement remained 0/2 and batch stayed locked. Migration `0063` preserves those receipts and versions Calibration V2 with a 360px mobile presentation rule and explicit internal-residue semantics. The cumulative request ceiling is transparently raised to 84 to include the two retained V1 calls plus two V2 calls and the original 80 pending tasks; the $6.75 ceiling is unchanged.
 
+Sites v424 completed Calibration V2 with the same two misses on both anchors; cumulative measured usage is four provider calls and $0.06268. A direct renderer inspection confirmed that the review PNG preserves the small text and internal footer, so another prompt-only retry is not justified. Migration `0064` adds a separate immutable deterministic adjudication receipt for exactly two closed SVG conditions—declared text below the mobile floor and the known internal residue phrase—and combines those signals with the preserved V2 model receipt. The next gate is a zero-provider adjudication of the same two anchors; bounded batch execution opens only if both combined results agree with the owner anchors.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:

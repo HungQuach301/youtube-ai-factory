@@ -5,6 +5,13 @@ export type ImageReviewSurface = {
   bytes: Uint8Array;
   mimeType: "image/jpeg" | "image/png" | "image/gif" | "image/webp";
   transform: "IDENTITY" | "SVG_TO_PNG_1920X1080_V1";
+  deterministicSignals: ImageReviewSignals;
+};
+
+export type ImageReviewSignals = {
+  productionResidue: boolean;
+  mobileLegibilityRisk: boolean;
+  minimumDeclaredFontSizePx: number | null;
 };
 
 function starts(bytes: Uint8Array, values: number[]) {
@@ -32,7 +39,7 @@ function assertSelfContainedSvg(svg: string) {
 
 export async function prepareImageReviewSurface(bytes: Uint8Array): Promise<ImageReviewSurface> {
   const rasterMime = detectedRasterMime(bytes);
-  if (rasterMime) return { bytes, mimeType: rasterMime, transform: "IDENTITY" };
+  if (rasterMime) return { bytes, mimeType: rasterMime, transform: "IDENTITY", deterministicSignals: { productionResidue: false, mobileLegibilityRisk: false, minimumDeclaredFontSizePx: null } };
   const svg = svgText(bytes);
   if (!svg) throw new Error("FACTORY_QA_IMAGE_FORMAT_UNSUPPORTED");
   assertSelfContainedSvg(svg);
@@ -40,7 +47,21 @@ export async function prepareImageReviewSurface(bytes: Uint8Array): Promise<Imag
   const response = new ImageResponse(h("img", { src: dataUri, style: { width: "100%", height: "100%", objectFit: "contain" } }), { width: 1920, height: 1080 });
   const png = new Uint8Array(await response.arrayBuffer());
   if (detectedRasterMime(png) !== "image/png") throw new Error("FACTORY_QA_SVG_RASTERIZATION_FAILED");
-  return { bytes: png, mimeType: "image/png", transform: "SVG_TO_PNG_1920X1080_V1" };
+  const fontSizes = [...svg.matchAll(/font-size\s*(?:=\s*["']\s*|:\s*)(\d+(?:\.\d+)?)\s*(?:px)?/gi)].map((match) => Number(match[1])).filter(Number.isFinite);
+  const minimumDeclaredFontSizePx = fontSizes.length ? Math.min(...fontSizes) : null;
+  const productionResidue = /evidence[-–— ]bound\s+production\s+proof/i.test(svg);
+  const mobileLegibilityRisk = /<text[\s>]/i.test(svg) && minimumDeclaredFontSizePx !== null && minimumDeclaredFontSizePx < 32;
+  return { bytes: png, mimeType: "image/png", transform: "SVG_TO_PNG_1920X1080_V1", deterministicSignals: { productionResidue, mobileLegibilityRisk, minimumDeclaredFontSizePx } };
+}
+
+export function applyDeterministicImageSignals<T extends { decisionState?: string; labels?: Array<{ defectKey?: string; status?: string; confidence?: number; rationale?: string }> }>(result: T, signals: ImageReviewSignals): T {
+  const labels = (result.labels ?? []).map((label) => {
+    if (label.defectKey === "PRODUCTION_RESIDUE" && signals.productionResidue) return { ...label, status: "PRESENT", confidence: 1, rationale: "Deterministic exact-byte SVG preflight found the audience-visible internal phrase evidence-bound production proof." };
+    if (label.defectKey === "MOBILE_LEGIBILITY" && signals.mobileLegibilityRisk) return { ...label, status: "PRESENT", confidence: 0.99, rationale: `Deterministic SVG preflight found declared text at ${signals.minimumDeclaredFontSizePx}px, below the 32px full-frame mobile floor.` };
+    return { ...label };
+  });
+  const deterministicDefect = signals.productionResidue || signals.mobileLegibilityRisk;
+  return { ...result, decisionState: deterministicDefect ? "LIKELY_DEFECT_PRESENT" : result.decisionState, labels };
 }
 
 function base64(bytes: Uint8Array) {

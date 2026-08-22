@@ -14,9 +14,9 @@ OWNER_ATTENTION = EXCEPTIONS_AND_AUDIT_SAMPLE_ONLY
 PROVIDER_REQUEST_CEILING = 84
 SPEND_CEILING_USD = 6.75
 SOURCE_TESTS = TARGET_20_OF_20_PASS__VERIFIED_BUILD_PASS
-PRODUCTION_STATE = V422_ACTIVE__CALIBRATION_FAILED_0_OF_2_AGREEMENTS
-FACTORY_QA_MEASURED_SPEND_USD = 0.03106
-NEXT_PROTECTED_ACTION = DEPLOY_0063__RUN_CALIBRATION_V2_ON_SAME_TWO_ANCHORS
+PRODUCTION_STATE = V424_ACTIVE__CALIBRATION_V2_FAILED_0_OF_2_AGREEMENTS
+FACTORY_QA_MEASURED_SPEND_USD = 0.06268
+NEXT_PROTECTED_ACTION = DEPLOY_0064__RUN_ZERO_PROVIDER_DETERMINISTIC_ADJUDICATION
 ```
 
 The owner stopped after saving two materially similar failed SHOT samples. Both were described as static slide-like visuals with weak visual communication and audience-visible production residue. Those reports are discovery context until production migration read-back confirms the two exact owner receipts. The Factory now owns first-pass QA; it may not write under the owner identity or convert independent review into gold, assurance or release authority.

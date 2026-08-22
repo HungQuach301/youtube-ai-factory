@@ -1,7 +1,7 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { measureOpenAIUsage } from "@/lib/ai-usage";
 import { canonicalHash } from "@/lib/canonical-json";
-import { prepareImageReviewSurface } from "@/lib/image-review-surface";
+import { applyDeterministicImageSignals, prepareImageReviewSurface } from "@/lib/image-review-surface";
 import {
   evaluateFactoryQaResult,
   FACTORY_FIRST_QA_MAXIMUM_BATCH,
@@ -16,6 +16,7 @@ const NO_STORE = { "cache-control": "no-store" };
 const CHANNEL_ID = "channel-hidden-systems";
 const CALIBRATION_V1 = "FACTORY_QA_CALIBRATION_V1";
 const CALIBRATION_V2 = "FACTORY_QA_CALIBRATION_V2";
+const ADJUDICATION_V1 = "FACTORY_QA_DETERMINISTIC_ADJUDICATION_V1";
 type Row = Record<string, unknown>;
 type RunResult = { meta?: { changes?: number } };
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null>; run(): Promise<RunResult> };
@@ -67,10 +68,11 @@ async function status(db: DB) {
       COALESCE(SUM(CASE WHEN review_surface='BROWSER_REQUIRED' THEN 1 ELSE 0 END),0) browser_required
       FROM v7_evaluation_factory_qa_receipts WHERE channel_id=?`, CHANNEL_ID),
     first(db, "SELECT COUNT(*) runs,COALESCE(SUM(CASE WHEN lifecycle_state='CALIBRATION_PASS' THEN 1 ELSE 0 END),0) calibration_pass FROM v7_evaluation_factory_qa_runs WHERE channel_id=?", CHANNEL_ID),
-    rows(db, `SELECT f.labels_json factory_labels_json,o.labels_json owner_labels_json
+    rows(db, `SELECT COALESCE(a.labels_json,f.labels_json) factory_labels_json,o.labels_json owner_labels_json
       FROM v7_evaluation_factory_qa_tasks q
       JOIN v7_evaluation_factory_qa_receipts f ON f.task_id=q.id
       JOIN v7_evaluation_owner_label_receipts o ON o.task_id=q.owner_task_id
+      LEFT JOIN v7_evaluation_factory_qa_adjudications a ON a.task_id=q.id AND a.adjudication_version=(SELECT adjudication_version FROM v7_evaluation_factory_qa_registry WHERE channel_id=q.channel_id AND policy_version=q.policy_version)
       WHERE q.channel_id=? AND q.task_class='OWNER_ANCHOR'
         AND f.calibration_version=(SELECT calibration_version FROM v7_evaluation_factory_qa_registry WHERE channel_id=q.channel_id AND policy_version=q.policy_version)
       ORDER BY q.created_at,q.id`, CHANNEL_ID),
@@ -84,6 +86,7 @@ async function status(db: DB) {
   return {
     policyVersion: FACTORY_FIRST_QA_POLICY_VERSION,
     calibrationVersion: clean(registry?.calibration_version),
+    adjudicationVersion: clean(registry?.adjudication_version),
     lifecycleState: clean(registry?.lifecycle_state),
     ownerAttentionPolicy: clean(registry?.owner_attention_policy),
     tasks: number(taskSummary?.tasks), anchors: number(taskSummary?.anchors), pending: number(taskSummary?.pending),
@@ -125,7 +128,7 @@ async function inspectImage(env: Required<Pick<Env, "DB" | "BUCKET">> & Env, tas
     }, required: ["decisionState", "summary", "labels"],
   };
   const model = clean(env.OPENAI_QA_MODEL) || "gpt-5.6";
-  const requestIntent = { policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, candidateId: clean(task.candidate_id), exactArtifactHash: computedHash, reviewInputHash, reviewMimeType: reviewSurface.mimeType, reviewTransform: reviewSurface.transform, model, detail: "high", allowed };
+  const requestIntent = { policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, candidateId: clean(task.candidate_id), exactArtifactHash: computedHash, reviewInputHash, reviewMimeType: reviewSurface.mimeType, reviewTransform: reviewSurface.transform, deterministicSignals: reviewSurface.deterministicSignals, model, detail: "high", allowed };
   const requestHash = await canonicalHash(requestIntent);
   const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { authorization: `Bearer ${env.OPENAI_API_KEY}`, "content-type": "application/json", "idempotency-key": `factory-qa:${clean(task.id)}` }, body: JSON.stringify({
     model, reasoning: { effort: "none" }, max_output_tokens: 2000,
@@ -140,7 +143,7 @@ async function inspectImage(env: Required<Pick<Env, "DB" | "BUCKET">> & Env, tas
     throw new FactoryQaError("FACTORY_QA_PROVIDER_FAILED", 502, `OpenAI vision failed (${response.status})${providerCode ? ` [${providerCode}]` : ""}${providerMessage ? `: ${providerMessage}` : ""}`);
   }
   const payload = await response.json() as Row;
-  const raw = outputText(payload), result = json<FactoryQaResult>(raw, {});
+  const raw = outputText(payload), result = applyDeterministicImageSignals(json<FactoryQaResult>(raw, {}), reviewSurface.deterministicSignals);
   const validation = evaluateFactoryQaResult({ result, observableDefectKeys: allowed.map((item) => item.defectKey) });
   if (clean(payload.status) !== "completed" || !validation.eligible) throw new FactoryQaError("FACTORY_QA_PROVIDER_OUTPUT_INVALID", 409, validation.reasons.join("; ") || "Provider output was incomplete");
   const usage = measureOpenAIUsage(payload, model);
@@ -171,6 +174,38 @@ async function anchorAgreement(db: DB, candidateId: string, factoryLabels: Array
   return clean(owner.decision_state) === "REJECTED_DEFECT_PRESENT" && decisionState !== "LIKELY_CLEAN" && ownerPresent.length > 0 && ownerPresent.every((key) => factory.get(key) === "PRESENT");
 }
 
+async function adjudicateCalibration(env: Required<Pick<Env, "DB" | "BUCKET">> & Env, actor: string, idempotencyKey: string) {
+  const registry = await first(env.DB, "SELECT * FROM v7_evaluation_factory_qa_registry WHERE channel_id=? AND policy_version=?", CHANNEL_ID, FACTORY_FIRST_QA_POLICY_VERSION);
+  if (!registry || clean(registry.lifecycle_state) !== "CALIBRATION_FAILED" || clean(registry.calibration_version) !== CALIBRATION_V2) throw new FactoryQaError("FACTORY_QA_ADJUDICATION_NOT_READY", 409, "Deterministic adjudication requires a failed Calibration V2");
+  const anchors = await rows(env.DB, `SELECT q.*,c.storage_key,f.id source_receipt_id,f.decision_state,f.labels_json
+    FROM v7_evaluation_factory_qa_tasks q
+    JOIN v7_evaluation_candidates c ON c.id=q.candidate_id
+    JOIN v7_evaluation_factory_qa_receipts f ON f.task_id=q.id AND f.calibration_version=?
+    WHERE q.channel_id=? AND q.task_class='OWNER_ANCHOR' ORDER BY q.created_at,q.id`, CALIBRATION_V2, CHANNEL_ID);
+  if (anchors.length !== 2) throw new FactoryQaError("FACTORY_QA_TWO_ANCHORS_REQUIRED", 409, "Adjudication requires two Calibration V2 anchor receipts");
+  let agreements = 0;
+  for (const anchor of anchors) {
+    let adjudication = await first(env.DB, "SELECT * FROM v7_evaluation_factory_qa_adjudications WHERE task_id=? AND adjudication_version=?", anchor.id, ADJUDICATION_V1);
+    if (!adjudication) {
+      const object = await env.BUCKET.get(clean(anchor.storage_key));
+      if (!object) throw new FactoryQaError("FACTORY_QA_ARTIFACT_MISSING", 404, "The exact adjudication artifact is missing");
+      const bytes = new Uint8Array(await object.arrayBuffer()), exactHash = await sha256(bytes);
+      if (exactHash !== clean(anchor.exact_artifact_hash).toLowerCase()) throw new FactoryQaError("FACTORY_QA_ARTIFACT_HASH_MISMATCH", 409, "Adjudication bytes no longer match the anchor task");
+      const review = await prepareImageReviewSurface(bytes);
+      const baseResult = { decisionState: clean(anchor.decision_state), labels: json<FactoryQaResult["labels"]>(anchor.labels_json, []) };
+      const merged = applyDeterministicImageSignals(baseResult, review.deterministicSignals);
+      const evidenceHash = await canonicalHash({ policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, calibrationVersion: CALIBRATION_V2, adjudicationVersion: ADJUDICATION_V1, taskId: clean(anchor.id), sourceReceiptId: clean(anchor.source_receipt_id), exactArtifactHash: exactHash, deterministicSignals: review.deterministicSignals, decisionState: merged.decisionState, labels: merged.labels, actor });
+      await run(env.DB, `INSERT INTO v7_evaluation_factory_qa_adjudications (id,channel_id,task_id,source_receipt_id,adjudication_version,exact_artifact_hash,deterministic_signals_json,decision_state,labels_json,evidence_hash,idempotency_key,actor)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`, id("evaluation-factory-qa-adjudication"), CHANNEL_ID, anchor.id, anchor.source_receipt_id, ADJUDICATION_V1, exactHash, JSON.stringify(review.deterministicSignals), merged.decisionState, JSON.stringify(merged.labels), evidenceHash, idempotencyKey, actor);
+      adjudication = await first(env.DB, "SELECT * FROM v7_evaluation_factory_qa_adjudications WHERE task_id=? AND adjudication_version=?", anchor.id, ADJUDICATION_V1);
+    }
+    if (adjudication && await anchorAgreement(env.DB, clean(anchor.candidate_id), json(adjudication.labels_json, []), clean(adjudication.decision_state))) agreements += 1;
+  }
+  const lifecycleState = agreements === 2 ? "CALIBRATION_PASS" : "CALIBRATION_FAILED";
+  await run(env.DB, "UPDATE v7_evaluation_factory_qa_registry SET lifecycle_state=?,adjudication_version=?,updated_at=? WHERE channel_id=? AND policy_version=?", lifecycleState, ADJUDICATION_V1, now(), CHANNEL_ID, FACTORY_FIRST_QA_POLICY_VERSION);
+  return { outcome: lifecycleState, agreements, factoryQa: await status(env.DB) };
+}
+
 export async function GET(request: Request) {
   try { const { env } = await authorized(request); return Response.json(await status(env.DB), { headers: NO_STORE }); }
   catch (error) { return Response.json({ error: { code: error instanceof FactoryQaError ? error.code : "FACTORY_QA_STATUS_UNAVAILABLE", message: error instanceof Error ? error.message : "Factory QA status unavailable" } }, { status: error instanceof FactoryQaError ? error.status : 503, headers: NO_STORE }); }
@@ -181,6 +216,12 @@ export async function POST(request: Request) {
     if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) throw new FactoryQaError("FACTORY_QA_CONTENT_TYPE_REQUIRED", 415, "Use application/json");
     const body = await request.json().catch(() => null) as Row | null;
     const action = clean(body?.action).toUpperCase(), mode = clean(body?.mode).toUpperCase();
+    if (action === "ADJUDICATE_FACTORY_QA_CALIBRATION") {
+      const idempotencyKey = clean(request.headers.get("idempotency-key"));
+      if (idempotencyKey.length < 16 || idempotencyKey.length > 160) throw new FactoryQaError("FACTORY_QA_IDEMPOTENCY_KEY_INVALID", 400, "A stable 16-160 character idempotency key is required");
+      const { env, actor } = await authorized(request);
+      return Response.json(await adjudicateCalibration(env, actor, idempotencyKey), { headers: NO_STORE });
+    }
     if (action !== "RUN_FACTORY_QA_BATCH" || !["CALIBRATION", "BATCH"].includes(mode)) throw new FactoryQaError("FACTORY_QA_ACTION_INVALID", 400, "Use RUN_FACTORY_QA_BATCH with CALIBRATION or BATCH mode");
     const limit = mode === "CALIBRATION" ? 2 : number(body?.limit || FACTORY_FIRST_QA_MAXIMUM_BATCH);
     if (!Number.isInteger(limit) || limit < 1 || limit > FACTORY_FIRST_QA_MAXIMUM_BATCH) throw new FactoryQaError("FACTORY_QA_BATCH_LIMIT_INVALID", 400, `limit must be 1-${FACTORY_FIRST_QA_MAXIMUM_BATCH}`);

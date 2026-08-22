@@ -29,7 +29,7 @@ import {
   summarizeEvaluationInventory,
 } from "../lib/evaluation-foundation.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
-import { detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
+import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -382,14 +382,23 @@ test("Factory-first QA is independent, exact-byte-bound and owner attention is e
   assert.match(calibrationV2Migration, /FACTORY_QA_CALIBRATION_V2/);
   assert.match(calibrationV2Migration, /provider_request_ceiling`=84/);
   assert.match(route, /360 CSS pixels wide/);
+  const adjudicationMigration = read("drizzle/0064_factory_qa_deterministic_adjudication.sql");
+  assert.match(adjudicationMigration, /FACTORY_QA_DETERMINISTIC_ADJUDICATION_V1/);
+  assert.match(adjudicationMigration, /EVALUATION_FACTORY_QA_ADJUDICATION_IMMUTABLE/);
+  assert.match(route, /ADJUDICATE_FACTORY_QA_CALIBRATION/);
 });
 
 test("Factory QA renders self-contained SVG evidence to a hashable PNG review surface", async () => {
-  const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><rect width="100%" height="100%" fill="#123"/><text x="80" y="120">evidence-bound production proof</text></svg>');
+  const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"><rect width="100%" height="100%" fill="#123"/><text x="80" y="120" font-size="24">evidence-bound production proof</text></svg>');
   const review = await prepareImageReviewSurface(svg);
   assert.equal(review.mimeType, "image/png");
   assert.equal(review.transform, "SVG_TO_PNG_1920X1080_V1");
   assert.equal(detectedRasterMime(review.bytes), "image/png");
+  const adjudicated = applyDeterministicImageSignals({ decisionState: "LIKELY_DEFECT_PRESENT", labels: [
+    { defectKey: "PRODUCTION_RESIDUE", status: "ABSENT", confidence: 0.8, rationale: "Model miss" },
+    { defectKey: "MOBILE_LEGIBILITY", status: "ABSENT", confidence: 0.8, rationale: "Model miss" },
+  ] }, review.deterministicSignals);
+  assert.deepEqual(adjudicated.labels.map((item) => item.status), ["PRESENT", "PRESENT"]);
   await assert.rejects(() => prepareImageReviewSurface(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><image href="https://example.com/a.png"/></svg>')), /FACTORY_QA_SVG_REMOTE_RESOURCE_FORBIDDEN/);
 });
 
