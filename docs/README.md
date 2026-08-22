@@ -83,6 +83,7 @@ When facts conflict, use this order:
 | Wave 3 correlation control | [`continuity/55_WAVE_3_CORRELATION_CONTROL_EXECUTION_RECORD.md`](continuity/55_WAVE_3_CORRELATION_CONTROL_EXECUTION_RECORD.md) |
 | Mandatory Browser assurance gate | [`continuity/56_BROWSER_ASSURANCE_GATE_EXECUTION_RECORD.md`](continuity/56_BROWSER_ASSURANCE_GATE_EXECUTION_RECORD.md) |
 | Owner-review canonical form hotfix | [`continuity/57_OWNER_REVIEW_CANONICAL_FORM_HOTFIX_EXECUTION_RECORD.md`](continuity/57_OWNER_REVIEW_CANONICAL_FORM_HOTFIX_EXECUTION_RECORD.md) |
+| Owner-review form-action hotfix | [`continuity/58_OWNER_REVIEW_FORM_ACTION_SHADOWING_HOTFIX_EXECUTION_RECORD.md`](continuity/58_OWNER_REVIEW_FORM_ACTION_SHADOWING_HOTFIX_EXECUTION_RECORD.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

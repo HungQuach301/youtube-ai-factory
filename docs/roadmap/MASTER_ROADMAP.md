@@ -1,7 +1,7 @@
 # AI Factory Master Roadmap
 
 **State:** `ACTIVE`
-**Reconciled:** 2026-08-21
+**Reconciled:** 2026-08-22
 **Code baseline at consolidation:** `5b669fc9230f5b012ebe4aa2c0b5c21fa50df890`
 
 ## Current position
@@ -29,6 +29,7 @@
 - Wave 3 owner-review usability: production-active in Sites v411 under `EVALUATION_OWNER_REVIEW_UX_V2`; first-owner-sample verification pending.
 - Mandatory Browser assurance: production-active in Sites v414 under `BROWSER_ASSURANCE_GATE_V1` and migration `0060`; fixture playback/motion/focus pass, audio perception and zoom/reflow remain fail-closed pending owner supplementation, with zero PASS receipts.
 - Owner-review canonical form incident: root hotfix is production-active in Sites v416; the first real submission failed before receipt insertion because `NOT_APPLICABLE` confidence was undefined. Explicit-null normalization, inline error preservation and replay redirect pass 165/165 tests with zero post-deploy Worker errors; owner resubmission of sample 1 and visible transition to sample 2 are next.
+- Owner-review endpoint incident: the second sample-1 submission was preserved inline, but Worker read-back proves `form.action` resolved to the hidden input and POSTed to `[object HTMLInputElement]` with 404. Attribute-based endpoint resolution and a collision regression pass 165/165; deployment and a fresh owner resubmission are next.
 
 ## Wave 0 — Repository knowledge consolidation
 

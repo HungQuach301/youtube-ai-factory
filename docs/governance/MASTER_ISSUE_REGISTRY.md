@@ -1,7 +1,7 @@
 # Master Issue Registry
 
 **Registry version:** `MASTER_ISSUE_REGISTRY_V1`
-**Reconciled:** 2026-08-21
+**Reconciled:** 2026-08-22
 **Total original A–G findings:** 47 = 9 P0 + 28 P1 + 10 P2
 
 ## Status definitions
@@ -116,6 +116,7 @@
 | X14 | P1 | Owner-label UI exposes technical taxonomy and asks humans to judge non-observable evidence | `PARTIAL__PRODUCTION_ACTIVE`: Sites v411 runs the three-step observable-media V2 and server-enforces system-evidence separation; first-owner-sample usability evidence remains pending | Evaluation |
 | X15 | P0 | No mandatory browser-rendered exact-master acceptance gate exists before release | `PARTIAL__PRODUCTION_ACTIVE`: Sites v414 deploys `BROWSER_ASSURANCE_GATE_V1`, exact-hash task/receipt binding and fail-closed Browser UI under migration `0060`; fixture playback/motion/focus pass, while audible-audio and zoom/reflow qualification remain pending and no PASS receipt exists | Video #1/Assurance |
 | X16 | P0 | Owner form sends `undefined` confidence for system-owned `NOT_APPLICABLE` labels, blocking every receipt before canonical hashing | `HANDLED__PRODUCTION_ACTIVE`: Sites v416 emits explicit `null`, hashes normalized intent, redirects idempotent replay and preserves form state on errors; 165/165 regressions pass, post-deploy Worker errors are zero and real sample-1 resubmission is pending | Evaluation |
+| X17 | P0 | Hidden input `name=action` shadows `HTMLFormElement.action`, sending owner receipts to `[object HTMLInputElement]` | `HANDLED__SOURCE_READY`: Production proves the malformed POST returned 404 before the evaluation handler; source uses `getAttribute('action')`, forbids `fetch(form.action` and passes 165/165 regressions; deployment and owner resubmission remain pending | Evaluation |
 
 ## Closure rule
 

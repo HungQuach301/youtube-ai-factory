@@ -1,6 +1,26 @@
 # Current State
 
-Last reconciled: 2026-08-21 (Asia/Bangkok)
+Last reconciled: 2026-08-22 (Asia/Bangkok)
+
+## Owner-review form-action collision source checkpoint — 2026-08-22
+
+```text
+INCIDENT = OWNER_REVIEW_FORM_ACTION_NAMED_PROPERTY_SHADOWING
+OWNER_OBSERVATION = VALID_INPUT__NOT_YET_DURABLE_EVIDENCE
+PRODUCTION_REQUEST = POST_SEQUENTIAL_PRODUCTION_[OBJECT_HTMLINPUTELEMENT]__404
+ROOT_CAUSE = HIDDEN_INPUT_NAME_ACTION_SHADOWED_HTMLFORMELEMENT_ACTION
+FAILED_SUBMISSION_DURABLE_RECEIPT = NO__REQUEST_NEVER_REACHED_EVALUATION_ROUTE
+CORRECTION = GETATTRIBUTE_ACTION__CLOSED_EVALUATION_ROUTE_FALLBACK
+REGRESSION = FETCH_FORM_ACTION_FORBIDDEN
+INLINE_FORM_PRESERVATION = PASS
+SOURCE_STATE = IMPLEMENTED__PRODUCTION_PENDING
+TECHNICAL_QA = PASS_165_OF_165
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+NEXT_PROTECTED_ACTION = DEPLOY_ENDPOINT_FIX__OWNER_REFRESH_AND_RESUBMIT_SAMPLE_1
+```
+
+The second real submission proved that the v417 inline-error protection works, but exposed browser named-property shadowing: the hidden `action` input replaced `form.action`, producing a 404 to a route ending in `[object HTMLInputElement]`. The evaluation handler never ran and no receipt exists. Source now reads only the declared HTML attribute and tests forbid the collision-prone expression. Document 58 is authoritative; the screenshots remain incident context rather than a fabricated owner receipt.
 
 ## Owner-review canonical form hotfix source checkpoint — 2026-08-21
 

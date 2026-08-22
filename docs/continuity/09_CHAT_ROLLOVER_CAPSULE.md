@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `OWNER_REVIEW_CANONICAL_FORM_HOTFIX_PRODUCTION_ACTIVE__OWNER_RESUBMISSION_PENDING`
+**Current source classification:** `OWNER_REVIEW_FORM_ACTION_COLLISION_SOURCE_FIXED__PRODUCTION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -52,6 +52,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Sites v411 activates `EVALUATION_OWNER_REVIEW_UX_V2`. It replaces the eleven-row technical form with a three-step Vietnamese owner flow, exposes only media-observable defects, sends system-owned rights/master-lineage dimensions as `NOT_APPLICABLE` and enforces the same scope server-side. Read-back reports 82 actionable tasks, zero owner receipts, zero provider request/spend and zero Worker errors. Full regression passes 162/162; non-SIWC access remains rejected with `401`. Agent preview cannot enter the identity-bound route without a local D1/R2 fixture, so exact next action remains SIWC owner verification of the first production sample.
 - Sites v414 deploys `BROWSER_ASSURANCE_GATE_V1` and migration `0060` as a separate exact-master release gate from source `3cfc3d9ddd8d99175eee112e5943029106559256`. Agent-preview QA played a marked no-release fixture to completion, exercised pause/resume/seek, observed motion and verified keyboard focus; it caught and fixed a real `crypto.randomUUID` runtime defect. The gate refused PASS because agent audio perception and zoom/reflow were unavailable. Full regression passes 164/164, provider/spend remain zero and post-deploy Worker errors are zero. The owner supplements audible-audio and zoom/reflow only; Browser assurance never replaces owner semantic evaluation.
 - The first real owner-label form submission exposed `OWNER_REVIEW_NOT_APPLICABLE_CONFIDENCE_UNDEFINED`: system-owned `NOT_APPLICABLE` labels reached canonical hashing with an in-memory `undefined` confidence. The request failed before any receipt insert, so sample 1 must be resubmitted. Sites v416 deploys the source fix from `5321ca67539c8a8cc534778e883fab7ad1f1a050`: explicit `null`, one normalized label set for request/evidence hashes, idempotent replay redirect and inline form preservation on server/network errors. Full regression passes 165/165, provider/spend remain zero and post-deploy Worker errors are zero. Exact next signal is success banner plus `Mẫu 2/82` after owner resubmission.
+- The second sample-1 submission preserved all selections/rationale inline but Production read-back proves it POSTed to `/api/factory/sequential-production/[object HTMLInputElement]` and returned 404. The hidden `action` input shadowed `HTMLFormElement.action`; the evaluation handler never ran and no receipt exists. Source now resolves only `form.getAttribute('action')`, forbids `fetch(form.action` and passes 165/165 tests. Deploy, then the owner refreshes the already-open workflow and resubmits; screenshots/chat cannot substitute for the exact-artifact identity-bound receipt.
 
 ## Protected no-rerun list
 

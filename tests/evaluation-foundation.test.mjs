@@ -319,6 +319,8 @@ test("migration 0058 creates immutable zero-spend owner-label tasks without fixt
   assert.match(route, /Xác nhận và sang mẫu tiếp theo/);
   assert.match(route, /labels: normalizedLabels/);
   assert.match(route, /ĐÁNH GIÁ CHƯA ĐƯỢC GHI/);
+  assert.match(route, /form\.getAttribute\('action'\)/);
+  assert.doesNotMatch(route, /fetch\(form\.action/);
   assert.match(route, /ownerObservableDefectKeys/);
   assert.match(read("lib/evaluation-foundation.ts"), /SYSTEM_EVIDENCE_LABEL_MUST_BE_NOT_APPLICABLE/);
   assert.match(route, /env\.DB\.batch\(statements\)/);
