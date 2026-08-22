@@ -60,6 +60,18 @@ async function status(db: DB) {
   return { policyVersion: FACTORY_BROWSER_QA_POLICY_VERSION, authorityBoundary: "INDEPENDENT_REVIEW_ONLY", tasks: number(summary?.tasks), pending: number(summary?.pending), likelyDefect: number(summary?.likely_defect), likelyClean: number(summary?.likely_clean), needsOwner: number(summary?.needs_owner), modality: modality.map((item) => ({ modality: clean(item.modality), count: number(item.count) })), providerRequests: 0, spendUsd: 0 };
 }
 
+async function reconcileTasks(db: DB, actor: string) {
+  const registry = await first(db, "SELECT id,lifecycle_state FROM v7_evaluation_factory_browser_qa_registry WHERE channel_id=? AND policy_version=?", CHANNEL_ID, FACTORY_BROWSER_QA_POLICY_VERSION);
+  if (!registry || clean(registry.lifecycle_state) !== "ACTIVE") throw new BrowserQaError("FACTORY_BROWSER_QA_REGISTRY_NOT_ACTIVE", 409, "The Factory Browser QA registry must be active before task reconciliation");
+  const result = await db.prepare(`INSERT OR IGNORE INTO v7_evaluation_factory_browser_qa_tasks
+    (id,channel_id,factory_task_id,source_receipt_id,candidate_id,exact_artifact_hash,candidate_kind,artifact_type,mime_type,policy_version)
+    SELECT 'factory-browser-qa-task:' || q.candidate_id,q.channel_id,q.id,r.id,q.candidate_id,lower(q.exact_artifact_hash),q.candidate_kind,q.artifact_type,q.mime_type,?
+    FROM v7_evaluation_factory_qa_tasks q
+    JOIN v7_evaluation_factory_qa_receipts r ON r.task_id=q.id AND r.review_surface='BROWSER_REQUIRED'
+    WHERE q.channel_id=? AND (q.mime_type LIKE 'audio/%' OR q.mime_type LIKE 'video/%')`).bind(FACTORY_BROWSER_QA_POLICY_VERSION, CHANNEL_ID).run();
+  return { outcome: "RECONCILED", inserted: number(result.meta?.changes), reconciledBy: actor, factoryBrowserQa: await status(db), providerRequests: 0, spendUsd: 0 };
+}
+
 async function nextTask(env: Required<Pick<Env, "DB" | "BUCKET">> & Env) {
   const task = await first(env.DB, `SELECT t.*,c.storage_key FROM v7_evaluation_factory_browser_qa_tasks t
     JOIN v7_evaluation_candidates c ON c.id=t.candidate_id
@@ -148,9 +160,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) throw new BrowserQaError("FACTORY_BROWSER_QA_CONTENT_TYPE_REQUIRED", 415, "Use application/json");
     const body = await request.json().catch(() => null) as Row | null;
-    if (clean(body?.action) !== "SUBMIT_FACTORY_BROWSER_QA") throw new BrowserQaError("FACTORY_BROWSER_QA_ACTION_INVALID", 400, "Use SUBMIT_FACTORY_BROWSER_QA");
+    const action = clean(body?.action).toUpperCase();
     const { env, actor } = await authorized(request);
+    if (action === "RECONCILE_FACTORY_BROWSER_QA_TASKS") return Response.json(await reconcileTasks(env.DB, actor), { headers: NO_STORE });
+    if (action !== "SUBMIT_FACTORY_BROWSER_QA") throw new BrowserQaError("FACTORY_BROWSER_QA_ACTION_INVALID", 400, "Use RECONCILE_FACTORY_BROWSER_QA_TASKS or SUBMIT_FACTORY_BROWSER_QA");
     return Response.json(await submit(env, actor, body || {}), { status: 201, headers: NO_STORE });
   } catch (error) {
     return Response.json({ error: { code: error instanceof BrowserQaError ? error.code : "FACTORY_BROWSER_QA_FAILED", message: error instanceof Error ? error.message : "Factory Browser QA failed" }, providerRequests: 0, spendUsd: 0 }, { status: error instanceof BrowserQaError ? error.status : 503, headers: NO_STORE });
