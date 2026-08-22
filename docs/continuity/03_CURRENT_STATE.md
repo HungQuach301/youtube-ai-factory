@@ -13,14 +13,17 @@ FAILED_SUBMISSION_DURABLE_RECEIPT = NO__REQUEST_NEVER_REACHED_EVALUATION_ROUTE
 CORRECTION = GETATTRIBUTE_ACTION__CLOSED_EVALUATION_ROUTE_FALLBACK
 REGRESSION = FETCH_FORM_ACTION_FORBIDDEN
 INLINE_FORM_PRESERVATION = PASS
-SOURCE_STATE = IMPLEMENTED__PRODUCTION_PENDING
+SOURCE_STATE = PRODUCTION_ACTIVE_SITES_V418__OWNER_RESUBMISSION_PENDING
 TECHNICAL_QA = PASS_165_OF_165
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-NEXT_PROTECTED_ACTION = DEPLOY_ENDPOINT_FIX__OWNER_REFRESH_AND_RESUBMIT_SAMPLE_1
+PRODUCTION_SOURCE_COMMIT = fce8dbc65da228d21b6526b5dd987716c7fdf3e6
+PRODUCTION_DEPLOYMENT = SUCCEEDED
+POST_DEPLOY_WORKER_ERRORS = 0
+NEXT_PROTECTED_ACTION = OWNER_REFRESH_AND_RESUBMIT_SAMPLE_1__VERIFY_SUCCESS_BANNER_AND_SAMPLE_2_OF_82
 ```
 
-The second real submission proved that the v417 inline-error protection works, but exposed browser named-property shadowing: the hidden `action` input replaced `form.action`, producing a 404 to a route ending in `[object HTMLInputElement]`. The evaluation handler never ran and no receipt exists. Source now reads only the declared HTML attribute and tests forbid the collision-prone expression. Document 58 is authoritative; the screenshots remain incident context rather than a fabricated owner receipt.
+The second real submission proved that the v417 inline-error protection works, but exposed browser named-property shadowing: the hidden `action` input replaced `form.action`, producing a 404 to a route ending in `[object HTMLInputElement]`. The evaluation handler never ran and no receipt exists. Source now reads only the declared HTML attribute and tests forbid the collision-prone expression. Sites v418 deployed exact source `fce8dbc65da228d21b6526b5dd987716c7fdf3e6`; deployment succeeded and the post-deploy Worker error query is empty. Document 58 is authoritative; the screenshots remain incident context rather than a fabricated owner receipt. The owner must refresh or reopen the workflow before resubmitting because an already-loaded tab still holds the old JavaScript.
 
 ## Owner-review canonical form hotfix source checkpoint — 2026-08-21
 

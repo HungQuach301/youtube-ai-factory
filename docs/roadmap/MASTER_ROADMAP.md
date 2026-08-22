@@ -29,7 +29,7 @@
 - Wave 3 owner-review usability: production-active in Sites v411 under `EVALUATION_OWNER_REVIEW_UX_V2`; first-owner-sample verification pending.
 - Mandatory Browser assurance: production-active in Sites v414 under `BROWSER_ASSURANCE_GATE_V1` and migration `0060`; fixture playback/motion/focus pass, audio perception and zoom/reflow remain fail-closed pending owner supplementation, with zero PASS receipts.
 - Owner-review canonical form incident: root hotfix is production-active in Sites v416; the first real submission failed before receipt insertion because `NOT_APPLICABLE` confidence was undefined. Explicit-null normalization, inline error preservation and replay redirect pass 165/165 tests with zero post-deploy Worker errors; owner resubmission of sample 1 and visible transition to sample 2 are next.
-- Owner-review endpoint incident: the second sample-1 submission was preserved inline, but Worker read-back proves `form.action` resolved to the hidden input and POSTed to `[object HTMLInputElement]` with 404. Attribute-based endpoint resolution and a collision regression pass 165/165; deployment and a fresh owner resubmission are next.
+- Owner-review endpoint incident: the second sample-1 submission was preserved inline, but Worker read-back proves `form.action` resolved to the hidden input and POSTed to `[object HTMLInputElement]` with 404. Sites v418 deploys attribute-based endpoint resolution from exact source `fce8dbc65da228d21b6526b5dd987716c7fdf3e6`; the collision regression and all 165/165 tests pass, post-deploy Worker errors are zero, and a fresh owner resubmission is next.
 
 ## Wave 0 — Repository knowledge consolidation
 

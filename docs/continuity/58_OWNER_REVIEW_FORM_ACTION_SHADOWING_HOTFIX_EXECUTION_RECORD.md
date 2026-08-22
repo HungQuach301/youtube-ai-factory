@@ -50,6 +50,15 @@ The prior protections remain unchanged:
 - Provider requests: zero.
 - Slice spend: `$0`.
 
+## Production activation
+
+- Sites version: `v418`.
+- Exact source commit: `fce8dbc65da228d21b6526b5dd987716c7fdf3e6`.
+- Deployment: `succeeded`.
+- Production URL: `https://youtube-ai-factory.quach-hung.chatgpt.site`.
+- Post-deploy error-only Worker query: zero events in the latest 30-minute window.
+- Provider requests and slice spend: unchanged at zero.
+
 ## Next gate
 
-Deploy the endpoint fix. The owner must refresh or reopen the full-screen workflow because JavaScript already loaded in the current tab cannot be changed by deployment, then reselect the three defects and resubmit the rationale. Acceptance requires a successful POST to `/api/factory/sequential-production/evaluation`, one durable receipt and visible transition to `Mẫu 2/82`.
+The owner must refresh or reopen the full-screen workflow because JavaScript already loaded in the current tab cannot be changed by deployment, then reselect the three defects and resubmit the rationale. Acceptance requires a successful POST to `/api/factory/sequential-production/evaluation`, one durable receipt and visible transition to `Mẫu 2/82`.
