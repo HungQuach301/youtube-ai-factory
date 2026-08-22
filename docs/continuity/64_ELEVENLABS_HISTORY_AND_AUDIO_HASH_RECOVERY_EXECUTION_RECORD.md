@@ -4,7 +4,7 @@
 
 **Policies:** `EVALUATION_PROVIDER_HISTORY_RECOVERY_V1` · `EVALUATION_PROVIDER_AUDIO_HASH_RECOVERY_V1`
 
-**Production state:** `METADATA_COMPLETE__EXACT_AUDIO_HASH_SOURCE_READY__RIGHTS_FAIL_CLOSED`
+**Production state:** `EXACT_AUDIO_COMPLETE__NO_MATCH__HISTORICAL_RECOVERY_EXHAUSTED__RIGHTS_FAIL_CLOSED`
 
 ## Production metadata outcome
 
@@ -53,6 +53,23 @@ No historical candidate receives rights PASS until both conditions exist:
 
 If historical plan coverage cannot be established, the candidate remains rights-pending and may be used only as quarantined failure evidence. New controlled fixtures must use the hardened write path.
 
+## Production exact-audio outcome
+
+The owner-authenticated terminal snapshot verified all 66 retained history audio objects. None matches the immutable SHA-256 of any of the 46 historical candidates.
+
+```text
+HISTORY_ITEMS_HASH_VERIFIED = 66_OF_66
+UNIQUE_EXACT_HASH_MATCHES = 0
+EQUIVALENT_BYTES_MULTIPLE_REQUESTS = 0
+NO_EXACT_HASH_MATCHES = 46_OF_46
+RETRYABLE_EXHAUSTED = 0_0
+PROVIDER_READS = 66
+TTS_REQUESTS = 0
+SPEND_USD = 0
+```
+
+The bounded recovery lane is therefore exhausted. The historical candidates cannot enter the rights or gold-set path and remain quarantined failure evidence.
+
 ## Next protected action
 
-Deploy migration `0071`, execute exact-audio recovery through the owner-authenticated control, read the final sanitized snapshot, then choose between historical rights reconciliation and newly generated controlled fixtures. FP4/FP5 and Golden release remain closed.
+Apply migration `0072`, seal the terminal no-match closure and activate the thirteen-blueprint controlled-fixture design. Then materialize new clean parents and isolated defect fixtures through the hardened provenance path. FP4/FP5 and Golden release remain closed.

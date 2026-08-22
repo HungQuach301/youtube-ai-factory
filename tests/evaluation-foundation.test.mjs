@@ -10,6 +10,8 @@ import {
   EVALUATION_PROVIDER_BINDING_DIAGNOSTIC_VERSION,
   EVALUATION_PROVIDER_HISTORY_RECOVERY_VERSION,
   EVALUATION_PROVIDER_AUDIO_HASH_RECOVERY_VERSION,
+  EVALUATION_HISTORICAL_RECOVERY_CLOSURE_VERSION,
+  CONTROLLED_FIXTURE_PLAN_VERSION,
   EVALUATION_OWNER_LABEL_POLICY_VERSION,
   EVALUATION_OWNER_REVIEW_UX_VERSION,
   EVALUATION_CORRELATION_CONTROL_VERSION,
@@ -720,6 +722,30 @@ test("migration 0071 recovers exact provider audio hashes in bounded immutable b
   assert.match(ownerBoundary, /HASH_ELEVENLABS_HISTORY_AUDIO/);
   assert.match(ownerBoundary, /index<=10/);
   assert.match(ownerBoundary, /không tự cấp rights/);
+});
+
+test("migration 0072 closes unrecoverable history and seals a bounded controlled-fixture design", () => {
+  assert.equal(EVALUATION_HISTORICAL_RECOVERY_CLOSURE_VERSION, "EVALUATION_HISTORICAL_RECOVERY_CLOSURE_V1");
+  assert.equal(CONTROLLED_FIXTURE_PLAN_VERSION, "CONTROLLED_FIXTURE_PLAN_V1");
+  const migration = read("drizzle/0072_historical_recovery_closure_and_controlled_fixture_plan.sql");
+  for (const table of ["v7_evaluation_historical_recovery_closures", "v7_evaluation_controlled_fixture_plan_registry", "v7_evaluation_controlled_fixture_blueprints"]) assert.match(migration, new RegExp(table));
+  assert.match(migration, /NO_EXACT_PROVIDER_AUDIO_FOUND/);
+  assert.match(migration, /QUARANTINE_FAILURE_EVIDENCE_ONLY/);
+  assert.match(migration, /EXHAUSTED_NO_EXACT_BINDING/);
+  assert.match(migration, /target_fixture_count` integer NOT NULL CHECK \(`target_fixture_count` BETWEEN 10 AND 15\)/);
+  assert.match(migration, /p0_families_planned` integer NOT NULL CHECK \(`p0_families_planned` = 5\)/);
+  for (const lock of ["dataset_sealing_authority", "assurance_qualification_authority", "release_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.doesNotMatch(migration, /\/v1\/text-to-speech|api\.openai\.com|DELETE FROM|rights_verification_state='PASS'/);
+  const db = new DatabaseSync(":memory:");
+  for (const file of readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort()) db.exec(read(`drizzle/${file}`));
+  const plan = db.prepare("SELECT target_fixture_count,defect_positive_count,clean_negative_count,p0_families_planned,materialized_fixture_count,provider_requests,spend_usd FROM v7_evaluation_controlled_fixture_plan_registry").get();
+  assert.deepEqual({ ...plan }, { target_fixture_count: 13, defect_positive_count: 11, clean_negative_count: 2, p0_families_planned: 5, materialized_fixture_count: 0, provider_requests: 0, spend_usd: 0 });
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM v7_evaluation_controlled_fixture_blueprints").get().count, 13);
+  assert.equal(db.prepare("SELECT COUNT(DISTINCT expected_defect_key) count FROM v7_evaluation_controlled_fixture_blueprints WHERE severity='P0'").get().count, 5);
+  const ownerBoundary = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(ownerBoundary, /Không thể phục hồi 46 audio cũ/);
+  assert.match(ownerBoundary, /CONTROLLED_FIXTURE_PLAN_V1/);
+  assert.match(ownerBoundary, /provider-native request ID/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

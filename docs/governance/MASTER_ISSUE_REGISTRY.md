@@ -33,7 +33,7 @@
 
 | ID | Priority | Finding | Reconciled disposition | Owning wave |
 |---|---:|---|---|---|
-| B1 | P0 | Assurance capability has no qualified ground truth | `PARTIAL__REGRESSION_CORPUS_PRODUCTION_ACTIVE`: Sites v432 preserves 33 independent visual failures as candidates and two owner anchors as references; readiness remains `INSUFFICIENT_GROUND_TRUTH` pending 10–15 bounded owner-confirmed references, clean negatives, controlled injections and complete P0 coverage; no dataset or assurance capability is qualified | WP7 |
+| B1 | P0 | Assurance capability has no qualified ground truth | `PARTIAL__CONTROLLED_FIXTURE_PLAN_SOURCE_READY`: historical exact-audio recovery is exhausted at 66/66 provider objects and 0/46 candidate matches. Sites v432 evidence remains candidate-only; migration 0072 plans 13 bounded fixtures with 11 defect positives, two clean controls and 5/5 P0 families, but materialized fixtures remain zero and no dataset or assurance capability is qualified | WP7 |
 | B2 | P0 | ASR/alignment tool and error floor are not pinned/calibrated | `CONFIRMED_MANDATORY`; exact stack and thresholds require calibration | Technical media/WP7 |
 | B3 | P0 | Independent QA is procedural rather than architectural | `PARTIAL__PRODUCTION_ACTIVE`: blinded datasets and accountable label sources are live; independent provider/model-family or human P0 adjudication remains unqualified | WP7 |
 | B4 | P1 | Critic repeatability is unmeasured | `PARTIAL__PRODUCTION_ACTIVE`: repeat policy and per-family metric are live; actual provider repeatability remains calibration-required | WP7 |

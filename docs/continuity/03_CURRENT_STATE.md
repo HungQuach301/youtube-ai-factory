@@ -2,6 +2,26 @@
 
 Last reconciled: 2026-08-22 (Asia/Bangkok)
 
+## Historical recovery closure and controlled fixture plan — 2026-08-22
+
+```text
+EXACT_AUDIO_RECOVERY = COMPLETE
+HISTORY_AUDIO_HASHES = 66_OF_66
+UNIQUE_EQUIVALENT_NO_MATCH = 0_0_46
+HISTORICAL_CANDIDATE_DISPOSITION = QUARANTINE_FAILURE_EVIDENCE_ONLY
+MIGRATION_0072 = SOURCE_READY__PRODUCTION_ACCEPTANCE_PENDING
+CONTROLLED_FIXTURE_BLUEPRINTS = 13
+DEFECT_POSITIVE_CLEAN_NEGATIVE = 11_2
+P0_FAMILIES_PLANNED = 5_OF_5
+MATERIALIZED_FIXTURES = 0
+DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
+PROVIDER_REQUESTS_THIS_DESIGN_SLICE = 0
+SPEND_USD_THIS_DESIGN_SLICE = 0
+NEXT_PROTECTED_ACTION = APPLY_0072__READ_BACK_CLOSURE_AND_PLAN__IMPLEMENT_BOUNDED_MATERIALIZATION
+```
+
+The exact-byte recovery lane is exhausted: none of the 46 historical audio candidate hashes appears in the 66 retained ElevenLabs history audio objects. The old candidates remain quarantined evidence and cannot be promoted. Migration `0072` defines an immutable terminal closure plus thirteen controlled-fixture blueprints covering all eleven active defect families, all five P0 families and two clean controls. A blueprint is not a materialized fixture and creates no ground-truth, dataset, qualification or release authority. Document 65 is authoritative for this slice.
+
 ## WP7 regression corpus production checkpoint — 2026-08-22
 
 ```text
