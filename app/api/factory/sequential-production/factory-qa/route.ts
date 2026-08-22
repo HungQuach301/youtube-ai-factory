@@ -110,7 +110,13 @@ async function inspectImage(env: Required<Pick<Env, "DB" | "BUCKET">> & Env, tas
     input: [{ role: "user", content: [{ type: "input_text", text: prompt }, { type: "input_image", image_url: `data:${clean(task.mime_type)};base64,${base64(bytes)}`, detail: "high" }] }],
     text: { format: { type: "json_schema", name: "factory_first_qa", strict: true, schema } },
   }), signal: AbortSignal.timeout(180000) });
-  if (!response.ok) throw new FactoryQaError("FACTORY_QA_PROVIDER_FAILED", 502, `OpenAI vision failed (${response.status})`);
+  if (!response.ok) {
+    const failure = await response.json().catch(() => ({})) as Row;
+    const providerError = failure.error && typeof failure.error === "object" ? failure.error as Row : {};
+    const providerCode = clean(providerError.code || providerError.type).slice(0, 80);
+    const providerMessage = clean(providerError.message).replace(/[\r\n]+/g, " ").slice(0, 240);
+    throw new FactoryQaError("FACTORY_QA_PROVIDER_FAILED", 502, `OpenAI vision failed (${response.status})${providerCode ? ` [${providerCode}]` : ""}${providerMessage ? `: ${providerMessage}` : ""}`);
+  }
   const payload = await response.json() as Row;
   const raw = outputText(payload), result = json<FactoryQaResult>(raw, {});
   const validation = evaluateFactoryQaResult({ result, observableDefectKeys: allowed.map((item) => item.defectKey) });

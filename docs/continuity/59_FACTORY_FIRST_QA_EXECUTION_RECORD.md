@@ -44,3 +44,7 @@ Migration `0061_factory_first_qa.sql` creates append-only tasks and receipts, bo
 ## Next protected action
 
 Checkpoint and deploy this source, confirm migration `0061`, run exactly the two calibration anchors, then open bounded batches only if calibration is `CALIBRATION_PASS`. Do not ask the owner to continue the sequential queue while Factory processing is active.
+
+## Production diagnostic — Sites v420
+
+Production activated migration `0061` and read back exactly 82 tasks, two owner anchors, 82 pending, zero Factory receipts, zero Factory provider requests and zero Factory spend. The first idempotent calibration attempt stopped on an OpenAI `400` before a receipt was written. Batch remained locked. The route now records only the provider's bounded error code/message so the same run can be replayed without exposing credentials or creating a second calibration intent.
