@@ -232,18 +232,21 @@ Sites v407 activated migration `0058` and created exactly 525 open owner-label t
 
 ```text
 POLICY = EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1
-MIGRATION = 0068_SOURCE_READY__PRODUCTION_PENDING
+MIGRATION = 0068_ACTIVE_SITES_V434__SANITIZED_PROJECTION_SITES_V435
 HISTORICAL_TARGETS = 16_COMPOSITE_MASTER__1_AUTHORSHIP_CLIP
+PRODUCTION_DIAGNOSTICS = 17_SOURCE_LINEAGE_BINDING_MISSING__0_DECLARED_UNVERIFIED
 SAME_PACKAGE_MANIFEST_AUTHORITY = FORBIDDEN
 HISTORICAL_RIGHTS_PASS_MUTATION = 0
 NEW_RENDER_GATE = EXACT_SOURCE_MANIFEST_ID_SHA256_AND_PARENT_SET
 RIGHTS_DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE_FALSE
 PROVIDER_REQUESTS = 0
 SPEND_USD = 0
-NEXT_PROTECTED_ACTION = DEPLOY_AND_READ_BACK_17_LINEAGE_DIAGNOSTICS
+FULL_REGRESSION = 171_OF_171_PASS
+RECENT_WORKER_ERRORS = 0
+NEXT_PROTECTED_ACTION = COLLECT_46_HISTORICAL_ELEVENLABS_RECEIPTS__DESIGN_CONTROLLED_FIXTURES
 ```
 
-Migration `0068` records the historical lineage gap without inventing evidence, and the Production V2 upload path now refuses new unbound pilot/full renders. Document 62 and ADR-093 are authoritative for this source checkpoint.
+Sites v434–v435 prove all 17 historical composite/authorship records lack exact render binding and keep them rights-pending. The Production V2 upload path now refuses new unbound pilot/full renders. Document 62 and ADR-093 are authoritative.
 
 ## Wave 3 rights evidence collection source checkpoint — 2026-08-21
 

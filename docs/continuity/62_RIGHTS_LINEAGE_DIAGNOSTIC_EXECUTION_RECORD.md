@@ -4,7 +4,7 @@
 
 **Policy:** `EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1`
 
-**Production state:** `SOURCE_READY__PRODUCTION_PENDING`
+**Production state:** `ACTIVE__HISTORICAL_RIGHTS_FAIL_CLOSED`
 
 ## Outcome
 
@@ -42,8 +42,29 @@ PROVIDER_REQUESTS = 0
 SPEND_USD = 0
 ```
 
-Targeted Evaluation Foundation tests and the verified production build pass. Production deployment and D1 read-back must be appended before this record can claim an active production count.
+The verified build and full regression pass 171/171. Sites v434 activated migration `0068`; Sites v435 exposed only sanitized aggregate counts. Direct authenticated production read-back reports exactly 17 diagnostics: 16 composite tasks, one authorship task, 17 `SOURCE_LINEAGE_BINDING_MISSING` and zero declared-but-unverified bindings. Every authority flag is false, provider request/spend are 0/$0 and recent error-only Worker logs contain zero events.
+
+## Production acceptance
+
+```text
+SITES_VERSION = 435
+SOURCE_COMMIT = a3b315383aa7da4cddd994e9fe019bff8384b741
+MIGRATION = 0068_ACTIVE
+DIAGNOSTICS = 17
+COMPOSITE_TASKS = 16
+AUTHORSHIP_TASKS = 1
+SOURCE_LINEAGE_BINDING_MISSING = 17
+SOURCE_LINEAGE_DECLARED_UNVERIFIED = 0
+RIGHTS_PASS_AUTHORITY = FALSE
+DATASET_SEALING_AUTHORITY = FALSE
+ASSURANCE_QUALIFICATION_AUTHORITY = FALSE
+RELEASE_AUTHORITY = FALSE
+PROVIDER_REQUESTS = 0
+SPEND_USD = 0
+FULL_REGRESSION = 171_OF_171_PASS
+RECENT_WORKER_ERRORS = 0
+```
 
 ## Next protected action
 
-Deploy the additive migration, read back the immutable 16/1 diagnostic distribution, and keep all 17 historical artifacts fail-closed. Then collect authoritative historical ElevenLabs terms/plan evidence and design new controlled clean/defect fixtures; do not promote historical rights from package correlation.
+Keep all 17 historical composite/authorship artifacts fail-closed. Collect authoritative historical ElevenLabs terms/plan evidence for the separate 46-audio lane and design new controlled clean/defect fixtures; do not promote historical rights from package correlation.
