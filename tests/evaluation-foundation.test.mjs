@@ -8,6 +8,7 @@ import {
   EVALUATION_RIGHTS_EVIDENCE_POLICY_VERSION,
   EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_VERSION,
   EVALUATION_PROVIDER_BINDING_DIAGNOSTIC_VERSION,
+  EVALUATION_PROVIDER_HISTORY_RECOVERY_VERSION,
   EVALUATION_OWNER_LABEL_POLICY_VERSION,
   EVALUATION_OWNER_REVIEW_UX_VERSION,
   EVALUATION_CORRELATION_CONTROL_VERSION,
@@ -680,6 +681,22 @@ test("migration 0069 diagnoses legacy provider bindings and future TTS captures 
   assert.match(scale, /PROVIDER_ARTIFACT_BINDING_MISMATCH/);
   assert.match(projectionRoute, /providerBindingDiagnostic/);
   assert.doesNotMatch(projectionRoute, /providerBindingDiagnostic:[\s\S]{0,1400}(source_artifact_id|artifact_hash|provider_response_id)/);
+});
+
+test("migration 0070 and recovery route bound provider-history discovery without granting rights", () => {
+  assert.equal(EVALUATION_PROVIDER_HISTORY_RECOVERY_VERSION, "EVALUATION_PROVIDER_HISTORY_RECOVERY_V1");
+  const migration = read("drizzle/0070_evaluation_provider_history_recovery.sql"), route = read("app/api/factory/sequential-production/evaluation/provider-history/route.ts");
+  for (const table of ["v7_evaluation_provider_history_recovery_runs", "v7_evaluation_provider_history_items", "v7_evaluation_provider_history_candidate_diagnostics", "v7_evaluation_provider_history_snapshots"]) assert.match(migration, new RegExp(table));
+  for (const lock of ["exact_audio_hash_verified", "historical_plan_coverage_verified", "rights_pass_authority", "dataset_sealing_authority", "assurance_qualification_authority", "release_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.match(migration, /maximum_history_items` integer NOT NULL CHECK \(`maximum_history_items` = 1000\)/);
+  assert.match(migration, /provider_requests` integer NOT NULL CHECK \(`provider_requests` = 2\)/);
+  assert.match(route, /date_after_unix/);
+  assert.match(route, /date_before_unix/);
+  assert.match(route, /page_size/);
+  assert.match(route, /source.*TTS/s);
+  assert.match(route, /UNIQUE_METADATA_MATCH_REQUIRES_AUDIO_HASH/);
+  assert.match(route, /ELEVENLABS_HISTORY_WINDOW_EXCEEDS_BOUND/);
+  assert.doesNotMatch(route, /\/v1\/text-to-speech|rights_verification_state='PASS'|release_eligible=1/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

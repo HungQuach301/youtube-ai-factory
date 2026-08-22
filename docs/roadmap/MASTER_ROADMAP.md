@@ -11,7 +11,7 @@
 - Capability qualification content: one of 22 operation bindings qualified.
 - FP3 executable ShotCueProgram: implemented and sealed with zero provider requests/spend.
 - Golden r10, Stage 11, Videos 2–15 and auto-publish: blocked.
-- Paid FP4 authority: not granted.
+- Standing roadmap-bounded production/provider authority: granted under ADR-079; FP4 dispatch remains blocked by qualification, rights, safety and a bounded cost envelope rather than by repeated chat confirmation.
 - FP3.1 source, additive migration and local regression: implemented and tested.
 - FP3.1 production migration: active in Sites v389 after v388 failed safely before publish and exposed the historical fencing-token backfill defect.
 - FP3.1 runtime QA: zero-dispatch acceptance passed in Sites v390; Sites v391 removed the temporary QA authorization path, the environment key is absent and a retired QA header is rejected with `401`.
@@ -93,7 +93,7 @@ Evidence on 2026-08-21: `LEARNING_READY_CONTRACT_PACK_V1` defines exactly eight 
 
 Entry gate: `PASS` — Wave 2 migration is active with eight definitions, zero request/spend delta and no protected-lock regression.
 
-Status: `PHASE_11_FACTORY_BROWSER_QA_ACTIVE__JSON_MISROUTING_CORRECTED__NO_MEDIA_QUEUE`.
+Status: `PHASE_14_PROVIDER_BINDING_DIAGNOSTIC_ACTIVE__WP7_GROUND_TRUTH_INSUFFICIENT`.
 
 Scope:
 
