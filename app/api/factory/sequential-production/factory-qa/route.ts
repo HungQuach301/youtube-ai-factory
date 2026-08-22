@@ -52,7 +52,7 @@ async function authorized(request: Request) {
 }
 
 async function status(db: DB) {
-  const [registry, taskSummary, receiptSummary, runSummary] = await Promise.all([
+  const [registry, taskSummary, receiptSummary, runSummary, anchorRows] = await Promise.all([
     first(db, "SELECT * FROM v7_evaluation_factory_qa_registry WHERE channel_id=? AND policy_version=?", CHANNEL_ID, FACTORY_FIRST_QA_POLICY_VERSION),
     first(db, `SELECT COUNT(*) tasks,
       COALESCE(SUM(CASE WHEN task_class='OWNER_ANCHOR' THEN 1 ELSE 0 END),0) anchors,
@@ -65,7 +65,19 @@ async function status(db: DB) {
       COALESCE(SUM(CASE WHEN review_surface='BROWSER_REQUIRED' THEN 1 ELSE 0 END),0) browser_required
       FROM v7_evaluation_factory_qa_receipts WHERE channel_id=?`, CHANNEL_ID),
     first(db, "SELECT COUNT(*) runs,COALESCE(SUM(CASE WHEN lifecycle_state='CALIBRATION_PASS' THEN 1 ELSE 0 END),0) calibration_pass FROM v7_evaluation_factory_qa_runs WHERE channel_id=?", CHANNEL_ID),
+    rows(db, `SELECT f.labels_json factory_labels_json,o.labels_json owner_labels_json
+      FROM v7_evaluation_factory_qa_tasks q
+      JOIN v7_evaluation_factory_qa_receipts f ON f.task_id=q.id
+      JOIN v7_evaluation_owner_label_receipts o ON o.task_id=q.owner_task_id
+      WHERE q.channel_id=? AND q.task_class='OWNER_ANCHOR'
+      ORDER BY q.created_at,q.id`, CHANNEL_ID),
   ]);
+  const calibrationDiagnostics = anchorRows.map((row, index) => {
+    const owner = json<Array<{ defectKey?: string; status?: string }>>(row.owner_labels_json, []), factory = json<Array<{ defectKey?: string; status?: string }>>(row.factory_labels_json, []);
+    const ownerPresent = owner.filter((item) => clean(item.status) === "PRESENT").map((item) => clean(item.defectKey)).sort();
+    const factoryStatus = new Map(factory.map((item) => [clean(item.defectKey), clean(item.status)]));
+    return { anchor: index + 1, ownerPresent, factoryPresent: factory.filter((item) => clean(item.status) === "PRESENT").map((item) => clean(item.defectKey)).sort(), factoryUncertain: factory.filter((item) => clean(item.status) === "UNCERTAIN").map((item) => clean(item.defectKey)).sort(), missedOwnerPresent: ownerPresent.filter((key) => factoryStatus.get(key) !== "PRESENT") };
+  });
   return {
     policyVersion: FACTORY_FIRST_QA_POLICY_VERSION,
     lifecycleState: clean(registry?.lifecycle_state),
@@ -76,6 +88,7 @@ async function status(db: DB) {
     runs: number(runSummary?.runs), calibrationPassRuns: number(runSummary?.calibration_pass),
     providerRequests: number(receiptSummary?.provider_requests), spendUsd: number(receiptSummary?.spend_usd),
     requestCeiling: number(registry?.provider_request_ceiling), spendCeilingUsd: number(registry?.spend_ceiling_usd),
+    calibrationDiagnostics,
   };
 }
 

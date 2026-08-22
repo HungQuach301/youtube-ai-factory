@@ -369,6 +369,7 @@ test("Factory-first QA is independent, exact-byte-bound and owner attention is e
   assert.match(route, /detail: "high"/);
   assert.match(route, /prepareImageReviewSurface/);
   assert.match(route, /reviewInputHash/);
+  assert.match(route, /missedOwnerPresent/);
   assert.match(route, /label_source,polarity/);
   assert.doesNotMatch(route, /owner_decision_state='OWNER_CONFIRMED'/);
   const ownerRoute = read("app/api/factory/sequential-production/evaluation/route.ts");
