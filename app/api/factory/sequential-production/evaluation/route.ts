@@ -1,5 +1,6 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { canonicalHash } from "@/lib/canonical-json";
+import { discoverProviderHistoryAuthorized } from "@/app/api/factory/sequential-production/evaluation/provider-history/route";
 import {
   CORPUS_VERIFICATION_MAXIMUM_BATCH,
   CORPUS_VERIFICATION_MAXIMUM_OBJECT_BYTES,
@@ -24,7 +25,7 @@ type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promis
 type DB = { prepare(query: string): Statement; batch(statements: Statement[]): Promise<RunResult[]> };
 type StoredObject = { arrayBuffer(): Promise<ArrayBuffer>; size?: number; customMetadata?: Record<string, string> };
 type Bucket = { get(key: string): Promise<StoredObject | null> };
-type Env = { DB?: DB; BUCKET?: Bucket; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; SEQUENTIAL_EXECUTOR_TOKEN?: string };
+type Env = { DB?: DB; BUCKET?: Bucket; ELEVENLABS_API_KEY?: string; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; SEQUENTIAL_EXECUTOR_TOKEN?: string };
 
 class EvaluationCommandError extends Error { constructor(public code: string, public status: number, message: string) { super(message); } }
 const clean = (value: unknown) => String(value ?? "").trim();
@@ -298,16 +299,10 @@ export async function POST(request: Request) {
     const idempotencyKey = clean(request.headers.get("idempotency-key") || (formSubmission ? body?.idempotencyKey : ""));
     if (idempotencyKey.length < 16 || idempotencyKey.length > 160) throw new EvaluationCommandError("IDEMPOTENCY_KEY_INVALID", 400, "A 16–160 character idempotency-key is required");
     if (action === "DISCOVER_ELEVENLABS_HISTORY_METADATA") {
-      const executorToken = clean(env.SEQUENTIAL_EXECUTOR_TOKEN);
-      if (!executorToken) throw new EvaluationCommandError("SEQUENTIAL_EXECUTOR_NOT_CONNECTED", 424, "The scoped internal executor is unavailable");
-      const response = await fetch(new URL("/api/factory/sequential-production/evaluation/provider-history", request.url), { method: "POST", headers: { "idempotency-key": idempotencyKey, "x-sequential-executor-token": executorToken } });
-      const payload = await response.json().catch(() => null) as Row | null;
-      if (!response.ok) {
-        const error = payload?.error && typeof payload.error === "object" ? payload.error as Row : {};
-        throw new EvaluationCommandError(clean(error.code) || "PROVIDER_HISTORY_RECOVERY_FAILED", response.status, clean(error.message) || "Provider-history recovery failed");
-      }
+      if (!env.ELEVENLABS_API_KEY) throw new EvaluationCommandError("ELEVENLABS_NOT_CONNECTED", 424, "ElevenLabs history recovery requires the existing server-side API binding");
+      const payload = await discoverProviderHistoryAuthorized(env as typeof env & { ELEVENLABS_API_KEY: string }, actor, idempotencyKey);
       if (formSubmission) return new Response(null, { status: 303, headers: { ...NO_STORE, location: new URL("/api/factory/sequential-production/evaluation?view=provider-history-recovery&recorded=1", request.url).toString() } });
-      return Response.json(payload, { status: response.status, headers: NO_STORE });
+      return Response.json(payload, { status: 201, headers: NO_STORE });
     }
     if (action === "RECORD_OWNER_LABEL_RECEIPT") {
       const taskId = clean(body?.taskId), candidateId = clean(body?.candidateId), expectedArtifactHash = clean(body?.expectedArtifactHash).toLowerCase(), decisionState = clean(body?.decisionState), rationale = clean(body?.rationale);

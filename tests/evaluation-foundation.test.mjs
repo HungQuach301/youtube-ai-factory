@@ -699,7 +699,7 @@ test("migration 0070 and recovery route bound provider-history discovery without
   assert.doesNotMatch(route, /\/v1\/text-to-speech|rights_verification_state='PASS'|release_eligible=1/);
   assert.match(ownerBoundary, /provider-history-recovery/);
   assert.match(ownerBoundary, /DISCOVER_ELEVENLABS_HISTORY_METADATA/);
-  assert.match(ownerBoundary, /x-sequential-executor-token/);
+  assert.match(ownerBoundary, /discoverProviderHistoryAuthorized/);
   assert.match(ownerBoundary, /Tối đa 2 provider requests, không TTS và không phát sinh spend/);
 });
 

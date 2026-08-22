@@ -55,9 +55,8 @@ async function insertBatches(db: DB, statements: Statement[]) {
   for (let offset = 0; offset < statements.length; offset += 50) await db.batch(statements.slice(offset, offset + 50));
 }
 
-async function discover(request: Request) {
-  const { env, actor } = await authorized(request), db = env.DB;
-  const idempotencyKey = clean(request.headers.get("idempotency-key"));
+export async function discoverProviderHistoryAuthorized(env: Env & { DB: DB; ELEVENLABS_API_KEY: string }, actor: string, idempotencyKey: string) {
+  const db = env.DB;
   if (!/^[A-Za-z0-9._:-]{16,200}$/.test(idempotencyKey)) throw new ProviderHistoryError("IDEMPOTENCY_KEY_INVALID", 400, "A stable 16–200 character Idempotency-Key is required");
   const existingSnapshot = await snapshot(db); if (existingSnapshot) return { outcome: "REPLAYED", snapshot: existingSnapshot };
   const existing = await first(db, "SELECT lifecycle_state,error_code FROM v7_evaluation_provider_history_recovery_runs WHERE idempotency_key=? LIMIT 1", idempotencyKey);
@@ -113,6 +112,11 @@ async function discover(request: Request) {
     await run(db, "UPDATE v7_evaluation_provider_history_recovery_runs SET lifecycle_state='FAILED',provider_requests=2,error_code=?,completed_at=? WHERE id=?", error instanceof ProviderHistoryError ? error.code : "UNEXPECTED_PROVIDER_HISTORY_FAILURE", completedAt(), runId);
     throw error;
   }
+}
+
+async function discover(request: Request) {
+  const { env, actor } = await authorized(request);
+  return discoverProviderHistoryAuthorized(env, actor, clean(request.headers.get("idempotency-key")));
 }
 
 export async function GET(request: Request) {
