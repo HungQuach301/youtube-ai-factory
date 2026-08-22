@@ -65,7 +65,8 @@ async function status(db: DB) {
       COALESCE(SUM(CASE WHEN decision_state='LIKELY_DEFECT_PRESENT' THEN 1 ELSE 0 END),0) likely_defect,
       COALESCE(SUM(CASE WHEN decision_state='LIKELY_CLEAN' THEN 1 ELSE 0 END),0) likely_clean,
       COALESCE(SUM(CASE WHEN owner_attention_state IN ('OWNER_REQUIRED','OWNER_EXCEPTION') THEN 1 ELSE 0 END),0) owner_attention,
-      COALESCE(SUM(CASE WHEN review_surface='BROWSER_REQUIRED' THEN 1 ELSE 0 END),0) browser_required
+      COALESCE(SUM(CASE WHEN review_surface='BROWSER_REQUIRED' AND NOT EXISTS (SELECT 1 FROM v7_evaluation_factory_qa_routing_adjudications a WHERE a.source_receipt_id=v7_evaluation_factory_qa_receipts.id) THEN 1 ELSE 0 END),0) browser_required,
+      COALESCE(SUM(CASE WHEN EXISTS (SELECT 1 FROM v7_evaluation_factory_qa_routing_adjudications a WHERE a.source_receipt_id=v7_evaluation_factory_qa_receipts.id AND a.corrected_surface='STRUCTURED_EVIDENCE_ONLY') THEN 1 ELSE 0 END),0) structured_evidence_only
       FROM v7_evaluation_factory_qa_receipts WHERE channel_id=?`, CHANNEL_ID),
     first(db, "SELECT COUNT(*) runs,COALESCE(SUM(CASE WHEN lifecycle_state='CALIBRATION_PASS' THEN 1 ELSE 0 END),0) calibration_pass FROM v7_evaluation_factory_qa_runs WHERE channel_id=?", CHANNEL_ID),
     rows(db, `SELECT COALESCE(a.labels_json,f.labels_json) factory_labels_json,o.labels_json owner_labels_json
@@ -91,7 +92,7 @@ async function status(db: DB) {
     ownerAttentionPolicy: clean(registry?.owner_attention_policy),
     tasks: number(taskSummary?.tasks), anchors: number(taskSummary?.anchors), pending: number(taskSummary?.pending),
     receipts: number(receiptSummary?.receipts), likelyDefect: number(receiptSummary?.likely_defect), likelyClean: number(receiptSummary?.likely_clean),
-    ownerAttention: number(receiptSummary?.owner_attention), browserRequired: number(receiptSummary?.browser_required),
+    ownerAttention: number(receiptSummary?.owner_attention), browserRequired: number(receiptSummary?.browser_required), structuredEvidenceOnly: number(receiptSummary?.structured_evidence_only),
     runs: number(runSummary?.runs), calibrationPassRuns: number(runSummary?.calibration_pass),
     providerRequests: number(receiptSummary?.provider_requests), spendUsd: number(receiptSummary?.spend_usd),
     requestCeiling: number(registry?.provider_request_ceiling), spendCeilingUsd: number(registry?.spend_ceiling_usd),
@@ -268,11 +269,12 @@ export async function POST(request: Request) {
       const task = await first(env.DB, `SELECT q.*,c.storage_key,c.verification_state,c.rights_verification_state,c.lifecycle_state,c.release_eligible
         FROM v7_evaluation_factory_qa_tasks q JOIN v7_evaluation_candidates c ON c.id=q.candidate_id WHERE q.candidate_id=?`, candidateId);
       if (!task) continue;
-      if (!clean(task.mime_type).startsWith("image/")) {
+      if (["audio/", "video/"].some((prefix) => clean(task.mime_type).startsWith(prefix))) {
         const requestHash = await canonicalHash({ policyVersion: FACTORY_FIRST_QA_POLICY_VERSION, candidateId, exactArtifactHash: task.exact_artifact_hash, reviewSurface: "BROWSER_REQUIRED" });
         await recordReceipt(env.DB, { runId: clean(qaRun.id), task, taxonomy, actor, calibrationVersion: clean(qaRun.calibration_version), reviewSurface: "BROWSER_REQUIRED", reviewInputHash: clean(task.exact_artifact_hash), reviewMimeType: clean(task.mime_type), reviewTransform: "IDENTITY", decisionState: "BROWSER_REQUIRED", ownerAttentionState: "NO_IMMEDIATE_OWNER_ACTION", labels: [], summary: "Temporal or audible media is queued for full Factory Browser playback before any perceptual conclusion; no owner action is requested yet.", providerRequests: 0, spendUsd: 0, requestHash });
         continue;
       }
+      if (!clean(task.mime_type).startsWith("image/")) throw new FactoryQaError("FACTORY_QA_REVIEW_SURFACE_UNSUPPORTED", 409, `Unsupported perceptual QA MIME: ${clean(task.mime_type) || "MIME_MISSING"}`);
       const inspected = await inspectImage(env, task, taxonomy);
       const labels = inspected.result.labels ?? [], present = labels.filter((item) => clean(item.status) === "PRESENT"), uncertain = labels.filter((item) => clean(item.status) === "UNCERTAIN");
       const p0 = new Set(taxonomy.filter((item) => clean(item.severity) === "P0").map((item) => clean(item.defect_key)));

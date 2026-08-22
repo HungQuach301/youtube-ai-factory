@@ -113,7 +113,7 @@ test("migration 0051 installs the registry and enforces zero-spend owner-bound v
   const db = new DatabaseSync(":memory:");
   const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
   for (const file of migrations) db.exec(read(`drizzle/${file}`));
-  assert.equal(migrations.at(-1), "0065_factory_browser_qa.sql");
+  assert.equal(migrations.at(-1), "0066_factory_qa_routing_adjudication.sql");
   assert.equal(db.prepare("SELECT COUNT(*) total FROM v7_learning_ready_contract_registry").get().total, 8);
   assert.equal(db.prepare("SELECT COALESCE(SUM(provider_requests),0) requests,COALESCE(SUM(spend_usd),0) spend FROM v7_learning_ready_contract_registry").get().requests, 0);
   assert.throws(() => db.prepare("UPDATE v7_learning_ready_contract_registry SET spend_usd=1 WHERE id='LRCP-CHANNEL-IDENTITY'").run(), /CHECK constraint failed/);

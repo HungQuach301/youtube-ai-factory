@@ -463,9 +463,23 @@ test("Factory Browser QA is exact-byte-bound, full-playback, immutable and indep
   assert.match(route, /r\.review_surface='BROWSER_REQUIRED'/);
   assert.match(route, /sourceBrowserRequired/);
   assert.match(route, /MIME_MISSING/);
+  assert.match(route, /v7_evaluation_factory_qa_routing_adjudications/);
   assert.match(route, /SUBMIT_FACTORY_BROWSER_QA/);
   assert.match(route, /providerRequests: 0, spendUsd: 0/);
   assert.doesNotMatch(route, /api\.openai\.com|api\.elevenlabs\.io|owner_decision_state='OWNER_CONFIRMED'/);
+});
+
+test("Factory QA routing adjudication preserves legacy receipts and excludes structured JSON from perceptual Browser QA", () => {
+  const migration = read("drizzle/0066_factory_qa_routing_adjudication.sql");
+  const factoryRoute = read("app/api/factory/sequential-production/factory-qa/route.ts");
+  assert.match(migration, /FACTORY_QA_ROUTING_ADJUDICATION_V1/);
+  assert.match(migration, /STRUCTURED_EVIDENCE_ONLY/);
+  assert.match(migration, /NON_MEDIA_MISROUTED_BY_LEGACY_DEFAULT/);
+  assert.match(migration, /EVALUATION_FACTORY_QA_ROUTING_ADJUDICATION_IMMUTABLE/);
+  assert.doesNotMatch(migration, /UPDATE `v7_evaluation_factory_qa_receipts`|DELETE FROM `v7_evaluation_factory_qa_receipts`/);
+  assert.match(factoryRoute, /structuredEvidenceOnly/);
+  assert.match(factoryRoute, /FACTORY_QA_REVIEW_SURFACE_UNSUPPORTED/);
+  assert.match(factoryRoute, /\["audio\/", "video\/"\]/);
 });
 
 test("correlation control permits one independent representative per lineage and exact hash", () => {

@@ -117,7 +117,7 @@ test("all migrations replay and the real SQLite guards close concurrent and actu
   `);
   db.exec(read("drizzle/0050_fp3_1_production_integrity.sql"));
   for (const migration of migrations.slice(integrityMigrationIndex + 1)) db.exec(read(`drizzle/${migration}`));
-  assert.equal(migrations.at(-1), "0065_factory_browser_qa.sql");
+  assert.equal(migrations.at(-1), "0066_factory_qa_routing_adjudication.sql");
   const historicalLeases = db.prepare("SELECT id,fencing_token,lifecycle_state FROM v7_sequential_leases WHERE program_id='YTAF-V7-SEQUENTIAL' ORDER BY fencing_token").all();
   assert.deepEqual(historicalLeases.map((lease) => [lease.id, lease.fencing_token, lease.lifecycle_state]), [
     ["historical-lease-1", 1, "RELEASED"],

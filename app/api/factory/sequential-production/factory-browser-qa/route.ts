@@ -59,7 +59,8 @@ async function status(db: DB) {
     FROM v7_evaluation_factory_browser_qa_tasks WHERE channel_id=? AND policy_version=? GROUP BY modality ORDER BY modality`, CHANNEL_ID, FACTORY_BROWSER_QA_POLICY_VERSION);
   const sourceBreakdown = await rows(db, `SELECT q.candidate_kind,q.artifact_type,COALESCE(NULLIF(trim(q.mime_type),''),'MIME_MISSING') mime_type,COUNT(*) count
     FROM v7_evaluation_factory_qa_tasks q JOIN v7_evaluation_factory_qa_receipts r ON r.task_id=q.id AND r.review_surface='BROWSER_REQUIRED'
-    WHERE q.channel_id=? GROUP BY q.candidate_kind,q.artifact_type,COALESCE(NULLIF(trim(q.mime_type),''),'MIME_MISSING')
+    WHERE q.channel_id=? AND NOT EXISTS (SELECT 1 FROM v7_evaluation_factory_qa_routing_adjudications a WHERE a.source_receipt_id=r.id)
+    GROUP BY q.candidate_kind,q.artifact_type,COALESCE(NULLIF(trim(q.mime_type),''),'MIME_MISSING')
     ORDER BY count DESC,q.candidate_kind,q.artifact_type LIMIT 50`, CHANNEL_ID);
   return { policyVersion: FACTORY_BROWSER_QA_POLICY_VERSION, authorityBoundary: "INDEPENDENT_REVIEW_ONLY", tasks: number(summary?.tasks), pending: number(summary?.pending), likelyDefect: number(summary?.likely_defect), likelyClean: number(summary?.likely_clean), needsOwner: number(summary?.needs_owner), modality: modality.map((item) => ({ modality: clean(item.modality), count: number(item.count) })), sourceBrowserRequired: sourceBreakdown.reduce((sum, item) => sum + number(item.count), 0), sourceBreakdown: sourceBreakdown.map((item) => ({ candidateKind: clean(item.candidate_kind), artifactType: clean(item.artifact_type), mimeType: clean(item.mime_type), count: number(item.count) })), providerRequests: 0, spendUsd: 0 };
 }
@@ -72,7 +73,8 @@ async function reconcileTasks(db: DB, actor: string) {
     SELECT 'factory-browser-qa-task:' || q.candidate_id,q.channel_id,q.id,r.id,q.candidate_id,lower(q.exact_artifact_hash),q.candidate_kind,q.artifact_type,q.mime_type,?
     FROM v7_evaluation_factory_qa_tasks q
     JOIN v7_evaluation_factory_qa_receipts r ON r.task_id=q.id AND r.review_surface='BROWSER_REQUIRED'
-    WHERE q.channel_id=? AND (q.mime_type LIKE 'audio/%' OR q.mime_type LIKE 'video/%')`).bind(FACTORY_BROWSER_QA_POLICY_VERSION, CHANNEL_ID).run();
+    WHERE q.channel_id=? AND (q.mime_type LIKE 'audio/%' OR q.mime_type LIKE 'video/%')
+      AND NOT EXISTS (SELECT 1 FROM v7_evaluation_factory_qa_routing_adjudications a WHERE a.source_receipt_id=r.id)`).bind(FACTORY_BROWSER_QA_POLICY_VERSION, CHANNEL_ID).run();
   return { outcome: "RECONCILED", inserted: number(result.meta?.changes), reconciledBy: actor, factoryBrowserQa: await status(db), providerRequests: 0, spendUsd: 0 };
 }
 
