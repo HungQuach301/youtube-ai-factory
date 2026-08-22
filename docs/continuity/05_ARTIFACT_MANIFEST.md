@@ -138,3 +138,15 @@ Stage 09 composite evidence requires nine hashes: candidate A/B/C × entry/midpo
 - Production checkpoint: Sites v350, commit `8f566d0d89037594f6bc8feb608736809389043b`.
 - Current control-state evidence: Stage 00–10 frozen, Stage 11 state-ready, 84 media assets, three audio stems, narration 704.447 seconds, 0 active provider requests, $10.812573 estimated OpenAI usage.
 - Current quality eligibility: `BLOCKED_VIDEO_STANDARD_V2`; Stage 08 covers only 0–600 seconds, Stage 09 motion proof is text rather than decoded temporal pixels, and Stage 10 lacks perceptual voice evidence, production music/SFX and a full-duration audience mix. Historical revisions remain immutable.
+
+# Evaluation Foundation and Factory-first QA artifacts
+
+- Architecture: `docs/architecture/EVALUATION_FOUNDATION.md`.
+- Production ledger: `docs/continuity/59_FACTORY_FIRST_QA_EXECUTION_RECORD.md`.
+- Migrations: `drizzle/0052_evaluation_foundation.sql` through `drizzle/0064_factory_qa_deterministic_adjudication.sql`.
+- Factory route: `app/api/factory/sequential-production/factory-qa/route.ts`.
+- Exact-byte raster/SVG review surface and deterministic closed-condition signals: `lib/image-review-surface.ts`.
+- Continuous contract: `tests/evaluation-foundation.test.mjs`.
+- Production checkpoint: Sites v425, commit `d267c85e66d7cf01970ed2877de5fec362e12a8f`.
+- Production outcome: combined calibration 2/2; 80 non-anchor primaries drained to 33 likely-defect and 47 Browser-required receipts; zero likely-clean and zero owner-attention; 37 provider requests; $0.4314096 measured spend; zero recent Worker errors.
+- Protected boundary: Factory evidence is independent triage only. The 47 temporal/audio tasks require a separately qualified Browser lane; fixtures, datasets, assurance and release state remain unchanged.

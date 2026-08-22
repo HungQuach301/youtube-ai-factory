@@ -138,6 +138,8 @@ Sites v422 then completed Calibration V1 but missed `MOBILE_LEGIBILITY` and `PRO
 
 Sites v424 completed Calibration V2 with the same two misses on both anchors; cumulative measured usage is four provider calls and $0.06268. A direct renderer inspection confirmed that the review PNG preserves the small text and internal footer, so another prompt-only retry is not justified. Migration `0064` adds a separate immutable deterministic adjudication receipt for exactly two closed SVG conditions—declared text below the mobile floor and the known internal residue phrase—and combines those signals with the preserved V2 model receipt. The next gate is a zero-provider adjudication of the same two anchors; bounded batch execution opens only if both combined results agree with the owner anchors.
 
+Sites v425 passed zero-provider combined calibration at 2/2 and then drained all 80 non-anchor primaries through sixteen bounded batches. Outcomes are 33 independent likely-defect receipts, 47 fail-closed Browser-required receipts, zero likely-clean receipts and zero owner-attention exceptions. Cumulative Factory usage is 37 requests and $0.4314096 against ceilings of 84 and $6.75; recent error-only Worker logs are empty. This closes owner-scale first-pass image triage without promoting any fixture, dataset, assurance or release state. The exact next Wave 3 gate is a separately qualified Factory Browser execution lane for the 47 temporal/audio tasks; rights-evidence collection and gold-set construction remain independently blocked.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:

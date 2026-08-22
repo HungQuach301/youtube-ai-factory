@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `FACTORY_FIRST_QA_SOURCE_READY__PRODUCTION_CALIBRATION_PENDING`
+**Current source classification:** `FACTORY_FIRST_QA_PRODUCTION_ACTIVE__VISION_QUEUE_DRAINED__BROWSER_LANE_REQUIRED`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -21,9 +21,9 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 
 ## Current handoff truth
 
-- The owner has reported two successfully saved failed samples and has stopped the sequential 82-sample workflow. Production read-back after migration `0061` must confirm exactly two anchor receipts; screenshots and chat descriptions are not database authority.
-- `FACTORY_FIRST_QA_POLICY_V1` moves first-pass QA to a separate independent evidence lane. Calibration requires full recall of every owner-present defect on both anchors. It never writes as the owner, never sets owner-confirmed state and cannot promote fixtures, datasets, assurance qualification or release eligibility.
-- Source includes a five-item batch ceiling, 82-request / $6.75 hard envelope, exact R2 SHA-256 verification, structured high-detail vision review and a mandatory Browser-required state for non-image media. Exact next action is deploy migration `0061`, read back anchors, run calibration, then process bounded batches only on PASS.
+- Production confirms two exact-byte owner anchors. Sites v425 combined preserved V2 model receipts with separate deterministic SVG evidence and passed calibration at 2/2 without a third provider retry.
+- `FACTORY_FIRST_QA_POLICY_V1` completed all 80 non-anchor primaries: 33 likely-defect, 47 Browser-required, zero likely-clean and zero owner-attention. It never writes as the owner, never sets owner-confirmed state and cannot promote fixtures, datasets, assurance qualification or release eligibility.
+- The ledger contains 84 raw receipts, 37 provider requests and measured spend of $0.4314096 against hard ceilings of 84 / $6.75. Exact next action is the separately qualified Factory Browser execution lane for the 47 temporal/audio tasks; the owner does not resume the sequential queue.
 
 - The latest code baseline before knowledge consolidation is `5b669fc9230f5b012ebe4aa2c0b5c21fa50df890`.
 - FP1 truthful operator projection is implemented.
@@ -57,6 +57,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 - Sites v414 deploys `BROWSER_ASSURANCE_GATE_V1` and migration `0060` as a separate exact-master release gate from source `3cfc3d9ddd8d99175eee112e5943029106559256`. Agent-preview QA played a marked no-release fixture to completion, exercised pause/resume/seek, observed motion and verified keyboard focus; it caught and fixed a real `crypto.randomUUID` runtime defect. The gate refused PASS because agent audio perception and zoom/reflow were unavailable. Full regression passes 164/164, provider/spend remain zero and post-deploy Worker errors are zero. The owner supplements audible-audio and zoom/reflow only; Browser assurance never replaces owner semantic evaluation.
 - The first real owner-label form submission exposed `OWNER_REVIEW_NOT_APPLICABLE_CONFIDENCE_UNDEFINED`: system-owned `NOT_APPLICABLE` labels reached canonical hashing with an in-memory `undefined` confidence. The request failed before any receipt insert, so sample 1 must be resubmitted. Sites v416 deploys the source fix from `5321ca67539c8a8cc534778e883fab7ad1f1a050`: explicit `null`, one normalized label set for request/evidence hashes, idempotent replay redirect and inline form preservation on server/network errors. Full regression passes 165/165, provider/spend remain zero and post-deploy Worker errors are zero. Exact next signal is success banner plus `Mẫu 2/82` after owner resubmission.
 - The second sample-1 submission preserved all selections/rationale inline but Production read-back proves it POSTed to `/api/factory/sequential-production/[object HTMLInputElement]` and returned 404. The hidden `action` input shadowed `HTMLFormElement.action`; the evaluation handler never ran and no receipt exists. Sites v418 deploys the endpoint correction from exact source `fce8dbc65da228d21b6526b5dd987716c7fdf3e6`; source resolves only `form.getAttribute('action')`, forbids `fetch(form.action`, passes 165/165 tests and has zero post-deploy Worker errors. The owner refreshes the already-open workflow and resubmits; screenshots/chat cannot substitute for the exact-artifact identity-bound receipt.
+- Sites v420–v424 deployed Factory-first tasking, exact SVG review surfaces and two preserved calibration versions. Both model-only calibrations correctly found near-static motion but missed mobile legibility and production residue on both anchors. Sites v425 adds immutable deterministic adjudication for those two closed exact-byte conditions, passes combined calibration at 2/2 and drains all 80 non-anchor primaries through sixteen bounded batches. Production now reports 33 likely-defect, 47 Browser-required, zero likely-clean, zero owner attention, 37 requests, $0.4314096 spend and no recent Worker errors. Next is the Factory Browser execution lane; no manual owner queue resumes.
 
 ## Protected no-rerun list
 

@@ -4,7 +4,7 @@
 
 **Policy:** `FACTORY_FIRST_QA_POLICY_V1`
 
-**Source state:** `IMPLEMENTED__PRODUCTION_ACCEPTANCE_PENDING`
+**Source state:** `PRODUCTION_ACTIVE__VISION_QUEUE_DRAINED__BROWSER_LANE_REQUIRED`
 
 ## Outcome
 
@@ -34,8 +34,8 @@ Migration `0061_factory_first_qa.sql` creates append-only tasks and receipts, bo
 
 ## Source verification
 
-- Evaluation Foundation target tests: 20/20 PASS.
-- Full regression: 166/166 PASS.
+- Evaluation Foundation target tests: 21/21 PASS.
+- Full regression: 167/167 PASS.
 - Verified build: PASS, including async-boundary, commercial contract, sequential runtime and bounded vinext build checks.
 - Agent-preview Browser QA: PASS for Vietnamese hierarchy, status-card readability, authority-boundary interaction and zero page console errors. The fixture is explicitly non-production and creates no receipt.
 - Repository-wide lint remains red on pre-existing unrelated files; no new Factory-first QA lint finding was emitted.
@@ -56,3 +56,11 @@ Sites v422 replayed the same calibration intent after `0062`. Both anchors produ
 Production diagnostics show the same misses on both anchors: `MOBILE_LEGIBILITY` and `PRODUCTION_RESIDUE`; `NEAR_STATIC_MOTION` was correctly detected. `FACTORY_QA_CALIBRATION_V2` preserves both V1 receipts, adds a calibration version to runs/receipts/registry, defines mobile review at an approximately 360 CSS-pixel presentation width and treats the exact internal phrase as residue even when styled as footer copy. The cumulative request ceiling becomes 84 solely to retain two failed V1 calibration calls plus two V2 calls and the original 80 pending tasks; the $6.75 spend ceiling is unchanged.
 
 Calibration V2 repeated the same misses, while a direct visual renderer check proved the SVG-to-PNG surface preserves both small text and the footer. Migration `0064` therefore adds an immutable deterministic adjudication receipt rather than spending on a third model pass or rewriting V1/V2 evidence. Exact-byte SVG preflight can override only two closed conditions: the known internal residue phrase and declared text below the 32px full-frame mobile floor. The combined critic is used for both anchor adjudication and future batches.
+
+## Production acceptance — Sites v425
+
+The zero-provider adjudication combined each preserved V2 model receipt with its separate exact-byte SVG signals. Both anchors then matched all three owner-present defects—`MOBILE_LEGIBILITY`, `NEAR_STATIC_MOTION` and `PRODUCTION_RESIDUE`—with no missed owner-present key. Calibration became `CALIBRATION_PASS` at 2/2 agreements while cumulative usage remained four requests and $0.06268.
+
+Sixteen idempotent batches of at most five then drained all 80 non-anchor primaries. Their outcomes are 33 `LIKELY_DEFECT_PRESENT`, 47 `BROWSER_REQUIRED`, zero `LIKELY_CLEAN` and zero owner-attention exceptions. The full ledger contains 84 raw receipts because it preserves V1 and V2 for both anchors in addition to the 80 batch receipts. Cumulative measured usage is 37 provider requests and $0.4314096 against ceilings of 84 and $6.75. Recent production error-only Worker logs are empty.
+
+These results are triage evidence, not gold or release evidence. The 47 temporal/audio tasks remain blocked until a purpose-built Browser execution lane binds exact bytes, real playback and independent evidence. The owner is not asked to resume sequential classification.

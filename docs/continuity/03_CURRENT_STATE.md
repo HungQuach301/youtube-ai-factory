@@ -13,13 +13,19 @@ FACTORY_TASK_SCOPE = 82_READY_PRIMARY
 OWNER_ATTENTION = EXCEPTIONS_AND_AUDIT_SAMPLE_ONLY
 PROVIDER_REQUEST_CEILING = 84
 SPEND_CEILING_USD = 6.75
-SOURCE_TESTS = TARGET_20_OF_20_PASS__VERIFIED_BUILD_PASS
-PRODUCTION_STATE = V424_ACTIVE__CALIBRATION_V2_FAILED_0_OF_2_AGREEMENTS
-FACTORY_QA_MEASURED_SPEND_USD = 0.06268
-NEXT_PROTECTED_ACTION = DEPLOY_0064__RUN_ZERO_PROVIDER_DETERMINISTIC_ADJUDICATION
+SOURCE_TESTS = FULL_REGRESSION_167_OF_167_PASS__VERIFIED_BUILD_PASS
+PRODUCTION_STATE = V425_ACTIVE__FACTORY_FIRST_QUEUE_DRAINED
+FACTORY_QA_CALIBRATION = PASS_2_OF_2_COMBINED_MODEL_AND_DETERMINISTIC
+FACTORY_QA_PRIMARY_OUTCOMES = 33_LIKELY_DEFECT__47_BROWSER_REQUIRED__0_LIKELY_CLEAN
+FACTORY_QA_OWNER_ATTENTION = 0
+FACTORY_QA_PROVIDER_REQUESTS = 37_OF_84
+FACTORY_QA_MEASURED_SPEND_USD = 0.4314096_OF_6.75
+NEXT_PROTECTED_ACTION = IMPLEMENT_FACTORY_BROWSER_QA_EXECUTION_LANE_FOR_47_TEMPORAL_AUDIO_TASKS
 ```
 
-The owner stopped after saving two materially similar failed SHOT samples. Both were described as static slide-like visuals with weak visual communication and audience-visible production residue. Those reports are discovery context until production migration read-back confirms the two exact owner receipts. The Factory now owns first-pass QA; it may not write under the owner identity or convert independent review into gold, assurance or release authority.
+The owner stopped after saving two materially similar failed SHOT samples. Production read-back confirmed both exact-byte receipts and their three owner-present defects. The Factory now owns first-pass QA; it may not write under the owner identity or convert independent review into gold, assurance or release authority.
+
+Production read-back now confirms the two exact owner anchors and an immutable combined calibration PASS. The 80 non-anchor primaries are fully drained from the Factory queue: 33 received independent likely-defect receipts and 47 remain fail-closed for mandatory Browser playback; none were labelled likely clean and none requested owner attention. Raw receipt count is 84 because both V1 and V2 model receipts for each of the two anchors are preserved. No fixture, dataset, assurance capability or release state was promoted.
 
 ## Owner-review form-action collision source checkpoint — 2026-08-22
 
