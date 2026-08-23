@@ -19,12 +19,15 @@ DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
 READINESS_AFTER_SUCCESS = INSUFFICIENT_GROUND_TRUTH
 TARGETED_REGRESSION = 36_OF_36_PASS
 FULL_REGRESSION = 184_OF_184_PASS__VERIFIED_BUILD_PASS
-ELIGIBILITY_EXECUTION = PENDING
-SCOPED_AUTOMATION = SOURCE_READY__EXACT_ACTION_ONLY
-NEXT_PROTECTED_ACTION = DEPLOY_SCOPED_AUTOMATION_AND_RUN_ONE_ZERO_PROVIDER_ELIGIBILITY_EVALUATION
+ELIGIBILITY_EXECUTION = PRODUCTION_COMPLETE_SITES_V461
+SCOPED_AUTOMATION = PRODUCTION_ACTIVE__EXACT_ACTION_ONLY
+ELIGIBILITY_DECISION = ELIGIBLE_CLEAN_CONTROL_REFERENCE
+OWNER_CONFIRMED_REFERENCES_AFTER = 3
+CLEAN_NEGATIVE_CONTROLS_AFTER = 1
+NEXT_PROTECTED_ACTION = DESIGN_SEPARATE_CONTROLLED_DEFECT_DERIVATIVE_GATE
 ```
 
-Sites v460 activated migration `0079` and `CLEAN_AUDIO_CONTROL_ELIGIBILITY_V1`, adding a separate exact-byte eligibility decision after owner ground truth. A successful receipt may recognize exactly one clean-negative reference and project three owner-confirmed references with one clean control, but controlled injections remain zero and P0 coverage remains 0/5. A dedicated automation credential is source-ready and accepted only for this exact action so the owner no longer performs machine-verifiable button work. Dataset, assurance, Golden r10, Stage 11 and release stay closed. Documents 73, ADR-102 and ADR-103 are authoritative; the separate V2 project is untouched.
+Sites v460 activated migration `0079`; Sites v461 deployed the exact-action-only operator credential and recorded the sole `ELIGIBLE_CLEAN_CONTROL_REFERENCE` receipt. Production re-read the exact R2 bytes and passed checksum, provenance and rights binding with the prior `LIKELY_CLEAN` Factory receipt and `CLEAN_CONFIRMED` owner receipt. The result recognizes three owner-confirmed references and one clean control with zero provider requests and zero spend, but controlled injections remain zero and P0 coverage remains 0/5. Readiness therefore remains `INSUFFICIENT_GROUND_TRUTH`; dataset, assurance, Golden r10, Stage 11 and release stay closed. Documents 73, ADR-102 and ADR-103 are authoritative; the separate V2 project is untouched.
 
 ## Clean-audio owner ground-truth gate — 2026-08-23
 

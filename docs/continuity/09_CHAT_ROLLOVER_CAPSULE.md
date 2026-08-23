@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_CLEAN_AUDIO_CONTROL_ELIGIBILITY__PRODUCTION_TASK_PENDING`
+**Current source classification:** `WP7_CLEAN_AUDIO_CONTROL_ELIGIBILITY__PRODUCTION_COMPLETE`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -21,7 +21,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 
 ## Current handoff truth
 
-- Sites v460 activated migration `0079` and `CLEAN_AUDIO_CONTROL_ELIGIBILITY_V1` from source `7f35fec90b3a9a0efbb0c1e773fffdfcb2952443`. The one eligibility task is pending. A dedicated server credential is source-ready and hard-bound to `EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY`; it cannot authenticate any other action. The command re-reads R2 and uses zero provider/spend. Success would project three owner-confirmed references and one clean control, but readiness remains `INSUFFICIENT_GROUND_TRUTH` because controlled injections are zero and P0 coverage is 0/5. Dataset, assurance, Golden r10, Stage 11 and release remain locked. Deploy scoped automation and run the sole task next. V2 is untouched.
+- Sites v460 activated migration `0079`; Sites v461 from source `afc96961562619faa8e29a996c65bbd7c00d85cd` deployed the exact-action-only operator credential and recorded the sole `ELIGIBLE_CLEAN_CONTROL_REFERENCE`. Exact R2 read-back, checksum, provenance and rights passed; the prior Factory result is `LIKELY_CLEAN` and owner truth is `CLEAN_CONFIRMED`. The command used zero provider requests and zero spend. There are now three owner-confirmed references and one clean control, but readiness remains `INSUFFICIENT_GROUND_TRUTH` because controlled injections are zero and P0 coverage is 0/5. Dataset, assurance, Golden r10, Stage 11 and release remain locked. Next design a separate controlled-defect derivative gate. V2 is untouched.
 
 - Sites v458 activated migration `0078` from source `e8dd36f5a36a4527dc385ced9ad75baf19264ca0`. The allowlisted owner listened through the exact 35-second Rights-PASS replacement and recorded the sole `CLEAN_CONFIRMED` receipt with `ATTESTED` full playback. Request `a2f797499ff47a53` completed with a 303 redirect after 1.323 seconds; exact artifact reads returned 200 and recent Worker errors are zero. The append-only receipt grants `OWNER_GROUND_TRUTH_ONLY` authority with zero provider/spend and no dataset/assurance/release authority. Targeted tests pass 53/53 and the full verified suite passes 183/183. Next design a separate clean-control eligibility gate; do not infer dataset, assurance, Golden r10, Stage 11 or release authority. V2 is untouched.
 
