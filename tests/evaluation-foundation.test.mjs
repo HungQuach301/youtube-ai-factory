@@ -48,7 +48,7 @@ import { CLEAN_AUDIO_OWNER_DEFECT_KEYS, CLEAN_AUDIO_OWNER_GROUND_TRUTH_VERSION }
 import { CLEAN_AUDIO_CONTROL_ELIGIBILITY_VERSION, evaluateCleanAudioControlEligibilityAuthorized } from "../lib/clean-audio-control-eligibility.ts";
 import { CONTROLLED_DEFECT_DERIVATION_VERSION, deriveRightsLineageMissingControlAuthorized } from "../lib/controlled-defect-derivation.ts";
 import { CLEAN_AV_MASTER_MATERIALIZATION_VERSION, materializeCleanAvMasterAuthorized, readCleanAvStagedUploadAuthorized, recordCleanAvBrowserQaAuthorized, stageCleanAvUploadChunkAuthorized } from "../lib/clean-av-master.ts";
-import { CLEAN_AV_AUTONOMOUS_BROWSER_QA_VERSION, finalizeAutonomousCleanAvBrowserQaAuthorized, startAutonomousCleanAvBrowserQaAuthorized } from "../lib/clean-av-browser-automation.ts";
+import { CLEAN_AV_AUTONOMOUS_BROWSER_QA_VERSION, autonomousCleanAvBrowserQaHtml, finalizeAutonomousCleanAvBrowserQaAuthorized, startAutonomousCleanAvBrowserQaAuthorized } from "../lib/clean-av-browser-automation.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -1067,6 +1067,11 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
   assert.match(autonomousImplementation, /captureStream/);
   assert.match(autonomousImplementation, /requestVideoFrameCallback/);
   assert.match(autonomousImplementation, /MOBILE_CUE_4/);
+  const runnerHtml = autonomousCleanAvBrowserQaHtml({ materializationReceiptId: "receipt-test", distributionHash: "hash-test" });
+  const encodedHarness = runnerHtml.match(/srcdoc="([\s\S]+)"><\/iframe>/)?.[1] ?? "";
+  const decodedHarness = encodedHarness.replaceAll("&quot;", '"').replaceAll("&amp;", "&");
+  const runnerScript = decodedHarness.match(/<script>([\s\S]+)<\/script>/)?.[1] ?? "";
+  assert.doesNotThrow(() => new Function(runnerScript));
   assert.match(autonomousMigration, /maximum_attempts.*= 3/s);
   assert.doesNotMatch(`${autonomousImplementation}\n${autonomousMigration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|DELETE FROM/);
   assert.match(route, /COMMIT_CLEAN_AV_MASTER/);
