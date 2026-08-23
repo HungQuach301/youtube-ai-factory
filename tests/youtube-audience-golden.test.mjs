@@ -86,9 +86,9 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /physical-balance-reservoir/);
   assert.match(executor, /converging-record-plates/);
   assert.match(executor, /growing-merchant-coin-stack/);
-  assert.match(executor, /sceneCount:r16\?15:r15\?1:r14\?32:r13\?6:r12\?6:r11\?16:r10\?36:r9\?40:r5Plus\?20/);
-  assert.match(executor, /minimumCriticalFontPx1080:r16\?120:r15\?120:r14\?108:r13\?108:r12\?108:r11\?90:r10\?84:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
-  assert.match(executor, /\["r5","r6","r7","r8","r9","r10","r11","r12","r13","r14","r15","r16"\]\.includes\(revision\) \? "22" : "19"/);
+  assert.match(executor, /sceneCount:r17\?24:r16\?15:r15\?1:r14\?32:r13\?6:r12\?6:r11\?16:r10\?36:r9\?40:r5Plus\?20/);
+  assert.match(executor, /minimumCriticalFontPx1080:r17\?132:r16\?120:r15\?120:r14\?108:r13\?108:r12\?108:r11\?90:r10\?84:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
+  assert.match(executor, /\["r5","r6","r7","r8","r9","r10","r11","r12","r13","r14","r15","r16","r17"\]\.includes\(revision\) \? "22" : "19"/);
   assert.match(executor, /chunks\.length > 128/);
 });
 
@@ -163,7 +163,7 @@ test("Revision 8 visual failure and audio pass create immutable Revision 9 with 
   assert.match(executor, /forty-beat-compositor/);
   assert.match(executor, /current-history-future-state-roles/);
   assert.match(executor, /many-to-one-netting-result/);
-  assert.match(executor, /sceneCount:r16\?15:r15\?1:r14\?32:r13\?6:r12\?6:r11\?16:r10\?36:r9\?40/);
+  assert.match(executor, /sceneCount:r17\?24:r16\?15:r15\?1:r14\?32:r13\?6:r12\?6:r11\?16:r10\?36:r9\?40/);
 });
 
 test("Revision 9 visual failure and audio pass create immutable Revision 10 with full-frame object transformations", () => {
@@ -217,7 +217,7 @@ test("Revision 11 visual failure and audio pass create immutable Revision 12 as 
   assert.match(executor, /single-hero-token-across-all-acts/);
   assert.match(executor, /thirty-two-uniform-time-ordered-frames/);
   assert.match(executor, /direct-state-rail-to-exception-mapping/);
-  assert.match(executor, /sceneCount:r16\?15:r15\?1:r14\?32:r13\?6:r12\?6/);
+  assert.match(executor, /sceneCount:r17\?24:r16\?15:r15\?1:r14\?32:r13\?6:r12\?6/);
 });
 
 test("Revision 12 visual failure and audio pass create immutable Revision 13 with evidence-bound semantic and pacing repairs", () => {
@@ -234,7 +234,7 @@ test("Revision 12 visual failure and audio pass create immutable Revision 13 wit
   assert.match(executor, /large-labeled-netting-obligation-groups/);
   assert.match(executor, /four-distinct-full-frame-state-compositions/);
   assert.match(executor, /no-repeated-state-map/);
-  assert.match(executor, /sceneCount:r16\?15:r15\?1:r14\?32:r13\?6/);
+  assert.match(executor, /sceneCount:r17\?24:r16\?15:r15\?1:r14\?32:r13\?6/);
 });
 
 test("Revision 13 visual failure and audio pass create immutable Revision 14 as thirty-two distinct causal states", () => {
@@ -250,7 +250,7 @@ test("Revision 13 visual failure and audio pass create immutable Revision 14 as 
   assert.match(executor, /one-composition-per-atlas-sample/);
   assert.match(executor, /explicit-approved-before-hold/);
   assert.match(executor, /one-full-frame-exception-branch-at-a-time/);
-  assert.match(executor, /sceneCount:r16\?15:r15\?1:r14\?32/);
+  assert.match(executor, /sceneCount:r17\?24:r16\?15:r15\?1:r14\?32/);
 });
 
 test("Revision 14 dual failure creates immutable Revision 15 as one continuous spatial causal film", () => {
@@ -290,5 +290,27 @@ test("Revision 15 dual failure creates immutable Revision 16 as a fifteen-shot m
   assert.match(executor, /cinematic-mixed-treatment-fifteen-shot-film/);
   assert.match(executor, /adeclip=w=55:o=75:a=8:t=10/);
   assert.match(executor, /adeclick=w=55:o=75:a=2:t=2:b=2/);
-  assert.match(executor, /sceneCount:r16\?15/);
+  assert.match(executor, /r16\?15:r15\?1/);
+});
+
+test("Revision 16 visual failure and audio pass create immutable Revision 17 as a nine-world causal film", () => {
+  const migration = read("drizzle/0101_youtube_audience_golden_revision_17.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_17/);
+  assert.match(migration, /visual_failure_receipt_id/);
+  assert.match(migration, /audio_pass_receipt_id/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_17_IMMUTABLE/);
+  assert.match(runtime, /NINE_WORLD_TWENTY_FOUR_SHOT_CAUSAL_FILM/);
+  assert.match(runtime, /shotCount: 24/);
+  assert.match(runtime, /threeDecisionSpine: \["1_CHO_PHEP", "2_DOI_CHIEU", "3_QUYET_TOAN"\]/);
+  assert.match(runtime, /vietnameseOnlyCriticalTerminology: true/);
+  assert.match(runtime, /NETWORK_FEE_0_05_TO_PAYMENT_NETWORK__MERCHANT_RECEIVES_PRINCIPAL_2_00/);
+  assert.match(runtime, /OPAQUE_HIGH_CONTRAST_PLATE_CLEAR_OF_MARKER/);
+  assert.match(runtime, /r17-issuer-vault\.jpg/);
+  assert.match(runtime, /r17-netting-transfer\.jpg/);
+  assert.match(runtime, /REVISION_17_EVIDENCE_REQUIRED/);
+  assert.match(executor, /function svgFrameR17/);
+  assert.match(executor, /AUDIENCE_GOLDEN_PREVIEW_R17/);
+  assert.match(executor, /nine-world-twenty-four-shot-causal-film/);
+  assert.match(executor, /network-fee-route-closed/);
+  assert.match(executor, /sceneCount:r17\?24/);
 });

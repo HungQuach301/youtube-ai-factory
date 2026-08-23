@@ -2,21 +2,21 @@
 
 Last reconciled: 2026-08-24 (Asia/Bangkok)
 
-## Audience Golden Sequence — R15 dual rejection, R16 mixed-treatment film source-verified
+## Audience Golden Sequence — R16 visual rejection/audio pass, R17 nine-world repair source-verified
 
 ```text
-PRODUCTION_CHECKPOINT = SITES_V496
-R15_MASTER_SHA256 = b77204426741adedb03d7077317fa62367479a6137161b060c2d82b343aebe43
-R15_FACTORY_VISUAL = FAIL_48__P0_0__P1_4__P2_2
-R15_FACTORY_AUDIO = FAIL_88__P0_0__P1_1__P2_2
-R16_SOURCE = READY__MIGRATION_0100__FIFTEEN_SHOT_MIXED_TREATMENT_FILM
-R16_PIXEL_PREVIEW = PASS_SOURCE_INSPECTION__32_OF_32__FIVE_CINEMATIC_WORLDS__ORDERED_SETTLEMENT__ALTERNATIVE_EXCEPTIONS
-SOURCE_VERIFICATION = TARGETED_19_OF_19_PASS__FULL_REGRESSION_203_OF_203_PASS__VERIFIED_BUILD_PASS__DOCS_SSOT_PASS__V2_FIREWALL_16_OF_16
+PRODUCTION_CHECKPOINT = SITES_V497
+R16_MASTER_SHA256 = ee476c59d79599c4a63a2b62f9ded0714b0e2e8ff06c96015f6f6016b74aff73
+R16_FACTORY_VISUAL = FAIL_68__P0_0__P1_3__P2_2
+R16_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_0
+R17_SOURCE = READY__MIGRATION_0101__NINE_WORLD_TWENTY_FOUR_SHOT_CAUSAL_FILM
+R17_PIXEL_PREVIEW = PASS_SOURCE_INSPECTION__32_OF_32__THREE_DECISION_SPINE__FEE_ROUTE_CLOSED__HIGH_CONTRAST_BRANCHES
+SOURCE_VERIFICATION = TARGETED_20_OF_20_PASS__FULL_REGRESSION_204_OF_204_PASS__VERIFIED_BUILD_PASS__DOCS_SSOT_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0100__EXECUTE_R16__LET_FACTORY_QA_DECIDE
+NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0101__EXECUTE_R17__LET_FACTORY_QA_DECIDE
 ```
 
-Sites v496 materialized R15 as a deterministic/rights PASS 76.867-second 2560×1440 H.264/AAC master of 38,457,294 bytes with exact hash `b7720442…`. Visual QA fails 48 because one horizontal-track composition, center-locked token/headline swaps, unexplained clearing payer, linearized alternative outcomes and confusing settlement order remain systemic. Exact-audio QA fails 88 on clipping, a click and robotic cadence. Migration `0100` permits one append-only R16 only from those exact dual-failure receipts. R16 is a 15-shot mixed-treatment film across five newly generated cinematic worlds and six camera grammars; it explicitly attributes the clearing equation, orders settlement hops, separates four mutually exclusive exception identities, forbids a persistent track and applies de-clip/de-click mastering. The 32-frame source atlas passes manual inspection but is not Production evidence. Document 78 is authoritative; V2, Stage 11, Browser, owner freeze, release and publication remain untouched.
+Sites v497 materialized R16 as a deterministic/rights PASS 76.033-second 2560×1440 H.264/AAC master of 36,007,639 bytes with exact hash `ee476c59…`. Exact-audio QA passes 95 with no findings. Visual QA fails 68 because the three promised decisions appear too late in the body, four environments are held as prolonged infographic slides, branch labels are obstructed, terminology mixes English/Vietnamese and the fee route from final record `2,05` to merchant principal `2,00` is not closed. Migration `0101` permits one append-only R17 only from this exact visual FAIL and audio PASS. R17 uses 24 shots across nine worlds, carries the three-decision spine through the body, uses Vietnamese critical terminology, routes `0,05` to the payment network separately from the merchant's `2,00`, and gives each alternative branch an opaque high-contrast plate. The corrected 32-frame source atlas passes manual inspection but is not Production evidence. Document 78 is authoritative; V2, Stage 11, Browser, owner freeze, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 
