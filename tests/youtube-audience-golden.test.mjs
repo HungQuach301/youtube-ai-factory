@@ -23,6 +23,8 @@ test("Audience Golden runtime separates visual atlas, exact audio, browser and o
   assert.match(runtime, /FULL_PLAYBACK_ATTESTATION_REQUIRED/);
   assert.match(runtime, /FROZEN_AUDIENCE_GOLDEN/);
   assert.match(route, /SIWC_AUTHENTICATION_REQUIRED/);
+  assert.match(route, /action !== "OWNER_DECISION"/);
+  assert.match(route, /AUDIENCE_GOLDEN_EXECUTOR_V1/);
   assert.match(executor, /semanticRuntimeRatio:1/);
   assert.match(executor, /cameraOnlyRatio:0/);
 });

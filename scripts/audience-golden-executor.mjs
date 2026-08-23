@@ -8,7 +8,7 @@ import { join } from "node:path";
 const baseUrl = (process.env.FACTORY_BASE_URL || "https://youtube-ai-factory.quach-hung.chatgpt.site").replace(/\/$/, "");
 const siteToken = process.env.FACTORY_SITE_AUTH_TOKEN || "";
 if (!siteToken) throw new Error("FACTORY_SITE_AUTH_TOKEN is required");
-const transport = { "OAI-Sites-Authorization": `Bearer ${siteToken}` };
+const transport = { "OAI-Sites-Authorization": `Bearer ${siteToken}`, "x-audience-golden-automation": "AUDIENCE_GOLDEN_EXECUTOR_V1" };
 const api = `${baseUrl}/api/factory/sequential-production/audience-golden`;
 const work = mkdtempSync(join(tmpdir(), "youtube-audience-golden-"));
 const framesDir = join(work, "frames"), samplesDir = join(work, "samples"); mkdirSync(framesDir); mkdirSync(samplesDir);

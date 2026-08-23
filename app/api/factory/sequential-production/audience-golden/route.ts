@@ -18,15 +18,19 @@ import {
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "cache-control": "no-store" };
-type RuntimeEnv = AudienceGoldenEnv & { FACTORY_EXPERT_EMAILS?: string };
+type RuntimeEnv = AudienceGoldenEnv & { FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string };
 type Row = Record<string, unknown>;
 const clean = (value: unknown) => String(value ?? "").trim();
 const fromBase64 = (value: string) => { const binary = atob(value), bytes = new Uint8Array(binary.length); for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index); return bytes; };
 
-async function authorized() {
+async function authorized(request: Request, allowAutomation = false) {
   const { env } = await import("cloudflare:workers") as unknown as { env: RuntimeEnv };
   if (!env.DB || !env.BUCKET) throw new AudienceGoldenError("RUNTIME_UNAVAILABLE", 503, "Canonical D1 and R2 bindings are required");
-  const user = await getChatGPTUser(); if (!user) throw new AudienceGoldenError("SIWC_AUTHENTICATION_REQUIRED", 401, "Owner authentication is required");
+  let user = await getChatGPTUser();
+  const sitesBearerPresent = /^Bearer\s+\S{20,}$/i.test(clean(request.headers.get("OAI-Sites-Authorization")));
+  const scopedAutomation = allowAutomation && sitesBearerPresent && clean(request.headers.get("x-audience-golden-automation")) === "AUDIENCE_GOLDEN_EXECUTOR_V1";
+  if (!user && scopedAutomation && clean(env.FACTORY_AUTOMATION_ACTOR_EMAIL)) user = { email: clean(env.FACTORY_AUTOMATION_ACTOR_EMAIL), displayName: "Audience Golden Executor", fullName: null };
+  if (!user) throw new AudienceGoldenError("SIWC_AUTHENTICATION_REQUIRED", 401, "Owner or scoped Golden executor authentication is required");
   const allowlist = new Set(clean(env.FACTORY_EXPERT_EMAILS).split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
   if (!allowlist.has(user.email.toLowerCase())) throw new AudienceGoldenError("CHANNEL_OWNER_AUTHORIZATION_REQUIRED", 403, "This identity cannot operate the Golden Sequence");
   return { env: env as RuntimeEnv & { DB: AudienceGoldenDB; BUCKET: AudienceGoldenBucket }, actor: user.email.toLowerCase() };
@@ -39,7 +43,7 @@ function errorResponse(error: unknown) {
 
 export async function GET(request: Request) {
   try {
-    const { env } = await authorized(), media = new URL(request.url).searchParams.get("media");
+    const { env } = await authorized(request, true), media = new URL(request.url).searchParams.get("media");
     if (!media) return Response.json(await audienceGoldenSnapshot(env.DB), { headers: NO_STORE });
     const result = await readAudienceGoldenMediaAuthorized(env, media), range = request.headers.get("range"), common = { "accept-ranges": "bytes", "cache-control": "private, no-store", "content-type": result.mimeType, etag: `"${result.hash}"` };
     if (!range) return new Response(result.bytes, { headers: { ...common, "content-length": String(result.bytes.byteLength) } });
@@ -52,8 +56,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { env, actor } = await authorized(), body = await request.json().catch(() => null) as Row | null, action = clean(body?.action).toUpperCase(), idempotencyKey = clean(request.headers.get("idempotency-key"));
+    const body = await request.json().catch(() => null) as Row | null, action = clean(body?.action).toUpperCase();
     if (!body) throw new AudienceGoldenError("JSON_BODY_REQUIRED", 400, "A JSON request body is required");
+    const { env, actor } = await authorized(request, action !== "OWNER_DECISION"), idempotencyKey = clean(request.headers.get("idempotency-key"));
     if (action === "BOOTSTRAP") return Response.json(await bootstrapAudienceGoldenAuthorized(env, actor, idempotencyKey), { status: 201, headers: NO_STORE });
     if (action === "GENERATE_AUDIO") return Response.json(await generateAudienceGoldenAudioAuthorized(env, actor, idempotencyKey), { status: 201, headers: NO_STORE });
     if (action === "STAGE_CHUNK") return Response.json(await stageAudienceGoldenChunkAuthorized(env, { blueprintId: clean(body.blueprintId), role: clean(body.role), fullHash: clean(body.fullHash), totalBytes: Number(body.totalBytes), chunkIndex: Number(body.chunkIndex), chunkCount: Number(body.chunkCount), chunkHash: clean(body.chunkHash), bytes: fromBase64(clean(body.base64)) }), { status: 201, headers: NO_STORE });
