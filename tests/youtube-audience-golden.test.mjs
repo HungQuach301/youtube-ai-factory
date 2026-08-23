@@ -86,9 +86,9 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /physical-balance-reservoir/);
   assert.match(executor, /converging-record-plates/);
   assert.match(executor, /growing-merchant-coin-stack/);
-  assert.match(executor, /sceneCount:r13\?6:r12\?6:r11\?16:r10\?36:r9\?40:r5Plus\?20/);
-  assert.match(executor, /minimumCriticalFontPx1080:r13\?108:r12\?108:r11\?90:r10\?84:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
-  assert.match(executor, /\["r5","r6","r7","r8","r9","r10","r11","r12","r13"\]\.includes\(revision\) \? "22" : "19"/);
+  assert.match(executor, /sceneCount:r14\?32:r13\?6:r12\?6:r11\?16:r10\?36:r9\?40:r5Plus\?20/);
+  assert.match(executor, /minimumCriticalFontPx1080:r14\?108:r13\?108:r12\?108:r11\?90:r10\?84:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
+  assert.match(executor, /\["r5","r6","r7","r8","r9","r10","r11","r12","r13","r14"\]\.includes\(revision\) \? "22" : "19"/);
   assert.match(executor, /chunks\.length > 128/);
 });
 
@@ -163,7 +163,7 @@ test("Revision 8 visual failure and audio pass create immutable Revision 9 with 
   assert.match(executor, /forty-beat-compositor/);
   assert.match(executor, /current-history-future-state-roles/);
   assert.match(executor, /many-to-one-netting-result/);
-  assert.match(executor, /sceneCount:r13\?6:r12\?6:r11\?16:r10\?36:r9\?40/);
+  assert.match(executor, /sceneCount:r14\?32:r13\?6:r12\?6:r11\?16:r10\?36:r9\?40/);
 });
 
 test("Revision 9 visual failure and audio pass create immutable Revision 10 with full-frame object transformations", () => {
@@ -217,7 +217,7 @@ test("Revision 11 visual failure and audio pass create immutable Revision 12 as 
   assert.match(executor, /single-hero-token-across-all-acts/);
   assert.match(executor, /thirty-two-uniform-time-ordered-frames/);
   assert.match(executor, /direct-state-rail-to-exception-mapping/);
-  assert.match(executor, /sceneCount:r13\?6:r12\?6/);
+  assert.match(executor, /sceneCount:r14\?32:r13\?6:r12\?6/);
 });
 
 test("Revision 12 visual failure and audio pass create immutable Revision 13 with evidence-bound semantic and pacing repairs", () => {
@@ -234,5 +234,21 @@ test("Revision 12 visual failure and audio pass create immutable Revision 13 wit
   assert.match(executor, /large-labeled-netting-obligation-groups/);
   assert.match(executor, /four-distinct-full-frame-state-compositions/);
   assert.match(executor, /no-repeated-state-map/);
-  assert.match(executor, /sceneCount:r13\?6/);
+  assert.match(executor, /sceneCount:r14\?32:r13\?6/);
+});
+
+test("Revision 13 visual failure and audio pass create immutable Revision 14 as thirty-two distinct causal states", () => {
+  const migration = read("drizzle/0098_youtube_audience_golden_revision_14.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_14/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_14_IMMUTABLE/);
+  assert.match(runtime, /THIRTY_TWO_CAUSAL_STATE_WORLD_JOURNEY/);
+  assert.match(runtime, /maximumAtlasSamplesPerComposition: 1/);
+  assert.match(runtime, /simultaneousExceptionChartAllowed: false/);
+  assert.match(runtime, /persistentEquationAllowed: false/);
+  assert.match(executor, /function svgFrameR14/);
+  assert.match(executor, /thirty-two-causal-state-world-journey/);
+  assert.match(executor, /one-composition-per-atlas-sample/);
+  assert.match(executor, /explicit-approved-before-hold/);
+  assert.match(executor, /one-full-frame-exception-branch-at-a-time/);
+  assert.match(executor, /sceneCount:r14\?32/);
 });
