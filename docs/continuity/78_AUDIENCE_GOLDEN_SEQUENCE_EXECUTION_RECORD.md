@@ -40,7 +40,7 @@ CONTACT_SHEET_INSPECTION = PASS__20_OF_20_PHASES_NONEMPTY__NO_PHASE_18_COLLISION
 FULL_REGRESSION = 191_OF_191_PASS
 VERIFIED_BUILD = PASS
 PRODUCTION_V2_LEGACY_DEPENDENCY_FIREWALL = 16_OF_16_PASS
-PRODUCTION_R5 = PENDING
+PRODUCTION_R5 = V485_RENDER_COMPLETE__UPLOAD_CEILING_STOPPED_BEFORE_RECEIPT__TRANSPORT_REPAIR_READY
 FACTORY_VISUAL_AUDIO_QA = PENDING
 BROWSER_DEVICE_QA = BLOCKED_UNTIL_FACTORY_PASS
 OWNER_FULL_PLAYBACK = BLOCKED_UNTIL_BROWSER_PASS
@@ -49,4 +49,4 @@ FREEZE_RELEASE_PUBLICATION = FALSE_FALSE_FALSE
 
 ## Exact next action
 
-Deploy the additive R5 source, execute one production materialization and independent Factory visual/audio review, then continue only from the stored outcome. A visual or audio failure opens a new evidence-bound root repair; a conjunction PASS opens Browser/device QA. Only after Browser PASS may the owner watch the exact master and provide the non-delegable decision required for freeze. Production V2, Stage 11, full-video expansion, release and publication remain untouched.
+Sites v485 created the one R5 audio artifact and rendered the complete 69.34-second master, but the 55 MB CRF-19 file required more than the immutable 128×400,000-byte upload ceiling. The first chunk was rejected from its descriptor before any materialization or QA receipt. The transport repair keeps the exact blueprint/audio/visual timeline, uses CRF 22 for R5, and now preflights chunk count before any upload request. Deploy this repair, replay materialization from the existing audio, and run independent Factory visual/audio review only after exact R2 commit. A visual or audio failure opens a new evidence-bound root repair; a conjunction PASS opens Browser/device QA. Only after Browser PASS may the owner watch the exact master and provide the non-delegable decision required for freeze. Production V2, Stage 11, full-video expansion, release and publication remain untouched.

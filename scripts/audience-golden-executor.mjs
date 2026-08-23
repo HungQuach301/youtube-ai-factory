@@ -223,6 +223,7 @@ function svgFrameR5(t, duration) {
 async function uploadFile(blueprintId, role, path) {
   const bytes = readFileSync(path), fullHash = sha(bytes), chunks = [];
   for (let offset = 0, index = 0; offset < bytes.length; offset += 400_000, index += 1) { const part = bytes.subarray(offset, Math.min(bytes.length, offset + 400_000)); chunks.push({ index, hash: sha(part), size: part.length, part }); }
+  if (chunks.length > 128) throw new Error(`${role} requires ${chunks.length} chunks; the immutable upload ceiling is 128`);
   for (const chunk of chunks) await request("POST", { action: "STAGE_CHUNK", blueprintId, role, fullHash, totalBytes: bytes.length, chunkIndex: chunk.index, chunkCount: chunks.length, chunkHash: chunk.hash, base64: chunk.part.toString("base64") }, `audience-golden:upload:${role.toLowerCase()}:${fullHash.slice(0,24)}:${chunk.index}`);
   return { role, fullHash, totalBytes: bytes.length, chunks: chunks.map(({ index, hash, size }) => ({ index, hash, size })) };
 }
@@ -241,7 +242,7 @@ if (!snapshot.materialization) {
   const renderFps = 15, frameCount = Math.ceil(duration * renderFps);
   for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r5" ? svgFrameR5(index/renderFps, duration) : revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
   const silent = join(work,"silent.mp4"), master = join(work,"audience-golden-master.mp4"), mix = join(work,"audience-mix.mp3");
-  run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf","19","-movflags","+faststart",silent]);
+  run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf",revision === "r5" ? "22" : "19","-movflags","+faststart",silent]);
   run("ffmpeg", ["-y","-i",silent,"-i",sourceAudio,"-filter_complex",`[1:a]aresample=48000,apad=pad_dur=${duration},loudnorm=I=-14:TP=-2:LRA=7,alimiter=limit=0.75[a]`,"-map","0:v","-map","[a]","-t",String(duration),"-c:v","copy","-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",master]);
   run("ffmpeg", ["-y","-i",master,"-vn","-c:a","libmp3lame","-b:a","192k","-ar","48000",mix]);
   const sampleTimes = Array.from({length:32},(_,i)=>round((i+.5)*duration/32,3)), atlasFiles = [];

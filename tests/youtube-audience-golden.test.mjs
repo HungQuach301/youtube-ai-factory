@@ -88,4 +88,6 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /growing-merchant-coin-stack/);
   assert.match(executor, /revision==="r5"\?20/);
   assert.match(executor, /minimumCriticalFontPx1080:revision==="r5"\?72/);
+  assert.match(executor, /revision === "r5" \? "22" : "19"/);
+  assert.match(executor, /chunks\.length > 128/);
 });
