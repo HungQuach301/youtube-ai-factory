@@ -90,6 +90,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 
 ## Protected no-rerun list
 
+- Sites v487 sealed Audience Golden R6 master `5417e2af92042881d7ba87ddd6994adcdcec58771ed9dfa752506680d01ec1c8` at 71.111 seconds/14,683,850 bytes with deterministic/rights PASS. Visual QA is FAIL 89 (P0=0, P1=1, P2=2). Original audio QA failed closed with `AUDIO_QA_OUTPUT_INVALID`; migration `0090` permits one exact-hash recovery. Migration `0091` and R7 source fix transaction amount continuity, label both record sides and use four settlement worlds. Browser, owner review and freeze remain blocked; V2 is untouched. Document 78 is authoritative.
+
 Do not:
 
 - reconstruct or rerun completed Niche, Channel Strategy or Content Planning slices without a new verified defect;

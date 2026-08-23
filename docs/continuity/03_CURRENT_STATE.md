@@ -2,20 +2,20 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
-## Audience Golden Sequence — R5 rejected, R6 source ready
+## Audience Golden Sequence — R6 rejected, one audio-QA recovery and R7 source ready
 
 ```text
-PRODUCTION_CHECKPOINT = SITES_V486
-R5_MASTER_SHA256 = bddc055889a4754b4a0afe13b07b5fc8d9c654518d2222fc1e18c486b3b73970
-R5_FACTORY_VISUAL = FAIL_83__P0_0__P1_2__P2_3
-R5_FACTORY_AUDIO = PASS_94__P0_0__P1_0__P2_2
-R6_SOURCE = READY__MIGRATION_0089__PHASE_COMPOSITION_RESET__SYNCHRONIZED_ARITHMETIC
-SOURCE_VERIFICATION = 192_OF_192_PASS__BUILD_PASS__V2_FIREWALL_16_OF_16
+PRODUCTION_CHECKPOINT = SITES_V487
+R6_MASTER_SHA256 = 5417e2af92042881d7ba87ddd6994adcdcec58771ed9dfa752506680d01ec1c8
+R6_FACTORY_VISUAL = FAIL_89__P0_0__P1_1__P2_2
+R6_FACTORY_AUDIO = PENDING__ORIGINAL_OUTPUT_INVALID__ONE_RECOVERY_AUTHORIZED
+R7_SOURCE = READY__MIGRATION_0091__FIXED_AMOUNT_CONTINUITY__FOUR_SETTLEMENT_WORLDS
+SOURCE_VERIFICATION = 194_OF_194_PASS__BUILD_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = DEPLOY_R6__MATERIALIZE__RUN_FACTORY_VISUAL_AUDIO_QA
+NEXT_PROTECTED_ACTION = DEPLOY_0090_0091__RUN_ONE_AUDIO_QA_RECOVERY__EXECUTE_R7
 ```
 
-R5 improved the independent visual score to 83 but preserved two P1 defects: four compositions remained locked too long, and the animated hold example showed an inconsistent intermediate remainder. Its three P2 findings were one opening collision, one unmapped clearing delta and three color states without direct labels. R6 corrects those exact findings through per-phase hard crops/composition resets, frame-synchronized arithmetic, an explicit fee equation, one active opening label and labels bound to every state node. Production evidence is not inferred from source. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
+R6 improved independent visual QA from 83 to 89 and reduced the defect set to one P1 plus two P2 findings. The remaining P1 is one-transaction amount continuity: atlas samples show hold 2.00, an intermediate animated 1.6, then clearing 2.05 without an explicit bridge. The P2 findings are unlabeled record sides and four settlement samples retaining one background hierarchy. The original audio-QA request returned no required function evidence, so migration `0090` creates one exact-hash recovery claim and no retry loop. R7 fixes the hold at 2.00/available at 8.00, labels both record sides, names the 0.05 fee as the difference cause and uses four distinct settlement worlds. Production evidence is not inferred from source. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 

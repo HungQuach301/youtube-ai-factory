@@ -6,7 +6,7 @@
 
 ## Current position
 
-- Audience Golden Sequence R1–R5 are preserved rejected evidence. Production R5 exact master is deterministic/rights PASS; visual QA is FAIL 83 while exact-audio QA is PASS 94. R6 source is ready under migration `0089` with per-phase composition resets, synchronized arithmetic and direct component/state labeling. Browser/device, owner review and freeze remain blocked until their owning gates open. Document 78 is authoritative; V2 is untouched.
+- Audience Golden Sequence R1–R6 are preserved rejected evidence. Sites v487 sealed R6 exact master `5417e2af…`; visual QA is FAIL 89 with one P1/two P2 findings, while the original audio-QA request failed closed on malformed output. Migration `0090` permits one exact-hash audio-QA recovery, and migration `0091` prepares R7 with fixed transaction arithmetic, explicit record-side labels and four settlement worlds. Browser/device, owner review and freeze remain blocked until their owning gates open. Document 78 is authoritative; V2 is untouched.
 
 - FP1 truthful operator projection: implemented.
 - FP2 Capability Registry mechanism: implemented.
@@ -180,6 +180,8 @@ Phase 26 records the owner audience-quality rejection and activates `YOUTUBE_AUD
 Phase 27 is active. R1–R4 preserve their exact masters and independent failures; R4 visual FAIL 76 identifies prolonged tableau grammar and missing object transformation while audio PASS 95 remains separate. Migration `0088` and R5 source bind five image worlds and 20 physical transformation phases. Full regression/build pass 191/191. Next deploy and execute one Production R5 materialization and Factory visual/audio QA; Browser/device and owner gates remain closed until Factory PASS. Document 78 is authoritative; V2 is untouched.
 
 Phase 28 is active. Sites v486 seals R5 master `bddc055889a4754b4a0afe13b07b5fc8d9c654518d2222fc1e18c486b3b73970`; visual FAIL 83/audio PASS 94 open only the evidence-bound R6 repair. Migration `0089` corrects all five observations at their owning composition, arithmetic, clearing-map, state-label and collision layers. Next deploy and execute R6. Browser/device and owner gates remain closed until Factory PASS. Document 78 is authoritative; V2 is untouched.
+
+Phase 29 is active. Sites v487 seals R6 master `5417e2af92042881d7ba87ddd6994adcdcec58771ed9dfa752506680d01ec1c8`; visual FAIL 89 reduces the open set to amount continuity, record-side labeling and settlement background diversity. The original audio-QA provider response omitted the forced function and created no QA receipt. Migration `0090` creates one immutable exact-hash recovery authorization/claim; migration `0091` creates R7 only after recovered audio PASS. Browser/device and owner gates remain closed until Factory PASS. Document 78 is authoritative; V2 is untouched.
 
 ## Wave 4 — Upstream and technical standards
 

@@ -86,9 +86,9 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /physical-balance-reservoir/);
   assert.match(executor, /converging-record-plates/);
   assert.match(executor, /growing-merchant-coin-stack/);
-  assert.match(executor, /sceneCount:r5OrR6\?20/);
-  assert.match(executor, /minimumCriticalFontPx1080:r5OrR6\?72/);
-  assert.match(executor, /revision === "r5" \|\| revision === "r6" \? "22" : "19"/);
+  assert.match(executor, /sceneCount:r5Plus\?20/);
+  assert.match(executor, /minimumCriticalFontPx1080:r7\?84:r5Plus\?72/);
+  assert.match(executor, /\["r5","r6","r7"\]\.includes\(revision\) \? "22" : "19"/);
   assert.match(executor, /chunks\.length > 128/);
 });
 
@@ -102,6 +102,31 @@ test("Revision 5 rejection creates immutable Revision 6 with composition and ari
   assert.match(runtime, /BẢN GHI KHỚP/);
   assert.match(executor, /function svgFrameR6/);
   assert.match(executor, /phase-specific-hard-crops/);
-  assert.match(executor, /synchronized-hold-arithmetic/);
+  assert.match(runtime, /synchronizedHoldArithmetic/);
   assert.match(executor, /explicit-state-label-binding/);
+});
+
+test("Malformed Revision 6 audio QA output permits exactly one exact-hash recovery claim", () => {
+  const migration = read("drizzle/0090_youtube_audience_golden_audio_qa_recovery.sql"), runtime = read("lib/youtube-audience-golden.ts"), route = read("app/api/factory/sequential-production/audience-golden/route.ts");
+  assert.match(migration, /AUDIO_QA_OUTPUT_INVALID/);
+  assert.match(migration, /maximum_additional_provider_requests.*= 1/);
+  assert.match(migration, /ONE_EXACT_AUDIO_QA_RECOVERY_ONLY/);
+  assert.match(migration, /YOUTUBE_GOLDEN_AUDIO_QA_RECOVERY_CLAIM_IMMUTABLE/);
+  assert.match(runtime, /runAudienceGoldenAudioQaRecoveryAuthorized/);
+  assert.match(runtime, /AUDIO_QA_RECOVERY_ALREADY_CLAIMED/);
+  assert.match(route, /RUN_FACTORY_AUDIO_QA_RECOVERY/);
+});
+
+test("Revision 6 rejection creates immutable Revision 7 with transaction continuity and settlement diversity", () => {
+  const migration = read("drizzle/0091_youtube_audience_golden_revision_7.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_7/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_7_IMMUTABLE/);
+  assert.match(runtime, /CINEMATIC_TRANSACTION_CONTINUITY/);
+  assert.match(runtime, /fixedAuthorizationHold: "2\.00"/);
+  assert.match(runtime, /explicitDifferenceCause: "NETWORK_FEE_0\.05"/);
+  assert.match(runtime, /maximumRepeatedBackgroundSamples: 1/);
+  assert.match(executor, /function svgFrameR7/);
+  assert.match(executor, /fixed-transaction-amount-continuity/);
+  assert.match(executor, /labeled-record-side-comparison/);
+  assert.match(executor, /multi-world-settlement-sequence/);
 });

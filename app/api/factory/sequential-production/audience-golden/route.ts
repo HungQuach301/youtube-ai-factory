@@ -10,6 +10,7 @@ import {
   recordAudienceGoldenBrowserQaAuthorized,
   recordAudienceGoldenOwnerDecisionAuthorized,
   runAudienceGoldenAudioQaAuthorized,
+  runAudienceGoldenAudioQaRecoveryAuthorized,
   runAudienceGoldenVisualQaAuthorized,
   stageAudienceGoldenChunkAuthorized,
   type AudienceGoldenBucket,
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
     if (action === "COMMIT_MATERIALIZATION") return Response.json(await commitAudienceGoldenMaterializationAuthorized(env, actor, idempotencyKey, body), { status: 201, headers: NO_STORE });
     if (action === "RUN_FACTORY_VISUAL_QA") return Response.json(await runAudienceGoldenVisualQaAuthorized(env, actor, idempotencyKey), { status: 201, headers: NO_STORE });
     if (action === "RUN_FACTORY_AUDIO_QA") return Response.json(await runAudienceGoldenAudioQaAuthorized(env, actor, idempotencyKey), { status: 201, headers: NO_STORE });
+    if (action === "RUN_FACTORY_AUDIO_QA_RECOVERY") return Response.json(await runAudienceGoldenAudioQaRecoveryAuthorized(env, actor, idempotencyKey), { status: 201, headers: NO_STORE });
     if (action === "RECORD_BROWSER_QA") return Response.json(await recordAudienceGoldenBrowserQaAuthorized(env, actor, idempotencyKey, body.evidence as Row), { status: 201, headers: NO_STORE });
     if (action === "OWNER_DECISION") return Response.json(await recordAudienceGoldenOwnerDecisionAuthorized(env, actor, idempotencyKey, body), { status: 201, headers: NO_STORE });
     throw new AudienceGoldenError("ACTION_INVALID", 400, "Unsupported Golden Sequence action");
