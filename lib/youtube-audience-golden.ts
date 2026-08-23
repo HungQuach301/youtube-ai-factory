@@ -99,6 +99,7 @@ export async function audienceGoldenSnapshot(db: AudienceGoldenDB) {
 
 export async function createAudienceGoldenRepairRevisionAuthorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string) {
   const latest = await first(env.DB, "SELECT * FROM v7_youtube_golden_sequence_blueprints WHERE channel_id=? ORDER BY created_at DESC,id DESC LIMIT 1", CHANNEL_ID);
+  if (clean(latest?.id).endsWith(":r17")) return createAudienceGoldenRepairRevision18Authorized(env, actor, idempotencyKey, latest as Row);
   if (clean(latest?.id).endsWith(":r16")) return createAudienceGoldenRepairRevision17Authorized(env, actor, idempotencyKey, latest as Row);
   if (clean(latest?.id).endsWith(":r15")) return createAudienceGoldenRepairRevision16Authorized(env, actor, idempotencyKey, latest as Row);
   if (clean(latest?.id).endsWith(":r14")) return createAudienceGoldenRepairRevision15Authorized(env, actor, idempotencyKey, latest as Row);
@@ -459,6 +460,33 @@ async function createAudienceGoldenRepairRevision17Authorized(env: AudienceGolde
   return { outcome: "REPAIR_REVISION_17_SEALED", snapshot: await audienceGoldenSnapshot(env.DB) };
 }
 
+async function createAudienceGoldenRepairRevision18Authorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string, rejected: Row) {
+  const priorReceipt = await first(env.DB, "SELECT * FROM v7_youtube_golden_revision_18_receipts WHERE channel_id=? AND idempotency_key=? LIMIT 1", CHANNEL_ID, idempotencyKey); if (priorReceipt) return { outcome: "REPLAYED", snapshot: await audienceGoldenSnapshot(env.DB) };
+  const materialization = await first(env.DB, "SELECT * FROM v7_youtube_golden_materialization_receipts WHERE blueprint_id=?", rejected.id); if (!materialization) throw new AudienceGoldenError("REJECTED_MATERIALIZATION_MISSING", 409, "Revision 17 materialization is required");
+  const [visualQa, audioQa] = await Promise.all([first(env.DB, "SELECT * FROM v7_youtube_golden_qa_receipts WHERE materialization_receipt_id=? AND qa_layer='FACTORY_VISUAL'", materialization.id), first(env.DB, "SELECT * FROM v7_youtube_golden_qa_receipts WHERE materialization_receipt_id=? AND qa_layer='FACTORY_AUDIO'", materialization.id)]);
+  if (!visualQa || clean(visualQa.decision_state) !== "FAIL" || !audioQa || clean(audioQa.decision_state) !== "PASS") throw new AudienceGoldenError("REVISION_18_EVIDENCE_REQUIRED", 409, "Revision 18 requires failed visual and passing exact-audio QA");
+  const replacementId = `audience-golden-blueprint:${CHANNEL_ID}:r18`, existing = await first(env.DB, "SELECT id FROM v7_youtube_golden_sequence_blueprints WHERE id=?", replacementId);
+  if (!existing) {
+    const narration = clean(rejected.narration_text), narrationHash = await sha256Hex(new TextEncoder().encode(narration));
+    const assetManifest = { source: "OWNED_R17_NINE_WORLD_ASSETS_RETIMED", inheritedFromRevision: 17, assets: [
+      { path: "public/golden/r16-contactless.jpg", sha256: "0bf4d9cbff38ce24628b023aef4f70f7d0a149409d4781acb74e3322cff4e837", role: "CONTACTLESS_HOOK_WORLD" },
+      { path: "public/golden/r16-authorization.jpg", sha256: "511c2777ee785dbacef8c074b0874de463c9af782bdb8be99c08c6fe0144f0a0", role: "AUTHORIZATION_WIDE_WORLD" },
+      { path: "public/golden/r16-clearing.jpg", sha256: "d60135893c9d8a3b5b89cad257fcc19ab08024bf8446c63a1fd5709396ccf08a", role: "CLEARING_SOURCE_WORLD" },
+      { path: "public/golden/r16-settlement.jpg", sha256: "dd969d9a16527750679a748b3fb6eebdeac9284671a7c1fc770b7710d9097e27", role: "SETTLEMENT_WIDE_WORLD" },
+      { path: "public/golden/r16-exceptions.jpg", sha256: "64bcd9287c364f4037921cb57912c865e126e3bb8ea248cf222812a8dfd38ae9", role: "ALTERNATIVE_BRANCH_WORLD" },
+      { path: "public/golden/r17-issuer-vault.jpg", sha256: "f3284a7e2cbe79d85f8f34fe77e36e414a83af7146f17f70b2f0cdcd7b171ebb", role: "ISSUER_THREE_TEST_WORLD" },
+      { path: "public/golden/r17-hold-ledger.jpg", sha256: "e9316936bcd428da71452d8fb14ecf0e1efd7004698e26b90b87a439f86b0cfb", role: "RESERVED_NOT_TRANSFERRED_WORLD" },
+      { path: "public/golden/r17-fee-routing.jpg", sha256: "6ee85a8cd91b21614b935f37b08c926196b2ad1160c737f4cf124f87e68fe735", role: "NETWORK_FEE_RECIPIENT_WORLD" },
+      { path: "public/golden/r17-netting-transfer.jpg", sha256: "cd917008329bddbbcfb14d212dd46db37ceb576490b2b6be346005eda6b1b9e1", role: "LABELED_BANK_OBLIGATION_NETTING_WORLD" }
+    ] };
+    const repairContract = { revision: 18, rootOwners: ["ADJACENT_UNCHANGED_ATLAS_SAMPLES", "UNEXPLAINED_THREE_OBLIGATIONS", "MOBILE_TOKEN_AND_STATUS_TEXT"], inheritedAudioPassReceiptId: audioQa.id, visual: { form: "THIRTY_TWO_BEAT_NINE_WORLD_CAUSAL_FILM", causalBeatCount: 32, atlasRule: "EXACTLY_ONE_UNIQUE_CAUSAL_BEAT_PER_SAMPLE", adjacentSameWorldAllowed: false, everyBeatHasMeaningChangingMotion: true, bankObligationSources: ["NGAN_HANG_A", "NGAN_HANG_B", "NGAN_HANG_C"], nettingStatement: "NHIEU_NGHIA_VU_CO_NHAN_THANH_MOT_SO_RONG", textInsideMovingTokenAllowed: false, branchIdentifierMinimumPx1080: 112, compactStatusIdentifiersAllowed: false, language: "VIETNAMESE", minimumSupportingTextPx1080: 112, minimumCriticalTextPx1080: 132 }, audio: { settingsInheritedFromPassingRevision: 17, regenerateWithSameQualifiedSettings: true, speechSpeed: .95, stability: .72, similarityBoost: .78, style: .03, useSpeakerBoost: true, antiClip: "ADECLIP_55_75_8_10", antiClick: "ADECLICK_55_75_2_2", targetLufs: -16, truePeakDbtp: -4, musicBed: false } };
+    await run(env.DB, `INSERT INTO v7_youtube_golden_sequence_blueprints (id,channel_id,policy_version,blueprint_version,episode_key,title_promise,narration_text,narration_hash,story_contract_json,visual_contract_json,audio_contract_json,lifecycle_state,actor) VALUES (?,?,?,?,?,?,?,?,?,?,?,'SEALED',?)`, replacementId, CHANNEL_ID, AUDIENCE_POLICY_VERSION, AUDIENCE_BLUEPRINT_VERSION, `${AUDIENCE_GOLDEN_STORY.episodeKey}-revision-18`, AUDIENCE_GOLDEN_STORY.titlePromise, narration, narrationHash, canonicalStringify({ ...AUDIENCE_GOLDEN_STORY, assetManifest, repairContract }), canonicalStringify(repairContract.visual), canonicalStringify(repairContract.audio), actor);
+    const evidenceHash = await canonicalHash({ rejectedBlueprintId: rejected.id, rejectedMaterializationId: materialization.id, replacementId, visualFailureReceiptId: visualQa.id, audioPassReceiptId: audioQa.id, assetManifest, repairContract });
+    await run(env.DB, "INSERT INTO v7_youtube_golden_revision_18_receipts (id,channel_id,rejected_blueprint_id,rejected_materialization_receipt_id,replacement_blueprint_id,revision_key,visual_failure_receipt_id,audio_pass_receipt_id,asset_manifest_json,repair_contract_json,actor,idempotency_key,evidence_hash) VALUES (?,?,?,?,?,'AUDIENCE_GOLDEN_REVISION_18',?,?,?,?,?,?,?)", makeId("audience-golden-revision-18"), CHANNEL_ID, rejected.id, materialization.id, replacementId, visualQa.id, audioQa.id, canonicalStringify(assetManifest), canonicalStringify(repairContract), actor, idempotencyKey, evidenceHash);
+  }
+  return { outcome: "REPAIR_REVISION_18_SEALED", snapshot: await audienceGoldenSnapshot(env.DB) };
+}
+
 export async function bootstrapAudienceGoldenAuthorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string) {
   if (!/^[A-Za-z0-9._:-]{16,160}$/.test(idempotencyKey)) throw new AudienceGoldenError("IDEMPOTENCY_KEY_INVALID", 400, "A stable idempotency key is required");
   const current = await first(env.DB, "SELECT * FROM v7_evaluation_clean_av_master_materialization_receipts WHERE channel_id=? LIMIT 1", CHANNEL_ID);
@@ -495,7 +523,7 @@ export async function generateAudienceGoldenAudioAuthorized(env: AudienceGoldenE
       WHERE a.channel_id=? ORDER BY a.created_at DESC LIMIT 1`, CHANNEL_ID),
   ]);
   if (!blueprint || existing || !priorVoice || !clean(priorVoice.voice_id)) throw new AudienceGoldenError(existing ? "GOLDEN_AUDIO_CEILING_REACHED" : "GOLDEN_AUDIO_PREREQUISITES_MISSING", 409, existing ? "The single TTS ceiling has been reached" : "A sealed blueprint and verified voice lineage are required");
-  const revisionTwo = clean(blueprint.id).endsWith(":r2"), saferVoiceRevision = /:r(?:8|9|10|11|12|13|14)$/.test(clean(blueprint.id)), contractVoiceRevision = /:r(?:15|16|17)$/.test(clean(blueprint.id)), audioContract = jsonObject(blueprint.audio_contract_json);
+  const revisionTwo = clean(blueprint.id).endsWith(":r2"), saferVoiceRevision = /:r(?:8|9|10|11|12|13|14)$/.test(clean(blueprint.id)), contractVoiceRevision = /:r(?:15|16|17|18)$/.test(clean(blueprint.id)), audioContract = jsonObject(blueprint.audio_contract_json);
   const requestedVoiceSettings = contractVoiceRevision ? { stability: number(audioContract.stability) || .78, similarity_boost: number(audioContract.similarityBoost) || .78, style: number(audioContract.style), speed: number(audioContract.speechSpeed) || .96, use_speaker_boost: audioContract.useSpeakerBoost !== false } : saferVoiceRevision ? { stability: .78, similarity_boost: .78, style: .04, speed: .96, use_speaker_boost: true } : revisionTwo ? { stability: .56, similarity_boost: .78, style: .06, speed: .98, use_speaker_boost: true } : { stability: .66, similarity_boost: .8, style: .14, speed: 1.06, use_speaker_boost: true };
   const requestBody = { text: clean(blueprint.narration_text), model_id: "eleven_multilingual_v2", voice_settings: requestedVoiceSettings };
   const intentHash = await canonicalHash({ blueprintId: blueprint.id, narrationHash: blueprint.narration_hash, voiceId: priorVoice.voice_id, requestBody });

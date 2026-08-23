@@ -2,21 +2,21 @@
 
 Last reconciled: 2026-08-24 (Asia/Bangkok)
 
-## Audience Golden Sequence — R16 visual rejection/audio pass, R17 nine-world repair source-verified
+## Audience Golden Sequence — R17 visual rejection/audio pass, R18 causal-beat repair source-verified
 
 ```text
-PRODUCTION_CHECKPOINT = SITES_V497
-R16_MASTER_SHA256 = ee476c59d79599c4a63a2b62f9ded0714b0e2e8ff06c96015f6f6016b74aff73
-R16_FACTORY_VISUAL = FAIL_68__P0_0__P1_3__P2_2
-R16_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_0
-R17_SOURCE = READY__MIGRATION_0101__NINE_WORLD_TWENTY_FOUR_SHOT_CAUSAL_FILM
-R17_PIXEL_PREVIEW = PASS_SOURCE_INSPECTION__32_OF_32__THREE_DECISION_SPINE__FEE_ROUTE_CLOSED__HIGH_CONTRAST_BRANCHES
-SOURCE_VERIFICATION = TARGETED_20_OF_20_PASS__FULL_REGRESSION_204_OF_204_PASS__VERIFIED_BUILD_PASS__DOCS_SSOT_PASS__V2_FIREWALL_16_OF_16
+PRODUCTION_CHECKPOINT = SITES_V498
+R17_MASTER_SHA256 = b2f3de5e8a5568a7ac411fcd336e0e4b842b8f45e0c0dde56d2db8b6fbbad033
+R17_FACTORY_VISUAL = FAIL_87__P0_0__P1_1__P2_2
+R17_FACTORY_AUDIO = PASS_94__P0_0__P1_0__P2_2
+R18_SOURCE = READY__MIGRATION_0102__THIRTY_TWO_BEAT_NINE_WORLD_CAUSAL_FILM
+R18_PIXEL_PREVIEW = PASS_SOURCE_INSPECTION__32_OF_32__ONE_UNIQUE_CAUSAL_BEAT_PER_SAMPLE__LABELED_OBLIGATIONS__LARGE_BRANCH_STATUS
+SOURCE_VERIFICATION = FULL_REGRESSION_205_OF_205_PASS__VERIFIED_BUILD_PASS__DOCS_SSOT_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0101__EXECUTE_R17__LET_FACTORY_QA_DECIDE
+NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0102__EXECUTE_R18__LET_FACTORY_QA_DECIDE
 ```
 
-Sites v497 materialized R16 as a deterministic/rights PASS 76.033-second 2560×1440 H.264/AAC master of 36,007,639 bytes with exact hash `ee476c59…`. Exact-audio QA passes 95 with no findings. Visual QA fails 68 because the three promised decisions appear too late in the body, four environments are held as prolonged infographic slides, branch labels are obstructed, terminology mixes English/Vietnamese and the fee route from final record `2,05` to merchant principal `2,00` is not closed. Migration `0101` permits one append-only R17 only from this exact visual FAIL and audio PASS. R17 uses 24 shots across nine worlds, carries the three-decision spine through the body, uses Vietnamese critical terminology, routes `0,05` to the payment network separately from the merchant's `2,00`, and gives each alternative branch an opaque high-contrast plate. The corrected 32-frame source atlas passes manual inspection but is not Production evidence. Document 78 is authoritative; V2, Stage 11, Browser, owner freeze, release and publication remain untouched.
+Sites v498 materialized R17 as a deterministic/rights PASS 73.267-second 2560×1440 H.264/AAC master of 34,301,626 bytes with exact hash `b2f3de5e…`. Exact-audio QA passes 94 with only two P2 observations. Visual QA rises from 68 to 87 but still fails because five adjacent sample pairs retain unchanged compositions long enough to create slide-deck pacing. P2 evidence also requires the three netting obligations to identify their source banks and removes undersized token/branch identifiers. Migration `0102` permits one append-only R18 only from this exact visual FAIL and audio PASS. R18 uses 32 unique causal beats across nine alternating worlds, labels obligations `NGÂN HÀNG A/B/C`, removes text from moving tokens and uses large branch-status plates. Its 32-frame source atlas passes manual inspection but is not Production evidence. Document 78 is authoritative; V2, Stage 11, Browser, owner freeze, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 
