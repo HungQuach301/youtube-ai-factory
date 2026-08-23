@@ -36,13 +36,22 @@ ASSURANCE_QUALIFICATION_AUTHORITY = FALSE
 RELEASE_AUTHORITY = FALSE
 TARGETED_REGRESSION = 53_OF_53_PASS
 FULL_REGRESSION = 183_OF_183_PASS__VERIFIED_BUILD_PASS
-PRODUCTION_STATE = SOURCE_READY__DEPLOYMENT_PENDING
+PRODUCTION_STATE = ACCEPTED__SITES_V458
+PRODUCTION_SOURCE_COMMIT = e8dd36f5a36a4527dc385ced9ad75baf19264ca0
+OWNER_DECISION = CLEAN_CONFIRMED
+FULL_LISTEN = ATTESTED
+OWNER_REQUEST_ID = a2f797499ff47a53
+POST_RUN_WORKER_ERRORS = 0
 ```
 
 ## UI behavior
 
 Section 6 appears only after the clean Factory receipt exists. The owner confirmation checkbox stays disabled until the page observes continuous playback through the end. The server still requires an explicit full-listen attestation and exact-byte read-back; browser state alone is never authority. A successful form redirects to an immutable read-back view showing the owner decision and retained downstream locks.
 
+## Production acceptance
+
+Sites v458 deployed migration `0078`. The allowlisted owner listened through the exact 35-second replacement and submitted `CLEAN_CONFIRMED` with no observed defects, the required rationale and full-listen attestation. Request `a2f797499ff47a53` returned a successful 303 redirect after 1.323 seconds. The immutable read-back shows `CLEAN_CONFIRMED`, `ATTESTED` and `OWNER_GROUND_TRUTH_ONLY`; exact audio reads returned 200 and post-run Worker errors are zero.
+
 ## Next protected action
 
-Deploy migration `0078`. The owner then listens once and records either clean confirmation or a defect rejection. Do not generate derivatives, seal a dataset, qualify audio capability or open release until the exact owner receipt is read back and the next separate gate is implemented.
+Design and implement a separate clean-control eligibility gate. Do not generate defect derivatives, seal a dataset, qualify audio capability, open Golden r10, Stage 11 or release from this owner receipt alone.

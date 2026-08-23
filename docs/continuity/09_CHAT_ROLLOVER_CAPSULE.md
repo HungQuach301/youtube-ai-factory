@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_CLEAN_AUDIO_OWNER_GROUND_TRUTH_GATE__SOURCE_READY_PRODUCTION_PENDING`
+**Current source classification:** `WP7_CLEAN_AUDIO_OWNER_GROUND_TRUTH__PRODUCTION_ACCEPTED`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -21,7 +21,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 
 ## Current handoff truth
 
-- Migration `0078` and `CLEAN_AUDIO_OWNER_GROUND_TRUTH_V1` are source-ready. They conditionally create one task from the exact Rights-PASS replacement plus its exact `LIKELY_CLEAN` 95/100, P0=0/P1=0 Factory receipt. Only the allowlisted SIWC owner may submit; full playback is required, R2 bytes are re-hashed, clean confirmation cannot contain defects and rejection requires an audio-observable defect plus rationale. The append-only receipt grants owner-ground-truth authority only, with zero provider/spend and no dataset/assurance/release authority. Targeted tests pass 53/53 and the full verified suite passes 183/183. Next deploy `0078` and obtain one exact-audio owner decision. V2 is untouched.
+- Sites v458 activated migration `0078` from source `e8dd36f5a36a4527dc385ced9ad75baf19264ca0`. The allowlisted owner listened through the exact 35-second Rights-PASS replacement and recorded the sole `CLEAN_CONFIRMED` receipt with `ATTESTED` full playback. Request `a2f797499ff47a53` completed with a 303 redirect after 1.323 seconds; exact artifact reads returned 200 and recent Worker errors are zero. The append-only receipt grants `OWNER_GROUND_TRUTH_ONLY` authority with zero provider/spend and no dataset/assurance/release authority. Targeted tests pass 53/53 and the full verified suite passes 183/183. Next design a separate clean-control eligibility gate; do not infer dataset, assurance, Golden r10, Stage 11 or release authority. V2 is untouched.
 
 - Sites v456 activated migration `0077` from source `bd87521ef439d786640aa81d1693ee1ff510c4e8`. The owner invoked the only authorized Factory Audio QA recovery. Request `a2f758a3dc59a8ba` returned 201 after 8.816 seconds; exact provider response, R2 read-back, usage and calculated actual spend were sealed. The independent receipt is `LIKELY_CLEAN`, 95/100, P0=0, P1=0 and `NO_IMMEDIATE_OWNER_ACTION`. There are zero post-run Worker errors. Replacement Rights remains PASS, while owner ground truth is `NOT_EVALUATED` and dataset/assurance/release authority remains false. Next is one separate exact-audio owner decision; the Factory result cannot supply it. V2 is untouched.
 
