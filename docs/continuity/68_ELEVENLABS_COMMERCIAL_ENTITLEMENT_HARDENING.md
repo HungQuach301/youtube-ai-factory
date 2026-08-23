@@ -29,6 +29,7 @@ Therefore `payg` is a payment/credit state, not sufficient base-plan evidence.
 
 - targeted entitlement and V7 route regressions: 24/24 PASS;
 - full regression and verified production build: 179/179 PASS;
+- production deployment: Sites v451 from source `d59842961082845793c912328ff57fc8312699b9`;
 - provider requests: 0;
 - provider generation requests: 0;
 - spend: USD 0;
@@ -39,4 +40,4 @@ This correction does not delete or relabel the exact existing audio bytes. If au
 
 ## Next protected action
 
-Deploy and verify the hardened source. Then obtain generation-time explicit paid-base-plan evidence or regenerate the clean fixture after the owner activates a paid base plan. Do not run Factory-first audio QA against the current rights-pending fixture.
+Obtain generation-time explicit paid-base-plan evidence or regenerate the clean fixture after the owner activates a paid base plan. Do not run Factory-first audio QA against the current rights-pending fixture.

@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_CLEAN_AUDIO_RIGHTS_PENDING__PAYG_ENTITLEMENT_HARDENING_SOURCE_READY`
+**Current source classification:** `WP7_CLEAN_AUDIO_RIGHTS_PENDING__PAYG_ENTITLEMENT_HARDENING_PRODUCTION_ACTIVE`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -21,7 +21,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 
 ## Current handoff truth
 
-- The clean-audio fixture is exact-byte sealed and browser-decodable but remains rights-pending. Official ElevenLabs evidence proves PAYG may sit on a Free or paid base plan, so `payg · active` cannot prove commercial use. `ELEVENLABS_COMMERCIAL_ENTITLEMENT_V1` now fail-closes PAYG alone and permits only explicit active Starter/Creator/Pro/Scale/Business/Enterprise tiers across clean-fixture, Stage 10 and Golden-audio synthesis. Targeted regression passes 24/24 and the verified full build/regression passes 179/179 with zero provider generation/spend. Deploy the hardened source, then obtain generation-time paid-plan evidence or regenerate after an explicit paid plan is active; Audio QA remains blocked.
+- The clean-audio fixture is exact-byte sealed and browser-decodable but remains rights-pending. Official ElevenLabs evidence proves PAYG may sit on a Free or paid base plan, so `payg · active` cannot prove commercial use. Sites v451 activates `ELEVENLABS_COMMERCIAL_ENTITLEMENT_V1` from source `d59842961082845793c912328ff57fc8312699b9`: PAYG alone fails closed and only explicit active Starter/Creator/Pro/Scale/Business/Enterprise tiers may enter clean-fixture, Stage 10 or Golden-audio synthesis. Targeted regression passes 24/24 and the verified full build/regression passes 179/179 with zero provider generation/spend. Next obtain generation-time paid-plan evidence or regenerate after an explicit paid plan is active; Audio QA remains blocked.
 
 - Production confirms two exact-byte owner anchors. Sites v425 combined preserved V2 model receipts with separate deterministic SVG evidence and passed calibration at 2/2 without a third provider retry.
 - `FACTORY_FIRST_QA_POLICY_V1` completed all 80 non-anchor primaries: 33 image candidates are likely-defect, 47 JSON artifacts are `STRUCTURED_EVIDENCE_ONLY`, and there are zero actual Browser-required media, likely-clean or owner-attention outcomes. It never writes as the owner, never sets owner-confirmed state and cannot promote fixtures, datasets, assurance qualification or release eligibility.

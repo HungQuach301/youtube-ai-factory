@@ -17,11 +17,12 @@ TARGETED_REGRESSION = 24_OF_24_PASS
 FULL_REGRESSION = 179_OF_179_PASS__VERIFIED_BUILD_PASS
 PROVIDER_GENERATION_REQUESTS = 0
 SPEND_USD = 0
-PRODUCTION_STATE = SOURCE_READY__DEPLOYMENT_PENDING
-NEXT_PROTECTED_ACTION = DEPLOY_HARDENED_GATE__THEN_EXPLICIT_PAID_BASE_PLAN_EVIDENCE_OR_REGENERATE
+PRODUCTION_STATE = PRODUCTION_ACTIVE_SITES_V451
+PRODUCTION_SOURCE_COMMIT = d59842961082845793c912328ff57fc8312699b9
+NEXT_PROTECTED_ACTION = EXPLICIT_PAID_BASE_PLAN_EVIDENCE_OR_REGENERATE
 ```
 
-ElevenLabs Terms and publishing guidance require a paid subscription for commercial use, while the PAYG administration documentation explicitly allows PAYG on Free accounts. The previous `tier != free` predicate was therefore insufficient. The shared evaluator now permits only an explicit active paid base tier and fails closed for `payg`, Free, inactive or unknown values. Existing bytes and receipts remain immutable; the current fixture cannot enter Factory-first audio QA until its generation-time plan is proven or a new fixture is generated after an explicit paid plan is active. Targeted tests pass 24/24 and the verified full build/regression passes 179/179. Document 68 and ADR-097 are authoritative for this correction.
+ElevenLabs Terms and publishing guidance require a paid subscription for commercial use, while the PAYG administration documentation explicitly allows PAYG on Free accounts. The previous `tier != free` predicate was therefore insufficient. The shared evaluator now permits only an explicit active paid base tier and fails closed for `payg`, Free, inactive or unknown values. Sites v451 activates the correction from source `d59842961082845793c912328ff57fc8312699b9`. Existing bytes and receipts remain immutable; the current fixture cannot enter Factory-first audio QA until its generation-time plan is proven or a new fixture is generated after an explicit paid plan is active. Targeted tests pass 24/24 and the verified full build/regression passes 179/179. Document 68 and ADR-097 are authoritative for this correction.
 
 ## Historical recovery closure and controlled fixture plan — 2026-08-22
 
