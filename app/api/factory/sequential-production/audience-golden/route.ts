@@ -4,6 +4,7 @@ import {
   audienceGoldenSnapshot,
   bootstrapAudienceGoldenAuthorized,
   commitAudienceGoldenMaterializationAuthorized,
+  createAudienceGoldenRepairRevisionAuthorized,
   generateAudienceGoldenAudioAuthorized,
   readAudienceGoldenMediaAuthorized,
   recordAudienceGoldenBrowserQaAuthorized,
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
     if (!body) throw new AudienceGoldenError("JSON_BODY_REQUIRED", 400, "A JSON request body is required");
     const { env, actor } = await authorized(request, action !== "OWNER_DECISION"), idempotencyKey = clean(request.headers.get("idempotency-key"));
     if (action === "BOOTSTRAP") return Response.json(await bootstrapAudienceGoldenAuthorized(env, actor, idempotencyKey), { status: 201, headers: NO_STORE });
+    if (action === "CREATE_REPAIR_REVISION") return Response.json(await createAudienceGoldenRepairRevisionAuthorized(env, actor, idempotencyKey), { status: 201, headers: NO_STORE });
     if (action === "GENERATE_AUDIO") return Response.json(await generateAudienceGoldenAudioAuthorized(env, actor, idempotencyKey), { status: 201, headers: NO_STORE });
     if (action === "STAGE_CHUNK") return Response.json(await stageAudienceGoldenChunkAuthorized(env, { blueprintId: clean(body.blueprintId), role: clean(body.role), fullHash: clean(body.fullHash), totalBytes: Number(body.totalBytes), chunkIndex: Number(body.chunkIndex), chunkCount: Number(body.chunkCount), chunkHash: clean(body.chunkHash), bytes: fromBase64(clean(body.base64)) }), { status: 201, headers: NO_STORE });
     if (action === "COMMIT_MATERIALIZATION") return Response.json(await commitAudienceGoldenMaterializationAuthorized(env, actor, idempotencyKey, body), { status: 201, headers: NO_STORE });

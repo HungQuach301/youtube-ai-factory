@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 const API = "/api/factory/sequential-production/audience-golden";
-const labels: Record<string, string> = { SEAL_BLUEPRINT: "Niêm phong blueprint", GENERATE_AUDIO: "Tạo voice master", MATERIALIZE_MASTER: "Chờ renderer materialize", RUN_FACTORY_VISUAL_QA: "Chạy Factory Visual QA", RUN_FACTORY_AUDIO_QA: "Chạy Factory Audio QA", RUN_BROWSER_QA: "Chờ Browser QA", OWNER_FULL_PLAYBACK_REQUIRED: "Chủ sở hữu cần xem toàn bộ", FROZEN: "Golden Sequence đã freeze" };
+const labels: Record<string, string> = { SEAL_BLUEPRINT: "Niêm phong blueprint", CREATE_REPAIR_REVISION: "Đang mở revision theo failure evidence", GENERATE_AUDIO: "Tạo voice master", MATERIALIZE_MASTER: "Chờ renderer materialize", RUN_FACTORY_VISUAL_QA: "Chạy Factory Visual QA", RUN_FACTORY_AUDIO_QA: "Chạy Factory Audio QA", RUN_BROWSER_QA: "Chờ Browser QA", OWNER_FULL_PLAYBACK_REQUIRED: "Chủ sở hữu cần xem toàn bộ", FROZEN: "Golden Sequence đã freeze" };
 const scoreColor = (value: string) => value === "PASS" || value === "FROZEN_AUDIENCE_GOLDEN" || value === "CLEAN_CONFIRMED" ? "#7cf0bd" : value === "FAIL" || value === "DEFECT_REJECTED" ? "#ff9f8c" : "#f6d37a";
 
 async function command(action: string, body: Row = {}) {

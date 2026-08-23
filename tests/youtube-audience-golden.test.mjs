@@ -38,3 +38,14 @@ test("post-TTS internal failure permits one append-only idempotent recovery", ()
   assert.match(runtime, /idempotency-key/);
   assert.match(runtime, /GOLDEN_AUDIO_RECOVERY_ALREADY_ATTEMPTED/);
 });
+
+test("failed independent QA creates one evidence-bound Revision 2 instead of mutating the rejected master", () => {
+  const migration = read("drizzle/0085_youtube_audience_golden_revision_2.sql"), runtime = read("lib/youtube-audience-golden.ts");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_2/);
+  assert.match(migration, /visual_failure_receipt_id/);
+  assert.match(migration, /audio_failure_receipt_id/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_IMMUTABLE/);
+  assert.match(runtime, /CREATE_REPAIR_REVISION/);
+  assert.match(runtime, /distinctScenePalettes: 8/);
+  assert.match(runtime, /musicBed: false/);
+});
