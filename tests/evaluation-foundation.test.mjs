@@ -1052,6 +1052,7 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
   assert.match(route, /x-clean-av-factory-qa-automation-token/);
   assert.match(route, /x-clean-av-browser-qa-automation-token/);
   assert.match(route, /COMMIT_CLEAN_AV_MASTER/);
+  assert.match(route, /typeof value === "object"\) return value as T/);
   assert.match(avImplementation, /UPLOAD_STAGING_ONLY/);
   assert.doesNotMatch(`${avImplementation}\n${avMigration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|DELETE FROM/);
 });

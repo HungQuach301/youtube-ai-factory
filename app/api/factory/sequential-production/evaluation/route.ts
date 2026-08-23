@@ -37,7 +37,10 @@ type Env = { DB?: DB; BUCKET?: Bucket; ELEVENLABS_API_KEY?: string; OPENAI_API_K
 class EvaluationCommandError extends Error { constructor(public code: string, public status: number, message: string) { super(message); } }
 const clean = (value: unknown) => String(value ?? "").trim();
 const number = (value: unknown) => Number(value ?? 0);
-const json = <T,>(value: unknown, fallback: T): T => { try { return JSON.parse(clean(value)) as T; } catch { return fallback; } };
+const json = <T,>(value: unknown, fallback: T): T => {
+  if (value !== null && typeof value === "object") return value as T;
+  try { return JSON.parse(clean(value)) as T; } catch { return fallback; }
+};
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 const escapeHtml = (value: unknown) => clean(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 const OWNER_DEFECT_COPY: Record<string, { label: string; description: string }> = {
