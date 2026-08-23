@@ -1,6 +1,6 @@
 # Autonomous Clean A/V Browser QA
 
-**Class:** `NORMATIVE` plus source execution evidence  
+**Class:** `NORMATIVE` plus production execution evidence  
 **Date:** 2026-08-23  
 **Scope:** original YouTube AI Factory only; Production V2 is excluded and untouched.
 
@@ -22,7 +22,7 @@
 
 Migration `0082` adds the immutable automation policy, bounded runs, R2 evidence-object ledger and receipt-to-evidence link. The evaluation route exposes two browser-token-scoped commands, `START_AUTONOMOUS_CLEAN_AV_BROWSER_QA` and `FINALIZE_AUTONOMOUS_CLEAN_AV_BROWSER_QA`, plus a same-origin mobile runner surface. The surface plays the exact production media in real time and performs the required interactions and measurements inside the browser.
 
-The source build and targeted 36-test evaluation suite pass. Production migration, cloud-browser execution and stored runtime evidence are still pending at this checkpoint. The current Browser state therefore remains `PENDING`; the owner task remains unopened.
+Sites v474 from source `237210850aaa9ad01a15ed47e7adf793666e294f` is production-active. Attempt 1 completed full playback but was append-only `FAILED` because a throttled callback-rate proxy could not prove motion; it created no Browser receipt. The corrected cross-cue method passed attempt 2 with playback 100%, maximum decoded audio RMS 0.1328, four meaningful motion samples, four of four mobile frames, focus/reflow PASS and zero page errors. Start/finalize requests `a2f93b66dd1f5708` and `a2f93cd109a55708` returned 201 with Worker outcome `ok`. The exact evidence bundle and its four JPEG objects passed R2 read-back before the sole `LIKELY_CLEAN` receipt was sealed. Production UI read-back shows Browser motion/mobile PASS and owner truth `REVIEW_REQUIRED`. Full regression passes 184/184 and the documentation SSOT check passes.
 
 ## Protected scope
 

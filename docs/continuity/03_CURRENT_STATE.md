@@ -2,27 +2,28 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
-## Autonomous clean A/V Browser QA — source accepted, production pending
+## Autonomous clean A/V Browser QA — production complete, owner review open
 
 ```text
 MIGRATION_0081 = PRODUCTION_ACTIVE_SITES_V469
-MIGRATION_0082 = SOURCE_ACCEPTED__PRODUCTION_PENDING
+MIGRATION_0082 = PRODUCTION_ACTIVE_SITES_V474
 POLICY = CLEAN_AV_AUTONOMOUS_BROWSER_QA_V1
 TARGET_BLUEPRINT = CFP_V1_13__CLEAN_AUDIO_VISUAL_MASTER_NEGATIVE
 MASTER_RECEIPT = clean-av-master-materialization-receipt-5a0c0db2-a7e0-4fcd-b7d6-5591e7e3c602
 DISTRIBUTION_SHA256 = db65f24a28252757901ab5c16fac8711dd6f4ca8e83bd5963ebb6e80c666781c
 FACTORY_QA = LIKELY_CLEAN_95__P0_0__P1_0
 BROWSER_ATTEMPTS_MAX = 3
-BROWSER_QA = PENDING__EXACT_MASTER__98_PERCENT_PLAYBACK_MINIMUM
-EVIDENCE = REAL_TIME_PLAYBACK__DECODED_AUDIO_RMS__MOTION__4_MOBILE_FRAMES__FOCUS_REFLOW__ZERO_ERRORS
-OWNER_GROUND_TRUTH = SEPARATE_NON_DELEGABLE_TASK
+BROWSER_ATTEMPTS = ATTEMPT_1_FAILED_MOTION_CALLBACK_RATE__ATTEMPT_2_COMPLETE
+BROWSER_QA = LIKELY_CLEAN__100_PERCENT_PLAYBACK
+EVIDENCE = AUDIO_RMS_0_1328__4_CROSS_CUE_MOTION_SAMPLES__4_OF_4_MOBILE_FRAMES__FOCUS_REFLOW_PASS__ZERO_ERRORS
+OWNER_GROUND_TRUTH = REVIEW_REQUIRED__SEPARATE_NON_DELEGABLE_TASK
 DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
-TARGETED_REGRESSION = 36_OF_36_PASS__AUTONOMOUS_FAILURE_STAYS_PENDING
+FULL_REGRESSION = 184_OF_184_PASS__AUTONOMOUS_FAILURE_STAYS_PENDING
 VERIFIED_BUILD = PASS
-NEXT_PROTECTED_ACTION = DEPLOY_0082__RUN_ONE_REAL_CLOUD_BROWSER_ATTEMPT
+NEXT_PROTECTED_ACTION = OWNER_FULL_PLAYBACK_AND_PERCEPTUAL_DECISION
 ```
 
-Migration `0082` adds bounded append-only Browser runs, exact R2 cue-frame evidence, canonical telemetry binding and a mobile same-origin runner. Failed or incomplete attempts cannot create the sole Browser receipt. Technical, Factory, Browser and owner evidence remain separate; no task can manufacture the owner's perception. Documents 75–76 and ADR-105–106 are authoritative. V2 is untouched.
+Sites v474 from source `237210850aaa9ad01a15ed47e7adf793666e294f` completed the exact production run in mobile Chromium. The first append-only attempt preserved a callback-rate motion miss without consuming the receipt; the second used cross-cue pixel evidence and sealed `LIKELY_CLEAN` with 100% playback, decoded RMS 0.1328, four motion/mobile samples, focus/reflow PASS and zero page errors. Start/finalize Worker requests `a2f93b66dd1f5708` and `a2f93cd109a55708` both returned 201 with outcome `ok`. Production read-back shows Browser `LIKELY_CLEAN`, motion/mobile PASS and the owner task `REVIEW_REQUIRED`. Technical, Factory, Browser and owner evidence remain separate; no task can manufacture the owner's perception. Documents 75–76 and ADR-105–106 are authoritative. V2 is untouched.
 
 ## Controlled defect derivation gate — 2026-08-23
 

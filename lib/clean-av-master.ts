@@ -26,6 +26,10 @@ const jsonObject = (value: unknown): Row | null => {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Row;
   try { const parsed = JSON.parse(clean(value)); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Row : null; } catch { return null; }
 };
+const jsonArray = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) return value;
+  try { const parsed = JSON.parse(clean(value)); return Array.isArray(parsed) ? parsed : []; } catch { return []; }
+};
 async function first(db: CleanAvDB, query: string, ...values: unknown[]) { return db.prepare(query).bind(...values).first<Row>(); }
 async function run(db: CleanAvDB, query: string, ...values: unknown[]) { return db.prepare(query).bind(...values.map((value) => value === undefined ? null : value)).run(); }
 function base64(bytes: Uint8Array) { let value = ""; for (let offset = 0; offset < bytes.length; offset += 0x8000) value += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)); return btoa(value); }
@@ -50,6 +54,7 @@ export async function cleanAvMasterSnapshot(db: CleanAvDB) {
     first(db, "SELECT * FROM v7_evaluation_clean_av_browser_qa_receipts WHERE channel_id=? AND policy_version=? LIMIT 1", CHANNEL_ID, CLEAN_AV_BROWSER_QA_VERSION),
     first(db, "SELECT * FROM v7_evaluation_clean_av_owner_ground_truth_tasks WHERE channel_id=? AND policy_version=? LIMIT 1", CHANNEL_ID, CLEAN_AV_OWNER_GROUND_TRUTH_VERSION),
   ]);
+  const browserObservation = jsonObject(jsonArray(browserQa?.observations_json)[0]);
   return {
     policy: policy ? {
       maximumMasters: number(policy.maximum_masters), archivalWidth: number(policy.archival_width), archivalHeight: number(policy.archival_height),
@@ -79,7 +84,9 @@ export async function cleanAvMasterSnapshot(db: CleanAvDB) {
     browserQa: browserQa ? {
       id: clean(browserQa.id), decisionState: clean(browserQa.decision_state), playbackCoverageRatio: number(browserQa.playback_coverage_ratio),
       meaningfulMotionObserved: Boolean(number(browserQa.meaningful_motion_observed)), mobileLegibilityObserved: Boolean(number(browserQa.mobile_legibility_observed)),
-      pageErrorCount: number(browserQa.page_error_count), authorityBoundary: clean(browserQa.authority_boundary),
+      pageErrorCount: number(browserQa.page_error_count), evidenceBundleHash: clean(browserObservation?.evidenceBundleHash), browserRunId: clean(browserObservation?.browserRunId),
+      maximumAudioRms: number(browserObservation?.maximumAudioRms), motionSamples: number(browserObservation?.motionSamples), mobileFrameSamples: number(browserObservation?.mobileFrameSamples),
+      authorityBoundary: clean(browserQa.authority_boundary),
     } : null,
     ownerTask: ownerTask ? { id: clean(ownerTask.id), distributionHash: clean(ownerTask.distribution_hash), state: clean(ownerTask.task_state), authorityBoundary: clean(ownerTask.authority_boundary) } : null,
   };
