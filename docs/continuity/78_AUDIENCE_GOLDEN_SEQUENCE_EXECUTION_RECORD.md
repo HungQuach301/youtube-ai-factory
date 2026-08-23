@@ -1,8 +1,8 @@
 # Audience Golden Sequence execution record
 
 **Class:** `EXECUTION_EVIDENCE`  
-**Status:** `ACTIVE__REVISION_13_VISUAL_REJECTED__REVISION_14_SOURCE_READY`
-**Date:** 2026-08-23 (Asia/Bangkok)  
+**Status:** `ACTIVE__REVISION_14_DUAL_REJECTED__REVISION_15_SOURCE_READY`
+**Date:** 2026-08-24 (Asia/Bangkok)
 **Scope:** original YouTube AI Factory only; Production V2 is excluded and untouched.
 
 ## Acceptance contract
@@ -26,6 +26,7 @@
 | R11 | `55995b0c1ef676ebdf51ab9a10f5939361d7565a0a625a295d09c6b7b448c9a6` | FAIL 87 | PASS 95 | preserved rejected visual evidence; audio pass retained |
 | R12 | `a6f5d16acb3974bd356248c929456c9fc3b5d7b69beb0abe287fae71686cd5bf` | FAIL 87 | PASS 94 | preserved rejected visual evidence; audio pass retained |
 | R13 | `bc62a2a23310dc81ddbbff1b5407c7e1e9019787aeac72f5508ea6012aa561ae` | FAIL 64 | PASS 95 | preserved rejected visual evidence; audio pass retained |
+| R14 | `58c88390f6fee03c0607e1c404b86802ba4f09c6293e21f97e8d9316102506e8` | FAIL 81 | FAIL 88 | preserved dual-failure evidence |
 
 R4 improved visual richness but retained two P1 defects: the same tableau/lower-third grammar persisted across the explanation, and the moving marker did not make institutions, balances or records visibly transform. Its three P2 findings were insufficient state differentiation, mixed English without visible definition and secondary mobile typography. No Browser or owner PASS was inferred.
 
@@ -46,6 +47,12 @@ R11 is a deterministic/rights PASS 73.333-second 2560×1440 H.264/AAC master of 
 R12 is a deterministic/rights PASS 74.637-second 2560×1440 H.264/AAC master of 27,009,430 bytes. Its exact audience-mix hash is `1b0036f3b4c1ca1ad7da3216c245e98fb95610c1fe809a7c0f6733ac4b4f27f3`. Factory audio QA passes at 94 with P0=0, P1=0 and P2=0. Factory visual QA fails at 87 with P0=0, P1=1 and P2=2. The P1 is the unsupported clearing conclusion: the pixels show merchant `2,00` and network `2,05`, then `ĐÃ KHỚP 2,05`, without an always-visible fee equation explaining the delta. P2 identifies twelve unreadably small obligation markers and a repeated `GIỮ–KHỚP–CHUYỂN–XONG` state-map composition held for roughly thirteen seconds. Receipt `audience-golden-materialization-e847c87c-67a7-4bbb-af6c-9452970a64b1` and all QA findings are immutable; Browser, owner review and freeze remain unopened.
 
 R13 is a deterministic/rights PASS 76.867-second 2560×1440 H.264/AAC master of 21,157,173 bytes. Its exact audience-mix hash is `517a322ce9f0debe314559b92c2e2995e5d41959cd4095dd3d0bab700484bedb`. Factory audio QA passes at 95 with P0=0, P1=0 and one minor cadence P2. Factory visual QA fails at 64 with P0=0, P1=3 and P2=2. Authorization and hold remain visually ambiguous because the approval state is not explicitly shown before the balance changes. The explicit clearing equation then persists across six samples, and the labeled netting panel plus translating net token persist across another six; this turns the targeted repair into slower slide-deck pacing. The mobile review also finds a crowded netting caption and the four-outcome exception chart too abrupt. Receipt `audience-golden-materialization-7cdc4886-bdf6-478e-939c-bf3d8b5b58e9` and all findings remain immutable; Browser, owner review and freeze remain unopened.
+
+R14 is a deterministic/rights PASS 70-second 2560×1440 H.264/AAC master of 20,566,508 bytes. Its exact audience-mix hash is `8c6c3e5bdf4d552066a4a6fa962330e02efe5619147a55c5dc78f9d468a73c9e`. Factory visual QA fails at 81 with P0=0, P1=2 and P2=2. The 32 distinct causal screens still share poster/headline/token composition instead of sustained spatial storytelling, and the opening request labeled `1` becomes a hold labeled `2` without a persistent transaction identity. Dense settlement crops and rails crossing monetary values add two mobile P2 findings. Factory audio QA fails at 88 with P0=0, P1=1 and P2=2: a click at 00:32, brief accelerated pacing near 00:15 and a seam near 00:50. Receipt `audience-golden-materialization-4deac705-84f5-4696-abb6-0ffe0fd0a477` and both QA receipts remain immutable; Browser, owner review and freeze remain unopened.
+
+## Revision 15 source contract
+
+Migration `0099_youtube_audience_golden_revision_15.sql` permits one append-only R15 only from the exact R14 visual and audio FAIL receipts. R15 is one continuous 14,400 px spatial world rather than a set of screens. The camera follows one immutable object labeled `TX-01 · 2,00`; `FEE 0,05` is a separate object and only the final clearing record reads `2,05`. Each camera crop contains at most two actors and two monetary values. Settlement is shown as sequential Bank→Network→Acquirer→Merchant hops, and transfer rails are always behind labels and tokens. Cancellation, expiry, refund and dispute occupy separate time windows. The R15 TTS request reads `.92` speed, `.88` stability and zero style from the sealed contract; the exact mix uses continuous resampling, `adeclick` and conservative loudness/peak limiting before independent audio QA. The source preview is inspection only and grants no Browser, owner, freeze or release authority.
 
 ## Revision 14 source contract
 

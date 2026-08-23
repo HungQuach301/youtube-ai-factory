@@ -1,22 +1,22 @@
 # Current State
 
-Last reconciled: 2026-08-23 (Asia/Bangkok)
+Last reconciled: 2026-08-24 (Asia/Bangkok)
 
-## Audience Golden Sequence — R13 rejected visually, R14 thirty-two-state repair in source verification
+## Audience Golden Sequence — R14 dual rejection, R15 continuous-world repair in source verification
 
 ```text
-PRODUCTION_CHECKPOINT = SITES_V492
-R13_MASTER_SHA256 = bc62a2a23310dc81ddbbff1b5407c7e1e9019787aeac72f5508ea6012aa561ae
-R13_FACTORY_VISUAL = FAIL_64__P0_0__P1_3__P2_2
-R13_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_1
-R14_SOURCE = READY__MIGRATION_0098__THIRTY_TWO_CAUSAL_STATE_WORLD_JOURNEY
-R14_PIXEL_PREVIEW = PASS__32_DISTINCT_COMPOSITIONS__FOUR_SEPARATE_EXCEPTION_BRANCHES
-SOURCE_VERIFICATION = 199_OF_199_PASS__VERIFIED_BUILD_PASS__DOCS_SSOT_PASS__V2_FIREWALL_16_OF_16
+PRODUCTION_CHECKPOINT = SITES_V495
+R14_MASTER_SHA256 = 58c88390f6fee03c0607e1c404b86802ba4f09c6293e21f97e8d9316102506e8
+R14_FACTORY_VISUAL = FAIL_81__P0_0__P1_2__P2_2
+R14_FACTORY_AUDIO = FAIL_88__P0_0__P1_1__P2_2
+R15_SOURCE = READY__MIGRATION_0099__CONTINUOUS_SPATIAL_CAUSAL_FILM
+R15_PIXEL_PREVIEW = PASS_SOURCE_INSPECTION__ONE_14400PX_WORLD__ONE_TX_01_2_00_TOKEN__SEQUENTIAL_EXCEPTIONS
+SOURCE_VERIFICATION = TARGETED_36_OF_36_PASS__FULL_REGRESSION_202_OF_202_PASS__VERIFIED_BUILD_PASS__DOCS_SSOT_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0098__EXECUTE_R14__LET_FACTORY_QA_DECIDE
+NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0099__EXECUTE_R15__LET_FACTORY_QA_DECIDE
 ```
 
-Sites v494 materialized R13 as a deterministic/rights PASS 76.867-second 2560×1440 H.264/AAC master of 21,157,173 bytes with exact hash `bc62a2a2…`. Exact-audio QA passes 95. Visual QA fails 64: approval is not explicit before hold, the clearing equation and netting panel each persist too long, mobile netting crowds, and four exceptions arrive simultaneously. Migration `0098` permits one append-only R14 only from that exact visual FAIL plus exact-audio PASS. R14 maps the 32 evidence positions to 32 different causal states and compositions, makes `ĐÃ CHO PHÉP` precede `GIỮ`, separates clearing and netting into four transformations each, and gives each exception its own full-frame branch. The 32-frame source preview has no adjacent repeated composition; it is not Production evidence. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
+Sites v495 materialized R14 as a deterministic/rights PASS 70-second 2560×1440 H.264/AAC master of 20,566,508 bytes with exact hash `58c88390…`. Visual QA fails 81: 32 distinct screens still read as a slide deck, transaction identity changes ambiguously from `1` to `2`, settlement is dense on mobile and transfer lines cross values. Exact-audio QA also fails 88 because of a click at 00:32 plus pacing/seam observations. Migration `0099` permits one append-only R15 only from those exact dual-failure receipts. R15 replaces screen succession with one 14,400 px spatial world and a camera following immutable `TX-01 · 2,00`; clearing fee/final record are separately identified, settlement hops are sequential, rails remain behind values, and only one exception appears at a time. R15 also sources conservative voice settings from the sealed audio contract and applies de-click/resample mastering. Source preview is not Production evidence. Document 78 is authoritative; V2, Stage 11, Browser, owner freeze, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 
