@@ -83,7 +83,7 @@ function visualFilter(width, height, duration) {
 function render(audio, output, width, height, duration, crf) {
   const source = `color=c=#102e25:s=${width}x${height}:r=30:d=${duration.toFixed(6)}`;
   const band = `color=c=#5ec99f:s=${Math.round(width * 0.19)}x${height}:r=30:d=${duration.toFixed(6)}`;
-  execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", audio, "-f", "lavfi", "-i", source, "-f", "lavfi", "-i", band, "-filter_complex", visualFilter(width, height, duration), "-map", "[vout]", "-map", "[aout]", "-t", duration.toFixed(6), "-c:v", "libvpx-vp9", "-deadline", "good", "-cpu-used", "4", "-row-mt", "1", "-crf", String(crf), "-b:v", "0", "-r", "30", "-c:a", "libopus", "-b:a", width === 1920 ? "128k" : "96k", "-ar", "48000", "-ac", "2", "-y", output], { maxBuffer: 24_000_000 });
+  execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", audio, "-f", "lavfi", "-i", source, "-f", "lavfi", "-i", band, "-filter_complex", visualFilter(width, height, duration), "-map", "[vout]", "-map", "[aout]", "-t", duration.toFixed(6), "-c:v", "libvpx-vp9", "-deadline", "good", "-cpu-used", "4", "-row-mt", "1", "-crf", String(crf), "-b:v", "0", "-r", "30", "-c:a", "libopus", "-b:a", width === 1920 ? "64k" : "48k", "-ar", "48000", "-ac", "2", "-y", output], { maxBuffer: 24_000_000 });
 }
 
 function packetBounds(path, selector) {
@@ -136,7 +136,7 @@ try {
   const source = join(work, "source-audio.mp3"), archival = join(work, "archival.webm"), distribution = join(work, "distribution.webm"), sheet = join(work, "contact-sheet.jpg");
   await downloadSource(snapshot.task, source);
   const duration = mediaDuration(source); if (!(duration > 30 && duration < 45)) throw new Error(`source duration outside sealed gate · ${duration}`);
-  render(source, archival, 1920, 1080, duration, 29); render(source, distribution, 1280, 720, duration, 30); contactSheet(distribution, sheet, duration);
+  render(source, archival, 1920, 1080, duration, 48); render(source, distribution, 1280, 720, duration, 48); contactSheet(distribution, sheet, duration);
   const archivalProbe = probe(archival), distributionProbe = probe(distribution), archivalBounds = { video: packetBounds(archival, "v:0"), audio: packetBounds(archival, "a:0") }, scanEvidence = scan(distribution, distributionProbe.durationSeconds);
   const startDeltaMs = (archivalBounds.video.start - archivalBounds.audio.start) * 1000, endDeltaMs = (archivalBounds.video.end - archivalBounds.audio.end) * 1000;
   const technicalEvidence = { schemaVersion: "CLEAN_AV_TECHNICAL_EVIDENCE_V1", scanState: "PASS", archival: archivalProbe, distribution: distributionProbe, audioDurationSeconds: archivalBounds.audio.end - archivalBounds.audio.start, videoDurationSeconds: archivalBounds.video.end - archivalBounds.video.start, avStartDeltaMs: startDeltaMs, avEndDeltaMs: endDeltaMs, ...scanEvidence, measurementTools: { ffmpeg: "full-frame decode plus blackdetect and freezedetect", ffprobe: "stream profile frame count and packet bounds", motion: "2 Hz decoded-frame difference coverage" } };
