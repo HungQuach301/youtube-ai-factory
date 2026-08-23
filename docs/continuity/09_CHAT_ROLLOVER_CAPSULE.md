@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_CLEAN_AUDIO_CONTROL_ELIGIBILITY__PRODUCTION_COMPLETE`
+**Current source classification:** `WP7_CONTROLLED_DEFECT_DERIVATION__SOURCE_READY`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- Migration `0080` and `CONTROLLED_DEFECT_DERIVATION_V1` are source-ready. The sole task binds the eligible clean-audio control to blueprint `cfp-v1-02` and may create one deterministic `RIGHTS_LINEAGE_MISSING` P0 fixture. The action re-reads the exact parent, stores and re-reads a clean manifest plus a variant missing only `rightsReceiptId`, uses zero provider/spend and has no dataset/assurance/release authority. Success would project one controlled injection and 1/5 P0 coverage while WP7 remains `INSUFFICIENT_GROUND_TRUTH`. A credential is configured and hard-scoped to the exact derivation action. Deploy and execute this one task next. V2 is untouched.
 
 - Sites v460 activated migration `0079`; Sites v461 from source `afc96961562619faa8e29a996c65bbd7c00d85cd` deployed the exact-action-only operator credential and recorded the sole `ELIGIBLE_CLEAN_CONTROL_REFERENCE`. Exact R2 read-back, checksum, provenance and rights passed; the prior Factory result is `LIKELY_CLEAN` and owner truth is `CLEAN_CONFIRMED`. The command used zero provider requests and zero spend. There are now three owner-confirmed references and one clean control, but readiness remains `INSUFFICIENT_GROUND_TRUTH` because controlled injections are zero and P0 coverage is 0/5. Dataset, assurance, Golden r10, Stage 11 and release remain locked. Next design a separate controlled-defect derivative gate. V2 is untouched.
 

@@ -46,6 +46,7 @@ import { EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION } from "../lib/clean
 import { COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, FACTORY_AUDIO_QA_OUTPUT_CONTRACT_VERSION, FACTORY_AUDIO_QA_POLICY_VERSION, FACTORY_AUDIO_QA_RECOVERY_VERSION } from "../lib/commercial-clean-audio-regeneration.ts";
 import { CLEAN_AUDIO_OWNER_DEFECT_KEYS, CLEAN_AUDIO_OWNER_GROUND_TRUTH_VERSION } from "../lib/clean-audio-owner-ground-truth.ts";
 import { CLEAN_AUDIO_CONTROL_ELIGIBILITY_VERSION, evaluateCleanAudioControlEligibilityAuthorized } from "../lib/clean-audio-control-eligibility.ts";
+import { CONTROLLED_DEFECT_DERIVATION_VERSION, deriveRightsLineageMissingControlAuthorized } from "../lib/controlled-defect-derivation.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -958,7 +959,12 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
   assert.deepEqual({ ...policy }, { maximum_eligibility_receipts: 1, exact_byte_readback_required: 1, authority_boundary: "CLEAN_CONTROL_REFERENCE_ONLY", provider_requests: 0, spend_usd: 0, dataset_sealing_authority: 0, assurance_qualification_authority: 0, release_authority: 0 });
   assert.throws(() => db.prepare("UPDATE v7_evaluation_clean_audio_control_eligibility_tasks SET task_state='OPEN'").run(), /IMMUTABLE/);
   const d1 = { prepare(query) { const statement = db.prepare(query); let values = []; return { bind(...next) { values = next; return this; }, async first() { return statement.get(...values) ?? null; }, async run() { return statement.run(...values); } }; } };
-  const outcome = await evaluateCleanAudioControlEligibilityAuthorized({ db: d1, bucket: { async get(key) { return key === "eligible-audio.mp3" ? { async arrayBuffer() { return audioBytes.buffer; } } : null; } }, actor: "owner@example.com", idempotencyKey: "clean-control-eligibility-test-v1", taskId: "clean-audio-control-eligibility-task:eligible-audio-artifact", artifactId: "eligible-audio-artifact", expectedArtifactHash: exactHash });
+  const objects = new Map([["eligible-audio.mp3", audioBytes]]);
+  const bucket = {
+    async get(key) { const value = objects.get(key); return value ? { async arrayBuffer() { return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength); } } : null; },
+    async put(key, value) { objects.set(key, new Uint8Array(value)); },
+  };
+  const outcome = await evaluateCleanAudioControlEligibilityAuthorized({ db: d1, bucket, actor: "owner@example.com", idempotencyKey: "clean-control-eligibility-test-v1", taskId: "clean-audio-control-eligibility-task:eligible-audio-artifact", artifactId: "eligible-audio-artifact", expectedArtifactHash: exactHash });
   assert.equal(outcome.outcome, "RECORDED");
   assert.deepEqual({ ...db.prepare("SELECT decision_state,bytes_state,checksum_state,provenance_state,rights_state,factory_qa_state,owner_ground_truth_state,reference_eligible,dataset_eligible,release_eligible,readiness_state,authority_boundary FROM v7_evaluation_clean_audio_control_eligibility_receipts").get() }, {
     decision_state: "ELIGIBLE_CLEAN_CONTROL_REFERENCE", bytes_state: "READBACK_VERIFIED", checksum_state: "PASS", provenance_state: "PASS", rights_state: "PASS", factory_qa_state: "LIKELY_CLEAN", owner_ground_truth_state: "CLEAN_CONFIRMED", reference_eligible: 1, dataset_eligible: 0, release_eligible: 0, readiness_state: "INSUFFICIENT_GROUND_TRUTH", authority_boundary: "CLEAN_CONTROL_REFERENCE_ONLY",
@@ -976,6 +982,31 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
   assert.match(route, /artifactId: clean\(body\?\.artifactId\) \|\| clean\(eligibilityTask\?\.artifactId\)/);
   assert.match(route, /expectedArtifactHash: clean\(body\?\.expectedArtifactHash\) \|\| clean\(eligibilityTask\?\.exactArtifactHash\)/);
   assert.doesNotMatch(`${implementation}\n${migration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|api\.openai\.com|elevenlabs\.io/);
+
+  assert.equal(CONTROLLED_DEFECT_DERIVATION_VERSION, "CONTROLLED_DEFECT_DERIVATION_V1");
+  db.exec(read("drizzle/0080_controlled_defect_derivation.sql"));
+  const derivativeTask = db.prepare("SELECT blueprint_id,source_clean_control_receipt_id,source_artifact_id,source_rights_receipt_id,source_artifact_hash,expected_defect_key,task_state FROM v7_evaluation_controlled_defect_derivation_tasks").get();
+  assert.deepEqual({ ...derivativeTask }, {
+    blueprint_id: "cfp-v1-02", source_clean_control_receipt_id: db.prepare("SELECT id FROM v7_evaluation_clean_audio_control_eligibility_receipts").get().id,
+    source_artifact_id: "eligible-audio-artifact", source_rights_receipt_id: "eligible-rights", source_artifact_hash: exactHash,
+    expected_defect_key: "RIGHTS_LINEAGE_MISSING", task_state: "OPEN",
+  });
+  const derived = await deriveRightsLineageMissingControlAuthorized({ db: d1, bucket, actor: "owner@example.com", idempotencyKey: "controlled-defect-rights-lineage-test-v1", taskId: `controlled-defect-derivation-task:eligible-audio-artifact`, sourceArtifactId: "eligible-audio-artifact", expectedSourceArtifactHash: exactHash });
+  assert.equal(derived.outcome, "RECORDED");
+  assert.deepEqual({ ...db.prepare("SELECT removed_manifest_key,mutation_isolated,expected_defect_key,severity,decision_state,oracle_kind,oracle_state,ground_truth_authority,controlled_injection_eligible,p0_family_coverage_eligible,controlled_injection_fixtures_after,p0_families_covered_after,p0_families_required,readiness_state,authority_boundary,dataset_eligible,release_eligible FROM v7_evaluation_controlled_defect_derivation_receipts").get() }, {
+    removed_manifest_key: "rightsReceiptId", mutation_isolated: 1, expected_defect_key: "RIGHTS_LINEAGE_MISSING", severity: "P0",
+    decision_state: "CONTROLLED_DEFECT_PRESENT", oracle_kind: "DETERMINISTIC", oracle_state: "PASS", ground_truth_authority: "DETERMINISTIC_SYSTEM_ORACLE",
+    controlled_injection_eligible: 1, p0_family_coverage_eligible: 1, controlled_injection_fixtures_after: 1, p0_families_covered_after: 1,
+    p0_families_required: 5, readiness_state: "INSUFFICIENT_GROUND_TRUTH", authority_boundary: "CONTROLLED_FIXTURE_GROUND_TRUTH_ONLY", dataset_eligible: 0, release_eligible: 0,
+  });
+  const derivativeImplementation = read("lib/controlled-defect-derivation.ts"), derivativeMigration = read("drizzle/0080_controlled_defect_derivation.sql");
+  assert.match(derivativeImplementation, /CONTROLLED_DEFECT_PARENT_R2_HASH_MISMATCH/);
+  assert.match(derivativeImplementation, /CONTROLLED_DEFECT_MUTATION_NOT_ISOLATED/);
+  assert.match(derivativeImplementation, /rightsReceiptId/);
+  assert.match(route, /x-controlled-defect-automation-token/);
+  assert.match(route, /action === "DERIVE_RIGHTS_LINEAGE_MISSING_CONTROL"/);
+  assert.match(route, /allowAutomation && allowControlledDefectAutomation/);
+  assert.doesNotMatch(`${derivativeImplementation}\n${derivativeMigration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|api\.openai\.com|elevenlabs\.io/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {
