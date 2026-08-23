@@ -5,7 +5,7 @@ Last reconciled: 2026-08-23 (Asia/Bangkok)
 ## Controlled defect derivation gate — 2026-08-23
 
 ```text
-MIGRATION_0080 = SOURCE_READY__DEPLOYMENT_PENDING
+MIGRATION_0080 = PRODUCTION_ACTIVE_SITES_V463
 POLICY = CONTROLLED_DEFECT_DERIVATION_V1
 SOURCE_CLEAN_CONTROL = ELIGIBLE_CLEAN_CONTROL_REFERENCE
 TARGET_BLUEPRINT = CFP_V1_02__RIGHTS_LINEAGE_MISSING_POSITIVE
@@ -16,18 +16,24 @@ PARENT_AND_MANIFEST_R2_READBACK = REQUIRED
 MAXIMUM_DERIVATIVES = 1
 PROVIDER_REQUESTS_SPEND = 0_0
 DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
-PROJECTED_CANDIDATES = 37
-PROJECTED_OWNER_CONFIRMED_REFERENCES = 3
-PROJECTED_CLEAN_CONTROLS = 1
-PROJECTED_CONTROLLED_INJECTIONS = 1
-PROJECTED_P0_COVERAGE = 1_OF_5
-READINESS_AFTER_SUCCESS = INSUFFICIENT_GROUND_TRUTH
-SCOPED_AUTOMATION = CONFIGURED__EXACT_ACTION_ONLY
+DERIVATION_EXECUTION = PRODUCTION_COMPLETE
+DECISION = CONTROLLED_DEFECT_PRESENT
+MUTATION_ISOLATED = PASS
+ORACLE_STATE = PASS
+CANDIDATES_AFTER = 37
+OWNER_CONFIRMED_REFERENCES_AFTER = 3
+CLEAN_CONTROLS_AFTER = 1
+CONTROLLED_INJECTIONS_AFTER = 1
+P0_COVERAGE_AFTER = 1_OF_5
+READINESS = INSUFFICIENT_GROUND_TRUTH
+SCOPED_AUTOMATION = PRODUCTION_ACTIVE__EXACT_ACTION_ONLY
 TARGETED_REGRESSION = 36_OF_36_PASS
-NEXT_PROTECTED_ACTION = DEPLOY_AND_RUN_ONE_ZERO_PROVIDER_CONTROLLED_DERIVATION
+FULL_REGRESSION = 184_OF_184_PASS__VERIFIED_BUILD_PASS
+POST_RUN_WORKER_ERRORS = 0
+NEXT_PROTECTED_ACTION = DESIGN_CLEAN_AUDIO_VISUAL_MASTER_NEGATIVE_MATERIALIZATION_GATE
 ```
 
-Migration `0080` adds the first isolated defect derivative after the exact clean-control receipt. It creates a clean manifest and a variant whose business payload differs only by removal of the required `rightsReceiptId`; exact parent and manifest bytes must pass R2 read-back before a deterministic P0 receipt can be appended. Rights lineage uses a system oracle because it is not human-perceptual evidence. Success would add one controlled injection and one P0 family while readiness remains insufficient. Document 74 and ADR-104 are authoritative; V2 is untouched.
+Sites v463 activated migration `0080` and executed the first isolated defect derivative after the exact clean-control receipt. Production created a clean manifest and a variant whose business payload differs only by removal of the required `rightsReceiptId`; the exact parent and both manifest objects passed R2 read-back, mutation isolation and the deterministic P0 oracle. The result adds one controlled injection and one covered P0 family with zero provider/spend and no Worker errors. Readiness remains insufficient. Document 74 and ADR-104 are authoritative; V2 is untouched.
 
 ## Clean-audio control eligibility gate — 2026-08-23
 

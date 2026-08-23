@@ -40,10 +40,14 @@ ASSURANCE_QUALIFICATION_AUTHORITY = FALSE
 RELEASE_ELIGIBLE = FALSE
 RELEASE_AUTHORITY = FALSE
 READINESS_AFTER_SUCCESS = INSUFFICIENT_GROUND_TRUTH
-PRODUCTION_STATE = SOURCE_READY__DEPLOYMENT_PENDING
+PRODUCTION_STATE = COMPLETE_SITES_V463
 ```
 
 The projected corpus becomes 37 candidates, three owner-confirmed references, one clean-negative control, one controlled injection and 1/5 P0 family coverage. Readiness remains `INSUFFICIENT_GROUND_TRUTH` because the reference minimum is not met and four P0 families remain uncovered.
+
+## Production acceptance
+
+Sites v463 deployed source `0de985fd87b6e4d5954bfefe3a5e947292250c7c` and recorded receipt `controlled-defect-derivation-receipt-d1e61e49-f54c-42f8-832d-e9053c553b00` with HTTP 201. The clean-parent audio and both canonical manifest objects passed exact R2 read-back. The mutated payload lacks only `rightsReceiptId`; mutation isolation is true and the deterministic oracle is PASS. The receipt is eligible as one controlled injection and one `RIGHTS_LINEAGE_MISSING` P0-family ground-truth fixture. Production used zero provider requests, spent USD 0 and returned zero recent Worker errors.
 
 ## Operator behavior
 
@@ -51,4 +55,4 @@ A dedicated secret is accepted only for `DERIVE_RIGHTS_LINEAGE_MISSING_CONTROL`.
 
 ## Next protected action
 
-After production acceptance, design the next isolated fixture from a clean parent using the oracle required by its blueprint. Do not mass-materialize all blueprints, seal a dataset, qualify assurance, open Golden r10 or Stage 11, release media, process Videos 2–15 or enable auto-publish.
+Next design and materialize the `cfp-v1-13` clean audio-visual master under exact parent, lineage, checksum, sync, owner-clean and release-ineligible gates. It is the required clean parent for semantic visual, A/V sync, near-static, residue and mobile-legibility variants. Do not mass-materialize all blueprints, seal a dataset, qualify assurance, open Golden r10 or Stage 11, release media, process Videos 2–15 or enable auto-publish.
