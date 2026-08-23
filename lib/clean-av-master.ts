@@ -115,6 +115,48 @@ export async function readCleanAvSourceAudioAuthorized(db: CleanAvDB, bucket: Cl
 
 type MediaUpload = { bytes: Uint8Array; declaredHash: string; contentType: string };
 type TechnicalProfile = { width?: unknown; height?: unknown; frameRate?: unknown; videoCodec?: unknown; audioCodec?: unknown; audioSampleRateHz?: unknown; durationSeconds?: unknown; startTimeSeconds?: unknown; frameCount?: unknown };
+type StagedChunk = { index: number; hash: string; size: number };
+export type CleanAvStagedUploadDescriptor = { role: "archival" | "distribution" | "contactSheet"; fullHash: string; totalBytes: number; chunks: StagedChunk[] };
+const CLEAN_AV_UPLOAD_CHUNK_MAXIMUM_BYTES = 400_000;
+const CLEAN_AV_UPLOAD_CHUNK_MAXIMUM_COUNT = 128;
+const stagedChunkKey = (taskId: string, role: string, fullHash: string, index: number, chunkHash: string) => `evaluation/controlled-fixtures/v1/clean-av/staging/${taskId}/${role}/${fullHash}/${String(index).padStart(3, "0")}-${chunkHash}.part`;
+
+export async function stageCleanAvUploadChunkAuthorized(args: { db: CleanAvDB; bucket: CleanAvBucket; taskId: string; role: string; fullHash: string; totalBytes: number; chunkIndex: number; chunkCount: number; declaredChunkHash: string; bytes: Uint8Array }) {
+  const context = await prerequisites(args.db, args.taskId), role = clean(args.role);
+  if (context.anyReceipt) throw new CleanAvMasterError("CLEAN_AV_MASTER_CEILING_REACHED", 409, "The one-master materialization ceiling has already been reached");
+  if (!['archival', 'distribution', 'contactSheet'].includes(role)) throw new CleanAvMasterError("CLEAN_AV_UPLOAD_ROLE_INVALID", 400, "Use an allowlisted clean A/V upload role");
+  if (!/^[a-f0-9]{64}$/.test(args.fullHash) || !/^[a-f0-9]{64}$/.test(args.declaredChunkHash)) throw new CleanAvMasterError("CLEAN_AV_UPLOAD_HASH_INVALID", 400, "Full and chunk SHA-256 values are required");
+  const maximum = role === "archival" ? number(context.policy.maximum_archival_bytes) : role === "distribution" ? number(context.policy.maximum_distribution_bytes) : number(context.policy.maximum_contact_sheet_bytes);
+  const minimum = role === "contactSheet" ? 1001 : 10001;
+  if (!Number.isInteger(args.totalBytes) || args.totalBytes < minimum || args.totalBytes > maximum) throw new CleanAvMasterError("CLEAN_AV_UPLOAD_SIZE_INVALID", 422, "The staged object total is outside its bounded range");
+  if (!Number.isInteger(args.chunkCount) || args.chunkCount < 1 || args.chunkCount > CLEAN_AV_UPLOAD_CHUNK_MAXIMUM_COUNT || !Number.isInteger(args.chunkIndex) || args.chunkIndex < 0 || args.chunkIndex >= args.chunkCount) throw new CleanAvMasterError("CLEAN_AV_UPLOAD_CHUNK_INDEX_INVALID", 400, "Chunk index and count must be contiguous and bounded");
+  if (args.bytes.byteLength < 1 || args.bytes.byteLength > CLEAN_AV_UPLOAD_CHUNK_MAXIMUM_BYTES) throw new CleanAvMasterError("CLEAN_AV_UPLOAD_CHUNK_SIZE_INVALID", 413, "Each staged chunk must remain within 400000 bytes");
+  const chunkHash = await sha256Hex(args.bytes); if (chunkHash !== args.declaredChunkHash) throw new CleanAvMasterError("CLEAN_AV_UPLOAD_CHUNK_HASH_MISMATCH", 409, "The staged chunk hash does not match its bytes");
+  const key = stagedChunkKey(args.taskId, role, args.fullHash, args.chunkIndex, chunkHash);
+  await args.bucket.put(key, args.bytes, { httpMetadata: { contentType: "application/octet-stream" }, customMetadata: { sha256: chunkHash, taskId: args.taskId, role, fullHash: args.fullHash, chunkIndex: String(args.chunkIndex), chunkCount: String(args.chunkCount), releaseEligible: "false" } });
+  const stored = await args.bucket.get(key); if (!stored) throw new CleanAvMasterError("CLEAN_AV_UPLOAD_CHUNK_READBACK_MISSING", 503, "The staged chunk could not be read back");
+  const readback = new Uint8Array(await stored.arrayBuffer()); if (readback.byteLength !== args.bytes.byteLength || await sha256Hex(readback) !== chunkHash) throw new CleanAvMasterError("CLEAN_AV_UPLOAD_CHUNK_READBACK_MISMATCH", 503, "The staged chunk failed exact R2 read-back");
+  return { outcome: "CHUNK_STAGED", role, fullHash: args.fullHash, totalBytes: args.totalBytes, chunkIndex: args.chunkIndex, chunkCount: args.chunkCount, chunkHash, chunkBytes: args.bytes.byteLength, authorityBoundary: "UPLOAD_STAGING_ONLY", releaseEligible: false };
+}
+
+export async function readCleanAvStagedUploadAuthorized(args: { db: CleanAvDB; bucket: CleanAvBucket; taskId: string; descriptor: CleanAvStagedUploadDescriptor }) {
+  const context = await prerequisites(args.db, args.taskId), descriptor = args.descriptor, role = clean(descriptor?.role);
+  if (context.anyReceipt) throw new CleanAvMasterError("CLEAN_AV_MASTER_CEILING_REACHED", 409, "The one-master materialization ceiling has already been reached");
+  if (!['archival', 'distribution', 'contactSheet'].includes(role) || !/^[a-f0-9]{64}$/.test(clean(descriptor?.fullHash))) throw new CleanAvMasterError("CLEAN_AV_STAGED_UPLOAD_DESCRIPTOR_INVALID", 400, "A valid staged upload descriptor is required");
+  const maximum = role === "archival" ? number(context.policy.maximum_archival_bytes) : role === "distribution" ? number(context.policy.maximum_distribution_bytes) : number(context.policy.maximum_contact_sheet_bytes), minimum = role === "contactSheet" ? 1001 : 10001;
+  if (!Number.isInteger(descriptor.totalBytes) || descriptor.totalBytes < minimum || descriptor.totalBytes > maximum || !Array.isArray(descriptor.chunks) || descriptor.chunks.length < 1 || descriptor.chunks.length > CLEAN_AV_UPLOAD_CHUNK_MAXIMUM_COUNT) throw new CleanAvMasterError("CLEAN_AV_STAGED_UPLOAD_DESCRIPTOR_INVALID", 400, "The staged upload byte and chunk bounds are invalid");
+  const parts: Uint8Array[] = []; let total = 0;
+  for (const [expectedIndex, item] of descriptor.chunks.entries()) {
+    if (item.index !== expectedIndex || !/^[a-f0-9]{64}$/.test(clean(item.hash)) || !Number.isInteger(item.size) || item.size < 1 || item.size > CLEAN_AV_UPLOAD_CHUNK_MAXIMUM_BYTES) throw new CleanAvMasterError("CLEAN_AV_STAGED_UPLOAD_CHUNK_DESCRIPTOR_INVALID", 400, "Staged chunks must be contiguous and hash-bound");
+    const key = stagedChunkKey(args.taskId, role, descriptor.fullHash, item.index, item.hash), stored = await args.bucket.get(key); if (!stored) throw new CleanAvMasterError("CLEAN_AV_STAGED_UPLOAD_CHUNK_MISSING", 404, "A staged upload chunk is missing");
+    const bytes = new Uint8Array(await stored.arrayBuffer()); if (bytes.byteLength !== item.size || await sha256Hex(bytes) !== item.hash) throw new CleanAvMasterError("CLEAN_AV_STAGED_UPLOAD_CHUNK_MISMATCH", 409, "A staged upload chunk differs from its sealed descriptor");
+    parts.push(bytes); total += bytes.byteLength;
+  }
+  if (total !== descriptor.totalBytes) throw new CleanAvMasterError("CLEAN_AV_STAGED_UPLOAD_TOTAL_MISMATCH", 409, "The staged upload total differs from its descriptor");
+  const assembled = new Uint8Array(total); let offset = 0; for (const part of parts) { assembled.set(part, offset); offset += part.byteLength; }
+  if (await sha256Hex(assembled) !== descriptor.fullHash) throw new CleanAvMasterError("CLEAN_AV_STAGED_UPLOAD_HASH_MISMATCH", 409, "The assembled staged upload differs from its full SHA-256");
+  return { bytes: assembled, declaredHash: descriptor.fullHash, contentType: role === "contactSheet" ? "image/jpeg" : "video/webm" };
+}
 export async function materializeCleanAvMasterAuthorized(args: {
   db: CleanAvDB; bucket: CleanAvBucket; actor: string; idempotencyKey: string; taskId: string; sourceAudioArtifactId: string; expectedSourceAudioHash: string;
   visualManifest: Row; technicalEvidence: Row; archival: MediaUpload; distribution: MediaUpload; contactSheet: MediaUpload;

@@ -47,7 +47,7 @@ import { COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION, COMMERCIAL_CLEAN_AUDIO_REGENER
 import { CLEAN_AUDIO_OWNER_DEFECT_KEYS, CLEAN_AUDIO_OWNER_GROUND_TRUTH_VERSION } from "../lib/clean-audio-owner-ground-truth.ts";
 import { CLEAN_AUDIO_CONTROL_ELIGIBILITY_VERSION, evaluateCleanAudioControlEligibilityAuthorized } from "../lib/clean-audio-control-eligibility.ts";
 import { CONTROLLED_DEFECT_DERIVATION_VERSION, deriveRightsLineageMissingControlAuthorized } from "../lib/controlled-defect-derivation.ts";
-import { CLEAN_AV_MASTER_MATERIALIZATION_VERSION, materializeCleanAvMasterAuthorized, recordCleanAvBrowserQaAuthorized } from "../lib/clean-av-master.ts";
+import { CLEAN_AV_MASTER_MATERIALIZATION_VERSION, materializeCleanAvMasterAuthorized, readCleanAvStagedUploadAuthorized, recordCleanAvBrowserQaAuthorized, stageCleanAvUploadChunkAuthorized } from "../lib/clean-av-master.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -1026,8 +1026,18 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
     distribution: { width: 1280, height: 720, frameRate: 30, videoCodec: "vp9", audioCodec: "opus", audioSampleRateHz: 48000, durationSeconds: 35.1, startTimeSeconds: 0, frameCount: 1053 },
     audioDurationSeconds: 35.08, videoDurationSeconds: 35.1, avStartDeltaMs: 0, avEndDeltaMs: 20,
   };
+  const stage = async (role, bytes) => {
+    const chunkSize = 5000, fullHash = hash(bytes), chunkCount = Math.ceil(bytes.byteLength / chunkSize), chunks = [];
+    for (let index = 0; index < chunkCount; index += 1) {
+      const chunk = bytes.subarray(index * chunkSize, Math.min(bytes.byteLength, (index + 1) * chunkSize)), chunkHash = hash(chunk);
+      const staged = await stageCleanAvUploadChunkAuthorized({ db: d1, bucket, taskId: `clean-av-master-task:eligible-audio-artifact`, role, fullHash, totalBytes: bytes.byteLength, chunkIndex: index, chunkCount, declaredChunkHash: chunkHash, bytes: chunk });
+      assert.equal(staged.outcome, "CHUNK_STAGED"); chunks.push({ index, hash: chunkHash, size: chunk.byteLength });
+    }
+    return readCleanAvStagedUploadAuthorized({ db: d1, bucket, taskId: `clean-av-master-task:eligible-audio-artifact`, descriptor: { role, fullHash, totalBytes: bytes.byteLength, chunks } });
+  };
+  const [stagedArchival, stagedDistribution, stagedContactSheet] = await Promise.all([stage("archival", archivalBytes), stage("distribution", distributionBytes), stage("contactSheet", contactSheetBytes)]);
   const materialized = await materializeCleanAvMasterAuthorized({ db: d1, bucket, actor: "operator@example.com", idempotencyKey: "clean-av-master-materialization-test-v1", taskId: `clean-av-master-task:eligible-audio-artifact`, sourceAudioArtifactId: "eligible-audio-artifact", expectedSourceAudioHash: exactHash, visualManifest, technicalEvidence,
-    archival: { bytes: archivalBytes, declaredHash: hash(archivalBytes), contentType: "video/webm" }, distribution: { bytes: distributionBytes, declaredHash: hash(distributionBytes), contentType: "video/webm" }, contactSheet: { bytes: contactSheetBytes, declaredHash: hash(contactSheetBytes), contentType: "image/jpeg" } });
+    archival: stagedArchival, distribution: stagedDistribution, contactSheet: stagedContactSheet });
   assert.equal(materialized.outcome, "RECORDED");
   assert.deepEqual({ ...db.prepare("SELECT technical_qa_state,rights_state,factory_qa_state,browser_qa_state,owner_ground_truth_state,materialization_state,authority_boundary,dataset_eligible,qualification_eligible,release_eligible FROM v7_evaluation_clean_av_master_materialization_receipts").get() }, {
     technical_qa_state: "PASS", rights_state: "PASS", factory_qa_state: "PENDING", browser_qa_state: "PENDING", owner_ground_truth_state: "NOT_EVALUATED", materialization_state: "EXACT_LINEAGE_CHECKSUM_SYNC_VERIFIED", authority_boundary: "CLEAN_AV_TECHNICAL_MATERIALIZATION_ONLY", dataset_eligible: 0, qualification_eligible: 0, release_eligible: 0,
@@ -1041,6 +1051,8 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
   assert.match(route, /x-clean-av-master-automation-token/);
   assert.match(route, /x-clean-av-factory-qa-automation-token/);
   assert.match(route, /x-clean-av-browser-qa-automation-token/);
+  assert.match(route, /COMMIT_CLEAN_AV_MASTER/);
+  assert.match(avImplementation, /UPLOAD_STAGING_ONLY/);
   assert.doesNotMatch(`${avImplementation}\n${avMigration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|DELETE FROM/);
 });
 

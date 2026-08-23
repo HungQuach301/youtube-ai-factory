@@ -118,14 +118,17 @@ function contactSheet(master, output, duration) {
 }
 
 async function upload(task, files, manifest, evidence) {
-  const form = new FormData();
-  form.set("action", "MATERIALIZE_CLEAN_AV_MASTER");
-  form.set("taskId", task.id); form.set("sourceAudioArtifactId", task.sourceAudioArtifactId); form.set("expectedSourceAudioHash", task.sourceAudioHash);
-  form.set("visualManifest", JSON.stringify(manifest)); form.set("technicalEvidence", JSON.stringify(evidence));
-  for (const [key, file] of Object.entries(files)) {
-    const bytes = readFileSync(file.path); form.set(`${key}Hash`, sha256(bytes)); form.set(`${key}File`, new File([bytes], file.name, { type: file.type }));
+  const uploads = {}, chunkMaximum = 350_000;
+  for (const [role, file] of Object.entries(files)) {
+    const bytes = readFileSync(file.path), fullHash = sha256(bytes), chunkCount = Math.ceil(bytes.byteLength / chunkMaximum), chunks = [];
+    for (let index = 0; index < chunkCount; index += 1) {
+      const chunk = bytes.subarray(index * chunkMaximum, Math.min(bytes.byteLength, (index + 1) * chunkMaximum)), chunkHash = sha256(chunk), query = new URLSearchParams({ taskId: task.id, role, fullHash, totalBytes: String(bytes.byteLength), chunkIndex: String(index), chunkCount: String(chunkCount) });
+      await jsonRequest(`${endpoint}?${query}`, { method: "PUT", headers: { "content-type": "application/octet-stream", "content-length": String(chunk.byteLength), "x-chunk-sha256": chunkHash }, body: chunk });
+      chunks.push({ index, hash: chunkHash, size: chunk.byteLength });
+    }
+    uploads[role] = { role, fullHash, totalBytes: bytes.byteLength, chunks };
   }
-  return jsonRequest(endpoint, { method: "POST", headers: { "idempotency-key": `clean-av-master-materialization-v1-${task.sourceAudioHash.slice(0, 16)}` }, body: form });
+  return jsonRequest(endpoint, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": `clean-av-master-materialization-v1-${task.sourceAudioHash.slice(0, 16)}` }, body: JSON.stringify({ action: "COMMIT_CLEAN_AV_MASTER", taskId: task.id, sourceAudioArtifactId: task.sourceAudioArtifactId, expectedSourceAudioHash: task.sourceAudioHash, visualManifest: manifest, technicalEvidence: evidence, uploads }) });
 }
 
 const work = mkdtempSync(join(tmpdir(), "clean-av-master-"));
