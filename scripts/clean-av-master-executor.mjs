@@ -8,6 +8,7 @@ const baseUrl = String(process.env.FACTORY_BASE_URL || "").replace(/\/$/, "");
 const siteToken = String(process.env.FACTORY_SITE_AUTH_TOKEN || "");
 const masterToken = String(process.env.CLEAN_AV_MASTER_AUTOMATION_TOKEN || "");
 const retainedOutput = String(process.env.CLEAN_AV_OUTPUT_DIR || "");
+const dryRun = process.env.CLEAN_AV_DRY_RUN === "1";
 if (!baseUrl || !siteToken || !masterToken) throw new Error("FACTORY_BASE_URL, FACTORY_SITE_AUTH_TOKEN and CLEAN_AV_MASTER_AUTOMATION_TOKEN are required");
 
 const endpoint = `${baseUrl}/api/factory/sequential-production/evaluation`;
@@ -74,14 +75,15 @@ function visualFilter(width, height, duration) {
     `drawbox=x=${x(100)}:y=${y(930)}:w='(${width - x(200)})*min(1\\,t/${duration.toFixed(6)})':h=${y(8)}:color=#9ce6b2:t=fill`,
     `drawbox=x='${x(100)}+(${width - x(220)})*mod(t/${duration.toFixed(6)}\\,1)':y=${y(900)}:w=${x(20)}:h=${y(68)}:color=#ffffff@0.78:t=fill`,
     `drawtext=fontfile=${fontRegular}:text='Educational overview  •  Not personalized financial advice':x=${x(100)}:y=${y(980)}:fontsize=${fs(24)}:fontcolor=#87a69a`,
-    `fps=30,format=yuv420p[vout]`,
+    `fps=30,format=yuv420p[base]`,
   );
-  return `${filters.join(",")};[0:a]aresample=48000,apad[aout]`;
+  return `${filters.join(",")};[2:v]format=rgba,colorchannelmixer=aa=0.24[band];[base][band]overlay=x='mod(t*${x(260)}\\,W+w)-w':y=0:eval=frame:shortest=1,fps=30,format=yuv420p[vout];[0:a]aresample=48000,apad[aout]`;
 }
 
 function render(audio, output, width, height, duration, crf) {
   const source = `color=c=#102e25:s=${width}x${height}:r=30:d=${duration.toFixed(6)}`;
-  execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", audio, "-f", "lavfi", "-i", source, "-filter_complex", visualFilter(width, height, duration), "-map", "[vout]", "-map", "[aout]", "-t", duration.toFixed(6), "-c:v", "libvpx-vp9", "-deadline", "good", "-cpu-used", "4", "-row-mt", "1", "-crf", String(crf), "-b:v", "0", "-r", "30", "-c:a", "libopus", "-b:a", width === 1920 ? "128k" : "96k", "-ar", "48000", "-ac", "2", "-y", output], { maxBuffer: 24_000_000 });
+  const band = `color=c=#5ec99f:s=${Math.round(width * 0.19)}x${height}:r=30:d=${duration.toFixed(6)}`;
+  execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", audio, "-f", "lavfi", "-i", source, "-f", "lavfi", "-i", band, "-filter_complex", visualFilter(width, height, duration), "-map", "[vout]", "-map", "[aout]", "-t", duration.toFixed(6), "-c:v", "libvpx-vp9", "-deadline", "good", "-cpu-used", "4", "-row-mt", "1", "-crf", String(crf), "-b:v", "0", "-r", "30", "-c:a", "libopus", "-b:a", width === 1920 ? "128k" : "96k", "-ar", "48000", "-ac", "2", "-y", output], { maxBuffer: 24_000_000 });
 }
 
 function packetBounds(path, selector) {
@@ -140,7 +142,7 @@ try {
   const technicalEvidence = { schemaVersion: "CLEAN_AV_TECHNICAL_EVIDENCE_V1", scanState: "PASS", archival: archivalProbe, distribution: distributionProbe, audioDurationSeconds: archivalBounds.audio.end - archivalBounds.audio.start, videoDurationSeconds: archivalBounds.video.end - archivalBounds.video.start, avStartDeltaMs: startDeltaMs, avEndDeltaMs: endDeltaMs, ...scanEvidence, measurementTools: { ffmpeg: "full-frame decode plus blackdetect and freezedetect", ffprobe: "stream profile frame count and packet bounds", motion: "2 Hz decoded-frame difference coverage" } };
   if (archivalProbe.width !== 1920 || archivalProbe.height !== 1080 || distributionProbe.width !== 1280 || distributionProbe.height !== 720 || archivalProbe.frameCount < 900 || distributionProbe.frameCount < 900 || Math.abs(startDeltaMs) > 20 || Math.abs(endDeltaMs) > 80 || scanEvidence.blackFrameRatio > 0.01 || scanEvidence.freezeMaxSeconds > 3.5 || scanEvidence.motionCoverageRatio < 0.95) throw new Error(`technical gate failed · ${JSON.stringify(technicalEvidence)}`);
   const visualManifest = { schemaVersion: "CLEAN_AV_VISUAL_MANIFEST_V1", blueprintId: snapshot.task.blueprintId, sourceAudioHash: snapshot.task.sourceAudioHash, authoredTopic: "Authorization clearing and settlement are distinct payment states", cueCount: 5, treatmentFamilies: 4, continuousMotion: true, minimumCriticalFontPx: 32, cues: [{ start: 0, end: 5.5, state: "OVERVIEW" }, { start: 5.5, end: 15.5, state: "AUTHORIZATION" }, { start: 15.5, end: 25, state: "CLEARING" }, { start: 25, end: 33, state: "SETTLEMENT" }, { start: 33, end: duration, state: "RECAP_AND_DISCLAIMER" }], treatments: ["state cards", "active-state illumination", "continuous transaction sweep", "timeline progress"] };
-  const result = await upload(snapshot.task, { archival: { path: archival, name: "cfp-v1-13-archival.webm", type: "video/webm" }, distribution: { path: distribution, name: "cfp-v1-13-distribution.webm", type: "video/webm" }, contactSheet: { path: sheet, name: "cfp-v1-13-contact-sheet.jpg", type: "image/jpeg" } }, visualManifest, technicalEvidence);
+  const result = dryRun ? { outcome: "DRY_RUN_PASS", snapshot } : await upload(snapshot.task, { archival: { path: archival, name: "cfp-v1-13-archival.webm", type: "video/webm" }, distribution: { path: distribution, name: "cfp-v1-13-distribution.webm", type: "video/webm" }, contactSheet: { path: sheet, name: "cfp-v1-13-contact-sheet.jpg", type: "image/jpeg" } }, visualManifest, technicalEvidence);
   const outputDir = retainedOutput ? resolve(retainedOutput) : join(tmpdir(), "youtube-ai-factory-clean-av"); mkdirSync(outputDir, { recursive: true });
   for (const [name, path] of [["cfp-v1-13-archival.webm", archival], ["cfp-v1-13-distribution.webm", distribution], ["cfp-v1-13-contact-sheet.jpg", sheet]]) writeFileSync(join(outputDir, name), readFileSync(path));
   console.log(JSON.stringify({ outcome: result.outcome, outputDir, snapshot: result.snapshot, evidence: technicalEvidence }));
