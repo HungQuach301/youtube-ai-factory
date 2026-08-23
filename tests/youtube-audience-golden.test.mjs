@@ -86,9 +86,9 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /physical-balance-reservoir/);
   assert.match(executor, /converging-record-plates/);
   assert.match(executor, /growing-merchant-coin-stack/);
-  assert.match(executor, /sceneCount:r9\?40:r5Plus\?20/);
-  assert.match(executor, /minimumCriticalFontPx1080:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
-  assert.match(executor, /\["r5","r6","r7","r8","r9"\]\.includes\(revision\) \? "22" : "19"/);
+  assert.match(executor, /sceneCount:r10\?36:r9\?40:r5Plus\?20/);
+  assert.match(executor, /minimumCriticalFontPx1080:r10\?84:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
+  assert.match(executor, /\["r5","r6","r7","r8","r9","r10"\]\.includes\(revision\) \? "22" : "19"/);
   assert.match(executor, /chunks\.length > 128/);
 });
 
@@ -163,5 +163,23 @@ test("Revision 8 visual failure and audio pass create immutable Revision 9 with 
   assert.match(executor, /forty-beat-compositor/);
   assert.match(executor, /current-history-future-state-roles/);
   assert.match(executor, /many-to-one-netting-result/);
-  assert.match(executor, /sceneCount:r9\?40/);
+  assert.match(executor, /sceneCount:r10\?36:r9\?40/);
+});
+
+test("Revision 9 visual failure and audio pass create immutable Revision 10 with full-frame object transformations", () => {
+  const migration = read("drizzle/0094_youtube_audience_golden_revision_10.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_10/);
+  assert.match(migration, /visual_failure_receipt_id/);
+  assert.match(migration, /audio_pass_receipt_id/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_10_IMMUTABLE/);
+  assert.match(runtime, /OBJECT_CENTRIC_FULL_FRAME_KINETIC_EXPLAINER/);
+  assert.match(runtime, /persistentTitleCardsAllowed: false/);
+  assert.match(runtime, /lowerThirdTextBlocksAllowed: false/);
+  assert.match(runtime, /exceptionOutcomesResolved: \["HỦY", "HẾT GIỮ", "HOÀN", "TRANH CHẤP"\]/);
+  assert.match(executor, /function svgFrameR10/);
+  assert.match(executor, /object-centric-full-frame-kinetic-explainer/);
+  assert.match(executor, /single-state-full-frame/);
+  assert.match(executor, /four-resolved-exception-outcomes/);
+  assert.match(executor, /persistent-clearing-actor-labels/);
+  assert.match(executor, /sceneCount:r10\?36/);
 });

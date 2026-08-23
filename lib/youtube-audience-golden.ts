@@ -99,6 +99,7 @@ export async function audienceGoldenSnapshot(db: AudienceGoldenDB) {
 
 export async function createAudienceGoldenRepairRevisionAuthorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string) {
   const latest = await first(env.DB, "SELECT * FROM v7_youtube_golden_sequence_blueprints WHERE channel_id=? ORDER BY created_at DESC,id DESC LIMIT 1", CHANNEL_ID);
+  if (clean(latest?.id).endsWith(":r9")) return createAudienceGoldenRepairRevision10Authorized(env, actor, idempotencyKey, latest as Row);
   if (clean(latest?.id).endsWith(":r8")) return createAudienceGoldenRepairRevision9Authorized(env, actor, idempotencyKey, latest as Row);
   if (clean(latest?.id).endsWith(":r7")) return createAudienceGoldenRepairRevision8Authorized(env, actor, idempotencyKey, latest as Row);
   if (clean(latest?.id).endsWith(":r6")) return createAudienceGoldenRepairRevision7Authorized(env, actor, idempotencyKey, latest as Row);
@@ -269,6 +270,23 @@ async function createAudienceGoldenRepairRevision9Authorized(env: AudienceGolden
   return { outcome: "REPAIR_REVISION_9_SEALED", snapshot: await audienceGoldenSnapshot(env.DB) };
 }
 
+async function createAudienceGoldenRepairRevision10Authorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string, rejected: Row) {
+  const priorReceipt = await first(env.DB, "SELECT * FROM v7_youtube_golden_revision_10_receipts WHERE channel_id=? AND idempotency_key=? LIMIT 1", CHANNEL_ID, idempotencyKey); if (priorReceipt) return { outcome: "REPLAYED", snapshot: await audienceGoldenSnapshot(env.DB) };
+  const materialization = await first(env.DB, "SELECT * FROM v7_youtube_golden_materialization_receipts WHERE blueprint_id=?", rejected.id); if (!materialization) throw new AudienceGoldenError("REJECTED_MATERIALIZATION_MISSING", 409, "Revision 9 materialization is required");
+  const [visualQa, audioQa] = await Promise.all([first(env.DB, "SELECT * FROM v7_youtube_golden_qa_receipts WHERE materialization_receipt_id=? AND qa_layer='FACTORY_VISUAL'", materialization.id), first(env.DB, "SELECT * FROM v7_youtube_golden_qa_receipts WHERE materialization_receipt_id=? AND qa_layer='FACTORY_AUDIO'", materialization.id)]);
+  if (!visualQa || clean(visualQa.decision_state) !== "FAIL" || !audioQa || clean(audioQa.decision_state) !== "PASS") throw new AudienceGoldenError("REVISION_10_EVIDENCE_REQUIRED", 409, "Revision 10 requires failed visual QA and passing exact-audio QA");
+  const replacementId = `audience-golden-blueprint:${CHANNEL_ID}:r10`, existing = await first(env.DB, "SELECT id FROM v7_youtube_golden_sequence_blueprints WHERE id=?", replacementId);
+  if (!existing) {
+    const narration = clean(rejected.narration_text), narrationHash = await sha256Hex(new TextEncoder().encode(narration));
+    const assetManifest = { source: "OWNED_VECTOR_COMPOSITOR_WITH_LIMITED_IMAGEGEN_HOOK", inheritedFromRevision: 9, assets: [{ path: "public/golden/payment-world-r4.jpg", sha256: "00354e385a041d3d1d854ba496612d404e3ca8e170cfab5754a73f7be05e123f", role: "HOOK_AND_PAYOFF_ONLY" }] };
+    const repairContract = { revision: 10, rootOwners: ["SLIDE_DECK_GRAMMAR", "CLEARING_ACTOR_OWNERSHIP", "MOBILE_STATE_DENSITY", "UNRESOLVED_EXCEPTION_BRANCHES"], inheritedAudioPassReceiptId: audioQa.id, visual: { form: "OBJECT_CENTRIC_FULL_FRAME_KINETIC_EXPLAINER", microSceneCount: 36, persistentTitleCardsAllowed: false, lowerThirdTextBlocksAllowed: false, dottedRouteGrammarAllowed: false, darkDioramaRuntimeMaximum: .12, actorLabelsPersistentDuringClearing: ["MERCHANT", "NETWORK"], statePresentation: "ONE_CURRENT_STATE_PER_FULL_FRAME", exceptionOutcomesResolved: ["HỦY", "HẾT GIỮ", "HOÀN", "TRANH CHẤP"], minimumCriticalTextPx1080: 84 }, audio: { settingsInheritedFromPassingRevision: 9, regenerateWithSameQualifiedSettings: true, speechSpeed: .96, stability: .78, style: .04, targetLufs: -15, truePeakDbtp: -3, musicBed: false } };
+    await run(env.DB, `INSERT INTO v7_youtube_golden_sequence_blueprints (id,channel_id,policy_version,blueprint_version,episode_key,title_promise,narration_text,narration_hash,story_contract_json,visual_contract_json,audio_contract_json,lifecycle_state,actor) VALUES (?,?,?,?,?,?,?,?,?,?,?,'SEALED',?)`, replacementId, CHANNEL_ID, AUDIENCE_POLICY_VERSION, AUDIENCE_BLUEPRINT_VERSION, `${AUDIENCE_GOLDEN_STORY.episodeKey}-revision-10`, AUDIENCE_GOLDEN_STORY.titlePromise, narration, narrationHash, canonicalStringify({ ...AUDIENCE_GOLDEN_STORY, assetManifest, repairContract }), canonicalStringify(repairContract.visual), canonicalStringify(repairContract.audio), actor);
+    const evidenceHash = await canonicalHash({ rejectedBlueprintId: rejected.id, rejectedMaterializationId: materialization.id, replacementId, visualFailureReceiptId: visualQa.id, audioPassReceiptId: audioQa.id, assetManifest, repairContract });
+    await run(env.DB, "INSERT INTO v7_youtube_golden_revision_10_receipts (id,channel_id,rejected_blueprint_id,rejected_materialization_receipt_id,replacement_blueprint_id,revision_key,visual_failure_receipt_id,audio_pass_receipt_id,asset_manifest_json,repair_contract_json,actor,idempotency_key,evidence_hash) VALUES (?,?,?,?,?,'AUDIENCE_GOLDEN_REVISION_10',?,?,?,?,?,?,?)", makeId("audience-golden-revision-10"), CHANNEL_ID, rejected.id, materialization.id, replacementId, visualQa.id, audioQa.id, canonicalStringify(assetManifest), canonicalStringify(repairContract), actor, idempotencyKey, evidenceHash);
+  }
+  return { outcome: "REPAIR_REVISION_10_SEALED", snapshot: await audienceGoldenSnapshot(env.DB) };
+}
+
 export async function bootstrapAudienceGoldenAuthorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string) {
   if (!/^[A-Za-z0-9._:-]{16,160}$/.test(idempotencyKey)) throw new AudienceGoldenError("IDEMPOTENCY_KEY_INVALID", 400, "A stable idempotency key is required");
   const current = await first(env.DB, "SELECT * FROM v7_evaluation_clean_av_master_materialization_receipts WHERE channel_id=? LIMIT 1", CHANNEL_ID);
@@ -305,7 +323,7 @@ export async function generateAudienceGoldenAudioAuthorized(env: AudienceGoldenE
       WHERE a.channel_id=? ORDER BY a.created_at DESC LIMIT 1`, CHANNEL_ID),
   ]);
   if (!blueprint || existing || !priorVoice || !clean(priorVoice.voice_id)) throw new AudienceGoldenError(existing ? "GOLDEN_AUDIO_CEILING_REACHED" : "GOLDEN_AUDIO_PREREQUISITES_MISSING", 409, existing ? "The single TTS ceiling has been reached" : "A sealed blueprint and verified voice lineage are required");
-  const revisionTwo = clean(blueprint.id).endsWith(":r2"), saferVoiceRevision = clean(blueprint.id).endsWith(":r8") || clean(blueprint.id).endsWith(":r9");
+  const revisionTwo = clean(blueprint.id).endsWith(":r2"), saferVoiceRevision = clean(blueprint.id).endsWith(":r8") || clean(blueprint.id).endsWith(":r9") || clean(blueprint.id).endsWith(":r10");
   const requestBody = { text: clean(blueprint.narration_text), model_id: "eleven_multilingual_v2", voice_settings: saferVoiceRevision ? { stability: .78, similarity_boost: .78, style: .04, speed: .96, use_speaker_boost: true } : revisionTwo ? { stability: .56, similarity_boost: .78, style: .06, speed: .98, use_speaker_boost: true } : { stability: .66, similarity_boost: .8, style: .14, speed: 1.06, use_speaker_boost: true } };
   const intentHash = await canonicalHash({ blueprintId: blueprint.id, narrationHash: blueprint.narration_hash, voiceId: priorVoice.voice_id, requestBody });
   const runId = recoveryMode ? clean(prior?.id) : makeId("audience-golden-audio-run"), recoveryId = recoveryMode ? makeId("audience-golden-audio-recovery") : "";
