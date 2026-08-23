@@ -29,3 +29,12 @@ test("Audience Golden runtime separates visual atlas, exact audio, browser and o
   assert.match(executor, /semanticRuntimeRatio:1/);
   assert.match(executor, /cameraOnlyRatio:0/);
 });
+
+test("post-TTS internal failure permits one append-only idempotent recovery", () => {
+  const migration = read("drizzle/0084_youtube_audience_golden_audio_recovery.sql"), runtime = read("lib/youtube-audience-golden.ts");
+  assert.match(migration, /POST_TTS_INTERNAL_CONTRACT_FAILURE/);
+  assert.match(migration, /tts_requests.*BETWEEN 0 AND 1/s);
+  assert.match(migration, /YOUTUBE_GOLDEN_AUDIO_RECOVERY_APPEND_ONLY/);
+  assert.match(runtime, /idempotency-key/);
+  assert.match(runtime, /GOLDEN_AUDIO_RECOVERY_ALREADY_ATTEMPTED/);
+});
