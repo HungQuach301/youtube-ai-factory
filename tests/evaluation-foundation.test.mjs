@@ -1072,6 +1072,7 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
   const decodedHarness = encodedHarness.replaceAll("&quot;", '"').replaceAll("&amp;", "&");
   const runnerScript = decodedHarness.match(/<script>([\s\S]+)<\/script>/)?.[1] ?? "";
   assert.doesNotThrow(() => new Function(runnerScript));
+  assert.match(runnerScript, /motionChanges>=2&&distinctFrames>=3&&frameCallbacks>=3/);
   assert.match(autonomousMigration, /maximum_attempts.*= 3/s);
   assert.doesNotMatch(`${autonomousImplementation}\n${autonomousMigration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|DELETE FROM/);
   assert.match(route, /COMMIT_CLEAN_AV_MASTER/);

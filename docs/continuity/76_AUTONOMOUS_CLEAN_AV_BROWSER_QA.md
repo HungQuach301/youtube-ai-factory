@@ -12,7 +12,7 @@
 
 - The runner binds the immutable materialization receipt and distribution SHA-256 before media playback.
 - At most three append-only infrastructure/observation attempts may exist. Only one run may be active and only one final Browser receipt may ever exist.
-- A likely-clean result requires a mobile Chromium viewport between 320 and 480 CSS pixels, at least 98% played-range coverage, pause/resume, backward seek, natural `ended`, decoded audio track plus RMS at or above `0.002`, at least four decoded-frame/motion samples, four mobile cue frames with contrast/edge evidence, focus/reflow PASS and zero page/media errors.
+- A likely-clean result requires a mobile Chromium viewport between 320 and 480 CSS pixels, at least 98% played-range coverage, pause/resume, backward seek, natural `ended`, decoded audio track plus RMS at or above `0.002`, four cue samples with at least three distinct pixel hashes and two meaningful cross-cue changes, four mobile frames with contrast/edge evidence, focus/reflow PASS and zero page/media errors. `requestVideoFrameCallback` must be observed, but its callback rate is not treated as playback frame rate because remote browsers may throttle callbacks while preserving decoded media time.
 - Required event order is `loadedmetadata → play → pause → play → seeked → ended`.
 - Four cue frames are JPEG-bounded, SHA-256 sealed, written to R2 and read back before the final receipt. The canonical telemetry/frame manifest becomes an exact evidence-bundle hash.
 - An incomplete run is stored as `FAILED`; Browser QA remains `PENDING` and no receipt is consumed. The runner cannot manufacture a PASS from missing evidence.
