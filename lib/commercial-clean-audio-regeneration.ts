@@ -3,6 +3,7 @@ import { CLEAN_AUDIO_CONTROL_NARRATION, cleanAudioControlNarrationHash } from "@
 import { ELEVENLABS_COMMERCIAL_ENTITLEMENT_VERSION, evaluateElevenLabsCommercialEntitlement } from "@/lib/elevenlabs-commercial-entitlement";
 
 export const COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION = "COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1" as const;
+export const COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION = "COMMERCIAL_CLEAN_AUDIO_RECOVERY_V1" as const;
 export const FACTORY_AUDIO_QA_POLICY_VERSION = "FACTORY_AUDIO_QA_POLICY_V1" as const;
 export const FACTORY_AUDIO_QA_MODEL = "gpt-audio-1.5" as const;
 export const COMMERCIAL_CLEAN_AUDIO_MAXIMUM_CHARACTERS = 700 as const;
@@ -43,7 +44,7 @@ function parseJsonObject(value: unknown) {
 }
 
 export async function commercialCleanAudioSnapshot(db: CommercialCleanAudioDB) {
-  const [policy, latestRun, artifact, rights, qaPolicy, qaRun, qa] = await Promise.all([
+  const [policy, latestRun, artifact, rights, qaPolicy, qaRun, qa, recovery] = await Promise.all([
     first(db, "SELECT * FROM v7_evaluation_commercial_clean_audio_policies WHERE channel_id=? AND policy_version=? LIMIT 1", CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION),
     first(db, "SELECT * FROM v7_evaluation_commercial_clean_audio_runs WHERE channel_id=? AND policy_version=? ORDER BY created_at DESC,id DESC LIMIT 1", CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION),
     first(db, `SELECT a.*,p.provider_native_request_id,s.subscription_tier,s.subscription_status,s.entitlement_state,s.r2_readback_verified subscription_r2_verified
@@ -55,6 +56,10 @@ export async function commercialCleanAudioSnapshot(db: CommercialCleanAudioDB) {
     first(db, "SELECT * FROM v7_evaluation_factory_audio_qa_policies WHERE channel_id=? AND policy_version=? LIMIT 1", CHANNEL_ID, FACTORY_AUDIO_QA_POLICY_VERSION),
     first(db, "SELECT * FROM v7_evaluation_factory_audio_qa_runs WHERE channel_id=? AND policy_version=? ORDER BY created_at DESC,id DESC LIMIT 1", CHANNEL_ID, FACTORY_AUDIO_QA_POLICY_VERSION),
     first(db, "SELECT * FROM v7_evaluation_factory_audio_qa_receipts WHERE channel_id=? AND policy_version=? LIMIT 1", CHANNEL_ID, FACTORY_AUDIO_QA_POLICY_VERSION),
+    first(db, `SELECT a.id authorization_id,a.failed_run_id,b.recovery_run_id
+      FROM v7_evaluation_commercial_clean_audio_recovery_authorizations a
+      LEFT JOIN v7_evaluation_commercial_clean_audio_recovery_bindings b ON b.authorization_id=a.id
+      WHERE a.channel_id=? AND a.policy_version=? LIMIT 1`, CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION),
   ]);
   return {
     policy: policy ? { maximumReplacementFixtures: number(policy.maximum_replacement_fixtures), maximumSubscriptionReads: number(policy.maximum_subscription_reads), maximumTtsRequests: number(policy.maximum_tts_requests), maximumTtsCharacters: number(policy.maximum_tts_characters), reservedSpendCeilingUsd: number(policy.reserved_spend_ceiling_usd), entitlementPolicyVersion: clean(policy.entitlement_policy_version) } : null,
@@ -64,6 +69,7 @@ export async function commercialCleanAudioSnapshot(db: CommercialCleanAudioDB) {
     qaPolicy: qaPolicy ? { modelId: clean(qaPolicy.model_id), maximumProviderRequests: number(qaPolicy.maximum_provider_requests), reservedSpendCeilingUsd: number(qaPolicy.reserved_spend_ceiling_usd), overallFloor: number(qaPolicy.overall_floor), dimensionFloor: number(qaPolicy.dimension_floor), ownerGroundTruthRequired: Boolean(number(qaPolicy.owner_ground_truth_required)) } : null,
     qaRun: qaRun ? { lifecycleState: clean(qaRun.lifecycle_state), providerRequests: number(qaRun.provider_requests), actualSpendUsd: number(qaRun.actual_spend_usd), errorCode: clean(qaRun.error_code) || null, createdAt: clean(qaRun.created_at), completedAt: clean(qaRun.completed_at) || null } : null,
     qa: qa ? { decisionState: clean(qa.decision_state), ownerAttentionState: clean(qa.owner_attention_state), overallScore: number(qa.overall_score), dimensions: parseJsonObject(qa.dimensions_json) ?? {}, p0Count: number(qa.p0_count), p1Count: number(qa.p1_count), findings: (() => { try { return JSON.parse(clean(qa.findings_json)); } catch { return []; } })(), rationale: clean(qa.rationale), actualSpendUsd: number(qa.actual_spend_usd), evidenceHash: clean(qa.evidence_hash), createdAt: clean(qa.created_at) } : null,
+    recovery: recovery ? { authorized: true, consumed: Boolean(clean(recovery.recovery_run_id)), failedRunId: clean(recovery.failed_run_id) } : null,
   };
 }
 
@@ -74,7 +80,7 @@ export async function regenerateCommercialCleanAudioAuthorized(env: CommercialCl
     if (clean(prior.lifecycle_state) === "COMPLETE") return { outcome: "REPLAYED", snapshot: await commercialCleanAudioSnapshot(env.DB) };
     throw new CommercialCleanAudioError("COMMERCIAL_CLEAN_AUDIO_ALREADY_ATTEMPTED", 409, `The immutable regeneration attempt is ${clean(prior.lifecycle_state)}`);
   }
-  const [policy, anyAttempt, existingReplacement, replacedArtifact, blueprint, identity, terms] = await Promise.all([
+  const [policy, anyAttempt, existingReplacement, replacedArtifact, blueprint, identity, terms, recoveryAuthorization] = await Promise.all([
     first(env.DB, "SELECT * FROM v7_evaluation_commercial_clean_audio_policies WHERE channel_id=? AND policy_version=? LIMIT 1", CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION),
     first(env.DB, "SELECT id FROM v7_evaluation_commercial_clean_audio_runs WHERE channel_id=? AND policy_version=? LIMIT 1", CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION),
     first(env.DB, "SELECT id FROM v7_evaluation_commercial_clean_audio_artifacts WHERE channel_id=? AND policy_version=? LIMIT 1", CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION),
@@ -84,9 +90,18 @@ export async function regenerateCommercialCleanAudioAuthorized(env: CommercialCl
     first(env.DB, `SELECT * FROM v7_evaluation_official_terms_snapshot_receipts
       WHERE channel_id=? AND source_key='TERMS_OF_USE' AND retrieval_state='PASS' AND r2_readback_verified=1
       ORDER BY retrieved_at DESC,id DESC LIMIT 1`, CHANNEL_ID),
+    first(env.DB, `SELECT a.id,a.failed_run_id
+      FROM v7_evaluation_commercial_clean_audio_recovery_authorizations a
+      JOIN v7_evaluation_commercial_clean_audio_runs f ON f.id=a.failed_run_id
+      LEFT JOIN v7_evaluation_commercial_clean_audio_recovery_bindings b ON b.authorization_id=a.id
+      WHERE a.channel_id=? AND a.policy_version=? AND a.authorization_state='AUTHORIZED_ONE_RECOVERY'
+        AND f.lifecycle_state='FAILED' AND f.subscription_reads=1 AND f.tts_requests=0
+        AND f.error_code='UNEXPECTED_COMMERCIAL_CLEAN_AUDIO_FAILURE' AND b.id IS NULL
+      LIMIT 1`, CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION),
   ]);
   if (!policy || !replacedArtifact || !blueprint || !identity || !terms) throw new CommercialCleanAudioError("COMMERCIAL_CLEAN_AUDIO_PREREQUISITES_MISSING", 409, "The replacement policy, prior artifact, blueprint, voice identity and verified Terms snapshot are required");
-  if (anyAttempt || existingReplacement) throw new CommercialCleanAudioError("COMMERCIAL_CLEAN_AUDIO_REPLACEMENT_CEILING_REACHED", 409, "The one-attempt replacement ceiling has already been reached");
+  const recoveryMode = Boolean(anyAttempt && recoveryAuthorization && !existingReplacement);
+  if ((anyAttempt && !recoveryMode) || existingReplacement) throw new CommercialCleanAudioError("COMMERCIAL_CLEAN_AUDIO_REPLACEMENT_CEILING_REACHED", 409, "The replacement ceiling has already been reached");
   if (CLEAN_AUDIO_CONTROL_NARRATION.length > COMMERCIAL_CLEAN_AUDIO_MAXIMUM_CHARACTERS) throw new CommercialCleanAudioError("COMMERCIAL_CLEAN_AUDIO_TEXT_CEILING_EXCEEDED", 500, "The sealed clean narration exceeds its character ceiling");
   const voiceSettings = JSON.parse(clean(identity.settings_json)) as Row;
   if (await canonicalHash(voiceSettings) !== clean(identity.settings_hash)) throw new CommercialCleanAudioError("COMMERCIAL_CLEAN_AUDIO_SETTINGS_HASH_MISMATCH", 409, "The pinned fixture voice settings no longer match their sealed hash");
@@ -97,6 +112,9 @@ export async function regenerateCommercialCleanAudioAuthorized(env: CommercialCl
   await run(env.DB, `INSERT INTO v7_evaluation_commercial_clean_audio_runs
     (id,channel_id,policy_version,idempotency_key,intent_hash,lifecycle_state,tts_characters,reserved_spend_usd,actor)
     VALUES (?,?,?,?,?,'PLANNED',?,0.08,?)`, runId, CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, idempotencyKey, intentHash, CLEAN_AUDIO_CONTROL_NARRATION.length, actor);
+  if (recoveryMode) await run(env.DB, `INSERT INTO v7_evaluation_commercial_clean_audio_recovery_bindings
+    (id,authorization_id,failed_run_id,recovery_run_id,channel_id,policy_version,binding_state)
+    VALUES (?,?,?,?,?,?,'RECOVERY_ATTEMPT_CONSUMED')`, id("commercial-clean-audio-recovery-binding"), recoveryAuthorization?.id, recoveryAuthorization?.failed_run_id, runId, CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION);
   try {
     await run(env.DB, "UPDATE v7_evaluation_commercial_clean_audio_runs SET lifecycle_state='RUNNING' WHERE id=?", runId);
     const headers = { "xi-api-key": env.ELEVENLABS_API_KEY };
@@ -119,7 +137,7 @@ export async function regenerateCommercialCleanAudioAuthorized(env: CommercialCl
     const subscriptionEvidenceHash = await canonicalHash({ runId, entitlementPolicyVersion: ELEVENLABS_COMMERCIAL_ENTITLEMENT_VERSION, tier: entitlement.tier, status: entitlement.status, state: entitlement.state, subscriptionHash, subscriptionByteSize: subscriptionBytes.byteLength, subscriptionKey, observedAt });
     await run(env.DB, `INSERT INTO v7_evaluation_commercial_subscription_receipts
       (id,run_id,channel_id,policy_version,entitlement_policy_version,subscription_tier,subscription_status,entitlement_state,commercial_use_eligible,exact_response_hash,response_byte_size,r2_storage_key,r2_readback_hash,r2_readback_verified,observed_at,evidence_hash)
-      VALUES (?,?,?,?,?,?,?,?,1,?,?,?,?,1,?,?)`, subscriptionReceiptId, runId, CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, ELEVENLABS_COMMERCIAL_ENTITLEMENT_VERSION, entitlement.tier, entitlement.status, entitlement.state, subscriptionHash, subscriptionBytes.byteLength, subscriptionKey, subscriptionReadbackHash, observedAt, subscriptionEvidenceHash);
+      VALUES (?,?,?,?,?,?,?,'EXPLICIT_ACTIVE_PAID_BASE_PLAN',1,?,?,?,?,1,?,?)`, subscriptionReceiptId, runId, CHANNEL_ID, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, ELEVENLABS_COMMERCIAL_ENTITLEMENT_VERSION, entitlement.tier, entitlement.status, subscriptionHash, subscriptionBytes.byteLength, subscriptionKey, subscriptionReadbackHash, observedAt, subscriptionEvidenceHash);
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(clean(identity.voice_id))}?output_format=${encodeURIComponent(clean(identity.output_format))}`, {
       method: "POST", headers: { ...headers, "content-type": "application/json", "idempotency-key": idempotencyKey }, body: json(requestBody), signal: AbortSignal.timeout(180_000),
     });

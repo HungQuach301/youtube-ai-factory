@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_COMMERCIAL_CLEAN_AUDIO_REPLACEMENT_AND_FACTORY_QA__PRODUCTION_ACTIVE_ACTION_PENDING`
+**Current source classification:** `WP7_COMMERCIAL_CLEAN_AUDIO_PRE_TTS_RECOVERY__SOURCE_READY_PRODUCTION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- The owner invoked the paid-plan replacement on Sites v454; production returned HTTP 500 at request `a2f6e76fb9a9a8b5`. Root cause is an internal state-contract mismatch: the evaluator emitted `PAID_SUBSCRIPTION_CONFIRMED` while D1 requires normalized `EXPLICIT_ACTIVE_PAID_BASE_PLAN`. The insert fails before TTS, so the incident used one subscription read, zero TTS and zero TTS spend. Migration `0076` preserves the failed attempt and conditionally grants exactly one recovery only for that exact signature. It permits one additional subscription read and the still-unused single TTS under USD 0.08. Source tests/build pass 181/181; deploy `0076`, then use the recovery button. Factory Audio QA remains conditional on rights PASS. V2 is untouched.
 
 - Sites v453 activates migration `0075`, `COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1` and `FACTORY_AUDIO_QA_POLICY_V1` from source `6a024081acc54e70815ecd1d4dccdb85860f6935`; 180/180 tests and the verified build pass. The append-only lane permits one subscription read, one TTS request under USD 0.08 and, only after exact commercial-rights PASS, one `gpt-audio-1.5` review under USD 0.20. The old fixture remains immutable and rights-pending; Factory review is independent only, owner ground truth is not evaluated, and dataset/assurance/release authority remains false. No provider request or spend has occurred in this slice. Next run the single paid-plan replacement and conditional Factory audio QA. The separate V2 project is out of scope and untouched.
 

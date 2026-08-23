@@ -2,6 +2,30 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
+## Commercial clean-audio pre-TTS recovery — 2026-08-23
+
+```text
+PRODUCTION_INCIDENT = SITES_V454__HTTP_500__REQUEST_A2F6E76FB9A9A8B5
+ROOT_CAUSE = ENTITLEMENT_STATE_CONTRACT_MISMATCH
+FAILED_RUN_DISPOSITION = PRESERVED_APPEND_ONLY
+SUBSCRIPTION_READS_TTS_REQUESTS_TTS_SPEND = 1_0_0
+MIGRATION_0076 = SOURCE_READY__PRODUCTION_PENDING
+RECOVERY_POLICY = COMMERCIAL_CLEAN_AUDIO_RECOVERY_V1
+RECOVERY_AUTHORIZATIONS_MAX = 1
+ADDITIONAL_SUBSCRIPTION_READS_MAX = 1
+TTS_REQUESTS_MAX = 1
+RESERVED_SPEND_CEILING_USD = 0.08
+TARGETED_REGRESSION = 51_OF_51_PASS
+FULL_REGRESSION = 181_OF_181_PASS__VERIFIED_BUILD_PASS
+REPLACEMENT_RIGHTS = NOT_CREATED
+FACTORY_AUDIO_QA = NOT_RUN
+OWNER_GROUND_TRUTH = NOT_EVALUATED
+DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
+NEXT_PROTECTED_ACTION = DEPLOY_0076__PROVE_EXACT_FAILURE_SIGNATURE__RUN_ONE_RECOVERY
+```
+
+The first paid-plan regeneration stopped before TTS because the entitlement evaluator emitted `PAID_SUBSCRIPTION_CONFIRMED` while the D1 receipt contract requires the normalized evidence value `EXPLICIT_ACTIVE_PAID_BASE_PLAN`. The failed run remains immutable evidence. Migration `0076` writes no blanket retry: it conditionally authorizes exactly one recovery only for one subscription read, zero TTS, the exact unexpected failure code and no replacement artifact. The runtime now performs the explicit normalization after eligibility passes. Targeted regression passes 51/51 and full regression/build passes 181/181. Document 70 and ADR-099 are authoritative.
+
 ## Commercial clean-audio replacement and Factory QA — 2026-08-23
 
 ```text

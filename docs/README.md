@@ -95,6 +95,7 @@ When facts conflict, use this order:
 | Clean audio commercial-rights evidence | [`continuity/67_CLEAN_AUDIO_COMMERCIAL_RIGHTS_EVIDENCE.md`](continuity/67_CLEAN_AUDIO_COMMERCIAL_RIGHTS_EVIDENCE.md) |
 | ElevenLabs commercial-entitlement hardening | [`continuity/68_ELEVENLABS_COMMERCIAL_ENTITLEMENT_HARDENING.md`](continuity/68_ELEVENLABS_COMMERCIAL_ENTITLEMENT_HARDENING.md) |
 | Commercial clean-audio regeneration and Factory QA | [`continuity/69_COMMERCIAL_CLEAN_AUDIO_REGENERATION_AND_FACTORY_QA.md`](continuity/69_COMMERCIAL_CLEAN_AUDIO_REGENERATION_AND_FACTORY_QA.md) |
+| Commercial clean-audio pre-TTS recovery | [`continuity/70_COMMERCIAL_CLEAN_AUDIO_PRE_TTS_RECOVERY.md`](continuity/70_COMMERCIAL_CLEAN_AUDIO_PRE_TTS_RECOVERY.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

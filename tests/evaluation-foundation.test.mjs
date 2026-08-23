@@ -42,7 +42,7 @@ import {
   summarizeEvaluationInventory,
 } from "../lib/evaluation-foundation.ts";
 import { EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION } from "../lib/clean-audio-rights-evidence.ts";
-import { COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, FACTORY_AUDIO_QA_POLICY_VERSION } from "../lib/commercial-clean-audio-regeneration.ts";
+import { COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, FACTORY_AUDIO_QA_POLICY_VERSION } from "../lib/commercial-clean-audio-regeneration.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -837,6 +837,29 @@ test("migration 0075 permits exactly one paid-plan replacement and one bounded F
   assert.match(implementation, /input_audio/);
   assert.match(ownerBoundary, /REGENERATE_COMMERCIAL_CLEAN_AUDIO_CONTROL/);
   assert.match(ownerBoundary, /RUN_FACTORY_CLEAN_AUDIO_QA/);
+});
+
+test("migration 0076 authorizes one append-only recovery only for the exact pre-TTS contract failure", () => {
+  assert.equal(COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION, "COMMERCIAL_CLEAN_AUDIO_RECOVERY_V1");
+  const db = new DatabaseSync(":memory:");
+  const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
+  const recoveryIndex = migrations.indexOf("0076_commercial_clean_audio_recovery.sql");
+  for (const file of migrations.slice(0, recoveryIndex)) db.exec(read(`drizzle/${file}`));
+  db.prepare(`INSERT INTO v7_evaluation_commercial_clean_audio_runs
+    (id,channel_id,policy_version,idempotency_key,intent_hash,lifecycle_state,subscription_reads,tts_requests,tts_characters,reserved_spend_usd,actor,error_code,completed_at)
+    VALUES ('failed-contract-run','channel-hidden-systems','COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1','failed-contract-key',?,'FAILED',1,0,100,0.08,'owner','UNEXPECTED_COMMERCIAL_CLEAN_AUDIO_FAILURE','2026-08-23T03:08:18.173Z')`).run("a".repeat(64));
+  db.exec(read("drizzle/0076_commercial_clean_audio_recovery.sql"));
+  const authorization = db.prepare("SELECT failed_run_id,failed_subscription_reads,failed_tts_requests,failed_error_code,root_cause_code,authorization_state FROM v7_evaluation_commercial_clean_audio_recovery_authorizations").get();
+  assert.deepEqual({ ...authorization }, {
+    failed_run_id: "failed-contract-run", failed_subscription_reads: 1, failed_tts_requests: 0,
+    failed_error_code: "UNEXPECTED_COMMERCIAL_CLEAN_AUDIO_FAILURE", root_cause_code: "ENTITLEMENT_STATE_CONTRACT_MISMATCH",
+    authorization_state: "AUTHORIZED_ONE_RECOVERY",
+  });
+  assert.throws(() => db.prepare("UPDATE v7_evaluation_commercial_clean_audio_recovery_authorizations SET authorization_state='USED'").run(), /IMMUTABLE/);
+  const implementation = read("lib/commercial-clean-audio-regeneration.ts"), ownerBoundary = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(implementation, /'EXPLICIT_ACTIVE_PAID_BASE_PLAN',1/);
+  assert.match(implementation, /RECOVERY_ATTEMPT_CONSUMED/);
+  assert.match(ownerBoundary, /commercial-clean-audio-recovery-v1/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {
