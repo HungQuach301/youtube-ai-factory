@@ -122,7 +122,9 @@ export async function generateAudienceGoldenAudioAuthorized(env: AudienceGoldenE
   const [blueprint, existing, priorVoice] = await Promise.all([
     first(env.DB, "SELECT * FROM v7_youtube_golden_sequence_blueprints WHERE channel_id=? AND blueprint_version=? LIMIT 1", CHANNEL_ID, AUDIENCE_BLUEPRINT_VERSION),
     first(env.DB, "SELECT id FROM v7_youtube_golden_audio_artifacts WHERE channel_id=? LIMIT 1", CHANNEL_ID),
-    first(env.DB, "SELECT voice_id FROM v7_evaluation_commercial_clean_audio_artifacts WHERE channel_id=? ORDER BY created_at DESC LIMIT 1", CHANNEL_ID),
+    first(env.DB, `SELECT p.voice_id FROM v7_evaluation_commercial_clean_audio_artifacts a
+      JOIN v7_evaluation_commercial_clean_audio_provider_receipts p ON p.id=a.provider_receipt_id
+      WHERE a.channel_id=? ORDER BY a.created_at DESC LIMIT 1`, CHANNEL_ID),
   ]);
   if (!blueprint || existing || !priorVoice || !clean(priorVoice.voice_id)) throw new AudienceGoldenError(existing ? "GOLDEN_AUDIO_CEILING_REACHED" : "GOLDEN_AUDIO_PREREQUISITES_MISSING", 409, existing ? "The single TTS ceiling has been reached" : "A sealed blueprint and verified voice lineage are required");
   const requestBody = { text: clean(blueprint.narration_text), model_id: "eleven_multilingual_v2", voice_settings: { stability: .66, similarity_boost: .8, style: .14, speed: 1.06, use_speaker_boost: true } };
