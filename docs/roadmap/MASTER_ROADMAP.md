@@ -165,6 +165,8 @@ Phase 20 is production-complete in Sites v456. The original malformed QA respons
 
 Phase 21 is production-complete in Sites v458 from source `e8dd36f5a36a4527dc385ced9ad75baf19264ca0`. Migration `0078` created one task only from the Rights-PASS replacement and its exact-hash `LIKELY_CLEAN` Factory recovery receipt. The owner completed continuous playback and recorded the sole `CLEAN_CONFIRMED` receipt with zero observed defects; request `a2f797499ff47a53` succeeded, exact audio read-back remained available and Worker errors are zero. The lane used zero provider/spend and grants `OWNER_GROUND_TRUTH_ONLY` authority. Next design a separate clean-control eligibility gate; defect derivatives, dataset, assurance, Golden r10, Stage 11 and release remain closed.
 
+Phase 22 is source-ready with 36/36 targeted and 184/184 full regressions plus verified build passing. Migration `0079` and `CLEAN_AUDIO_CONTROL_ELIGIBILITY_V1` bind the sealed `cfp-v1-12` clean-audio negative blueprint to the exact commercial artifact, Rights PASS receipt, independent `LIKELY_CLEAN` 95/100 P0/P1-free receipt and full-listen `CLEAN_CONFIRMED` owner receipt. The sole action re-reads exact R2 bytes and may append one `ELIGIBLE_CLEAN_CONTROL_REFERENCE` receipt with zero provider/spend. It cannot create dataset, assurance, qualification or release authority. On success the readiness projection becomes three owner-confirmed references and one clean control, while zero controlled injections and 0/5 P0 coverage keep WP7 `INSUFFICIENT_GROUND_TRUTH`. Next deploy and execute the single eligibility action; defect derivatives remain a separate later gate.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:

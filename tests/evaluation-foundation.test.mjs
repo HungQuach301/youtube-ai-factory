@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
@@ -44,6 +45,7 @@ import {
 import { EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION } from "../lib/clean-audio-rights-evidence.ts";
 import { COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, FACTORY_AUDIO_QA_OUTPUT_CONTRACT_VERSION, FACTORY_AUDIO_QA_POLICY_VERSION, FACTORY_AUDIO_QA_RECOVERY_VERSION } from "../lib/commercial-clean-audio-regeneration.ts";
 import { CLEAN_AUDIO_OWNER_DEFECT_KEYS, CLEAN_AUDIO_OWNER_GROUND_TRUTH_VERSION } from "../lib/clean-audio-owner-ground-truth.ts";
+import { CLEAN_AUDIO_CONTROL_ELIGIBILITY_VERSION, evaluateCleanAudioControlEligibilityAuthorized } from "../lib/clean-audio-control-eligibility.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -923,6 +925,51 @@ test("migration 0078 creates one exact-byte owner ground-truth gate without data
   assert.match(ownerBoundary, /RECORD_CLEAN_AUDIO_OWNER_GROUND_TRUTH/);
   assert.match(ownerBoundary, /ownerGroundTruthAudio/);
   assert.doesNotMatch(implementation, /dataset_eligible=1|qualification_eligible=1|release_eligible=1|api\.openai\.com|elevenlabs\.io/);
+});
+
+test("migration 0079 creates and executes one exact-byte clean-control reference gate without downstream authority", async () => {
+  assert.equal(CLEAN_AUDIO_CONTROL_ELIGIBILITY_VERSION, "CLEAN_AUDIO_CONTROL_ELIGIBILITY_V1");
+  const db = new DatabaseSync(":memory:");
+  const audioBytes = new Uint8Array(12000), exactHash = createHash("sha256").update(audioBytes).digest("hex");
+  const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
+  const eligibilityIndex = migrations.indexOf("0079_clean_audio_control_eligibility.sql");
+  for (const file of migrations.slice(0, eligibilityIndex)) db.exec(read(`drizzle/${file}`));
+  db.exec("PRAGMA foreign_keys=OFF");
+  db.prepare(`INSERT INTO v7_evaluation_commercial_clean_audio_artifacts
+    (id,run_id,provider_receipt_id,channel_id,policy_version,replaces_artifact_id,storage_key,mime_type,byte_size,sha256,materialization_state,rights_state,owner_ground_truth_state,factory_audio_qa_state)
+    VALUES ('eligible-audio-artifact','run','provider','channel-hidden-systems','COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1','old','eligible-audio.mp3','audio/mpeg',12000,?,'BYTES_PROVIDER_ENTITLEMENT_AND_RIGHTS_VERIFIED','PASS','NOT_EVALUATED','PENDING')`).run(exactHash);
+  db.prepare(`INSERT INTO v7_evaluation_commercial_clean_audio_provider_receipts
+    (id,run_id,subscription_receipt_id,channel_id,provider_native_request_id,exact_response_hash,response_byte_size,voice_id,model_id,settings_hash,narration_hash,r2_storage_key,r2_readback_hash,r2_readback_verified,rights_state,evidence_hash)
+    VALUES ('provider','run','subscription','channel-hidden-systems','native-request-eligibility',?,12000,'voice','eleven_multilingual_v2',?,?,'eligible-audio.mp3',?,1,'PASS',?)`).run(exactHash, "1".repeat(64), "2".repeat(64), exactHash, "3".repeat(64));
+  db.prepare(`INSERT INTO v7_evaluation_commercial_clean_audio_rights_receipts
+    (id,artifact_id,provider_receipt_id,subscription_receipt_id,official_terms_snapshot_receipt_id,channel_id,policy_version,jurisdiction_scope,input_ownership_state,model_state,entitlement_state,rights_state,adjudication_outcome,evidence_hash)
+    VALUES ('eligible-rights','eligible-audio-artifact','provider','subscription','terms','channel-hidden-systems','COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1','NON_EEA_VIETNAM','CHANNEL_AUTHORED_TEXT_HASH_BOUND','NON_BETA_PINNED_MODEL','EXPLICIT_ACTIVE_PAID_BASE_PLAN','PASS','COMMERCIAL_RIGHTS_PASS_GENERATION_TIME_PAID_PLAN',?)`).run("a".repeat(64));
+  db.prepare(`INSERT INTO v7_evaluation_factory_audio_qa_recovery_receipts
+    (id,recovery_run_id,provider_response_receipt_id,failed_run_id,artifact_id,channel_id,policy_version,exact_artifact_hash,model_id,provider_response_id,decision_state,owner_attention_state,overall_score,dimensions_json,p0_count,p1_count,findings_json,rationale,usage_json,actual_spend_usd,authority_boundary,evidence_hash)
+    VALUES ('eligible-qa','recovery','response','failed','eligible-audio-artifact','channel-hidden-systems','FACTORY_AUDIO_QA_RECOVERY_V1',?,'gpt-audio-1.5','provider-response-eligibility','LIKELY_CLEAN','NO_IMMEDIATE_OWNER_ACTION',95,'{}',0,0,'[]','clean audio receipt','{}',0.05,'INDEPENDENT_REVIEW_ONLY',?)`).run(exactHash, "b".repeat(64));
+  db.prepare(`INSERT INTO v7_evaluation_clean_audio_owner_ground_truth_receipts
+    (id,task_id,artifact_id,qa_recovery_receipt_id,channel_id,policy_version,exact_artifact_hash,decision_state,full_listen_attested,observed_defects_json,rationale,actor,idempotency_key,request_hash,evidence_hash,authority_boundary)
+    VALUES ('eligible-owner','owner-task','eligible-audio-artifact','eligible-qa','channel-hidden-systems','CLEAN_AUDIO_OWNER_GROUND_TRUTH_V1',?,'CLEAN_CONFIRMED',1,'[]','I listened to the entire exact audio and confirmed it clean.','owner@example.com','eligible-owner-key',?,?,'OWNER_GROUND_TRUTH_ONLY')`).run(exactHash, "c".repeat(64), "d".repeat(64));
+  db.exec(read("drizzle/0079_clean_audio_control_eligibility.sql"));
+  db.exec("PRAGMA foreign_keys=ON");
+  const task = db.prepare("SELECT blueprint_id,artifact_id,rights_receipt_id,qa_recovery_receipt_id,owner_receipt_id,exact_artifact_hash,task_state FROM v7_evaluation_clean_audio_control_eligibility_tasks").get();
+  assert.deepEqual({ ...task }, { blueprint_id: "cfp-v1-12", artifact_id: "eligible-audio-artifact", rights_receipt_id: "eligible-rights", qa_recovery_receipt_id: "eligible-qa", owner_receipt_id: "eligible-owner", exact_artifact_hash: exactHash, task_state: "OPEN" });
+  const policy = db.prepare("SELECT maximum_eligibility_receipts,exact_byte_readback_required,authority_boundary,provider_requests,spend_usd,dataset_sealing_authority,assurance_qualification_authority,release_authority FROM v7_evaluation_clean_audio_control_eligibility_policies").get();
+  assert.deepEqual({ ...policy }, { maximum_eligibility_receipts: 1, exact_byte_readback_required: 1, authority_boundary: "CLEAN_CONTROL_REFERENCE_ONLY", provider_requests: 0, spend_usd: 0, dataset_sealing_authority: 0, assurance_qualification_authority: 0, release_authority: 0 });
+  assert.throws(() => db.prepare("UPDATE v7_evaluation_clean_audio_control_eligibility_tasks SET task_state='OPEN'").run(), /IMMUTABLE/);
+  const d1 = { prepare(query) { const statement = db.prepare(query); let values = []; return { bind(...next) { values = next; return this; }, async first() { return statement.get(...values) ?? null; }, async run() { return statement.run(...values); } }; } };
+  const outcome = await evaluateCleanAudioControlEligibilityAuthorized({ db: d1, bucket: { async get(key) { return key === "eligible-audio.mp3" ? { async arrayBuffer() { return audioBytes.buffer; } } : null; } }, actor: "owner@example.com", idempotencyKey: "clean-control-eligibility-test-v1", taskId: "clean-audio-control-eligibility-task:eligible-audio-artifact", artifactId: "eligible-audio-artifact", expectedArtifactHash: exactHash });
+  assert.equal(outcome.outcome, "RECORDED");
+  assert.deepEqual({ ...db.prepare("SELECT decision_state,bytes_state,checksum_state,provenance_state,rights_state,factory_qa_state,owner_ground_truth_state,reference_eligible,dataset_eligible,release_eligible,readiness_state,authority_boundary FROM v7_evaluation_clean_audio_control_eligibility_receipts").get() }, {
+    decision_state: "ELIGIBLE_CLEAN_CONTROL_REFERENCE", bytes_state: "READBACK_VERIFIED", checksum_state: "PASS", provenance_state: "PASS", rights_state: "PASS", factory_qa_state: "LIKELY_CLEAN", owner_ground_truth_state: "CLEAN_CONFIRMED", reference_eligible: 1, dataset_eligible: 0, release_eligible: 0, readiness_state: "INSUFFICIENT_GROUND_TRUTH", authority_boundary: "CLEAN_CONTROL_REFERENCE_ONLY",
+  });
+  const implementation = read("lib/clean-audio-control-eligibility.ts"), route = read("app/api/factory/sequential-production/evaluation/route.ts"), migration = read("drizzle/0079_clean_audio_control_eligibility.sql");
+  assert.match(implementation, /CLEAN_AUDIO_CONTROL_R2_HASH_MISMATCH/);
+  assert.match(implementation, /ELIGIBLE_CLEAN_CONTROL_REFERENCE/);
+  assert.match(implementation, /INSUFFICIENT_GROUND_TRUTH/);
+  assert.match(route, /EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY/);
+  assert.match(route, /Đánh giá clean-control eligibility/);
+  assert.doesNotMatch(`${implementation}\n${migration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|api\.openai\.com|elevenlabs\.io/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_CLEAN_AUDIO_OWNER_GROUND_TRUTH__PRODUCTION_ACCEPTED`
+**Current source classification:** `WP7_CLEAN_AUDIO_CONTROL_ELIGIBILITY__SOURCE_READY`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- Migration `0079` and `CLEAN_AUDIO_CONTROL_ELIGIBILITY_V1` are source-ready with 36/36 targeted and 184/184 full regressions plus verified build passing. They add one append-only exact-byte decision that may recognize the Rights-PASS, Factory `LIKELY_CLEAN` 95/100, owner `CLEAN_CONFIRMED` replacement as the sealed `cfp-v1-12` clean-negative reference. The action re-reads R2 and uses zero provider/spend. Success would project three owner-confirmed references and one clean control, but readiness remains `INSUFFICIENT_GROUND_TRUTH` because controlled injections are zero and P0 coverage is 0/5. Dataset, assurance, Golden r10, Stage 11 and release remain locked. Deploy and run the sole eligibility action next. V2 is untouched.
 
 - Sites v458 activated migration `0078` from source `e8dd36f5a36a4527dc385ced9ad75baf19264ca0`. The allowlisted owner listened through the exact 35-second Rights-PASS replacement and recorded the sole `CLEAN_CONFIRMED` receipt with `ATTESTED` full playback. Request `a2f797499ff47a53` completed with a 303 redirect after 1.323 seconds; exact artifact reads returned 200 and recent Worker errors are zero. The append-only receipt grants `OWNER_GROUND_TRUTH_ONLY` authority with zero provider/spend and no dataset/assurance/release authority. Targeted tests pass 53/53 and the full verified suite passes 183/183. Next design a separate clean-control eligibility gate; do not infer dataset, assurance, Golden r10, Stage 11 or release authority. V2 is untouched.
 
