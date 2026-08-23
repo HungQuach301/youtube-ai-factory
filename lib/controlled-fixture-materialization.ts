@@ -8,7 +8,7 @@ export const CLEAN_AUDIO_CONTROL_RESERVED_SPEND_USD = 0.08 as const;
 
 const CHANNEL_ID = "channel-hidden-systems";
 const VOICE_IDENTITY_RECEIPT_ID = "fixture-voice-identity:hidden-systems:v1";
-const NARRATION = [
+export const CLEAN_AUDIO_CONTROL_NARRATION = [
   "A card purchase moves through distinct operational states.",
   "Authorization asks whether the account and available balance permit the transaction at that moment; it is not final movement of money.",
   "Clearing follows when transaction records and obligations are exchanged and reconciled between participating institutions.",
@@ -16,6 +16,8 @@ const NARRATION = [
   "A hold, a cleared record, and settled funds therefore describe different states and should never be treated as one event.",
   "This explanation is educational and does not provide personalized financial advice.",
 ].join(" ");
+
+export async function cleanAudioControlNarrationHash() { return sha256Hex(CLEAN_AUDIO_CONTROL_NARRATION); }
 
 type Row = Record<string, unknown>;
 type RunResult = { meta?: { changes?: number } };
@@ -87,17 +89,17 @@ export async function materializeCleanAudioControlAuthorized(env: FixtureMateria
   if (!policy || clean(policy.lifecycle_state) !== "CLEAN_PARENT_AUDIO_ENABLED") throw new FixtureMaterializationError("FIXTURE_MATERIALIZATION_POLICY_REQUIRED", 409, "The clean-parent materialization policy is not active");
   if (!blueprint || !identity) throw new FixtureMaterializationError("FIXTURE_MATERIALIZATION_CONTRACT_REQUIRED", 409, "The clean-audio blueprint and pinned fixture voice identity are required");
   if (existingArtifact) throw new FixtureMaterializationError("FIXTURE_MATERIALIZATION_CEILING_REACHED", 409, "The one-fixture materialization ceiling has already been reached");
-  if (NARRATION.length > CLEAN_AUDIO_CONTROL_MAXIMUM_CHARACTERS) throw new FixtureMaterializationError("FIXTURE_NARRATION_CEILING_EXCEEDED", 500, "The sealed clean narration exceeds its character ceiling");
+  if (CLEAN_AUDIO_CONTROL_NARRATION.length > CLEAN_AUDIO_CONTROL_MAXIMUM_CHARACTERS) throw new FixtureMaterializationError("FIXTURE_NARRATION_CEILING_EXCEEDED", 500, "The sealed clean narration exceeds its character ceiling");
 
   const voiceSettings = JSON.parse(clean(identity.settings_json)) as Record<string, unknown>;
   if (await canonicalHash(voiceSettings) !== clean(identity.settings_hash)) throw new FixtureMaterializationError("FIXTURE_VOICE_SETTINGS_HASH_MISMATCH", 409, "The pinned fixture voice settings no longer match their sealed hash");
-  const narrationHash = await sha256Hex(NARRATION);
-  const requestBody = { text: NARRATION, model_id: clean(identity.model_id), voice_settings: voiceSettings };
+  const narrationHash = await cleanAudioControlNarrationHash();
+  const requestBody = { text: CLEAN_AUDIO_CONTROL_NARRATION, model_id: clean(identity.model_id), voice_settings: voiceSettings };
   const intent = { policyVersion: CONTROLLED_FIXTURE_MATERIALIZATION_VERSION, blueprintId: clean(blueprint.id), voiceIdentityReceiptId: clean(identity.id), narrationHash, requestBody };
   const intentHash = await canonicalHash(intent), runId = id("fixture-materialization-run"), completedAt = () => now();
   await run(env.DB, `INSERT INTO v7_evaluation_fixture_materialization_runs
     (id,channel_id,policy_version,blueprint_id,voice_identity_receipt_id,idempotency_key,intent_hash,lifecycle_state,planned_fixtures,tts_characters,reserved_spend_usd,spend_accounting_state,actor)
-    VALUES (?,?,?,?,?,?,?,'PLANNED',1,?,0.08,'RESERVED_CEILING_PROVIDER_METER_PENDING',?)`, runId, CHANNEL_ID, CONTROLLED_FIXTURE_MATERIALIZATION_VERSION, blueprint.id, identity.id, idempotencyKey, intentHash, NARRATION.length, actor);
+    VALUES (?,?,?,?,?,?,?,'PLANNED',1,?,0.08,'RESERVED_CEILING_PROVIDER_METER_PENDING',?)`, runId, CHANNEL_ID, CONTROLLED_FIXTURE_MATERIALIZATION_VERSION, blueprint.id, identity.id, idempotencyKey, intentHash, CLEAN_AUDIO_CONTROL_NARRATION.length, actor);
   try {
     await run(env.DB, "UPDATE v7_evaluation_fixture_materialization_runs SET lifecycle_state='RUNNING' WHERE id=?", runId);
     const headers = { "xi-api-key": env.ELEVENLABS_API_KEY };

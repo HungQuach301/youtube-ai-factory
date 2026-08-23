@@ -41,6 +41,7 @@ import {
   summarizeEvaluationRightsQueue,
   summarizeEvaluationInventory,
 } from "../lib/evaluation-foundation.ts";
+import { EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION } from "../lib/clean-audio-rights-evidence.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -778,6 +779,30 @@ test("migration 0073 enables exactly one clean-audio parent with hardened provid
   assert.match(ownerBoundary, /MATERIALIZE_CLEAN_AUDIO_CONTROL/);
   assert.match(ownerBoundary, /fixtureArtifact/);
   assert.doesNotMatch(materializer, /rights_verification_state='PASS'|release_eligible=1|qualification_eligible=1/);
+});
+
+test("migration 0074 seals official current-rights evidence but keeps ambiguous PAYG rights fail-closed", () => {
+  assert.equal(EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION, "EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_V1");
+  const migration = read("drizzle/0074_clean_audio_commercial_rights_evidence.sql");
+  for (const table of [
+    "v7_evaluation_current_rights_evidence_capture_policies", "v7_evaluation_current_rights_evidence_capture_runs",
+    "v7_evaluation_official_terms_snapshot_receipts", "v7_evaluation_clean_audio_rights_diagnostics",
+  ]) assert.match(migration, new RegExp(table));
+  for (const source of ["TERMS_OF_USE", "PUBLISHING_COMMERCIAL_LICENSE_HELP", "PAYG_ADMINISTRATION_DOCS", "TTS_CAPABILITY_DOCS"]) assert.match(migration, new RegExp(source));
+  for (const lock of ["rights_pass_authority", "dataset_sealing_authority", "assurance_qualification_authority", "release_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.match(migration, /REVIEW_REQUIRED_PAYG_BASE_PLAN_AMBIGUOUS/);
+  assert.match(migration, /BASE_PLAN_COMMERCIAL_RIGHTS_NOT_PROVEN/);
+  assert.match(migration, /GENERATION_TIME_BASE_PLAN_OR_CONTRACT_EVIDENCE/);
+  assert.doesNotMatch(migration, /UPDATE `v7_evaluation_materialized_fixture_artifacts`|INSERT INTO `v7_evaluation_provider_terms_receipts`|rights_state='PASS'|release_eligible=1/);
+  const db = new DatabaseSync(":memory:");
+  for (const file of readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort()) db.exec(read(`drizzle/${file}`));
+  const policy = db.prepare("SELECT expected_official_sources,maximum_public_reads,maximum_source_bytes,rights_pass_authority,dataset_sealing_authority,assurance_qualification_authority,release_authority FROM v7_evaluation_current_rights_evidence_capture_policies").get();
+  assert.deepEqual({ ...policy }, { expected_official_sources: 4, maximum_public_reads: 4, maximum_source_bytes: 2_000_000, rights_pass_authority: 0, dataset_sealing_authority: 0, assurance_qualification_authority: 0, release_authority: 0 });
+  const collector = read("lib/clean-audio-rights-evidence.ts"), ownerBoundary = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(collector, /exactResponseHash/);
+  assert.match(collector, /readbackVerified/);
+  assert.match(ownerBoundary, /CAPTURE_CURRENT_COMMERCIAL_RIGHTS_EVIDENCE/);
+  assert.doesNotMatch(collector, /rights_verification_state='PASS'|release_eligible=1|qualification_eligible=1/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {
