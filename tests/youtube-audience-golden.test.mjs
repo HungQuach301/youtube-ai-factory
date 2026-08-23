@@ -88,7 +88,7 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /growing-merchant-coin-stack/);
   assert.match(executor, /sceneCount:r19\?16:r18\?32:r17\?24:r16\?15:r15\?1:r14\?32:r13\?6:r12\?6:r11\?16:r10\?36:r9\?40:r5Plus\?20/);
   assert.match(executor, /minimumCriticalFontPx1080:r19\?132:r18\?132:r17\?132:r16\?120:r15\?120:r14\?108:r13\?108:r12\?108:r11\?90:r10\?84:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
-  assert.match(executor, /\["r5","r6","r7","r8","r9","r10","r11","r12","r13","r14","r15","r16","r17","r18","r19"\]\.includes\(revision\) \? "22" : "19"/);
+  assert.match(executor, /\["r5","r6","r7","r8","r9","r10","r11","r12","r13","r14","r15","r16","r17","r18","r19","r20"\]\.includes\(revision\) \? "22" : "19"/);
   assert.match(executor, /chunks\.length > 128/);
 });
 
@@ -360,4 +360,24 @@ test("Revision 18 visual failure and audio pass create immutable Revision 19 as 
   assert.match(executor, /directional-obligation-amount-counterparty/);
   assert.match(executor, /exception-entry-point-timeline-before-final-payoff/);
   assert.match(executor, /sceneCount:r19\?16/);
+});
+
+test("Revision 19 dual failure creates immutable Revision 20 with mobile reflow and stable audio", () => {
+  const migration = read("drizzle/0104_youtube_audience_golden_revision_20.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_20/);
+  assert.match(migration, /visual_failure_receipt_id/);
+  assert.match(migration, /audio_failure_receipt_id/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_20_IMMUTABLE/);
+  assert.match(runtime, /R19_OBJECT_LEDGER_MOBILE_REFLOW/);
+  assert.match(runtime, /TWO_STRUCTURALLY_DISTINCT_STATES_PER_SEQUENCE/);
+  assert.match(runtime, /EMPTY_CENTER_CORRIDOR_BETWEEN_ENTITY_AND_COUNTERPARTY/);
+  assert.match(runtime, /arrowMayCrossLabelOrAmount: false/);
+  assert.match(runtime, /contractVoiceSettingsMustApply: true/);
+  assert.match(runtime, /REVISION_20_EVIDENCE_REQUIRED/);
+  assert.match(runtime, /contractVoiceRevision = \/:r\(\?:15\|16\|17\|18\|19\|20\)\$\//);
+  assert.match(executor, /function svgFrameR20/);
+  assert.match(executor, /AUDIENCE_GOLDEN_PREVIEW_R20/);
+  assert.match(executor, /safe-obligation-arrow-corridor/);
+  assert.match(executor, /contract-voice-settings-applied/);
+  assert.match(executor, /revision === "r20" \? svgFrameR20/);
 });
