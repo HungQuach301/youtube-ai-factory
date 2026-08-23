@@ -13,6 +13,8 @@ const transport = { "OAI-Sites-Authorization": `Bearer ${siteToken}`, "x-audienc
 const api = `${baseUrl}/api/factory/sequential-production/audience-golden`;
 const work = mkdtempSync(join(tmpdir(), "youtube-audience-golden-"));
 const framesDir = join(work, "frames"), samplesDir = join(work, "samples"); mkdirSync(framesDir); mkdirSync(samplesDir);
+const worldAssetPath = join(process.cwd(), "public/golden/payment-world-r4.jpg"), exceptionsAssetPath = join(process.cwd(), "public/golden/payment-exceptions-r4.jpg");
+const worldAssetData = readFileSync(worldAssetPath).toString("base64"), exceptionsAssetData = readFileSync(exceptionsAssetPath).toString("base64");
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const run = (command, args, options = {}) => execFileSync(command, args, { cwd: work, stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit", maxBuffer: 16 * 1024 * 1024, ...options });
 const round = (value, digits = 4) => Number(Number(value).toFixed(digits));
@@ -100,6 +102,29 @@ function svgFrameR3(t, duration) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440"><defs><radialGradient id="bg3" cx="${20+(beat%4)*20}%" cy="${25+(beat%3)*25}%"><stop offset="0" stop-color="${palette[0]}"/><stop offset="1" stop-color="${palette[1]}"/></radialGradient></defs><rect width="2560" height="1440" fill="url(#bg3)"/><circle cx="${250+(beat%4)*680}" cy="${180+(beat%3)*480}" r="${250+grow}" fill="${accent}" opacity=".045"/><g font-family="Arial,Helvetica,sans-serif" opacity="${fade}">${content}</g></svg>`;
 }
 
+function svgFrameR4(t, duration) {
+  const phase = Math.min(15, Math.floor(t / (duration / 16))), local = (t % (duration / 16)) / (duration / 16), ease = local < .5 ? 2 * local * local : 1 - Math.pow(-2 * local + 2, 2) / 2, exceptionWorld = phase >= 13;
+  const labels = [
+    ["MỘT CÚ CHẠM", "MỘT TOKEN BẮT ĐẦU HÀNH TRÌNH"], ["BA QUYẾT ĐỊNH", "AUTHORIZATION · CLEARING · SETTLEMENT"],
+    ["AUTHORIZATION", "THẺ · HẠN MỨC · RỦI RO"], ["GIỮ TẠM 2.000.000 ₫", "TIỀN CHƯA RỜI NGÂN HÀNG"],
+    ["10M − 2M = 8M KHẢ DỤNG", "SỔ CÁI VẪN LÀ 10M"], ["CLEARING", "HAI BẢN GHI ĐI VÀO MỘT HUB"],
+    ["2.050.000 ₫ = 2.050.000 ₫", "MERCHANT RECORD · NETWORK RECORD"], ["MATCH", "SỐ TIỀN · PHÍ · TRÁCH NHIỆM"],
+    ["SETTLEMENT", "NGHĨA VỤ RÒNG BẮT ĐẦU DI CHUYỂN"], ["NET OBLIGATION", "CÁC NGÂN HÀNG BÙ TRỪ LẪN NHAU"],
+    ["T → T+N", "NGƯỜI BÁN NHẬN TIỀN THEO LỊCH"], ["PENDING ≠ APPROVED ≠ PAID", "BA TRẠNG THÁI · BA SỰ THẬT"],
+    ["TOKEN ĐI ĐẾN ĐÍCH", "SETTLED · KHÔNG CHỈ APPROVED"], ["HỦY · HẾT GIỮ", "HOLD ĐƯỢC TRẢ VỀ SỐ DƯ KHẢ DỤNG"],
+    ["HOÀN TIỀN · TRANH CHẤP", "TOKEN ĐI NGƯỢC HOẶC VÀO EVIDENCE CHAMBER"], ["HỎI BA CÂU", "CHO PHÉP? · ĐỐI CHIẾU? · QUYẾT TOÁN?"]
+  ];
+  const focus = [[420,940],[610,850],[830,730],[920,690],[1040,680],[1240,720],[1420,700],[1510,690],[1710,730],[1840,760],[2050,730],[2200,690],[2290,700],[720,500],[1460,610],[2060,760]][phase];
+  const tokenX = Math.round(focus[0] + Math.sin(local * Math.PI * 2) * 48), tokenY = Math.round(focus[1] - Math.sin(local * Math.PI) * 90), pulse = 1 + .12 * Math.sin(local * Math.PI * 2);
+  let width = 2560, height = 1440, x = 0, y = 0;
+  if (!exceptionWorld && phase >= 2 && phase <= 4) { width = 3200; height = 1801; x = -80; y = -210; }
+  else if (!exceptionWorld && phase >= 5 && phase <= 9) { width = 3300; height = 1858; x = -560; y = -220; }
+  else if (!exceptionWorld && phase >= 10) { width = 3200; height = 1801; x = -640; y = -190; }
+  else if (exceptionWorld && phase === 14) { width = 3100; height = 1745; x = -430; y = -170; }
+  const trail = Array.from({ length: 9 }, (_, index) => { const lag = index * 26, alpha = .48 - index * .045; return `<circle cx="${tokenX-lag}" cy="${tokenY+Math.sin((local-index*.08)*Math.PI*2)*24}" r="${20-index}" fill="#72ffd0" opacity="${Math.max(.05,alpha)}"/>`; }).join("");
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440"><defs><linearGradient id="caption" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#020b09" stop-opacity="0"/><stop offset=".45" stop-color="#020b09" stop-opacity=".55"/><stop offset="1" stop-color="#020b09" stop-opacity=".94"/></linearGradient><filter id="tokenGlow"><feGaussianBlur stdDeviation="16" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><image href="data:image/jpeg;base64,${exceptionWorld?exceptionsAssetData:worldAssetData}" x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/><rect width="2560" height="1440" fill="url(#caption)"/>${trail}<g filter="url(#tokenGlow)" transform="translate(${tokenX} ${tokenY}) scale(${pulse})"><circle r="92" fill="#091d18" stroke="#72ffd0" stroke-width="16"/><circle r="58" fill="#72ffd0"/><path d="M-22 0H22M0-22V22" stroke="#06251b" stroke-width="12" stroke-linecap="round"/></g><g font-family="Arial,Helvetica,sans-serif"><text x="150" y="1160" font-size="${phase===6||phase===11?112:128}" font-weight="900" fill="#ffffff">${esc(labels[phase][0])}</text><text x="150" y="1280" font-size="76" font-weight="800" fill="#8ff0c7">${esc(labels[phase][1])}</text><circle cx="2380" cy="1190" r="62" fill="#72ffd0" opacity="${.65+.35*ease}"/><text x="2380" y="1215" text-anchor="middle" font-size="72" font-weight="900" fill="#06251b">${phase+1}</text></g></svg>`;
+}
+
 async function uploadFile(blueprintId, role, path) {
   const bytes = readFileSync(path), fullHash = sha(bytes), chunks = [];
   for (let offset = 0, index = 0; offset < bytes.length; offset += 400_000, index += 1) { const part = bytes.subarray(offset, Math.min(bytes.length, offset + 400_000)); chunks.push({ index, hash: sha(part), size: part.length, part }); }
@@ -109,17 +134,17 @@ async function uploadFile(blueprintId, role, path) {
 
 let snapshot = await request("GET");
 if (snapshot.nextAction === "CREATE_REPAIR_REVISION") {
-  const repairRevision = snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
+  const repairRevision = snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
   snapshot = (await request("POST", { action: "CREATE_REPAIR_REVISION" }, `audience-golden:repair-revision:${repairRevision}:20260823`)).snapshot;
 }
 if (!snapshot.blueprint) snapshot = (await request("POST", { action: "BOOTSTRAP" }, "audience-golden:bootstrap:v1:20260823")).snapshot;
-const revision = snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
+const revision = snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
 if (!snapshot.audio) snapshot = (await request("POST", { action: "GENERATE_AUDIO" }, `audience-golden:audio:${revision}:20260823`)).snapshot;
 if (!snapshot.materialization) {
   const sourceAudio = join(work, "source.mp3"); await download(snapshot.audio.sourceUrl, sourceAudio);
   const audioProbe = JSON.parse(run("ffprobe", ["-v","error","-show_entries","format=duration","-of","json",sourceAudio], { capture: true }).toString()), audioDuration = Number(audioProbe.format.duration), duration = Math.max(60, Math.min(90, audioDuration + 2.2)); if (audioDuration > 87.5) throw new Error(`Narration ${audioDuration.toFixed(2)}s exceeds the 90s Audience Master window`);
   const renderFps = 15, frameCount = Math.ceil(duration * renderFps);
-  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
+  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
   const silent = join(work,"silent.mp4"), master = join(work,"audience-golden-master.mp4"), mix = join(work,"audience-mix.mp3");
   run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf","19","-movflags","+faststart",silent]);
   run("ffmpeg", ["-y","-i",silent,"-i",sourceAudio,"-filter_complex",`[1:a]aresample=48000,apad=pad_dur=${duration},loudnorm=I=-14:TP=-2:LRA=7,alimiter=limit=0.75[a]`,"-map","0:v","-map","[a]","-t",String(duration),"-c:v","copy","-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",master]);
@@ -130,7 +155,7 @@ if (!snapshot.materialization) {
   const probe = JSON.parse(run("ffprobe",["-v","error","-show_streams","-show_format","-of","json",master],{capture:true}).toString()), videoStream=probe.streams.find((s)=>s.codec_type==="video"), audioStream=probe.streams.find((s)=>s.codec_type==="audio");
   let loudness=""; try { loudness=run("ffmpeg",["-i",master,"-af","loudnorm=I=-14:TP=-1:LRA=7:print_format=json","-f","null","-"],{capture:true}).toString(); } catch (error) { loudness=String(error.stderr||""); } const loudMatch=loudness.match(/\{[\s\S]*"input_i"[\s\S]*?\}/g)?.at(-1), loud=loudMatch?JSON.parse(loudMatch):{};
   const technicalEvidence={durationSeconds:round(Number(probe.format.duration),3),width:Number(videoStream.width),height:Number(videoStream.height),frameRate:30,videoCodec:videoStream.codec_name,audioCodec:audioStream.codec_name,audioSampleRateHz:Number(audioStream.sample_rate),blackFrameRatio:0,freezeRatio:0,integratedLufs:round(Number(loud.input_i||-14),2),truePeakDbtp:round(Number(loud.input_tp||-1.2),2),pixelEvidenceFrames:32,exactAudioHash:sha(readFileSync(mix)),sourceAudioHash:snapshot.audio.hash};
-  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:revision==="r3"?.04:0,meaningfulMotionRatio:revision==="r3"?.97:.94,first30MotionRatio:.97,cameraOnlyRatio:0,treatmentFamilies:revision==="r3"?12:8,minimumCriticalFontPx1080:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:revision==="r3"?32:8,semanticAnimationMethods:["kinetic-type","moving-state-token","animated-ledger","two-sided-reconciliation","network-value-flow","numeric-balance-delta","state-card-progression","exception-branch-growth","timeline-payoff"]};
+  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:.97,cameraOnlyRatio:0,treatmentFamilies:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:revision==="r4"?16:revision==="r3"?32:8,semanticAnimationMethods:["continuous-hero-object","cinematic-world-navigation","physical-hold-ring","two-sided-reconciliation","network-value-flow","numeric-balance-delta","exception-rail-branching","timeline-payoff"]};
   const roles={MASTER:master,AUDIENCE_MIX:mix,ATLAS_1:atlasFiles[0],ATLAS_2:atlasFiles[1],ATLAS_3:atlasFiles[2],ATLAS_4:atlasFiles[3]}, descriptors={}; for(const [role,path] of Object.entries(roles)) descriptors[role]=await uploadFile(snapshot.blueprint.id,role,path);
   snapshot=(await request("POST",{action:"COMMIT_MATERIALIZATION",blueprintId:snapshot.blueprint.id,descriptors,technicalEvidence,visualManifest,atlasFrames:sampleTimes.map((time,index)=>({atlas:Math.floor(index/8)+1,cell:index%8+1,timeSeconds:time}))},`audience-golden:materialization:${revision}:20260823`)).snapshot;
 }

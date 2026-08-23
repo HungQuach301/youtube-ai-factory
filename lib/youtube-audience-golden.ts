@@ -99,6 +99,7 @@ export async function audienceGoldenSnapshot(db: AudienceGoldenDB) {
 
 export async function createAudienceGoldenRepairRevisionAuthorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string) {
   const latest = await first(env.DB, "SELECT * FROM v7_youtube_golden_sequence_blueprints WHERE channel_id=? ORDER BY created_at DESC,id DESC LIMIT 1", CHANNEL_ID);
+  if (clean(latest?.id).endsWith(":r3")) return createAudienceGoldenRepairRevision4Authorized(env, actor, idempotencyKey, latest as Row);
   if (clean(latest?.id).endsWith(":r2")) return createAudienceGoldenRepairRevision3Authorized(env, actor, idempotencyKey, latest as Row);
   const priorReceipt = await first(env.DB, "SELECT * FROM v7_youtube_golden_revision_receipts WHERE channel_id=? AND idempotency_key=? LIMIT 1", CHANNEL_ID, idempotencyKey); if (priorReceipt) return { outcome: "REPLAYED", snapshot: await audienceGoldenSnapshot(env.DB) };
   const rejected = await first(env.DB, "SELECT * FROM v7_youtube_golden_sequence_blueprints WHERE channel_id=? ORDER BY created_at DESC,id DESC LIMIT 1", CHANNEL_ID); if (!rejected) throw new AudienceGoldenError("REJECTED_BLUEPRINT_MISSING", 409, "A rejected Golden blueprint is required");
@@ -129,6 +130,23 @@ async function createAudienceGoldenRepairRevision3Authorized(env: AudienceGolden
     await run(env.DB, "INSERT INTO v7_youtube_golden_revision_3_receipts (id,channel_id,rejected_blueprint_id,rejected_materialization_receipt_id,replacement_blueprint_id,revision_key,visual_failure_receipt_id,audio_pass_receipt_id,repair_contract_json,actor,idempotency_key,evidence_hash) VALUES (?,?,?,?,?,'AUDIENCE_GOLDEN_REVISION_3',?,?,?,?,?,?)", makeId("audience-golden-revision-3"), CHANNEL_ID, rejected.id, materialization.id, replacementId, visualQa.id, audioQa.id, canonicalStringify(repairContract), actor, idempotencyKey, evidenceHash);
   }
   return { outcome: "REPAIR_REVISION_3_SEALED", snapshot: await audienceGoldenSnapshot(env.DB) };
+}
+
+async function createAudienceGoldenRepairRevision4Authorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string, rejected: Row) {
+  const priorReceipt = await first(env.DB, "SELECT * FROM v7_youtube_golden_revision_4_receipts WHERE channel_id=? AND idempotency_key=? LIMIT 1", CHANNEL_ID, idempotencyKey); if (priorReceipt) return { outcome: "REPLAYED", snapshot: await audienceGoldenSnapshot(env.DB) };
+  const materialization = await first(env.DB, "SELECT * FROM v7_youtube_golden_materialization_receipts WHERE blueprint_id=?", rejected.id); if (!materialization) throw new AudienceGoldenError("REJECTED_MATERIALIZATION_MISSING", 409, "Revision 3 materialization is required");
+  const [visualQa, audioQa] = await Promise.all([first(env.DB, "SELECT * FROM v7_youtube_golden_qa_receipts WHERE materialization_receipt_id=? AND qa_layer='FACTORY_VISUAL'", materialization.id), first(env.DB, "SELECT * FROM v7_youtube_golden_qa_receipts WHERE materialization_receipt_id=? AND qa_layer='FACTORY_AUDIO'", materialization.id)]);
+  if (!visualQa || clean(visualQa.decision_state) !== "FAIL" || !audioQa || clean(audioQa.decision_state) !== "PASS") throw new AudienceGoldenError("REVISION_4_EVIDENCE_REQUIRED", 409, "Revision 4 requires failed visual QA and passing exact-audio QA");
+  const replacementId = `audience-golden-blueprint:${CHANNEL_ID}:r4`, existing = await first(env.DB, "SELECT id FROM v7_youtube_golden_sequence_blueprints WHERE id=?", replacementId);
+  if (!existing) {
+    const narration = clean(rejected.narration_text), narrationHash = await sha256Hex(new TextEncoder().encode(narration));
+    const assetManifest = { source: "OPENAI_IMAGEGEN_BUILTIN", assets: [{ path: "public/golden/payment-world-r4.jpg", sha256: "00354e385a041d3d1d854ba496612d404e3ca8e170cfab5754a73f7be05e123f", role: "CONTINUOUS_TRANSACTION_WORLD" }, { path: "public/golden/payment-exceptions-r4.jpg", sha256: "be3c8d80167d0b30eba4387534907c14085e000456ad8809fa838ca2a2a29911", role: "EXCEPTION_BRANCH_WORLD" }] };
+    const repairContract = { revision: 4, rootOwners: ["OUTPUT_FORM", "VISUAL_STORYTELLING", "OBJECT_CONTINUITY", "COLLISION_SAFETY"], inheritedAudioPassReceiptId: audioQa.id, visual: { form: "CINEMATIC_ILLUSTRATED_WORLD", continuousHeroObject: "TRANSACTION_TOKEN", maximumAnnotationLines: 2, minimumTextPx1080: 60, collisionSafeZones: true, emptyFramesAllowed: false }, audio: { settingsInheritedFromPassingRevision: 3, musicBed: false, targetLufs: -14, truePeakDbtp: -2 } };
+    await run(env.DB, `INSERT INTO v7_youtube_golden_sequence_blueprints (id,channel_id,policy_version,blueprint_version,episode_key,title_promise,narration_text,narration_hash,story_contract_json,visual_contract_json,audio_contract_json,lifecycle_state,actor) VALUES (?,?,?,?,?,?,?,?,?,?,?,'SEALED',?)`, replacementId, CHANNEL_ID, AUDIENCE_POLICY_VERSION, AUDIENCE_BLUEPRINT_VERSION, `${AUDIENCE_GOLDEN_STORY.episodeKey}-revision-4`, AUDIENCE_GOLDEN_STORY.titlePromise, narration, narrationHash, canonicalStringify({ ...AUDIENCE_GOLDEN_STORY, assetManifest, repairContract }), canonicalStringify(repairContract.visual), canonicalStringify(repairContract.audio), actor);
+    const evidenceHash = await canonicalHash({ rejectedBlueprintId: rejected.id, rejectedMaterializationId: materialization.id, replacementId, visualFailureReceiptId: visualQa.id, audioPassReceiptId: audioQa.id, assetManifest, repairContract });
+    await run(env.DB, "INSERT INTO v7_youtube_golden_revision_4_receipts (id,channel_id,rejected_blueprint_id,rejected_materialization_receipt_id,replacement_blueprint_id,revision_key,visual_failure_receipt_id,audio_pass_receipt_id,asset_manifest_json,repair_contract_json,actor,idempotency_key,evidence_hash) VALUES (?,?,?,?,?,'AUDIENCE_GOLDEN_REVISION_4',?,?,?,?,?,?,?)", makeId("audience-golden-revision-4"), CHANNEL_ID, rejected.id, materialization.id, replacementId, visualQa.id, audioQa.id, canonicalStringify(assetManifest), canonicalStringify(repairContract), actor, idempotencyKey, evidenceHash);
+  }
+  return { outcome: "REPAIR_REVISION_4_SEALED", snapshot: await audienceGoldenSnapshot(env.DB) };
 }
 
 export async function bootstrapAudienceGoldenAuthorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string) {

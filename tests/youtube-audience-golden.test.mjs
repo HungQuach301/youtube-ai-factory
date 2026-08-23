@@ -58,6 +58,18 @@ test("Revision 2 visual failure creates an immutable micro-scene Revision 3", ()
   assert.match(migration, /YOUTUBE_GOLDEN_REVISION_3_IMMUTABLE/);
   assert.match(runtime, /microSceneIntervalSeconds: 2\.2/);
   assert.match(runtime, /twoSidedClearingReconciliation: true/);
-  assert.match(executor, /sceneCount:revision==="r3"\?32:8/);
-  assert.match(executor, /minimumCriticalFontPx1080:revision==="r3"\?54:42/);
+  assert.match(executor, /revision==="r3"\?32:8/);
+  assert.match(executor, /revision==="r3"\?54:42/);
+});
+
+test("Revision 3 rejection replaces slide grammar with an asset-bound cinematic world", () => {
+  const migration = read("drizzle/0087_youtube_audience_golden_revision_4.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_4/);
+  assert.match(migration, /asset_manifest_json/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_4_IMMUTABLE/);
+  assert.match(runtime, /CINEMATIC_ILLUSTRATED_WORLD/);
+  assert.match(runtime, /continuousHeroObject: "TRANSACTION_TOKEN"/);
+  assert.match(runtime, /OPENAI_IMAGEGEN_BUILTIN/);
+  assert.match(executor, /continuous-hero-object/);
+  assert.match(executor, /data:image\/jpeg;base64/);
 });
