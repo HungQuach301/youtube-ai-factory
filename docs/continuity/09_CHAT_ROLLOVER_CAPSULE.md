@@ -21,6 +21,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 
 ## Current handoff truth
 
+- Sites v488 consumed the sole R6 audio-QA recovery at PASS 95 and materialized Audience Golden R7 master `ef1b944e3c4fb79980b33a497ed856a2d6dfd7ab85b75325a4a9b60e18d925e6` at 70.7 seconds/13,621,512 bytes with deterministic/rights PASS. Factory visual QA is FAIL 91 (P0=0, P1=1, P2=0) on temporal state labels; exact-audio QA is FAIL 88 (P0=0, P1=2, P2=3) on click/clipping plus three smaller observations. Migration `0092` and R8 source replace inactive-future affirmative labels with time-local completed/pending truth and regenerate the narration at slower speed, higher stability and lower peak. Full regression/build pass 195/195 and V2 firewall 16/16. Next deploy and execute R8; Browser, owner and freeze remain blocked. Document 78 is authoritative; V2 is untouched.
+
 - Sites v486 materialized Audience Golden R5 master `bddc055889a4754b4a0afe13b07b5fc8d9c654518d2222fc1e18c486b3b73970` at 69.335 seconds/37,430,032 bytes with deterministic/rights PASS. Factory visual QA is FAIL 83 (P0=0, P1=2, P2=3); exact-audio QA is PASS 94. Migration `0089` and R6 source repair the locked compositions, inconsistent hold arithmetic, crowded opening labels, unlabeled clearing fee and unbound state colors. Browser, owner review and freeze remain blocked; V2 is untouched. Document 78 is authoritative.
 
 - Sites v484 preserves Audience Golden R4 master `0e7e1401864fb3536cf409c9880b33a07364974e05b64b9d0d46e08b5549a4a1`. Factory visual QA failed at 76 with P0=0, P1=2 and P2=3; exact-audio QA passed at 95. R5 source and migration `0088` are ready with five image worlds, 20 transforming phases, Vietnamese-only essential labels and 72 px minimum critical text at 1080. Regression/build pass 191/191 and the V2 firewall passes 16/16. Next deploy R5 and let Production Factory QA decide; Browser, owner review and freeze remain blocked. Document 78 is authoritative; V2 is untouched.
@@ -90,7 +92,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 
 ## Protected no-rerun list
 
-- Sites v487 sealed Audience Golden R6 master `5417e2af92042881d7ba87ddd6994adcdcec58771ed9dfa752506680d01ec1c8` at 71.111 seconds/14,683,850 bytes with deterministic/rights PASS. Visual QA is FAIL 89 (P0=0, P1=1, P2=2). Original audio QA failed closed with `AUDIO_QA_OUTPUT_INVALID`; migration `0090` permits one exact-hash recovery. Migration `0091` and R7 source fix transaction amount continuity, label both record sides and use four settlement worlds. Browser, owner review and freeze remain blocked; V2 is untouched. Document 78 is authoritative.
+- Sites v488 consumed the sole R6 audio-QA recovery and sealed Audience Golden R7 master `ef1b944e3c4fb79980b33a497ed856a2d6dfd7ab85b75325a4a9b60e18d925e6` at 70.7 seconds/13,621,512 bytes with deterministic/rights PASS. Visual QA is FAIL 91 (P0=0, P1=1, P2=0); audio QA is FAIL 88 (P0=0, P1=2, P2=3). Migration `0092` and R8 source repair only those exact temporal-state and voice/mastering defects. Do not rerun R6/R7 or their QA receipts. Browser, owner review and freeze remain blocked; V2 is untouched. Document 78 is authoritative.
 
 Do not:
 

@@ -87,8 +87,8 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /converging-record-plates/);
   assert.match(executor, /growing-merchant-coin-stack/);
   assert.match(executor, /sceneCount:r5Plus\?20/);
-  assert.match(executor, /minimumCriticalFontPx1080:r7\?84:r5Plus\?72/);
-  assert.match(executor, /\["r5","r6","r7"\]\.includes\(revision\) \? "22" : "19"/);
+  assert.match(executor, /minimumCriticalFontPx1080:r8\?84:r7\?84:r5Plus\?72/);
+  assert.match(executor, /\["r5","r6","r7","r8"\]\.includes\(revision\) \? "22" : "19"/);
   assert.match(executor, /chunks\.length > 128/);
 });
 
@@ -129,4 +129,21 @@ test("Revision 6 rejection creates immutable Revision 7 with transaction continu
   assert.match(executor, /fixed-transaction-amount-continuity/);
   assert.match(executor, /labeled-record-side-comparison/);
   assert.match(executor, /multi-world-settlement-sequence/);
+});
+
+test("Revision 7 dual failure creates immutable Revision 8 with temporal truth and safer voice mastering", () => {
+  const migration = read("drizzle/0092_youtube_audience_golden_revision_8.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_8/);
+  assert.match(migration, /visual_failure_receipt_id/);
+  assert.match(migration, /audio_failure_receipt_id/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_8_IMMUTABLE/);
+  assert.match(runtime, /CINEMATIC_TEMPORAL_STATE_TRUTH/);
+  assert.match(runtime, /inactiveFutureStatesMustReadPending: true/);
+  assert.match(runtime, /speechSpeed: \.96/);
+  assert.match(runtime, /truePeakDbtp: -3/);
+  assert.match(executor, /function svgFrameR8/);
+  assert.match(executor, /\["CHƯA", "KHỚP", false\]/);
+  assert.match(executor, /temporal-state-truth/);
+  assert.match(executor, /acompressor=threshold=-18dB:ratio=2/);
+  assert.match(executor, /alimiter=limit=0\.65/);
 });

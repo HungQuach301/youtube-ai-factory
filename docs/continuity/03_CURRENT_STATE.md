@@ -2,20 +2,20 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
-## Audience Golden Sequence — R6 rejected, one audio-QA recovery and R7 source ready
+## Audience Golden Sequence — R7 rejected, R8 temporal-state and audio repair ready
 
 ```text
-PRODUCTION_CHECKPOINT = SITES_V487
-R6_MASTER_SHA256 = 5417e2af92042881d7ba87ddd6994adcdcec58771ed9dfa752506680d01ec1c8
-R6_FACTORY_VISUAL = FAIL_89__P0_0__P1_1__P2_2
-R6_FACTORY_AUDIO = PENDING__ORIGINAL_OUTPUT_INVALID__ONE_RECOVERY_AUTHORIZED
-R7_SOURCE = READY__MIGRATION_0091__FIXED_AMOUNT_CONTINUITY__FOUR_SETTLEMENT_WORLDS
-SOURCE_VERIFICATION = 194_OF_194_PASS__BUILD_PASS__V2_FIREWALL_16_OF_16
+PRODUCTION_CHECKPOINT = SITES_V488
+R7_MASTER_SHA256 = ef1b944e3c4fb79980b33a497ed856a2d6dfd7ab85b75325a4a9b60e18d925e6
+R7_FACTORY_VISUAL = FAIL_91__P0_0__P1_1__P2_0
+R7_FACTORY_AUDIO = FAIL_88__P0_0__P1_2__P2_3
+R8_SOURCE = READY__MIGRATION_0092__TEMPORAL_STATE_TRUTH__SAFER_VOICE_MASTERING
+SOURCE_VERIFICATION = 195_OF_195_PASS__BUILD_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = DEPLOY_0090_0091__RUN_ONE_AUDIO_QA_RECOVERY__EXECUTE_R7
+NEXT_PROTECTED_ACTION = DEPLOY_0092__EXECUTE_R8__LET_FACTORY_QA_DECIDE
 ```
 
-R6 improved independent visual QA from 83 to 89 and reduced the defect set to one P1 plus two P2 findings. The remaining P1 is one-transaction amount continuity: atlas samples show hold 2.00, an intermediate animated 1.6, then clearing 2.05 without an explicit bridge. The P2 findings are unlabeled record sides and four settlement samples retaining one background hierarchy. The original audio-QA request returned no required function evidence, so migration `0090` creates one exact-hash recovery claim and no retry loop. R7 fixes the hold at 2.00/available at 8.00, labels both record sides, names the 0.05 fee as the difference cause and uses four distinct settlement worlds. Production evidence is not inferred from source. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
+Sites v488 consumed the sole R6 audio-QA recovery and sealed PASS 95, then materialized R7 as a deterministic/rights PASS 70.7-second master. Visual QA improved to 91 and found only one P1: inactive future stages in the state comparison still read as completed facts. Audio QA failed at 88 with clicks/clipping as P1 and pacing, mix and seam observations as P2. Migration `0092` permits one append-only R8 only from both exact R7 failures. R8 replaces ambiguous cards with time-local completed/pending language and regenerates the exact narration with slower, more stable synthesis plus additional compressor/headroom controls. Production evidence is not inferred from source. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 

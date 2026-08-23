@@ -6,7 +6,7 @@
 
 ## Current position
 
-- Audience Golden Sequence R1–R6 are preserved rejected evidence. Sites v487 sealed R6 exact master `5417e2af…`; visual QA is FAIL 89 with one P1/two P2 findings, while the original audio-QA request failed closed on malformed output. Migration `0090` permits one exact-hash audio-QA recovery, and migration `0091` prepares R7 with fixed transaction arithmetic, explicit record-side labels and four settlement worlds. Browser/device, owner review and freeze remain blocked until their owning gates open. Document 78 is authoritative; V2 is untouched.
+- Audience Golden Sequence R1–R7 are preserved rejected evidence. Sites v488 consumed the sole R6 audio-QA recovery at PASS 95 and sealed R7 exact master `ef1b944e…`; visual QA is FAIL 91 with one temporal-state P1, while audio QA is FAIL 88 with click/clipping P1 findings. Migration `0092` prepares R8 with time-local state truth and regenerated slower, higher-headroom voice. Browser/device, owner review and freeze remain blocked until their owning gates open. Document 78 is authoritative; V2 is untouched.
 
 - FP1 truthful operator projection: implemented.
 - FP2 Capability Registry mechanism: implemented.
@@ -182,6 +182,8 @@ Phase 27 is active. R1–R4 preserve their exact masters and independent failure
 Phase 28 is active. Sites v486 seals R5 master `bddc055889a4754b4a0afe13b07b5fc8d9c654518d2222fc1e18c486b3b73970`; visual FAIL 83/audio PASS 94 open only the evidence-bound R6 repair. Migration `0089` corrects all five observations at their owning composition, arithmetic, clearing-map, state-label and collision layers. Next deploy and execute R6. Browser/device and owner gates remain closed until Factory PASS. Document 78 is authoritative; V2 is untouched.
 
 Phase 29 is active. Sites v487 seals R6 master `5417e2af92042881d7ba87ddd6994adcdcec58771ed9dfa752506680d01ec1c8`; visual FAIL 89 reduces the open set to amount continuity, record-side labeling and settlement background diversity. The original audio-QA provider response omitted the forced function and created no QA receipt. Migration `0090` creates one immutable exact-hash recovery authorization/claim; migration `0091` creates R7 only after recovered audio PASS. Browser/device and owner gates remain closed until Factory PASS. Document 78 is authoritative; V2 is untouched.
+
+Phase 30 is active. Sites v488 consumes the only R6 exact-audio recovery at PASS 95 and materializes R7 master `ef1b944e3c4fb79980b33a497ed856a2d6dfd7ab85b75325a4a9b60e18d925e6`. Visual QA reaches 91 with one P1 temporal-state contradiction and no P2; audio QA fails at 88 with click/clipping P1 plus three P2 observations. Migration `0092` creates R8 only from both exact failure receipts. R8 uses explicit completed/pending language at each sampled moment and a newly synthesized slower, more stable, compressed and lower-peak voice path. Source regression passes 195/195 and build/V2 firewall pass. Next deploy and execute R8; Browser/device and owner gates remain closed until Factory PASS. V2 is untouched.
 
 ## Wave 4 — Upstream and technical standards
 

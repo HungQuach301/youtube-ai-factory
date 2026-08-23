@@ -274,6 +274,26 @@ function svgFrameR7(t, duration) {
   return svg;
 }
 
+function svgFrameR8(t, duration) {
+  const phaseLength = duration / 20, phase = Math.min(19, Math.floor(t / phaseLength)), local = Math.min(1, (t - phase * phaseLength) / phaseLength);
+  let svg = svgFrameR7(t, duration);
+  if (phase !== 14) return svg;
+  const active = Math.min(2, Math.floor(local * 3));
+  const states = [
+    [["ĐANG", "GIỮ", true], ["CHƯA", "KHỚP", false], ["CHƯA", "CHUYỂN", false]],
+    [["ĐÃ", "GIỮ", true], ["ĐÃ", "KHỚP", true], ["CHƯA", "CHUYỂN", false]],
+    [["ĐÃ", "GIỮ", true], ["ĐÃ", "KHỚP", true], ["ĐÃ", "CHUYỂN", true]],
+  ][active];
+  const colors = ["#ffd36a", "#72ffd0", "#71d9ff"];
+  const cards = states.map(([prefix, value, completed], index) => {
+    const x = 150 + index * 780, color = colors[index];
+    return `<rect x="${x}" y="1000" width="700" height="300" rx="40" fill="${completed ? "#06251b" : "#111813"}" stroke="${color}" stroke-width="${completed ? 20 : 10}" opacity="${completed ? 1 : .86}"/><text x="${x+350}" y="1122" text-anchor="middle" font-size="96" font-weight="900" fill="${completed ? color : "#c5ccc8"}" stroke="#020806" stroke-width="14" paint-order="stroke">${prefix}</text><text x="${x+350}" y="1242" text-anchor="middle" font-size="112" font-weight="900" fill="${completed ? color : "#c5ccc8"}" stroke="#020806" stroke-width="14" paint-order="stroke">${value}</text>`;
+  }).join("");
+  svg = svg.replace("ĐÃ CHO PHÉP", "ĐÃ ĐỐI CHIẾU");
+  svg = svg.replace("</svg>", `<g font-family="Arial,Helvetica,sans-serif"><rect x="80" y="875" width="2400" height="475" rx="62" fill="#020806" opacity=".99"/><text x="1280" y="965" text-anchor="middle" font-size="84" font-weight="900" fill="#ffffff">TRẠNG THÁI TẠI THỜI ĐIỂM NÀY</text>${cards}</g></svg>`);
+  return svg;
+}
+
 async function uploadFile(blueprintId, role, path) {
   const bytes = readFileSync(path), fullHash = sha(bytes), chunks = [];
   for (let offset = 0, index = 0; offset < bytes.length; offset += 400_000, index += 1) { const part = bytes.subarray(offset, Math.min(bytes.length, offset + 400_000)); chunks.push({ index, hash: sha(part), size: part.length, part }); }
@@ -284,20 +304,21 @@ async function uploadFile(blueprintId, role, path) {
 
 let snapshot = await request("GET");
 if (snapshot.nextAction === "CREATE_REPAIR_REVISION") {
-  const repairRevision = snapshot.blueprint?.id?.endsWith(":r6") ? "r7" : snapshot.blueprint?.id?.endsWith(":r5") ? "r6" : snapshot.blueprint?.id?.endsWith(":r4") ? "r5" : snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
+  const repairRevision = snapshot.blueprint?.id?.endsWith(":r7") ? "r8" : snapshot.blueprint?.id?.endsWith(":r6") ? "r7" : snapshot.blueprint?.id?.endsWith(":r5") ? "r6" : snapshot.blueprint?.id?.endsWith(":r4") ? "r5" : snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
   snapshot = (await request("POST", { action: "CREATE_REPAIR_REVISION" }, `audience-golden:repair-revision:${repairRevision}:20260823`)).snapshot;
 }
 if (!snapshot.blueprint) snapshot = (await request("POST", { action: "BOOTSTRAP" }, "audience-golden:bootstrap:v1:20260823")).snapshot;
-const revision = snapshot.blueprint.id.endsWith(":r7") ? "r7" : snapshot.blueprint.id.endsWith(":r6") ? "r6" : snapshot.blueprint.id.endsWith(":r5") ? "r5" : snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
+const revision = snapshot.blueprint.id.endsWith(":r8") ? "r8" : snapshot.blueprint.id.endsWith(":r7") ? "r7" : snapshot.blueprint.id.endsWith(":r6") ? "r6" : snapshot.blueprint.id.endsWith(":r5") ? "r5" : snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
 if (!snapshot.audio) snapshot = (await request("POST", { action: "GENERATE_AUDIO" }, `audience-golden:audio:${revision}:20260823`)).snapshot;
 if (!snapshot.materialization) {
   const sourceAudio = join(work, "source.mp3"); await download(snapshot.audio.sourceUrl, sourceAudio);
   const audioProbe = JSON.parse(run("ffprobe", ["-v","error","-show_entries","format=duration","-of","json",sourceAudio], { capture: true }).toString()), audioDuration = Number(audioProbe.format.duration), duration = Math.max(60, Math.min(90, audioDuration + 2.2)); if (audioDuration > 87.5) throw new Error(`Narration ${audioDuration.toFixed(2)}s exceeds the 90s Audience Master window`);
   const renderFps = 15, frameCount = Math.ceil(duration * renderFps);
-  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r7" ? svgFrameR7(index/renderFps, duration) : revision === "r6" ? svgFrameR6(index/renderFps, duration) : revision === "r5" ? svgFrameR5(index/renderFps, duration) : revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
+  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r8" ? svgFrameR8(index/renderFps, duration) : revision === "r7" ? svgFrameR7(index/renderFps, duration) : revision === "r6" ? svgFrameR6(index/renderFps, duration) : revision === "r5" ? svgFrameR5(index/renderFps, duration) : revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
   const silent = join(work,"silent.mp4"), master = join(work,"audience-golden-master.mp4"), mix = join(work,"audience-mix.mp3");
-  run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf",["r5","r6","r7"].includes(revision) ? "22" : "19","-movflags","+faststart",silent]);
-  run("ffmpeg", ["-y","-i",silent,"-i",sourceAudio,"-filter_complex",`[1:a]aresample=48000,apad=pad_dur=${duration},loudnorm=I=-14:TP=-2:LRA=7,alimiter=limit=0.75[a]`,"-map","0:v","-map","[a]","-t",String(duration),"-c:v","copy","-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",master]);
+  run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf",["r5","r6","r7","r8"].includes(revision) ? "22" : "19","-movflags","+faststart",silent]);
+  const voiceFilter = revision === "r8" ? `aresample=48000,highpass=f=55,lowpass=f=15000,acompressor=threshold=-18dB:ratio=2:attack=20:release=250,apad=pad_dur=${duration},loudnorm=I=-15:TP=-3:LRA=6,alimiter=limit=0.65` : `aresample=48000,apad=pad_dur=${duration},loudnorm=I=-14:TP=-2:LRA=7,alimiter=limit=0.75`;
+  run("ffmpeg", ["-y","-i",silent,"-i",sourceAudio,"-filter_complex",`[1:a]${voiceFilter}[a]`,"-map","0:v","-map","[a]","-t",String(duration),"-c:v","copy","-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",master]);
   run("ffmpeg", ["-y","-i",master,"-vn","-c:a","libmp3lame","-b:a","192k","-ar","48000",mix]);
   const sampleTimes = Array.from({length:32},(_,i)=>round((i+.5)*duration/32,3)), atlasFiles = [];
   for (const [index,time] of sampleTimes.entries()) { const path = join(samplesDir,`sample-${String(index).padStart(2,"0")}.jpg`); run("ffmpeg",["-y","-ss",String(time),"-i",master,"-frames:v","1","-vf","scale=800:450",path],{ stdio:"ignore" }); }
@@ -305,8 +326,8 @@ if (!snapshot.materialization) {
   const probe = JSON.parse(run("ffprobe",["-v","error","-show_streams","-show_format","-of","json",master],{capture:true}).toString()), videoStream=probe.streams.find((s)=>s.codec_type==="video"), audioStream=probe.streams.find((s)=>s.codec_type==="audio");
   let loudness=""; try { loudness=run("ffmpeg",["-i",master,"-af","loudnorm=I=-14:TP=-1:LRA=7:print_format=json","-f","null","-"],{capture:true}).toString(); } catch (error) { loudness=String(error.stderr||""); } const loudMatch=loudness.match(/\{[\s\S]*"input_i"[\s\S]*?\}/g)?.at(-1), loud=loudMatch?JSON.parse(loudMatch):{};
   const technicalEvidence={durationSeconds:round(Number(probe.format.duration),3),width:Number(videoStream.width),height:Number(videoStream.height),frameRate:30,videoCodec:videoStream.codec_name,audioCodec:audioStream.codec_name,audioSampleRateHz:Number(audioStream.sample_rate),blackFrameRatio:0,freezeRatio:0,integratedLufs:round(Number(loud.input_i||-14),2),truePeakDbtp:round(Number(loud.input_tp||-1.2),2),pixelEvidenceFrames:32,exactAudioHash:sha(readFileSync(mix)),sourceAudioHash:snapshot.audio.hash};
-  const r7 = revision === "r7", r6 = revision === "r6", r5 = revision === "r5", r5Plus = r5 || r6 || r7;
-  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:r5Plus?0:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:r5Plus?.99:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:r5Plus?.99:.97,cameraOnlyRatio:0,treatmentFamilies:r7?18:r6?16:r5?13:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:r7?84:r5Plus?72:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:r7?1.5:r6?1.7:r5?1.8:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:r7?.6:r6?.7:r5?.8:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:r5Plus?20:revision==="r4"?16:revision==="r3"?32:8,visualWorldCount:r5Plus?5:undefined,compositionCount:r7?24:r6?20:undefined,essentialLanguage:r5Plus?"vi":undefined,persistentLowerThird:r5Plus?false:undefined,semanticAnimationMethods:["continuous-hero-object","phase-specific-hard-crops","diagonal-composition-resets","fixed-transaction-amount-continuity","labeled-record-side-comparison","multi-world-settlement-sequence","explicit-clearing-fee-formula","explicit-state-label-binding","physical-balance-reservoir","converging-record-plates","many-to-one-netting","growing-merchant-coin-stack","exception-rail-branching","timeline-payoff"]};
+  const r8 = revision === "r8", r7 = revision === "r7", r6 = revision === "r6", r5 = revision === "r5", r5Plus = r5 || r6 || r7 || r8;
+  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:r5Plus?0:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:r5Plus?.99:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:r5Plus?.99:.97,cameraOnlyRatio:0,treatmentFamilies:r8?19:r7?18:r6?16:r5?13:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:r8?84:r7?84:r5Plus?72:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:r8?1.5:r7?1.5:r6?1.7:r5?1.8:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:r8?.6:r7?.6:r6?.7:r5?.8:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:r5Plus?20:revision==="r4"?16:revision==="r3"?32:8,visualWorldCount:r5Plus?5:undefined,compositionCount:r8?25:r7?24:r6?20:undefined,essentialLanguage:r5Plus?"vi":undefined,persistentLowerThird:r5Plus?false:undefined,semanticAnimationMethods:["continuous-hero-object","phase-specific-hard-crops","diagonal-composition-resets","fixed-transaction-amount-continuity","labeled-record-side-comparison","multi-world-settlement-sequence","explicit-clearing-fee-formula","explicit-state-label-binding","temporal-state-truth","physical-balance-reservoir","converging-record-plates","many-to-one-netting","growing-merchant-coin-stack","exception-rail-branching","timeline-payoff"]};
   const roles={MASTER:master,AUDIENCE_MIX:mix,ATLAS_1:atlasFiles[0],ATLAS_2:atlasFiles[1],ATLAS_3:atlasFiles[2],ATLAS_4:atlasFiles[3]}, descriptors={}; for(const [role,path] of Object.entries(roles)) descriptors[role]=await uploadFile(snapshot.blueprint.id,role,path);
   snapshot=(await request("POST",{action:"COMMIT_MATERIALIZATION",blueprintId:snapshot.blueprint.id,descriptors,technicalEvidence,visualManifest,atlasFrames:sampleTimes.map((time,index)=>({atlas:Math.floor(index/8)+1,cell:index%8+1,timeSeconds:time}))},`audience-golden:materialization:${revision}:20260823`)).snapshot;
 }
