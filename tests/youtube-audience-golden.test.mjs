@@ -73,3 +73,19 @@ test("Revision 3 rejection replaces slide grammar with an asset-bound cinematic 
   assert.match(executor, /continuous-hero-object/);
   assert.match(executor, /data:image\/jpeg;base64/);
 });
+
+test("Revision 4 rejection creates an immutable five-world transforming-process Revision 5", () => {
+  const migration = read("drizzle/0088_youtube_audience_golden_revision_5.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_5/);
+  assert.match(migration, /asset_manifest_json/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_5_IMMUTABLE/);
+  assert.match(runtime, /CINEMATIC_TRANSFORMING_PROCESS/);
+  assert.match(runtime, /distinctVisualWorlds: 5/);
+  assert.match(runtime, /vietnameseOnlyEssentialLabels: true/);
+  assert.match(runtime, /physicalNettingTransformation: true/);
+  assert.match(executor, /physical-balance-reservoir/);
+  assert.match(executor, /converging-record-plates/);
+  assert.match(executor, /growing-merchant-coin-stack/);
+  assert.match(executor, /revision==="r5"\?20/);
+  assert.match(executor, /minimumCriticalFontPx1080:revision==="r5"\?72/);
+});

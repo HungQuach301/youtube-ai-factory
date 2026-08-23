@@ -2,6 +2,21 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
+## Audience Golden Sequence — R4 rejected, R5 source ready
+
+```text
+PRODUCTION_CHECKPOINT = SITES_V484
+R4_MASTER_SHA256 = 0e7e1401864fb3536cf409c9880b33a07364974e05b64b9d0d46e08b5549a4a1
+R4_FACTORY_VISUAL = FAIL_76__P0_0__P1_2__P2_3
+R4_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_2
+R5_SOURCE = READY__MIGRATION_0088__FIVE_VISUAL_WORLDS__20_TRANSFORMING_PHASES
+SOURCE_VERIFICATION = 191_OF_191_PASS__BUILD_PASS__V2_FIREWALL_16_OF_16
+BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
+NEXT_PROTECTED_ACTION = DEPLOY_R5__MATERIALIZE__RUN_FACTORY_VISUAL_AUDIO_QA
+```
+
+R4's cinematic world improved richness but kept a prolonged repeated tableau/lower-third and moved a marker without visibly transforming balances, records or settlement objects. R5 corrects those exact root owners with five asset-bound worlds, physical balance/record/netting transformations, Vietnamese-only essential labels and 72 px minimum critical text at 1080. Production evidence is not inferred from source readiness. Document 78 is authoritative for the revision history; V2, Stage 11, full-video expansion, release and publication remain untouched.
+
 ## YouTube audience-master correction — owner rejection recorded
 
 ```text

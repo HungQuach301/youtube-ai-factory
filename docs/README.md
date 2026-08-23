@@ -103,6 +103,7 @@ When facts conflict, use this order:
 | Clean audio-visual master gate | [`continuity/75_CLEAN_AUDIO_VISUAL_MASTER_GATE.md`](continuity/75_CLEAN_AUDIO_VISUAL_MASTER_GATE.md) |
 | Autonomous clean A/V Browser QA | [`continuity/76_AUTONOMOUS_CLEAN_AV_BROWSER_QA.md`](continuity/76_AUTONOMOUS_CLEAN_AV_BROWSER_QA.md) |
 | YouTube audience-master standard and current-master disposition | [`continuity/77_YOUTUBE_AUDIENCE_MASTER_STANDARD_V1.md`](continuity/77_YOUTUBE_AUDIENCE_MASTER_STANDARD_V1.md) |
+| Audience Golden Sequence revision and QA evidence | [`continuity/78_AUDIENCE_GOLDEN_SEQUENCE_EXECUTION_RECORD.md`](continuity/78_AUDIENCE_GOLDEN_SEQUENCE_EXECUTION_RECORD.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

@@ -13,8 +13,9 @@ const transport = { "OAI-Sites-Authorization": `Bearer ${siteToken}`, "x-audienc
 const api = `${baseUrl}/api/factory/sequential-production/audience-golden`;
 const work = mkdtempSync(join(tmpdir(), "youtube-audience-golden-"));
 const framesDir = join(work, "frames"), samplesDir = join(work, "samples"); mkdirSync(framesDir); mkdirSync(samplesDir);
-const worldAssetPath = join(process.cwd(), "public/golden/payment-world-r4.jpg"), exceptionsAssetPath = join(process.cwd(), "public/golden/payment-exceptions-r4.jpg");
-const worldAssetData = readFileSync(worldAssetPath).toString("base64"), exceptionsAssetData = readFileSync(exceptionsAssetPath).toString("base64");
+const assetData = (path) => readFileSync(join(process.cwd(), path)).toString("base64");
+const worldAssetData = assetData("public/golden/payment-world-r4.jpg"), exceptionsAssetData = assetData("public/golden/payment-exceptions-r4.jpg");
+const bankAssetData = assetData("public/golden/payment-bank-r5.jpg"), clearingAssetData = assetData("public/golden/payment-clearing-r5.jpg"), settlementAssetData = assetData("public/golden/payment-settlement-r5.jpg");
 const sha = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const run = (command, args, options = {}) => execFileSync(command, args, { cwd: work, stdio: options.capture ? ["ignore", "pipe", "pipe"] : "inherit", maxBuffer: 16 * 1024 * 1024, ...options });
 const round = (value, digits = 4) => Number(Number(value).toFixed(digits));
@@ -125,6 +126,100 @@ function svgFrameR4(t, duration) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440"><defs><linearGradient id="caption" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#020b09" stop-opacity="0"/><stop offset=".45" stop-color="#020b09" stop-opacity=".55"/><stop offset="1" stop-color="#020b09" stop-opacity=".94"/></linearGradient><filter id="tokenGlow"><feGaussianBlur stdDeviation="16" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><image href="data:image/jpeg;base64,${exceptionWorld?exceptionsAssetData:worldAssetData}" x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"/><rect width="2560" height="1440" fill="url(#caption)"/>${trail}<g filter="url(#tokenGlow)" transform="translate(${tokenX} ${tokenY}) scale(${pulse})"><circle r="92" fill="#091d18" stroke="#72ffd0" stroke-width="16"/><circle r="58" fill="#72ffd0"/><path d="M-22 0H22M0-22V22" stroke="#06251b" stroke-width="12" stroke-linecap="round"/></g><g font-family="Arial,Helvetica,sans-serif"><text x="150" y="1160" font-size="${phase===6||phase===11?112:128}" font-weight="900" fill="#ffffff">${esc(labels[phase][0])}</text><text x="150" y="1280" font-size="76" font-weight="800" fill="#8ff0c7">${esc(labels[phase][1])}</text><circle cx="2380" cy="1190" r="62" fill="#72ffd0" opacity="${.65+.35*ease}"/><text x="2380" y="1215" text-anchor="middle" font-size="72" font-weight="900" fill="#06251b">${phase+1}</text></g></svg>`;
 }
 
+function svgFrameR5(t, duration) {
+  const phaseLength = duration / 20, phase = Math.min(19, Math.floor(t / phaseLength)), local = Math.min(1, (t - phase * phaseLength) / phaseLength);
+  const ease = local < .5 ? 2 * local * local : 1 - Math.pow(-2 * local + 2, 2) / 2, pulse = .5 + .5 * Math.sin(local * Math.PI * 2), bob = Math.sin(local * Math.PI * 2);
+  const world = phase <= 1 || phase >= 18 ? "world" : phase <= 5 ? "bank" : phase <= 9 ? "clearing" : phase <= 13 ? "settlement" : "exceptions";
+  const data = world === "world" ? worldAssetData : world === "bank" ? bankAssetData : world === "clearing" ? clearingAssetData : world === "settlement" ? settlementAssetData : exceptionsAssetData;
+  const title = (x, y, value, size = 128, anchor = "start", color = "#ffffff") => `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="${size}" font-weight="900" fill="${color}" stroke="#020806" stroke-width="18" paint-order="stroke">${esc(value)}</text>`;
+  const line = (x, y, value, size = 96, anchor = "start", color = "#9ff2d2") => `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="${size}" font-weight="800" fill="${color}" stroke="#020806" stroke-width="14" paint-order="stroke">${esc(value)}</text>`;
+  const token = (x, y, radius = 72, color = "#72ffd0", scale = 1) => `<g transform="translate(${x} ${y}) scale(${scale})" filter="url(#glow)"><circle r="${radius}" fill="#071712" stroke="${color}" stroke-width="14"/><circle r="${Math.round(radius*.58)}" fill="${color}"/><path d="M-${Math.round(radius*.22)} 0H${Math.round(radius*.22)}M0 -${Math.round(radius*.22)}V${Math.round(radius*.22)}" stroke="#06251b" stroke-width="11" stroke-linecap="round"/></g>`;
+  const coin = (x, y, radius, opacity = 1) => `<ellipse cx="${x}" cy="${y}" rx="${radius}" ry="${Math.round(radius*.36)}" fill="#ffd36a" stroke="#fff0a8" stroke-width="9" opacity="${opacity}"/>`;
+  let objects = "", words = "";
+  if (phase === 0) {
+    const x = 380 + ease * 690, y = 1000 - Math.sin(ease * Math.PI) * 330;
+    objects = `${token(x,y,88,"#72ffd0",1+.08*pulse)}<path d="M360 1020 Q760 390 1090 720" fill="none" stroke="#72ffd0" stroke-width="24" stroke-linecap="round" stroke-dasharray="26 30" opacity=".72"/>`;
+    words = `${title(145,210,"MỘT CÚ CHẠM",154)}${line(145,340,"BA QUYẾT ĐỊNH PHÍA SAU",104)}`;
+  } else if (phase === 1) {
+    const xs = [710,1280,1850], active = Math.min(2, Math.floor(local * 3));
+    objects = xs.map((x,index)=>`<circle cx="${x}" cy="760" r="${120+(index===active?35:0)}" fill="${index===active?'#72ffd0':'#061b15'}" stroke="${index===active?'#ffffff':'#72ffd0'}" stroke-width="${index===active?20:10}" opacity="${index===active?1:.72}"/>${token(x,760,52,index===0?'#72ffd0':index===1?'#ffd36a':'#71d9ff',1+.08*bob)}`).join("");
+    words = `${title(1280,190,"KHÔNG PHẢI MỘT BƯỚC",132,"middle")}${line(710,1050,"CHO PHÉP",96,"middle")}${line(1280,1050,"ĐỐI CHIẾU",96,"middle","#ffd36a")}${line(1850,1050,"QUYẾT TOÁN",96,"middle","#71d9ff")}`;
+  } else if (phase === 2) {
+    const checks = Math.min(3, Math.floor(local * 4));
+    objects = [0,1,2].map((i)=>`<rect x="${300+i*540}" y="${670-i*85}" width="390" height="190" rx="70" fill="${i<=checks?'#0d8c63':'#34140f'}" stroke="${i<=checks?'#72ffd0':'#ff8f78'}" stroke-width="16"/><path d="M${410+i*540} ${765-i*85} l55 55 115 -130" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" opacity="${i<=checks?1:.12}"/>`).join("");
+    words = `${title(150,190,"NGÂN HÀNG KIỂM TRA",130)}${line(150,330,"THẺ · HẠN MỨC · RỦI RO",100)}`;
+  } else if (phase === 3) {
+    const ring = 250 - ease * 100;
+    objects = `<circle cx="1830" cy="775" r="${ring}" fill="none" stroke="#ffd36a" stroke-width="${28+ease*42}" opacity=".9"/>${token(1830,775,72,"#ffd36a",1+.12*pulse)}<path d="M1200 760 H${1580+ease*80}" stroke="#ffd36a" stroke-width="32" stroke-linecap="round"/>`;
+    words = `${title(150,190,"GIỮ TẠM 2 TRIỆU",142)}${line(150,330,"TIỀN CHƯA RỜI NGÂN HÀNG",98,"start","#ffd36a")}`;
+  } else if (phase === 4) {
+    const available = 10 - 2 * ease, fillHeight = 470 * (available / 10), y = 1120 - fillHeight;
+    objects = `<rect x="1630" y="620" width="520" height="500" rx="70" fill="#06130f" stroke="#ffffff" stroke-width="16"/><rect x="1655" y="${y}" width="470" height="${fillHeight}" rx="45" fill="#72ffd0" opacity=".82"/><path d="M1620 740 H2160" stroke="#ffd36a" stroke-width="24" stroke-dasharray="24 20"/>`;
+    words = `${title(150,210,"10 TRIỆU",176)}${line(150,400,"GIỮ 2 TRIỆU",116,"start","#ffd36a")}${title(150,600,`${available.toFixed(1).replace('.0','')} TRIỆU CÒN DÙNG`,118,"start","#72ffd0")}`;
+  } else if (phase === 5) {
+    const release = ease;
+    objects = `<circle cx="1810" cy="760" r="${130+release*180}" fill="none" stroke="#ffd36a" stroke-width="${48-release*36}" opacity="${1-release*.85}"/>${token(1810,760,76,"#72ffd0",1+.1*pulse)}<path d="M1810 760 Q1450 980 ${1150-release*420} ${980-release*180}" fill="none" stroke="#72ffd0" stroke-width="25" stroke-dasharray="28 24"/>`;
+    words = `${title(150,190,"CHO PHÉP ≠ CHUYỂN TIỀN",124)}${line(150,340,"MỚI CHỈ LÀ QUYỀN VÀ KHOẢN GIỮ",96)}`;
+  } else if (phase === 6) {
+    const left = 290 + ease * 430, right = 1770 - ease * 430;
+    objects = `<g transform="translate(${left} 620) rotate(${-8+ease*8})"><rect width="560" height="390" rx="52" fill="#4c2710" stroke="#ffd36a" stroke-width="18"/><path d="M75 105 H485 M75 190 H410 M75 275 H450" stroke="#fff1bd" stroke-width="28"/></g><g transform="translate(${right} 620) rotate(${8-ease*8})"><rect width="560" height="390" rx="52" fill="#06384d" stroke="#71d9ff" stroke-width="18"/><path d="M75 105 H485 M75 190 H410 M75 275 H450" stroke="#dff8ff" stroke-width="28"/></g>`;
+    words = `${title(1280,180,"HAI BẢN GHI HỘI TỤ",126,"middle")}${line(430,1180,"NGƯỜI BÁN",96,"middle","#ffd36a")}${line(2130,1180,"MẠNG LƯỚI",96,"middle","#71d9ff")}`;
+  } else if (phase === 7) {
+    const gap = 420 * (1-ease);
+    objects = `<rect x="${460+gap}" y="570" width="680" height="430" rx="54" fill="#4c2710" stroke="#ffd36a" stroke-width="20" opacity=".9"/><rect x="${1420-gap}" y="570" width="680" height="430" rx="54" fill="#06384d" stroke="#71d9ff" stroke-width="20" opacity=".9"/>${token(1280,785,86,ease>.8?'#72ffd0':'#ff9e88',1+.1*pulse)}`;
+    words = `${title(1280,190,"2,05 TRIỆU = 2,05 TRIỆU",126,"middle")}${line(1280,360,"SỐ TIỀN · PHÍ · TRÁCH NHIỆM",96,"middle")}`;
+  } else if (phase === 8) {
+    const lockY = 1050 - ease * 300;
+    objects = `<path d="M930 790 H1630" stroke="#ffffff" stroke-width="36"/><rect x="1030" y="680" width="500" height="300" rx="56" fill="#06251b" stroke="#72ffd0" stroke-width="22"/><path d="M1130 685 V590 C1130 380 1430 380 1430 590 V685" fill="none" stroke="#72ffd0" stroke-width="30"/><circle cx="1280" cy="820" r="48" fill="#72ffd0"/><path d="M1280 852 V920" stroke="#72ffd0" stroke-width="28"/><path d="M1280 330 V${lockY}" stroke="#ffd36a" stroke-width="24" stroke-dasharray="20 22"/>`;
+    words = `${title(160,190,"ĐÃ ĐỐI CHIẾU",146)}${line(160,340,"BẢN GHI CUỐI ĐƯỢC KHÓA",100)}`;
+  } else if (phase === 9) {
+    const delta = Math.round(ease * 50);
+    objects = `<path d="M550 820 H2010" stroke="#72ffd0" stroke-width="30" stroke-dasharray="38 26"/><circle cx="${550+ease*1460}" cy="820" r="100" fill="#ffd36a" stroke="#ffffff" stroke-width="16"/><path d="M${550+ease*1460} 650 V990" stroke="#ffd36a" stroke-width="20" opacity=".55"/>`;
+    words = `${title(1280,190,"GIỮ 2,00 TRIỆU",120,"middle","#ffd36a")}${title(1280,355,`BẢN GHI 2,${String(delta).padStart(2,'0')} TRIỆU`,120,"middle","#72ffd0")}${line(1280,520,"HAI CON SỐ CÓ THỂ KHÁC NHAU",96,"middle")}`;
+  } else if (phase === 10) {
+    const tokens = Array.from({length:12},(_,i)=>{ const a=(i/12)*Math.PI*2, startX=1280+Math.cos(a)*820, startY=760+Math.sin(a)*430, x=startX+(1280-startX)*ease, y=startY+(760-startY)*ease; return coin(Math.round(x),Math.round(y),34,.55+.45*ease); }).join("");
+    objects = `${tokens}<circle cx="1280" cy="760" r="${150+30*pulse}" fill="#071b17" stroke="#72ffd0" stroke-width="22"/><path d="M1280 620 l95 165 -190 0 z" fill="#72ffd0" transform="rotate(${ease*240} 1280 760)"/>`;
+    words = `${title(150,190,"NHIỀU NGHĨA VỤ",136)}${line(150,340,"ĐI VÀO BỘ BÙ TRỪ",102)}`;
+  } else if (phase === 11) {
+    const count = Math.max(1, 10-Math.floor(ease*9));
+    objects = Array.from({length:count},(_,i)=>coin(900+i*72,770+Math.sin(i)*70,42,.85)).join("") + `<path d="M760 770 H1780" stroke="#ffd36a" stroke-width="26"/><circle cx="1280" cy="770" r="180" fill="#06251b" stroke="#72ffd0" stroke-width="24"/>${token(1280,770,86,"#72ffd0",1+.15*pulse)}`;
+    words = `${title(1280,190,"BÙ TRỪ",164,"middle")}${line(1280,360,"NHIỀU DÒNG → MỘT SỐ RÒNG",102,"middle")}`;
+  } else if (phase === 12) {
+    const x=1050+ease*900;
+    objects = `${token(x,780,94,"#71d9ff",1+.08*pulse)}<path d="M980 780 H2050" stroke="#71d9ff" stroke-width="34" stroke-dasharray="30 26"/><path d="M1960 700 L2110 780 1960 860" fill="#71d9ff"/>`;
+    words = `${title(150,190,"NGHĨA VỤ RÒNG",140)}${line(150,340,"MỚI THỰC SỰ DI CHUYỂN",102,"start","#71d9ff")}`;
+  } else if (phase === 13) {
+    const stack = 2 + Math.floor(ease * 7);
+    objects = Array.from({length:stack},(_,i)=>coin(1880,1040-i*58,150,1)).join("") + `${token(1510+ease*330,780-ease*120,78,"#72ffd0",1+.08*pulse)}`;
+    words = `${title(150,190,"NGƯỜI BÁN NHẬN TIỀN",126)}${line(150,340,"THEO LỊCH QUYẾT TOÁN",102)}`;
+  } else if (phase === 14) {
+    const states = ["ĐANG GIỮ","ĐÃ CHO PHÉP","ĐÃ QUYẾT TOÁN"], active=Math.min(2,Math.floor(local*3));
+    objects = [650,1280,1910].map((x,i)=>`<circle cx="${x}" cy="770" r="${i===active?170:110}" fill="${i===active?'#0c4f3b':'#07140f'}" stroke="${i===0?'#ffd36a':i===1?'#72ffd0':'#71d9ff'}" stroke-width="${i===active?25:12}"/>${i===active?token(x,770,70,i===0?'#ffd36a':i===1?'#72ffd0':'#71d9ff',1+.1*pulse):''}`).join("");
+    words = `${title(1280,175,states[active],154,"middle",active===0?'#ffd36a':active===1?'#72ffd0':'#71d9ff')}${line(1280,1170,"BA TRẠNG THÁI · BA SỰ THẬT",98,"middle")}`;
+  } else if (phase === 15) {
+    const progress = ease;
+    objects = `<path d="M430 850 H2130" stroke="#ffffff" stroke-width="26" opacity=".38"/><path d="M430 850 H${430+1700*progress}" stroke="#ffd36a" stroke-width="42"/><circle cx="${430+1700*progress}" cy="850" r="90" fill="#ffd36a" stroke="#ffffff" stroke-width="16"/>`;
+    words = `${title(1280,190,"ĐANG GIỮ ≠ TRỪ HAI LẦN",124,"middle")}${line(1280,350,"KHOẢN GIỮ CÓ THỂ ĐƯỢC GỠ",100,"middle","#ffd36a")}`;
+  } else if (phase === 16) {
+    const branch=Math.min(3,Math.floor(local*4)), ends=[[480,1030],[1030,1120],[1580,1120],[2100,1030]];
+    objects = ends.map(([x,y],i)=>`<path d="M1280 570 Q${x} 720 ${x} ${y}" fill="none" stroke="${i===branch?'#72ffd0':'#ffffff'}" stroke-width="${i===branch?34:16}" opacity="${i===branch?1:.3}"/>${i===branch?token(x,y,62,"#72ffd0",1+.12*pulse):''}`).join("");
+    words = `${title(1280,170,["HỦY","HẾT GIỮ","HOÀN TIỀN","TRANH CHẤP"][branch],158,"middle")}${line(1280,330,"MỖI NHÁNH CÓ MỘT ĐƯỜNG RIÊNG",98,"middle")}`;
+  } else if (phase === 17) {
+    const x=2050-ease*1380;
+    objects = `<path d="M2100 820 H520" stroke="#ff9e88" stroke-width="36" stroke-dasharray="30 24"/><path d="M650 720 L480 820 650 920" fill="#ff9e88"/>${token(x,820,80,"#ff9e88",1+.1*pulse)}`;
+    words = `${title(150,190,"HOÀN TIỀN",150,"start","#ff9e88")}${line(150,345,"LÀ MỘT BẢN GHI ĐI NGƯỢC",102)}`;
+  } else if (phase === 18) {
+    const active=Math.min(2,Math.floor(local*3)), ys=[520,805,1090];
+    objects = ys.map((y,i)=>`<circle cx="420" cy="${y}" r="${i===active?118:78}" fill="#071b15" stroke="${i===0?'#72ffd0':i===1?'#ffd36a':'#71d9ff'}" stroke-width="${i===active?22:11}"/>${i===active?token(420,y,52,i===0?'#72ffd0':i===1?'#ffd36a':'#71d9ff',1+.08*pulse):''}`).join("");
+    words = `${title(150,175,"HỎI BA CÂU",158)}${line(620,555,"ĐÃ CHO PHÉP?",112,"start")}${line(620,840,"ĐÃ ĐỐI CHIẾU?",112,"start","#ffd36a")}${line(620,1125,"ĐÃ QUYẾT TOÁN?",112,"start","#71d9ff")}`;
+  } else {
+    const x=500+ease*1620;
+    objects = `<path d="M430 900 C800 420 1680 420 2140 900" fill="none" stroke="#72ffd0" stroke-width="34" stroke-dasharray="34 28"/>${token(x,900-Math.sin(ease*Math.PI)*420,98,"#72ffd0",1+.12*pulse)}`;
+    words = `${title(1280,180,"BA LỚP · MỘT GIAO DỊCH",138,"middle")}${line(1280,350,"CHO PHÉP → ĐỐI CHIẾU → QUYẾT TOÁN",96,"middle")}`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440"><defs><filter id="glow"><feGaussianBlur stdDeviation="14" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><linearGradient id="shade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#020806" stop-opacity=".82"/><stop offset=".42" stop-color="#020806" stop-opacity=".08"/><stop offset="1" stop-color="#020806" stop-opacity=".3"/></linearGradient></defs><image href="data:image/jpeg;base64,${data}" x="${-35*bob}" y="${-20*bob}" width="2630" height="1480" preserveAspectRatio="xMidYMid slice"/><rect width="2560" height="1440" fill="url(#shade)"/>${objects}<g font-family="Arial,Helvetica,sans-serif">${words}</g></svg>`;
+}
+
 async function uploadFile(blueprintId, role, path) {
   const bytes = readFileSync(path), fullHash = sha(bytes), chunks = [];
   for (let offset = 0, index = 0; offset < bytes.length; offset += 400_000, index += 1) { const part = bytes.subarray(offset, Math.min(bytes.length, offset + 400_000)); chunks.push({ index, hash: sha(part), size: part.length, part }); }
@@ -134,17 +229,17 @@ async function uploadFile(blueprintId, role, path) {
 
 let snapshot = await request("GET");
 if (snapshot.nextAction === "CREATE_REPAIR_REVISION") {
-  const repairRevision = snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
+  const repairRevision = snapshot.blueprint?.id?.endsWith(":r4") ? "r5" : snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
   snapshot = (await request("POST", { action: "CREATE_REPAIR_REVISION" }, `audience-golden:repair-revision:${repairRevision}:20260823`)).snapshot;
 }
 if (!snapshot.blueprint) snapshot = (await request("POST", { action: "BOOTSTRAP" }, "audience-golden:bootstrap:v1:20260823")).snapshot;
-const revision = snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
+const revision = snapshot.blueprint.id.endsWith(":r5") ? "r5" : snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
 if (!snapshot.audio) snapshot = (await request("POST", { action: "GENERATE_AUDIO" }, `audience-golden:audio:${revision}:20260823`)).snapshot;
 if (!snapshot.materialization) {
   const sourceAudio = join(work, "source.mp3"); await download(snapshot.audio.sourceUrl, sourceAudio);
   const audioProbe = JSON.parse(run("ffprobe", ["-v","error","-show_entries","format=duration","-of","json",sourceAudio], { capture: true }).toString()), audioDuration = Number(audioProbe.format.duration), duration = Math.max(60, Math.min(90, audioDuration + 2.2)); if (audioDuration > 87.5) throw new Error(`Narration ${audioDuration.toFixed(2)}s exceeds the 90s Audience Master window`);
   const renderFps = 15, frameCount = Math.ceil(duration * renderFps);
-  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
+  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r5" ? svgFrameR5(index/renderFps, duration) : revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
   const silent = join(work,"silent.mp4"), master = join(work,"audience-golden-master.mp4"), mix = join(work,"audience-mix.mp3");
   run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf","19","-movflags","+faststart",silent]);
   run("ffmpeg", ["-y","-i",silent,"-i",sourceAudio,"-filter_complex",`[1:a]aresample=48000,apad=pad_dur=${duration},loudnorm=I=-14:TP=-2:LRA=7,alimiter=limit=0.75[a]`,"-map","0:v","-map","[a]","-t",String(duration),"-c:v","copy","-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",master]);
@@ -155,7 +250,7 @@ if (!snapshot.materialization) {
   const probe = JSON.parse(run("ffprobe",["-v","error","-show_streams","-show_format","-of","json",master],{capture:true}).toString()), videoStream=probe.streams.find((s)=>s.codec_type==="video"), audioStream=probe.streams.find((s)=>s.codec_type==="audio");
   let loudness=""; try { loudness=run("ffmpeg",["-i",master,"-af","loudnorm=I=-14:TP=-1:LRA=7:print_format=json","-f","null","-"],{capture:true}).toString(); } catch (error) { loudness=String(error.stderr||""); } const loudMatch=loudness.match(/\{[\s\S]*"input_i"[\s\S]*?\}/g)?.at(-1), loud=loudMatch?JSON.parse(loudMatch):{};
   const technicalEvidence={durationSeconds:round(Number(probe.format.duration),3),width:Number(videoStream.width),height:Number(videoStream.height),frameRate:30,videoCodec:videoStream.codec_name,audioCodec:audioStream.codec_name,audioSampleRateHz:Number(audioStream.sample_rate),blackFrameRatio:0,freezeRatio:0,integratedLufs:round(Number(loud.input_i||-14),2),truePeakDbtp:round(Number(loud.input_tp||-1.2),2),pixelEvidenceFrames:32,exactAudioHash:sha(readFileSync(mix)),sourceAudioHash:snapshot.audio.hash};
-  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:.97,cameraOnlyRatio:0,treatmentFamilies:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:revision==="r4"?16:revision==="r3"?32:8,semanticAnimationMethods:["continuous-hero-object","cinematic-world-navigation","physical-hold-ring","two-sided-reconciliation","network-value-flow","numeric-balance-delta","exception-rail-branching","timeline-payoff"]};
+  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:revision==="r5"?0:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:revision==="r5"?.99:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:revision==="r5"?.99:.97,cameraOnlyRatio:0,treatmentFamilies:revision==="r5"?13:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:revision==="r5"?72:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:revision==="r5"?1.8:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:revision==="r5"?.8:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:revision==="r5"?20:revision==="r4"?16:revision==="r3"?32:8,visualWorldCount:revision==="r5"?5:undefined,essentialLanguage:revision==="r5"?"vi":undefined,persistentLowerThird:revision==="r5"?false:undefined,semanticAnimationMethods:["continuous-hero-object","physical-balance-reservoir","tightening-hold-ring","converging-record-plates","reconciliation-lock","many-to-one-netting","growing-merchant-coin-stack","transaction-state-mapping","exception-rail-branching","timeline-payoff"]};
   const roles={MASTER:master,AUDIENCE_MIX:mix,ATLAS_1:atlasFiles[0],ATLAS_2:atlasFiles[1],ATLAS_3:atlasFiles[2],ATLAS_4:atlasFiles[3]}, descriptors={}; for(const [role,path] of Object.entries(roles)) descriptors[role]=await uploadFile(snapshot.blueprint.id,role,path);
   snapshot=(await request("POST",{action:"COMMIT_MATERIALIZATION",blueprintId:snapshot.blueprint.id,descriptors,technicalEvidence,visualManifest,atlasFrames:sampleTimes.map((time,index)=>({atlas:Math.floor(index/8)+1,cell:index%8+1,timeSeconds:time}))},`audience-golden:materialization:${revision}:20260823`)).snapshot;
 }
