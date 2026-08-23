@@ -969,6 +969,12 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
   assert.match(implementation, /INSUFFICIENT_GROUND_TRUTH/);
   assert.match(route, /EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY/);
   assert.match(route, /Đánh giá clean-control eligibility/);
+  assert.match(route, /x-clean-audio-control-automation-token/);
+  assert.match(route, /action === "EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY"/);
+  assert.match(route, /allowAutomation && allowCleanControlAutomation/);
+  assert.match(route, /taskId: clean\(body\?\.taskId\) \|\| clean\(eligibilityTask\?\.id\)/);
+  assert.match(route, /artifactId: clean\(body\?\.artifactId\) \|\| clean\(eligibilityTask\?\.artifactId\)/);
+  assert.match(route, /expectedArtifactHash: clean\(body\?\.expectedArtifactHash\) \|\| clean\(eligibilityTask\?\.exactArtifactHash\)/);
   assert.doesNotMatch(`${implementation}\n${migration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|api\.openai\.com|elevenlabs\.io/);
 });
 

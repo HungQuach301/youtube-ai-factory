@@ -30,7 +30,7 @@ type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promis
 type DB = { prepare(query: string): Statement; batch(statements: Statement[]): Promise<RunResult[]> };
 type StoredObject = { arrayBuffer(): Promise<ArrayBuffer>; size?: number; customMetadata?: Record<string, string> };
 type Bucket = { put(key: string, value: Uint8Array, options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<unknown>; get(key: string): Promise<StoredObject | null> };
-type Env = { DB?: DB; BUCKET?: Bucket; ELEVENLABS_API_KEY?: string; OPENAI_API_KEY?: string; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; SEQUENTIAL_EXECUTOR_TOKEN?: string };
+type Env = { DB?: DB; BUCKET?: Bucket; ELEVENLABS_API_KEY?: string; OPENAI_API_KEY?: string; FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; FACTORY_AUTOMATION_ACTOR_NAME?: string; SEQUENTIAL_EXECUTOR_TOKEN?: string; CLEAN_AUDIO_CONTROL_AUTOMATION_TOKEN?: string };
 
 class EvaluationCommandError extends Error { constructor(public code: string, public status: number, message: string) { super(message); } }
 const clean = (value: unknown) => String(value ?? "").trim();
@@ -73,11 +73,13 @@ async function run(db: DB, query: string, ...values: unknown[]) { return db.prep
 async function sha256(value: ArrayBuffer) { return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", value))).map((part) => part.toString(16).padStart(2, "0")).join(""); }
 async function secretMatches(left: string, right: string) { if (!left || !right) return false; const encode = (value: string) => new TextEncoder().encode(value), [a, b] = await Promise.all([crypto.subtle.digest("SHA-256", encode(left)), crypto.subtle.digest("SHA-256", encode(right))]); const av = new Uint8Array(a), bv = new Uint8Array(b); let difference = av.length ^ bv.length; for (let index = 0; index < Math.min(av.length, bv.length); index += 1) difference |= av[index] ^ bv[index]; return difference === 0; }
 
-async function authorized(request: Request, allowAutomation = true) {
+async function authorized(request: Request, allowAutomation = true, allowCleanControlAutomation = false) {
   const env = await runtime();
   if (!env.DB || !env.BUCKET) throw new EvaluationCommandError("EVALUATION_RUNTIME_UNAVAILABLE", 503, "Corpus verification requires canonical D1 and R2 bindings");
   let user = await getChatGPTUser();
-  if (allowAutomation && !user && await secretMatches(request.headers.get("x-sequential-executor-token") || "", env.SEQUENTIAL_EXECUTOR_TOKEN || "")) {
+  const generalAutomation = allowAutomation && await secretMatches(request.headers.get("x-sequential-executor-token") || "", env.SEQUENTIAL_EXECUTOR_TOKEN || "");
+  const cleanControlAutomation = allowAutomation && allowCleanControlAutomation && await secretMatches(request.headers.get("x-clean-audio-control-automation-token") || "", env.CLEAN_AUDIO_CONTROL_AUTOMATION_TOKEN || "");
+  if (!user && (generalAutomation || cleanControlAutomation)) {
     const email = clean(env.FACTORY_AUTOMATION_ACTOR_EMAIL); if (email) user = { email, displayName: clean(env.FACTORY_AUTOMATION_ACTOR_NAME) || email, fullName: null };
   }
   if (!user) throw new EvaluationCommandError("SIWC_AUTHENTICATION_REQUIRED", 401, "Owner or scoped sequential automation authentication is required");
@@ -360,7 +362,7 @@ export async function POST(request: Request) {
     const contentType = request.headers.get("content-type")?.toLowerCase() || ""; formSubmission = contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data");
     if (!formSubmission && !contentType.includes("application/json")) throw new EvaluationCommandError("COMMAND_CONTENT_TYPE_REQUIRED", 415, "Use application/json or an owner-bound form submission");
     const body = formSubmission ? Object.fromEntries(await request.formData()) : await request.json().catch(() => null) as Row | null, action = clean(body?.action).toUpperCase();
-    const { env, actor } = await authorized(request, !["RECORD_OWNER_LABEL_RECEIPT", "RECORD_CLEAN_AUDIO_OWNER_GROUND_TRUTH"].includes(action));
+    const { env, actor } = await authorized(request, !["RECORD_OWNER_LABEL_RECEIPT", "RECORD_CLEAN_AUDIO_OWNER_GROUND_TRUTH"].includes(action), action === "EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY");
     if (!["RUN_CORPUS_VERIFICATION_BATCH", "RECORD_OWNER_LABEL_RECEIPT", "DISCOVER_ELEVENLABS_HISTORY_METADATA", "HASH_ELEVENLABS_HISTORY_AUDIO", "MATERIALIZE_CLEAN_AUDIO_CONTROL", "CAPTURE_CURRENT_COMMERCIAL_RIGHTS_EVIDENCE", "REGENERATE_COMMERCIAL_CLEAN_AUDIO_CONTROL", "RUN_FACTORY_CLEAN_AUDIO_QA", "RECORD_CLEAN_AUDIO_OWNER_GROUND_TRUTH", "EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY"].includes(action)) throw new EvaluationCommandError("EVALUATION_ACTION_INVALID", 400, "Use a supported evaluation action");
     const idempotencyKey = clean(request.headers.get("idempotency-key") || (formSubmission ? body?.idempotencyKey : ""));
     if (idempotencyKey.length < 16 || idempotencyKey.length > 160) throw new EvaluationCommandError("IDEMPOTENCY_KEY_INVALID", 400, "A 16–160 character idempotency-key is required");
@@ -413,14 +415,16 @@ export async function POST(request: Request) {
       return Response.json(payload, { status: 201, headers: NO_STORE });
     }
     if (action === "EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY") {
+      const eligibility = await cleanAudioControlEligibilitySnapshot(env.DB);
+      const eligibilityTask = eligibility.task;
       const payload = await evaluateCleanAudioControlEligibilityAuthorized({
         db: env.DB,
         bucket: env.BUCKET,
         actor,
         idempotencyKey,
-        taskId: clean(body?.taskId),
-        artifactId: clean(body?.artifactId),
-        expectedArtifactHash: clean(body?.expectedArtifactHash),
+        taskId: clean(body?.taskId) || clean(eligibilityTask?.id),
+        artifactId: clean(body?.artifactId) || clean(eligibilityTask?.artifactId),
+        expectedArtifactHash: clean(body?.expectedArtifactHash) || clean(eligibilityTask?.exactArtifactHash),
       });
       return Response.json(payload, { status: 201, headers: NO_STORE });
     }

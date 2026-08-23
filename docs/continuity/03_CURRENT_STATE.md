@@ -5,7 +5,7 @@ Last reconciled: 2026-08-23 (Asia/Bangkok)
 ## Clean-audio control eligibility gate — 2026-08-23
 
 ```text
-MIGRATION_0079 = SOURCE_READY__DEPLOYMENT_PENDING
+MIGRATION_0079 = PRODUCTION_ACTIVE_SITES_V460
 POLICY = CLEAN_AUDIO_CONTROL_ELIGIBILITY_V1
 SOURCE_BLUEPRINT = CFP_V1_12__CLEAN_AUDIO_NEGATIVE
 SOURCE_ARTIFACT = COMMERCIAL_REPLACEMENT__RIGHTS_PASS
@@ -19,10 +19,12 @@ DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
 READINESS_AFTER_SUCCESS = INSUFFICIENT_GROUND_TRUTH
 TARGETED_REGRESSION = 36_OF_36_PASS
 FULL_REGRESSION = 184_OF_184_PASS__VERIFIED_BUILD_PASS
-NEXT_PROTECTED_ACTION = DEPLOY_AND_RUN_ONE_ZERO_PROVIDER_ELIGIBILITY_EVALUATION
+ELIGIBILITY_EXECUTION = PENDING
+SCOPED_AUTOMATION = SOURCE_READY__EXACT_ACTION_ONLY
+NEXT_PROTECTED_ACTION = DEPLOY_SCOPED_AUTOMATION_AND_RUN_ONE_ZERO_PROVIDER_ELIGIBILITY_EVALUATION
 ```
 
-Migration `0079` and `CLEAN_AUDIO_CONTROL_ELIGIBILITY_V1` add a separate exact-byte eligibility decision after owner ground truth. A successful receipt may recognize exactly one clean-negative reference and project three owner-confirmed references with one clean control, but controlled injections remain zero and P0 coverage remains 0/5. Dataset, assurance, Golden r10, Stage 11 and release stay closed. Document 73 and ADR-102 are authoritative; the separate V2 project is untouched.
+Sites v460 activated migration `0079` and `CLEAN_AUDIO_CONTROL_ELIGIBILITY_V1`, adding a separate exact-byte eligibility decision after owner ground truth. A successful receipt may recognize exactly one clean-negative reference and project three owner-confirmed references with one clean control, but controlled injections remain zero and P0 coverage remains 0/5. A dedicated automation credential is source-ready and accepted only for this exact action so the owner no longer performs machine-verifiable button work. Dataset, assurance, Golden r10, Stage 11 and release stay closed. Documents 73, ADR-102 and ADR-103 are authoritative; the separate V2 project is untouched.
 
 ## Clean-audio owner ground-truth gate — 2026-08-23
 

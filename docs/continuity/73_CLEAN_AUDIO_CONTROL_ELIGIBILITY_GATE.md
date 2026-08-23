@@ -40,12 +40,14 @@ SPEND_USD = 0
 READINESS = INSUFFICIENT_GROUND_TRUTH
 TARGETED_REGRESSION = 36_OF_36_PASS
 FULL_REGRESSION = 184_OF_184_PASS__VERIFIED_BUILD_PASS
-PRODUCTION_STATE = SOURCE_READY__DEPLOYMENT_PENDING
+PRODUCTION_STATE = MIGRATION_ACTIVE_SITES_V460__ELIGIBILITY_EXECUTION_PENDING
 ```
 
 ## Operator behavior
 
 Section 7 appears only after the owner clean receipt exists. The operator action sends no provider request. The server re-reads exact R2 audio, validates the complete immutable chain and writes the sole receipt idempotently. The read-back view shows the recognized clean-negative reference and the still-blocked readiness state.
+
+The same deterministic command also supports a dedicated server-side secret whose scope is hard-bound to `EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY`. It cannot authenticate any other evaluation action. The shared automation identity must still be present in the owner allowlist, and the endpoint retains every evidence and authority check. This allows the Factory operator to execute machine-verifiable gates without transferring routine button work to the owner.
 
 ## Next protected action
 
