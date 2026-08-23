@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_AUTONOMOUS_CLEAN_AV_BROWSER_QA__PRODUCTION_COMPLETE__OWNER_REVIEW_REQUIRED`
+**Current source classification:** `YOUTUBE_AUDIENCE_MASTER_STANDARD_V1__OWNER_REJECTED_CURRENT_MASTER__GOLDEN_SEQUENCE_REBUILD_REQUIRED`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- The owner rejected the exact current master as slide-like, rough, simple, motion-poor and below YouTube mobile typography expectations. `YOUTUBE_AUDIENCE_MASTER_STANDARD_V1` preserves the Factory contact-sheet and Browser receipts as technical evidence but reclassifies the artifact as `TECHNICAL_CLEAN_CONTROL_ONLY`; it records P0 output-form mismatch plus P1 visual-richness, meaningful-motion, typography and retention-risk defects. No full-playback attestation is inferred. Next compile the standard into executable gates and design a new 60–90 second mixed-treatment Golden Sequence before any full-video expansion. Document 77 and ADR-107 are authoritative. Release/publication remain false and V2 is untouched.
 
 - Sites v474 from source `237210850aaa9ad01a15ed47e7adf793666e294f` activates migration `0082` and completes `CLEAN_AV_AUTONOMOUS_BROWSER_QA_V1`. Attempt 1 preserves a throttled callback-rate motion miss without a receipt. Attempt 2 passes the exact v469 distribution hash with playback 100%, decoded audio RMS 0.1328, four cross-cue motion samples, 4/4 mobile frames, focus/reflow PASS and zero page errors; four JPEGs and the evidence bundle pass exact R2 read-back before the sole Browser `LIKELY_CLEAN` receipt. Worker start/finalize requests `a2f93b66dd1f5708` and `a2f93cd109a55708` return 201/ok. Production read-back shows the owner task `REVIEW_REQUIRED`. Full regression passes 184/184. Next the owner must view/listen to the exact master and provide the non-delegable decision. Dataset, assurance, Golden r10, Stage 11, release, publication and V2 remain untouched.
 

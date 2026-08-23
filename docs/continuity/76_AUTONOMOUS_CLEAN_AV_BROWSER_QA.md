@@ -27,3 +27,7 @@ Sites v474 from source `237210850aaa9ad01a15ed47e7adf793666e294f` is production-
 ## Protected scope
 
 Do not use a run row, screenshot, telemetry field, source test or UI success label as a Browser receipt. Do not complete the owner task through automation. Do not seal a dataset, qualify assurance, render Golden r10, reopen Stage 11, release, publish or mutate Production V2 from this gate.
+
+## Subsequent audience-quality disposition
+
+The owner subsequently rejected the exact master as slide-like, rough, simple, motion-poor and below mobile YouTube typography expectations. This does not invalidate the Browser receipt: the receipt still proves its stated playback, audio-decoding, pixel-change, mobile-frame, focus/reflow and runtime facts. It does invalidate any inference that those facts establish audience quality. Document 77 and ADR-107 therefore classify the artifact as `TECHNICAL_CLEAN_CONTROL_ONLY`, record the audience defects and keep release false. No owner full-playback attestation is inferred.

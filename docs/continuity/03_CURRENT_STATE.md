@@ -2,7 +2,27 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
-## Autonomous clean A/V Browser QA — production complete, owner review open
+## YouTube audience-master correction — owner rejection recorded
+
+```text
+POLICY = YOUTUBE_AUDIENCE_MASTER_STANDARD_V1
+TECHNICAL_MASTER = CLEAN_CONTROL_ONLY
+FACTORY_CONTACT_SHEET_QA = PRESERVED_LIKELY_CLEAN_95
+BROWSER_QA = PRESERVED_LIKELY_CLEAN__100_PERCENT_PLAYBACK
+OWNER_AUDIENCE_DISPOSITION = DEFECT_REJECTED
+OWNER_FULL_PLAYBACK_ATTESTATION = NOT_INFERRED
+P0_OUTPUT_FORM_MISMATCH = PRESENT
+P1_VISUAL_RICHNESS_INSUFFICIENT = PRESENT
+P1_MEANINGFUL_MOTION_DENSITY_LOW = PRESENT
+P1_MOBILE_TYPOGRAPHY_WEAK = PRESENT
+P1_AUDIENCE_RETENTION_RISK_HIGH = PRESENT
+RELEASE_AUTHORITY = FALSE
+NEXT_PROTECTED_ACTION = IMPLEMENT_STANDARD_CONTRACTS__DESIGN_60_TO_90_SECOND_GOLDEN_SEQUENCE
+```
+
+The owner judged the exact current master to be slide-like, rough, simple, motion-poor and weak for mobile YouTube typography. This evidence does not erase the valid technical and Browser receipts; it corrects their scope. The master proves infrastructure and exact-byte playback only and is now an immutable `TECHNICAL_CLEAN_CONTROL_ONLY`, not an audience master. No full-playback attestation is inferred from the conversation. Document 77 and ADR-107 are authoritative. Golden r10, Stage 11, full-video expansion, release and publication remain blocked; V2 is untouched.
+
+## Autonomous clean A/V Browser QA — production receipt preserved, audience gate superseded by Document 77
 
 ```text
 MIGRATION_0081 = PRODUCTION_ACTIVE_SITES_V469
