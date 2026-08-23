@@ -294,6 +294,51 @@ function svgFrameR8(t, duration) {
   return svg;
 }
 
+function svgFrameR9(t, duration) {
+  const phaseLength = duration / 20, phase = Math.min(19, Math.floor(t / phaseLength)), local = Math.min(1, (t - phase * phaseLength) / phaseLength);
+  const cut = Math.min(1, Math.floor(local * 2)), micro = (local * 2) % 1, layout = (phase * 2 + cut) % 5;
+  let svg = svgFrameR8(t, duration).replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, "");
+  const crops = [[0,0,2560,1440],[-520,-180,3300,1856],[-920,-310,3600,2025],[-180,-350,3400,1913],[-700,-80,3300,1856]], [cx,cy,cw,ch] = crops[layout];
+  const drift = Math.round((micro - .5) * 70);
+  svg = svg.replace(/<image href="([^"]+)" x="-?[\d.]+" y="-?[\d.]+" width="[\d.]+" height="[\d.]+" preserveAspectRatio="xMidYMid slice"\/>/, (_match, href) => `<image href="${href}" x="${cx+drift}" y="${cy}" width="${cw}" height="${ch}" preserveAspectRatio="xMidYMid slice"/>`);
+  const copy = [
+    ["MỘT CÚ CHẠM","BA QUYẾT ĐỊNH","1 GIÂY → 3 LỚP"], ["CHO PHÉP","ĐỐI CHIẾU","RỒI QUYẾT TOÁN"],
+    ["KIỂM TRA THẺ","ĐỦ HẠN MỨC","RỦI RO ĐƯỢC DUYỆT"], ["GIỮ 2,00","CHƯA CHUYỂN","AUTHORIZATION"],
+    ["TỔNG 10,00","CÒN 8,00","2,00 ĐANG GIỮ"], ["ĐƯỢC PHÉP","CHƯA TRẢ TIỀN","APPROVED ≠ PAID"],
+    ["HAI BẢN GHI","TIẾN LẠI GẦN","NGƯỜI BÁN ↔ MẠNG"], ["GIỮ 2,00","BẢN GHI 2,05","CHÊNH +0,05 PHÍ"],
+    ["ĐỐI CHIẾU","KHÓA 2,05","BẢN GHI CUỐI"], ["GIỮ + PHÍ","THÀNH 2,05","NGUYÊN NHÂN RÕ RÀNG"],
+    ["12 NGHĨA VỤ","1 SỐ RÒNG","NHIỀU → MỘT"], ["BÙ TRỪ","KẾT QUẢ RÒNG","KHÔNG PHẢI XOAY TRANG TRÍ"],
+    ["SỐ RÒNG","BẮT ĐẦU CHUYỂN","BANK → ACQUIRER"], ["NGƯỜI BÁN","NHẬN THEO LỊCH","SETTLEMENT T+N"],
+    ["ĐANG Ở ĐÂU?","NHÌN MỐC HIỆN TẠI","QUÁ KHỨ ≠ HIỆN TẠI"], ["ĐANG GIỮ","KHÔNG TRỪ HAI LẦN","HOLD CÓ THỂ ĐƯỢC GỠ"],
+    ["MỘT THAY ĐỔI","BỐN NHÁNH","HỦY · HẾT GIỮ · HOÀN · TRANH CHẤP"], ["HOÀN TIỀN","BẢN GHI ĐI NGƯỢC","MỘT DÒNG MỚI"],
+    ["HỎI BA CÂU","TỪNG LỚP MỘT","CHO PHÉP · KHỚP · QUYẾT TOÁN"], ["BA LỚP","MỘT GIAO DỊCH","ĐỌC ĐÚNG TỪNG THỜI ĐIỂM"],
+  ][phase];
+  const accent = ["#ffd36a","#72ffd0","#71d9ff","#ff9e88"][phase % 4], headline = copy[cut], detail = copy[2], beat = phase * 2 + cut + 1;
+  const common = `<g font-family="Arial,Helvetica,sans-serif" stroke="#020806" paint-order="stroke"><circle cx="${layout===1?2360:layout===0?220:1280}" cy="${layout<=1?180:layout===3?1180:210}" r="72" fill="${accent}" stroke="#ffffff" stroke-width="12"/><text x="${layout===1?2360:layout===0?220:1280}" y="${layout<=1?210:layout===3?1210:240}" text-anchor="middle" font-size="72" font-weight="900" fill="#04100c" stroke="none">${beat}</text>`;
+  let overlay = "";
+  if (layout === 0) overlay = `<path d="M0 0H900L720 1440H0Z" fill="#020806" opacity=".93"/><text x="110" y="690" font-size="112" font-weight="900" fill="${accent}" stroke-width="16">${headline}</text><text x="110" y="850" font-size="84" font-weight="900" fill="#ffffff" stroke-width="14">${detail}</text><path d="M110 940H650" stroke="${accent}" stroke-width="24"/>`;
+  else if (layout === 1) overlay = `<path d="M1660 0H2560V1440H1840Z" fill="#020806" opacity=".93"/><text x="2440" y="690" text-anchor="end" font-size="112" font-weight="900" fill="${accent}" stroke-width="16">${headline}</text><text x="2440" y="850" text-anchor="end" font-size="84" font-weight="900" fill="#ffffff" stroke-width="14">${detail}</text><path d="M1910 940H2440" stroke="${accent}" stroke-width="24"/>`;
+  else if (layout === 2) overlay = `<path d="M0 0H2560V410L1540 560L0 370Z" fill="#020806" opacity=".94"/><text x="1280" y="185" text-anchor="middle" font-size="128" font-weight="900" fill="${accent}" stroke-width="18">${headline}</text><text x="1280" y="340" text-anchor="middle" font-size="88" font-weight="900" fill="#ffffff" stroke-width="14">${detail}</text>`;
+  else if (layout === 3) overlay = `<path d="M0 930L1020 820L2560 970V1440H0Z" fill="#020806" opacity=".94"/><text x="120" y="1120" font-size="128" font-weight="900" fill="${accent}" stroke-width="18">${headline}</text><text x="120" y="1280" font-size="88" font-weight="900" fill="#ffffff" stroke-width="14">${detail}</text><path d="M1580 1180H2360" stroke="${accent}" stroke-width="26" stroke-dasharray="34 24"/>`;
+  else overlay = `<path d="M370 410L2180 330L2300 930L510 1010Z" fill="#020806" opacity=".9" stroke="${accent}" stroke-width="18"/><text x="1280" y="660" text-anchor="middle" font-size="142" font-weight="900" fill="${accent}" stroke-width="20">${headline}</text><text x="1280" y="830" text-anchor="middle" font-size="92" font-weight="900" fill="#ffffff" stroke-width="14">${detail}</text>`;
+  let semantic = "";
+  if (phase === 10) {
+    const count = cut ? 1 : 12;
+    semantic = `<g font-family="Arial,Helvetica,sans-serif"><rect x="950" y="500" width="660" height="430" rx="90" fill="#031510" stroke="${accent}" stroke-width="24"/><text x="1280" y="690" text-anchor="middle" font-size="190" font-weight="900" fill="${accent}">${count}</text><text x="1280" y="835" text-anchor="middle" font-size="82" font-weight="900" fill="#ffffff">${cut?"SỐ RÒNG":"NGHĨA VỤ"}</text></g>`;
+  }
+  if (phase === 14) {
+    const active = Math.min(2, Math.floor(local * 3)), roles = [
+      [["HIỆN TẠI","ĐANG","GIỮ"],["TIẾP THEO","CHƯA","KHỚP"],["TIẾP THEO","CHƯA","CHUYỂN"]],
+      [["ĐÃ QUA","ĐÃ","GIỮ"],["HIỆN TẠI","ĐÃ","KHỚP"],["TIẾP THEO","CHƯA","CHUYỂN"]],
+      [["ĐÃ QUA","ĐÃ","GIỮ"],["ĐÃ QUA","ĐÃ","KHỚP"],["HIỆN TẠI","ĐÃ","CHUYỂN"]],
+    ][active];
+    const cards = roles.map(([role,prefix,value],index)=>{ const x=100+index*820,current=role==="HIỆN TẠI",color=["#ffd36a","#72ffd0","#71d9ff"][index]; return `<rect x="${x}" y="720" width="760" height="550" rx="54" fill="#03100c" stroke="${color}" stroke-width="${current?26:10}"/><text x="${x+380}" y="840" text-anchor="middle" font-size="76" font-weight="900" fill="${current?"#ffffff":"#9aa9a2"}">${role}</text><text x="${x+380}" y="1030" text-anchor="middle" font-size="96" font-weight="900" fill="${current?color:"#c5ccc8"}">${prefix}</text><text x="${x+380}" y="1170" text-anchor="middle" font-size="112" font-weight="900" fill="${current?color:"#c5ccc8"}">${value}</text>`; }).join("");
+    overlay = `<rect width="2560" height="1440" fill="#020806" opacity=".55"/><text x="1280" y="190" text-anchor="middle" font-size="128" font-weight="900" fill="#ffffff">MỐC HIỆN TẠI</text><text x="1280" y="350" text-anchor="middle" font-size="88" font-weight="900" fill="#9ff2d2">ĐÃ QUA · HIỆN TẠI · TIẾP THEO</text>${cards}`;
+  }
+  const progress = `<rect x="100" y="1370" width="2360" height="14" rx="7" fill="#ffffff" opacity=".18"/><rect x="100" y="1370" width="${Math.round(2360*beat/40)}" height="14" rx="7" fill="${accent}"/>`;
+  return svg.replace("</svg>", `${common}${overlay}</g>${semantic}${progress}</svg>`);
+}
+
 async function uploadFile(blueprintId, role, path) {
   const bytes = readFileSync(path), fullHash = sha(bytes), chunks = [];
   for (let offset = 0, index = 0; offset < bytes.length; offset += 400_000, index += 1) { const part = bytes.subarray(offset, Math.min(bytes.length, offset + 400_000)); chunks.push({ index, hash: sha(part), size: part.length, part }); }
@@ -304,20 +349,20 @@ async function uploadFile(blueprintId, role, path) {
 
 let snapshot = await request("GET");
 if (snapshot.nextAction === "CREATE_REPAIR_REVISION") {
-  const repairRevision = snapshot.blueprint?.id?.endsWith(":r7") ? "r8" : snapshot.blueprint?.id?.endsWith(":r6") ? "r7" : snapshot.blueprint?.id?.endsWith(":r5") ? "r6" : snapshot.blueprint?.id?.endsWith(":r4") ? "r5" : snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
+  const repairRevision = snapshot.blueprint?.id?.endsWith(":r8") ? "r9" : snapshot.blueprint?.id?.endsWith(":r7") ? "r8" : snapshot.blueprint?.id?.endsWith(":r6") ? "r7" : snapshot.blueprint?.id?.endsWith(":r5") ? "r6" : snapshot.blueprint?.id?.endsWith(":r4") ? "r5" : snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
   snapshot = (await request("POST", { action: "CREATE_REPAIR_REVISION" }, `audience-golden:repair-revision:${repairRevision}:20260823`)).snapshot;
 }
 if (!snapshot.blueprint) snapshot = (await request("POST", { action: "BOOTSTRAP" }, "audience-golden:bootstrap:v1:20260823")).snapshot;
-const revision = snapshot.blueprint.id.endsWith(":r8") ? "r8" : snapshot.blueprint.id.endsWith(":r7") ? "r7" : snapshot.blueprint.id.endsWith(":r6") ? "r6" : snapshot.blueprint.id.endsWith(":r5") ? "r5" : snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
+const revision = snapshot.blueprint.id.endsWith(":r9") ? "r9" : snapshot.blueprint.id.endsWith(":r8") ? "r8" : snapshot.blueprint.id.endsWith(":r7") ? "r7" : snapshot.blueprint.id.endsWith(":r6") ? "r6" : snapshot.blueprint.id.endsWith(":r5") ? "r5" : snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
 if (!snapshot.audio) snapshot = (await request("POST", { action: "GENERATE_AUDIO" }, `audience-golden:audio:${revision}:20260823`)).snapshot;
 if (!snapshot.materialization) {
   const sourceAudio = join(work, "source.mp3"); await download(snapshot.audio.sourceUrl, sourceAudio);
   const audioProbe = JSON.parse(run("ffprobe", ["-v","error","-show_entries","format=duration","-of","json",sourceAudio], { capture: true }).toString()), audioDuration = Number(audioProbe.format.duration), duration = Math.max(60, Math.min(90, audioDuration + 2.2)); if (audioDuration > 87.5) throw new Error(`Narration ${audioDuration.toFixed(2)}s exceeds the 90s Audience Master window`);
   const renderFps = 15, frameCount = Math.ceil(duration * renderFps);
-  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r8" ? svgFrameR8(index/renderFps, duration) : revision === "r7" ? svgFrameR7(index/renderFps, duration) : revision === "r6" ? svgFrameR6(index/renderFps, duration) : revision === "r5" ? svgFrameR5(index/renderFps, duration) : revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
+  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r9" ? svgFrameR9(index/renderFps, duration) : revision === "r8" ? svgFrameR8(index/renderFps, duration) : revision === "r7" ? svgFrameR7(index/renderFps, duration) : revision === "r6" ? svgFrameR6(index/renderFps, duration) : revision === "r5" ? svgFrameR5(index/renderFps, duration) : revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
   const silent = join(work,"silent.mp4"), master = join(work,"audience-golden-master.mp4"), mix = join(work,"audience-mix.mp3");
-  run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf",["r5","r6","r7","r8"].includes(revision) ? "22" : "19","-movflags","+faststart",silent]);
-  const voiceFilter = revision === "r8" ? `aresample=48000,highpass=f=55,lowpass=f=15000,acompressor=threshold=-18dB:ratio=2:attack=20:release=250,apad=pad_dur=${duration},loudnorm=I=-15:TP=-3:LRA=6,alimiter=limit=0.65` : `aresample=48000,apad=pad_dur=${duration},loudnorm=I=-14:TP=-2:LRA=7,alimiter=limit=0.75`;
+  run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf",["r5","r6","r7","r8","r9"].includes(revision) ? "22" : "19","-movflags","+faststart",silent]);
+  const voiceFilter = revision === "r8" || revision === "r9" ? `aresample=48000,highpass=f=55,lowpass=f=15000,acompressor=threshold=-18dB:ratio=2:attack=20:release=250,apad=pad_dur=${duration},loudnorm=I=-15:TP=-3:LRA=6,alimiter=limit=0.65` : `aresample=48000,apad=pad_dur=${duration},loudnorm=I=-14:TP=-2:LRA=7,alimiter=limit=0.75`;
   run("ffmpeg", ["-y","-i",silent,"-i",sourceAudio,"-filter_complex",`[1:a]${voiceFilter}[a]`,"-map","0:v","-map","[a]","-t",String(duration),"-c:v","copy","-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",master]);
   run("ffmpeg", ["-y","-i",master,"-vn","-c:a","libmp3lame","-b:a","192k","-ar","48000",mix]);
   const sampleTimes = Array.from({length:32},(_,i)=>round((i+.5)*duration/32,3)), atlasFiles = [];
@@ -326,8 +371,8 @@ if (!snapshot.materialization) {
   const probe = JSON.parse(run("ffprobe",["-v","error","-show_streams","-show_format","-of","json",master],{capture:true}).toString()), videoStream=probe.streams.find((s)=>s.codec_type==="video"), audioStream=probe.streams.find((s)=>s.codec_type==="audio");
   let loudness=""; try { loudness=run("ffmpeg",["-i",master,"-af","loudnorm=I=-14:TP=-1:LRA=7:print_format=json","-f","null","-"],{capture:true}).toString(); } catch (error) { loudness=String(error.stderr||""); } const loudMatch=loudness.match(/\{[\s\S]*"input_i"[\s\S]*?\}/g)?.at(-1), loud=loudMatch?JSON.parse(loudMatch):{};
   const technicalEvidence={durationSeconds:round(Number(probe.format.duration),3),width:Number(videoStream.width),height:Number(videoStream.height),frameRate:30,videoCodec:videoStream.codec_name,audioCodec:audioStream.codec_name,audioSampleRateHz:Number(audioStream.sample_rate),blackFrameRatio:0,freezeRatio:0,integratedLufs:round(Number(loud.input_i||-14),2),truePeakDbtp:round(Number(loud.input_tp||-1.2),2),pixelEvidenceFrames:32,exactAudioHash:sha(readFileSync(mix)),sourceAudioHash:snapshot.audio.hash};
-  const r8 = revision === "r8", r7 = revision === "r7", r6 = revision === "r6", r5 = revision === "r5", r5Plus = r5 || r6 || r7 || r8;
-  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:r5Plus?0:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:r5Plus?.99:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:r5Plus?.99:.97,cameraOnlyRatio:0,treatmentFamilies:r8?19:r7?18:r6?16:r5?13:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:r8?84:r7?84:r5Plus?72:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:r8?1.5:r7?1.5:r6?1.7:r5?1.8:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:r8?.6:r7?.6:r6?.7:r5?.8:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:r5Plus?20:revision==="r4"?16:revision==="r3"?32:8,visualWorldCount:r5Plus?5:undefined,compositionCount:r8?25:r7?24:r6?20:undefined,essentialLanguage:r5Plus?"vi":undefined,persistentLowerThird:r5Plus?false:undefined,semanticAnimationMethods:["continuous-hero-object","phase-specific-hard-crops","diagonal-composition-resets","fixed-transaction-amount-continuity","labeled-record-side-comparison","multi-world-settlement-sequence","explicit-clearing-fee-formula","explicit-state-label-binding","temporal-state-truth","physical-balance-reservoir","converging-record-plates","many-to-one-netting","growing-merchant-coin-stack","exception-rail-branching","timeline-payoff"]};
+  const r9 = revision === "r9", r8 = revision === "r8", r7 = revision === "r7", r6 = revision === "r6", r5 = revision === "r5", r5Plus = r5 || r6 || r7 || r8 || r9;
+  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:r5Plus?0:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:r5Plus?.99:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:r5Plus?.99:.97,cameraOnlyRatio:0,treatmentFamilies:r9?24:r8?19:r7?18:r6?16:r5?13:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:r9?84:r8?84:r7?84:r5Plus?72:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:r9?.9:r8?1.5:r7?1.5:r6?1.7:r5?1.8:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:r9?.35:r8?.6:r7?.6:r6?.7:r5?.8:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:r9?40:r5Plus?20:revision==="r4"?16:revision==="r3"?32:8,visualWorldCount:r5Plus?5:undefined,compositionCount:r9?40:r8?25:r7?24:r6?20:undefined,essentialLanguage:r5Plus?"vi":undefined,persistentLowerThird:r5Plus?false:undefined,semanticAnimationMethods:["continuous-hero-object","phase-specific-hard-crops","five-layout-micro-cuts","forty-beat-compositor","fixed-transaction-amount-continuity","labeled-record-side-comparison","multi-world-settlement-sequence","explicit-clearing-fee-formula","explicit-state-label-binding","temporal-state-truth","current-history-future-state-roles","many-to-one-netting-result","physical-balance-reservoir","converging-record-plates","growing-merchant-coin-stack","exception-rail-branching","timeline-payoff"]};
   const roles={MASTER:master,AUDIENCE_MIX:mix,ATLAS_1:atlasFiles[0],ATLAS_2:atlasFiles[1],ATLAS_3:atlasFiles[2],ATLAS_4:atlasFiles[3]}, descriptors={}; for(const [role,path] of Object.entries(roles)) descriptors[role]=await uploadFile(snapshot.blueprint.id,role,path);
   snapshot=(await request("POST",{action:"COMMIT_MATERIALIZATION",blueprintId:snapshot.blueprint.id,descriptors,technicalEvidence,visualManifest,atlasFrames:sampleTimes.map((time,index)=>({atlas:Math.floor(index/8)+1,cell:index%8+1,timeSeconds:time}))},`audience-golden:materialization:${revision}:20260823`)).snapshot;
 }

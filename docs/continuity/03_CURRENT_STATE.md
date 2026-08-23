@@ -2,20 +2,20 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
-## Audience Golden Sequence — R7 rejected, R8 temporal-state and audio repair ready
+## Audience Golden Sequence — R8 rejected visually, R9 compositor repair ready
 
 ```text
-PRODUCTION_CHECKPOINT = SITES_V488
-R7_MASTER_SHA256 = ef1b944e3c4fb79980b33a497ed856a2d6dfd7ab85b75325a4a9b60e18d925e6
-R7_FACTORY_VISUAL = FAIL_91__P0_0__P1_1__P2_0
-R7_FACTORY_AUDIO = FAIL_88__P0_0__P1_2__P2_3
-R8_SOURCE = READY__MIGRATION_0092__TEMPORAL_STATE_TRUTH__SAFER_VOICE_MASTERING
-SOURCE_VERIFICATION = 195_OF_195_PASS__BUILD_PASS__V2_FIREWALL_16_OF_16
+PRODUCTION_CHECKPOINT = SITES_V489
+R8_MASTER_SHA256 = fb48c8a4f6d3bc363eff2fe8c3f2c520ede23ec3f073449fa1d3b1797f79a1d4
+R8_FACTORY_VISUAL = FAIL_89__P0_0__P1_1__P2_2
+R8_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_2
+R9_SOURCE = READY__MIGRATION_0093__FORTY_BEAT_COMPOSITOR__FIVE_LAYOUT_FAMILIES
+SOURCE_VERIFICATION = 196_OF_196_PASS__BUILD_PASS__R9_CONTACT_SHEET_40_OF_40_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = DEPLOY_0092__EXECUTE_R8__LET_FACTORY_QA_DECIDE
+NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION__DEPLOY_0093__EXECUTE_R9__LET_FACTORY_QA_DECIDE
 ```
 
-Sites v488 consumed the sole R6 audio-QA recovery and sealed PASS 95, then materialized R7 as a deterministic/rights PASS 70.7-second master. Visual QA improved to 91 and found only one P1: inactive future stages in the state comparison still read as completed facts. Audio QA failed at 88 with clicks/clipping as P1 and pacing, mix and seam observations as P2. Migration `0092` permits one append-only R8 only from both exact R7 failures. R8 replaces ambiguous cards with time-local completed/pending language and regenerates the exact narration with slower, more stable synthesis plus additional compressor/headroom controls. Production evidence is not inferred from source. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
+Sites v489 materialized R8 as a deterministic/rights PASS 75.2-second master of 13,837,599 bytes. The safer voice/mastering path succeeded: exact-audio QA is PASS 95 with no P0/P1. Visual QA is FAIL 89 with one systemic P1 because the same headline-band/small-background grammar still reads as a slide deck; two P2 observations identify a decorative netting reversal and a current-state panel that mixes history with present state. Migration `0093` permits one append-only R9 only from that exact visual FAIL plus exact-audio PASS. R9 uses 40 micro-scenes, five alternating composition families, hard cuts at most 1.9 seconds apart, an explicit 12-to-1 netting transformation and `ĐÃ QUA / HIỆN TẠI / TIẾP THEO` state roles. Source preview is not Production evidence. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 

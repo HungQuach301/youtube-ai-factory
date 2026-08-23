@@ -86,9 +86,9 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /physical-balance-reservoir/);
   assert.match(executor, /converging-record-plates/);
   assert.match(executor, /growing-merchant-coin-stack/);
-  assert.match(executor, /sceneCount:r5Plus\?20/);
-  assert.match(executor, /minimumCriticalFontPx1080:r8\?84:r7\?84:r5Plus\?72/);
-  assert.match(executor, /\["r5","r6","r7","r8"\]\.includes\(revision\) \? "22" : "19"/);
+  assert.match(executor, /sceneCount:r9\?40:r5Plus\?20/);
+  assert.match(executor, /minimumCriticalFontPx1080:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
+  assert.match(executor, /\["r5","r6","r7","r8","r9"\]\.includes\(revision\) \? "22" : "19"/);
   assert.match(executor, /chunks\.length > 128/);
 });
 
@@ -146,4 +146,22 @@ test("Revision 7 dual failure creates immutable Revision 8 with temporal truth a
   assert.match(executor, /temporal-state-truth/);
   assert.match(executor, /acompressor=threshold=-18dB:ratio=2/);
   assert.match(executor, /alimiter=limit=0\.65/);
+});
+
+test("Revision 8 visual failure and audio pass create immutable Revision 9 with a forty-beat compositor", () => {
+  const migration = read("drizzle/0093_youtube_audience_golden_revision_9.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_9/);
+  assert.match(migration, /visual_failure_receipt_id/);
+  assert.match(migration, /audio_pass_receipt_id/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_9_IMMUTABLE/);
+  assert.match(runtime, /CINEMATIC_FORTY_BEAT_COMPOSITOR/);
+  assert.match(runtime, /maximumSameCompositionSeconds: 1\.9/);
+  assert.match(runtime, /stateRoles: \["ĐÃ QUA", "HIỆN TẠI", "TIẾP THEO"\]/);
+  assert.match(runtime, /nettingMustTransformManyToOne: true/);
+  assert.match(executor, /function svgFrameR9/);
+  assert.match(executor, /five-layout-micro-cuts/);
+  assert.match(executor, /forty-beat-compositor/);
+  assert.match(executor, /current-history-future-state-roles/);
+  assert.match(executor, /many-to-one-netting-result/);
+  assert.match(executor, /sceneCount:r9\?40/);
 });
