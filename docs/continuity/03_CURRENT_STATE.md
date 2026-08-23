@@ -2,20 +2,20 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
-## Audience Golden Sequence — R9 rejected visually, R10 object-centric repair ready
+## Audience Golden Sequence — R10 rejected visually, R11 continuous-motion repair ready
 
 ```text
-PRODUCTION_CHECKPOINT = SITES_V490
-R9_MASTER_SHA256 = f971ceacd97dceb3a42fe2ded78ea951f60444553a7e727ef35154b4bb4a3598
-R9_FACTORY_VISUAL = FAIL_86__P0_0__P1_1__P2_3
-R9_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_1
-R10_SOURCE = READY__MIGRATION_0094__OBJECT_CENTRIC_FULL_FRAME_KINETIC_EXPLAINER
-SOURCE_VERIFICATION = 197_OF_197_PASS__BUILD_PASS__R10_CONTACT_SHEET_36_OF_36_PASS__V2_FIREWALL_16_OF_16
+PRODUCTION_CHECKPOINT = SITES_V491
+R10_MASTER_SHA256 = 0c542807e55f0224c4a10db3a28844d68d215e01a596da644cdd0e9030cdf88f
+R10_FACTORY_VISUAL = FAIL_84__P0_0__P1_1__P2_2
+R10_FACTORY_AUDIO = PASS_94__P0_0__P1_0__P2_2
+R11_SOURCE = READY__MIGRATION_0095__MIXED_MEDIA_CONTINUOUS_TRANSFORMATION_FILM
+SOURCE_VERIFICATION = 198_OF_198_PASS__BUILD_PASS__R11_BEFORE_AFTER_CONTACT_SHEET_32_OF_32_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = DEPLOY_0094__EXECUTE_R10__LET_FACTORY_QA_DECIDE
+NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION__DEPLOY_0095__EXECUTE_R11__LET_FACTORY_QA_DECIDE
 ```
 
-Sites v490 materialized R9 as a deterministic/rights PASS 73.436-second master of 25,526,865 bytes. Exact-audio QA remains PASS 95 with no P0/P1. Visual QA is FAIL 86 with one systemic P1 because the dark diorama, title-card/text-block and dotted-route grammar still dominates despite 40 cuts. Three P2 observations identify unlabeled clearing ownership, a crowded three-card mobile state view and three under-resolved exception branches. Migration `0094` permits one append-only R10 only from that exact visual FAIL plus exact-audio PASS. R10 removes title cards, lower thirds and dotted routes from the explanatory runtime; only hook/payoff retain the image world. It uses 36 full-frame object transformations, persistent clearing actors, one current state per frame and four separately resolved outcomes. Source preview is not Production evidence. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
+Sites v491 materialized R10 as a deterministic/rights PASS 74.367-second master of 8,490,438 bytes. Exact-audio QA passes 94 with no P0/P1. Visual QA fails 84 with one systemic P1: repeated gradient/bokeh backgrounds, centered object/text compositions and a thin bottom bar still read as slides, while sampled objects replace one another instead of proving continuous process motion. Two P2 observations identify undersized labels and mixed Vietnamese/English. Migration `0095` permits one append-only R11 only from that exact visual FAIL plus exact-audio PASS. R11 uses sixteen mixed-media continuous transformations, removes persistent heading/progress chrome and repeated template backgrounds, keeps essential labels Vietnamese/mobile-safe and supplies sixteen before/after evidence pairs. Source preview is not Production evidence. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 

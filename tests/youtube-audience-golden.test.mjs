@@ -86,9 +86,9 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /physical-balance-reservoir/);
   assert.match(executor, /converging-record-plates/);
   assert.match(executor, /growing-merchant-coin-stack/);
-  assert.match(executor, /sceneCount:r10\?36:r9\?40:r5Plus\?20/);
-  assert.match(executor, /minimumCriticalFontPx1080:r10\?84:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
-  assert.match(executor, /\["r5","r6","r7","r8","r9","r10"\]\.includes\(revision\) \? "22" : "19"/);
+  assert.match(executor, /sceneCount:r11\?16:r10\?36:r9\?40:r5Plus\?20/);
+  assert.match(executor, /minimumCriticalFontPx1080:r11\?90:r10\?84:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
+  assert.match(executor, /\["r5","r6","r7","r8","r9","r10","r11"\]\.includes\(revision\) \? "22" : "19"/);
   assert.match(executor, /chunks\.length > 128/);
 });
 
@@ -163,7 +163,7 @@ test("Revision 8 visual failure and audio pass create immutable Revision 9 with 
   assert.match(executor, /forty-beat-compositor/);
   assert.match(executor, /current-history-future-state-roles/);
   assert.match(executor, /many-to-one-netting-result/);
-  assert.match(executor, /sceneCount:r10\?36:r9\?40/);
+  assert.match(executor, /sceneCount:r11\?16:r10\?36:r9\?40/);
 });
 
 test("Revision 9 visual failure and audio pass create immutable Revision 10 with full-frame object transformations", () => {
@@ -181,5 +181,22 @@ test("Revision 9 visual failure and audio pass create immutable Revision 10 with
   assert.match(executor, /single-state-full-frame/);
   assert.match(executor, /four-resolved-exception-outcomes/);
   assert.match(executor, /persistent-clearing-actor-labels/);
-  assert.match(executor, /sceneCount:r10\?36/);
+  assert.match(executor, /r10\?36/);
+});
+
+test("Revision 10 visual failure and audio pass create immutable Revision 11 with paired continuous-motion evidence", () => {
+  const migration = read("drizzle/0095_youtube_audience_golden_revision_11.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_11/);
+  assert.match(migration, /visual_failure_receipt_id/);
+  assert.match(migration, /audio_pass_receipt_id/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_11_IMMUTABLE/);
+  assert.match(runtime, /MIXED_MEDIA_CONTINUOUS_TRANSFORMATION_FILM/);
+  assert.match(runtime, /SIXTEEN_BEFORE_AFTER_PAIRS/);
+  assert.match(runtime, /persistentProgressBarAllowed: false/);
+  assert.match(runtime, /minimumCriticalTextPx1080: 90/);
+  assert.match(executor, /function svgFrameR11/);
+  assert.match(executor, /sixteen-before-after-pairs/);
+  assert.match(executor, /meaning-changing-object-motion/);
+  assert.match(executor, /no-persistent-headings/);
+  assert.match(executor, /sceneCount:r11\?16/);
 });

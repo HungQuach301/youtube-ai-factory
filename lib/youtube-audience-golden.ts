@@ -99,6 +99,7 @@ export async function audienceGoldenSnapshot(db: AudienceGoldenDB) {
 
 export async function createAudienceGoldenRepairRevisionAuthorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string) {
   const latest = await first(env.DB, "SELECT * FROM v7_youtube_golden_sequence_blueprints WHERE channel_id=? ORDER BY created_at DESC,id DESC LIMIT 1", CHANNEL_ID);
+  if (clean(latest?.id).endsWith(":r10")) return createAudienceGoldenRepairRevision11Authorized(env, actor, idempotencyKey, latest as Row);
   if (clean(latest?.id).endsWith(":r9")) return createAudienceGoldenRepairRevision10Authorized(env, actor, idempotencyKey, latest as Row);
   if (clean(latest?.id).endsWith(":r8")) return createAudienceGoldenRepairRevision9Authorized(env, actor, idempotencyKey, latest as Row);
   if (clean(latest?.id).endsWith(":r7")) return createAudienceGoldenRepairRevision8Authorized(env, actor, idempotencyKey, latest as Row);
@@ -287,6 +288,29 @@ async function createAudienceGoldenRepairRevision10Authorized(env: AudienceGolde
   return { outcome: "REPAIR_REVISION_10_SEALED", snapshot: await audienceGoldenSnapshot(env.DB) };
 }
 
+async function createAudienceGoldenRepairRevision11Authorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string, rejected: Row) {
+  const priorReceipt = await first(env.DB, "SELECT * FROM v7_youtube_golden_revision_11_receipts WHERE channel_id=? AND idempotency_key=? LIMIT 1", CHANNEL_ID, idempotencyKey); if (priorReceipt) return { outcome: "REPLAYED", snapshot: await audienceGoldenSnapshot(env.DB) };
+  const materialization = await first(env.DB, "SELECT * FROM v7_youtube_golden_materialization_receipts WHERE blueprint_id=?", rejected.id); if (!materialization) throw new AudienceGoldenError("REJECTED_MATERIALIZATION_MISSING", 409, "Revision 10 materialization is required");
+  const [visualQa, audioQa] = await Promise.all([first(env.DB, "SELECT * FROM v7_youtube_golden_qa_receipts WHERE materialization_receipt_id=? AND qa_layer='FACTORY_VISUAL'", materialization.id), first(env.DB, "SELECT * FROM v7_youtube_golden_qa_receipts WHERE materialization_receipt_id=? AND qa_layer='FACTORY_AUDIO'", materialization.id)]);
+  if (!visualQa || clean(visualQa.decision_state) !== "FAIL" || !audioQa || clean(audioQa.decision_state) !== "PASS") throw new AudienceGoldenError("REVISION_11_EVIDENCE_REQUIRED", 409, "Revision 11 requires failed visual QA and passing exact-audio QA");
+  const replacementId = `audience-golden-blueprint:${CHANNEL_ID}:r11`, existing = await first(env.DB, "SELECT id FROM v7_youtube_golden_sequence_blueprints WHERE id=?", replacementId);
+  if (!existing) {
+    const narration = clean(rejected.narration_text), narrationHash = await sha256Hex(new TextEncoder().encode(narration));
+    const assetManifest = { source: "OWNED_MIXED_MEDIA_CONTINUOUS_MOTION_COMPOSITOR", inheritedFromRevision: 10, assets: [
+      { path: "public/golden/payment-world-r4.jpg", sha256: "00354e385a041d3d1d854ba496612d404e3ca8e170cfab5754a73f7be05e123f", role: "CINEMATIC_HOOK_PAYOFF" },
+      { path: "public/golden/payment-bank-r5.jpg", sha256: "557f925178232be56df515aae9782509b881adce8b87723e9e63adb3bf3e1120", role: "AUTHORIZATION_MACRO_WORLD" },
+      { path: "public/golden/payment-clearing-r5.jpg", sha256: "26c6ad2e9291419170c6e34734feb7aef4a3ba79491f61be34540bb6c43a634c", role: "CLEARING_RECORD_WORLD" },
+      { path: "public/golden/payment-settlement-r5.jpg", sha256: "1599ccbbafbc11f476b88f6b1ae0bede4c681f4d23701684706217ead96428bc", role: "SETTLEMENT_FLOW_WORLD" },
+      { path: "public/golden/payment-exceptions-r4.jpg", sha256: "be3c8d80167d0b30eba4387534907c14085e000456ad8809fa838ca2a2a29911", role: "EXCEPTION_OUTCOME_WORLD" }
+    ] };
+    const repairContract = { revision: 11, rootOwners: ["PERVASIVE_SLIDE_DECK_COMPOSITION", "MEANINGFUL_MOTION_EVIDENCE", "VISUAL_RICHNESS", "MOBILE_LABEL_SIZE", "LANGUAGE_CONSISTENCY"], inheritedAudioPassReceiptId: audioQa.id, visual: { form: "MIXED_MEDIA_CONTINUOUS_TRANSFORMATION_FILM", continuousSequences: 16, atlasEvidence: "SIXTEEN_BEFORE_AFTER_PAIRS", persistentHeadingAllowed: false, persistentProgressBarAllowed: false, repeatedTemplateBackgroundAllowed: false, objectMotionMustChangeMeaning: true, language: "VIETNAMESE", minimumSupportingTextPx1080: 72, minimumCriticalTextPx1080: 90, treatmentFamiliesMinimum: 8 }, audio: { settingsInheritedFromPassingRevision: 10, regenerateWithSameQualifiedSettings: true, speechSpeed: .96, stability: .78, style: .04, targetLufs: -15, truePeakDbtp: -3, musicBed: false } };
+    await run(env.DB, `INSERT INTO v7_youtube_golden_sequence_blueprints (id,channel_id,policy_version,blueprint_version,episode_key,title_promise,narration_text,narration_hash,story_contract_json,visual_contract_json,audio_contract_json,lifecycle_state,actor) VALUES (?,?,?,?,?,?,?,?,?,?,?,'SEALED',?)`, replacementId, CHANNEL_ID, AUDIENCE_POLICY_VERSION, AUDIENCE_BLUEPRINT_VERSION, `${AUDIENCE_GOLDEN_STORY.episodeKey}-revision-11`, AUDIENCE_GOLDEN_STORY.titlePromise, narration, narrationHash, canonicalStringify({ ...AUDIENCE_GOLDEN_STORY, assetManifest, repairContract }), canonicalStringify(repairContract.visual), canonicalStringify(repairContract.audio), actor);
+    const evidenceHash = await canonicalHash({ rejectedBlueprintId: rejected.id, rejectedMaterializationId: materialization.id, replacementId, visualFailureReceiptId: visualQa.id, audioPassReceiptId: audioQa.id, assetManifest, repairContract });
+    await run(env.DB, "INSERT INTO v7_youtube_golden_revision_11_receipts (id,channel_id,rejected_blueprint_id,rejected_materialization_receipt_id,replacement_blueprint_id,revision_key,visual_failure_receipt_id,audio_pass_receipt_id,asset_manifest_json,repair_contract_json,actor,idempotency_key,evidence_hash) VALUES (?,?,?,?,?,'AUDIENCE_GOLDEN_REVISION_11',?,?,?,?,?,?,?)", makeId("audience-golden-revision-11"), CHANNEL_ID, rejected.id, materialization.id, replacementId, visualQa.id, audioQa.id, canonicalStringify(assetManifest), canonicalStringify(repairContract), actor, idempotencyKey, evidenceHash);
+  }
+  return { outcome: "REPAIR_REVISION_11_SEALED", snapshot: await audienceGoldenSnapshot(env.DB) };
+}
+
 export async function bootstrapAudienceGoldenAuthorized(env: AudienceGoldenEnv, actor: string, idempotencyKey: string) {
   if (!/^[A-Za-z0-9._:-]{16,160}$/.test(idempotencyKey)) throw new AudienceGoldenError("IDEMPOTENCY_KEY_INVALID", 400, "A stable idempotency key is required");
   const current = await first(env.DB, "SELECT * FROM v7_evaluation_clean_av_master_materialization_receipts WHERE channel_id=? LIMIT 1", CHANNEL_ID);
@@ -323,7 +347,7 @@ export async function generateAudienceGoldenAudioAuthorized(env: AudienceGoldenE
       WHERE a.channel_id=? ORDER BY a.created_at DESC LIMIT 1`, CHANNEL_ID),
   ]);
   if (!blueprint || existing || !priorVoice || !clean(priorVoice.voice_id)) throw new AudienceGoldenError(existing ? "GOLDEN_AUDIO_CEILING_REACHED" : "GOLDEN_AUDIO_PREREQUISITES_MISSING", 409, existing ? "The single TTS ceiling has been reached" : "A sealed blueprint and verified voice lineage are required");
-  const revisionTwo = clean(blueprint.id).endsWith(":r2"), saferVoiceRevision = clean(blueprint.id).endsWith(":r8") || clean(blueprint.id).endsWith(":r9") || clean(blueprint.id).endsWith(":r10");
+  const revisionTwo = clean(blueprint.id).endsWith(":r2"), saferVoiceRevision = clean(blueprint.id).endsWith(":r8") || clean(blueprint.id).endsWith(":r9") || clean(blueprint.id).endsWith(":r10") || clean(blueprint.id).endsWith(":r11");
   const requestBody = { text: clean(blueprint.narration_text), model_id: "eleven_multilingual_v2", voice_settings: saferVoiceRevision ? { stability: .78, similarity_boost: .78, style: .04, speed: .96, use_speaker_boost: true } : revisionTwo ? { stability: .56, similarity_boost: .78, style: .06, speed: .98, use_speaker_boost: true } : { stability: .66, similarity_boost: .8, style: .14, speed: 1.06, use_speaker_boost: true } };
   const intentHash = await canonicalHash({ blueprintId: blueprint.id, narrationHash: blueprint.narration_hash, voiceId: priorVoice.voice_id, requestBody });
   const runId = recoveryMode ? clean(prior?.id) : makeId("audience-golden-audio-run"), recoveryId = recoveryMode ? makeId("audience-golden-audio-recovery") : "";
