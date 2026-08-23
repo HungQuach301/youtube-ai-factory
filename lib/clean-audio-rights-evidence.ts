@@ -15,7 +15,7 @@ const SOURCES = [
 
 type Row = Record<string, unknown>;
 type RunResult = { meta?: { changes?: number } };
-type Statement = { bind(...values: unknown[]): Statement; first<T = Row>(): Promise<T | null>; run(): Promise<RunResult> };
+type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null>; run(): Promise<RunResult> };
 export type RightsEvidenceDB = { prepare(query: string): Statement };
 type StoredObject = { arrayBuffer(): Promise<ArrayBuffer> };
 export type RightsEvidenceBucket = {
@@ -33,10 +33,11 @@ const count = (value: unknown) => Number(value ?? 0);
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 const now = () => new Date().toISOString();
 async function first(db: RightsEvidenceDB, query: string, ...values: unknown[]) { return db.prepare(query).bind(...values).first<Row>(); }
+async function rows(db: RightsEvidenceDB, query: string, ...values: unknown[]) { return (await db.prepare(query).bind(...values).all<Row>()).results ?? []; }
 async function run(db: RightsEvidenceDB, query: string, ...values: unknown[]) { return db.prepare(query).bind(...values.map((value) => value === undefined ? null : value)).run(); }
 
 export async function currentRightsEvidenceSnapshot(db: RightsEvidenceDB) {
-  const [policy, latestRun, diagnostic] = await Promise.all([
+  const [policy, latestRun, diagnostic, sourceReceipts] = await Promise.all([
     first(db, `SELECT jurisdiction_scope,expected_official_sources,maximum_public_reads,maximum_source_bytes,generation_time_subscription_binding_required,base_plan_evidence_required,input_ownership_evidence_required,beta_model_forbidden,rights_pass_authority,dataset_sealing_authority,assurance_qualification_authority,release_authority
       FROM v7_evaluation_current_rights_evidence_capture_policies WHERE channel_id=? AND policy_version=? LIMIT 1`, CHANNEL_ID, EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION),
     first(db, `SELECT id,lifecycle_state,planned_sources,processed_sources,verified_sources,public_reads,account_reads,provider_generation_requests,spend_usd,error_code,created_at,completed_at
@@ -44,6 +45,8 @@ export async function currentRightsEvidenceSnapshot(db: RightsEvidenceDB) {
     first(db, `SELECT d.*,a.mime_type,a.byte_size FROM v7_evaluation_clean_audio_rights_diagnostics d
       JOIN v7_evaluation_materialized_fixture_artifacts a ON a.id=d.fixture_artifact_id
       WHERE d.channel_id=? AND d.policy_version=? ORDER BY d.created_at DESC,d.id DESC LIMIT 1`, CHANNEL_ID, EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION),
+    rows(db, `SELECT source_key,source_category,source_url,retrieval_state,http_status,content_type,response_byte_size,r2_readback_verified,retrieved_at,error_code
+      FROM v7_evaluation_official_terms_snapshot_receipts WHERE channel_id=? AND policy_version=? ORDER BY source_key`, CHANNEL_ID, EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION),
   ]);
   return {
     policy: policy ? {
@@ -57,6 +60,7 @@ export async function currentRightsEvidenceSnapshot(db: RightsEvidenceDB) {
     diagnostic: diagnostic ? {
       fixtureArtifactId: clean(diagnostic.fixture_artifact_id), fixtureSha256: clean(diagnostic.fixture_sha256), mimeType: clean(diagnostic.mime_type), byteSize: count(diagnostic.byte_size), providerNativeRequestIdVerified: Boolean(count(diagnostic.provider_native_request_id_verified)), generationSubscriptionTier: clean(diagnostic.generation_subscription_tier), generationSubscriptionStatus: clean(diagnostic.generation_subscription_status), generationSubscriptionObservedAt: clean(diagnostic.generation_subscription_observed_at), jurisdictionScope: clean(diagnostic.jurisdiction_scope), modelId: clean(diagnostic.model_id), betaModelState: clean(diagnostic.beta_model_state), inputOwnershipState: clean(diagnostic.input_ownership_state), officialSourcesExpected: count(diagnostic.official_sources_expected), officialSourcesVerified: count(diagnostic.official_sources_verified), officialSourceCoverageState: clean(diagnostic.official_source_coverage_state), basePlanEvidenceState: clean(diagnostic.base_plan_evidence_state), adjudicationOutcome: clean(diagnostic.adjudication_outcome), rightsState: clean(diagnostic.rights_state), nextEvidenceRequired: clean(diagnostic.next_evidence_required), rightsPassAuthority: Boolean(count(diagnostic.rights_pass_authority)), datasetSealingAuthority: Boolean(count(diagnostic.dataset_sealing_authority)), assuranceQualificationAuthority: Boolean(count(diagnostic.assurance_qualification_authority)), releaseAuthority: Boolean(count(diagnostic.release_authority)), providerGenerationRequests: count(diagnostic.provider_generation_requests), spendUsd: count(diagnostic.spend_usd), createdAt: clean(diagnostic.created_at),
     } : null,
+    sources: sourceReceipts.map((item) => ({ sourceKey: clean(item.source_key), sourceCategory: clean(item.source_category), sourceUrl: clean(item.source_url), retrievalState: clean(item.retrieval_state), httpStatus: item.http_status === null ? null : count(item.http_status), contentType: clean(item.content_type) || null, responseByteSize: item.response_byte_size === null ? null : count(item.response_byte_size), r2ReadbackVerified: Boolean(count(item.r2_readback_verified)), retrievedAt: clean(item.retrieved_at), errorCode: clean(item.error_code) || null })),
   };
 }
 
