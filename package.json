@@ -26,7 +26,8 @@
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
     "media:executor": "node scripts/media-executor.mjs",
-    "golden:master:executor": "node --import tsx scripts/golden-master-executor.ts"
+    "golden:master:executor": "node --import tsx scripts/golden-master-executor.ts",
+    "golden:audience:executor": "node scripts/audience-golden-executor.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

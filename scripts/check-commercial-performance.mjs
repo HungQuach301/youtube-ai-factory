@@ -25,9 +25,9 @@ const budgets = {
   largestCss: 62_000,
   largestPageJs: 50_000,
   // The catalog-wide total covers every route-split asset, not a single user journey.
-  // Reserve 5 KB for Intelligence–Niche and a further 5 KB for the production
-  // Content Autopilot workspace. This remains a catalog-wide cap across all routes.
-  totalJsCss: 310_000,
+  // Reserve 5 KB for Intelligence–Niche, 5 KB for Content Autopilot and 10 KB for
+  // the route-split Audience Golden review surface. Per-page ceilings stay fixed.
+  totalJsCss: 320_000,
 };
 
 const failures = [
