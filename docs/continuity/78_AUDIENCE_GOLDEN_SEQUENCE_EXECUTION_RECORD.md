@@ -1,7 +1,7 @@
 # Audience Golden Sequence execution record
 
 **Class:** `EXECUTION_EVIDENCE`  
-**Status:** `ACTIVE__REVISION_17_VISUAL_REJECTED_AUDIO_PASS__REVISION_18_SOURCE_VERIFIED`
+**Status:** `ACTIVE__REVISION_18_VISUAL_REJECTED_AUDIO_PASS__REVISION_19_SOURCE_VERIFIED`
 **Date:** 2026-08-24 (Asia/Bangkok)
 **Scope:** original YouTube AI Factory only; Production V2 is excluded and untouched.
 
@@ -30,6 +30,7 @@
 | R15 | `b77204426741adedb03d7077317fa62367479a6137161b060c2d82b343aebe43` | FAIL 48 | FAIL 88 | preserved dual-failure evidence |
 | R16 | `ee476c59d79599c4a63a2b62f9ded0714b0e2e8ff06c96015f6f6016b74aff73` | FAIL 68 | PASS 95 | preserved rejected visual evidence; audio pass retained |
 | R17 | `b2f3de5e8a5568a7ac411fcd336e0e4b842b8f45e0c0dde56d2db8b6fbbad033` | FAIL 87 | PASS 94 | preserved rejected visual evidence; audio pass retained |
+| R18 | `78867b18667a5304014911a66126292335073efba7d1b9321b8d3a86f787dfa7` | FAIL 77 | PASS 94 | preserved rejected visual evidence; audio pass retained |
 
 R4 improved visual richness but retained two P1 defects: the same tableau/lower-third grammar persisted across the explanation, and the moving marker did not make institutions, balances or records visibly transform. Its three P2 findings were insufficient state differentiation, mixed English without visible definition and secondary mobile typography. No Browser or owner PASS was inferred.
 
@@ -58,6 +59,12 @@ R15 is a deterministic/rights PASS 76.867-second 2560×1440 H.264/AAC master of 
 R16 is a deterministic/rights PASS 76.033-second 2560×1440 H.264/AAC master of 36,007,639 bytes. Its exact audience-mix hash is `9857ce83a437e6e6274ee8f87ef3169e1232bc34e8867eb9feb46a19b1823956`. Factory audio QA passes at 95 with P0/P1/P2 all zero. Factory visual QA fails at 68 with P0=0, P1=3 and P2=2. The three promised decisions are not carried through the body; four main environments remain prolonged infographic slides; branch labels are obstructed on mobile. Mixed English/Vietnamese and the unresolved `2,05` record to merchant `2,00` plus fee route add P2 findings. Receipt `audience-golden-materialization-0568b4de-4bb2-4077-9a32-3162ab71e12b` and both QA receipts remain immutable; Browser, owner review and freeze remain unopened.
 
 R17 is a deterministic/rights PASS 73.267-second 2560×1440 H.264/AAC master of 34,301,626 bytes with exact hash `b2f3de5e8a5568a7ac411fcd336e0e4b842b8f45e0c0dde56d2db8b6fbbad033`. Its exact audience-mix hash is not promoted as a separate authority. Factory audio QA passes at 94 with P0=0, P1=0 and P2=2: a minor click near 00:22 and slight sibilance near 01:03. Factory visual QA fails at 87 with P0=0, P1=1 and P2=2. Five adjacent ranges—00:11.8–14.2, 21.3–23.6, 30.7–33.1, 59.1–61.5 and 68.5–70.9—retain unchanged compositions and create slide-deck pacing. The netting section says `3 NGHĨA VỤ` without naming three sources; token values and branch identifiers are too small on mobile. Receipt `audience-golden-materialization-e463ae47-b3c8-4d76-ab6c-948d3b667538` and both QA receipts remain immutable; Browser, owner review and freeze remain unopened.
+
+R18 is a deterministic/rights PASS 77.511-second 2560×1440 H.264/AAC master of 40,553,672 bytes with exact hash `78867b18667a5304014911a66126292335073efba7d1b9321b8d3a86f787dfa7`. Its exact audience-mix hash is `d9f8799be7beea10189a09d96b1590030610df8109e1c2712eaa7376d272f3c8`. Factory audio QA passes at 94 with P0=0, P1=0 and P2=1: a slight texture change near 01:15. Factory visual QA fails at 77 with P0=0, P1=2 and P2=2. Nearly every sample repeats a phase badge, centered headline/subhead, diagonal line and bottom status capsule, so text/background replacement substitutes for progressing objects. The pixels also fail to reconcile principal hold `2,00`, clearing obligation `2,05`, merchant receipt `2,00` and network fee `0,05` in one state model. A/B/C obligations lack amounts, counterparties and directions, while exception cards placed after completed settlement create temporal ambiguity. Receipt `audience-golden-materialization-39fd7560-d811-4d24-a9e7-55c035b94818` and both QA receipts remain immutable; Browser, owner review and freeze remain unopened.
+
+## Revision 19 source contract
+
+Migration `0103_youtube_audience_golden_revision_19.sql` permits one append-only R19 only from the exact R18 visual FAIL and exact-audio PASS receipts. R19 replaces the repeated 32-card template with sixteen object-ledger sequences sampled at two meaning-changing states each. A persistent ledger shows principal `2,00` reserved at authorization, network fee `0,05` added separately at clearing, gross system obligation `2,05`, merchant receipt `2,00` and payment-network receipt `0,05`. Directional rows bind `NGÂN HÀNG A → MẠNG 0,80`, `NGÂN HÀNG B → MẠNG 0,75` and `NGÂN HÀNG C → MẠNG 0,50` before physical convergence. The alternative map branches cancellation/expiry from hold before clearing and refund/dispute after paid, then returns to the final three-question payoff. The source atlas passes manual inspection but grants no Production, Browser, owner, freeze or release authority.
 
 ## Revision 18 source contract
 
@@ -128,7 +135,7 @@ R13_UNIFORM_CONTACT_SHEET = PASS__32_OF_32__EXPLICIT_CLEARING_EQUATION__LABELED_
 R13_PRODUCTION = MATERIALIZED__EXACT_MASTER_BC62A2A2__VISUAL_FAIL_64__AUDIO_PASS_95
 R14_UNIFORM_CONTACT_SHEET = PASS__32_DISTINCT_CAUSAL_STATES__NO_ADJACENT_REPEATED_COMPOSITION__FOUR_SEPARATE_EXCEPTION_BRANCHES
 R14_TARGETED_REGRESSION = 35_OF_35_PASS
-FULL_REGRESSION = 205_OF_205_PASS
+FULL_REGRESSION = 206_OF_206_PASS
 VERIFIED_BUILD = PASS
 DOCUMENTATION_SSOT = PASS__92_MARKDOWN_FILES__LOCAL_LINKS_RESOLVE
 PRODUCTION_V2_LEGACY_DEPENDENCY_FIREWALL = 16_OF_16_PASS__V2_UNTOUCHED
@@ -145,8 +152,9 @@ PRODUCTION_R14 = MATERIALIZED__EXACT_MASTER_58C88390__VISUAL_FAIL_81__AUDIO_FAIL
 PRODUCTION_R15 = MATERIALIZED__EXACT_MASTER_B7720442__VISUAL_FAIL_48__AUDIO_FAIL_88
 PRODUCTION_R16 = MATERIALIZED__EXACT_MASTER_EE476C59__VISUAL_FAIL_68__AUDIO_PASS_95
 PRODUCTION_R17 = MATERIALIZED__EXACT_MASTER_B2F3DE5E__VISUAL_FAIL_87__AUDIO_PASS_94
-R18_SOURCE_ATLAS = PASS__32_OF_32__UNIQUE_CAUSAL_BEATS__NINE_ALTERNATING_WORLDS__LABELED_OBLIGATIONS__LARGE_BRANCH_STATUS
-FACTORY_VISUAL_AUDIO_QA = BLOCKED_UNTIL_R18_PRODUCTION
+PRODUCTION_R18 = MATERIALIZED__EXACT_MASTER_78867B18__VISUAL_FAIL_77__AUDIO_PASS_94
+R19_SOURCE_ATLAS = PASS__32_OF_32__SIXTEEN_OBJECT_LEDGER_SEQUENCES__DIRECTIONAL_OBLIGATIONS__TRUTHFUL_BRANCH_ENTRY_POINTS
+FACTORY_VISUAL_AUDIO_QA = BLOCKED_UNTIL_R19_PRODUCTION
 BROWSER_DEVICE_QA = BLOCKED_UNTIL_FACTORY_PASS
 OWNER_FULL_PLAYBACK = BLOCKED_UNTIL_BROWSER_PASS
 FREEZE_RELEASE_PUBLICATION = FALSE_FALSE_FALSE
@@ -154,4 +162,4 @@ FREEZE_RELEASE_PUBLICATION = FALSE_FALSE_FALSE
 
 ## Exact next action
 
-Sites v498 sealed R17 exact materialization and visual FAIL/audio PASS receipts. Complete the R18 regression/docs/firewall gate, commit and push migration `0102` plus its exact source contract, deploy owner-only, create R18, materialize one new exact master and let independent Factory visual/audio QA decide. Browser/device remains closed until Factory visual and audio both PASS; owner playback remains closed until Browser PASS. Production V2, Stage 11, full-video expansion, release and publication remain untouched.
+Sites v499 sealed R18 exact materialization and visual FAIL/audio PASS receipts. Complete the R19 regression/docs/firewall gate, commit and push migration `0103` plus its exact source contract, deploy owner-only, create R19, materialize one new exact master and let independent Factory visual/audio QA decide. Browser/device remains closed until Factory visual and audio both PASS; owner playback remains closed until Browser PASS. Production V2, Stage 11, full-video expansion, release and publication remain untouched.

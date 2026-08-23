@@ -2,21 +2,21 @@
 
 Last reconciled: 2026-08-24 (Asia/Bangkok)
 
-## Audience Golden Sequence — R17 visual rejection/audio pass, R18 causal-beat repair source-verified
+## Audience Golden Sequence — R18 visual rejection/audio pass, R19 object-ledger repair source-verified
 
 ```text
-PRODUCTION_CHECKPOINT = SITES_V498
-R17_MASTER_SHA256 = b2f3de5e8a5568a7ac411fcd336e0e4b842b8f45e0c0dde56d2db8b6fbbad033
-R17_FACTORY_VISUAL = FAIL_87__P0_0__P1_1__P2_2
-R17_FACTORY_AUDIO = PASS_94__P0_0__P1_0__P2_2
-R18_SOURCE = READY__MIGRATION_0102__THIRTY_TWO_BEAT_NINE_WORLD_CAUSAL_FILM
-R18_PIXEL_PREVIEW = PASS_SOURCE_INSPECTION__32_OF_32__ONE_UNIQUE_CAUSAL_BEAT_PER_SAMPLE__LABELED_OBLIGATIONS__LARGE_BRANCH_STATUS
-SOURCE_VERIFICATION = FULL_REGRESSION_205_OF_205_PASS__VERIFIED_BUILD_PASS__DOCS_SSOT_PASS__V2_FIREWALL_16_OF_16
+PRODUCTION_CHECKPOINT = SITES_V499
+R18_MASTER_SHA256 = 78867b18667a5304014911a66126292335073efba7d1b9321b8d3a86f787dfa7
+R18_FACTORY_VISUAL = FAIL_77__P0_0__P1_2__P2_2
+R18_FACTORY_AUDIO = PASS_94__P0_0__P1_0__P2_1
+R19_SOURCE = READY__MIGRATION_0103__SIXTEEN_SEQUENCE_OBJECT_LEDGER_FILM
+R19_PIXEL_PREVIEW = PASS_SOURCE_INSPECTION__32_OF_32__PERSISTENT_LEDGER__DIRECTIONAL_OBLIGATIONS__TRUTHFUL_EXCEPTION_ENTRY_POINTS
+SOURCE_VERIFICATION = TARGETED_40_OF_40_PASS__FULL_REGRESSION_206_OF_206_PASS__VERIFIED_BUILD_PASS__DOCS_SSOT_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0102__EXECUTE_R18__LET_FACTORY_QA_DECIDE
+NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0103__EXECUTE_R19__LET_FACTORY_QA_DECIDE
 ```
 
-Sites v498 materialized R17 as a deterministic/rights PASS 73.267-second 2560×1440 H.264/AAC master of 34,301,626 bytes with exact hash `b2f3de5e…`. Exact-audio QA passes 94 with only two P2 observations. Visual QA rises from 68 to 87 but still fails because five adjacent sample pairs retain unchanged compositions long enough to create slide-deck pacing. P2 evidence also requires the three netting obligations to identify their source banks and removes undersized token/branch identifiers. Migration `0102` permits one append-only R18 only from this exact visual FAIL and audio PASS. R18 uses 32 unique causal beats across nine alternating worlds, labels obligations `NGÂN HÀNG A/B/C`, removes text from moving tokens and uses large branch-status plates. Its 32-frame source atlas passes manual inspection but is not Production evidence. Document 78 is authoritative; V2, Stage 11, Browser, owner freeze, release and publication remain untouched.
+Sites v499 materialized R18 as a deterministic/rights PASS 77.511-second 2560×1440 H.264/AAC master of 40,553,672 bytes with exact hash `78867b18…`. Exact-audio QA passes 94 with one minor P2 observation. Visual QA fails 77 because the 32 nominal beats still reuse one badge/headline/diagonal-route/status template and because hold `2,00`, clearing obligation `2,05`, merchant principal `2,00` and network fee `0,05` never share one unambiguous state model. P2 evidence requires amounts/counterparties/directions for A/B/C obligations and correct chronological entry points for alternative branches. Migration `0103` permits one append-only R19 only from this exact visual FAIL and audio PASS. R19 replaces the template with sixteen object-ledger sequences, two meaning-changing states per sequence, a persistent amount ledger, directional obligations and a branch-entry timeline before the final payoff. Its 32-frame source atlas passes manual inspection but is not Production evidence. Document 78 is authoritative; V2, Stage 11, Browser, owner freeze, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 
