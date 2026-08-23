@@ -10,6 +10,7 @@ HISTORY_AUDIO_HASHES = 66_OF_66
 UNIQUE_EQUIVALENT_NO_MATCH = 0_0_46
 HISTORICAL_CANDIDATE_DISPOSITION = QUARANTINE_FAILURE_EVIDENCE_ONLY
 MIGRATION_0072 = PRODUCTION_ACTIVE_SITES_V444
+MIGRATION_0073 = IMPLEMENTED_DEPLOYMENT_PENDING
 PRODUCTION_SOURCE_COMMIT = f7f9823fa6d7770e87c4c7b115415c501ca70383
 CONTROLLED_FIXTURE_BLUEPRINTS = 13
 DEFECT_POSITIVE_CLEAN_NEGATIVE = 11_2
@@ -24,6 +25,8 @@ NEXT_PROTECTED_ACTION = IMPLEMENT_BOUNDED_MATERIALIZATION__CLEAN_PARENTS_FIRST
 ```
 
 The exact-byte recovery lane is exhausted: none of the 46 historical audio candidate hashes appears in the 66 retained ElevenLabs history audio objects. The old candidates remain quarantined evidence and cannot be promoted. Sites v444 deploys migration `0072`, an immutable terminal closure and thirteen controlled-fixture blueprints covering all eleven active defect families, all five P0 families and two clean controls. The build and 175/175 regressions pass and post-deploy error logs are empty. A blueprint is not a materialized fixture and creates no ground-truth, dataset, qualification or release authority. Document 65 is authoritative for this slice.
+
+Migration `0073` and policy `CONTROLLED_FIXTURE_MATERIALIZATION_V1` implement the next bounded slice: one clean-audio parent, two provider calls maximum, one TTS maximum, 700 characters and a USD 0.08 reserved ceiling. The write path requires a provider-native request ID, exact response SHA-256 and R2 read-back. Even on success the artifact remains rights-pending, owner-ground-truth-pending and ineligible for dataset, qualification and release. Document 66 is authoritative for this slice until its deployment evidence is sealed.
 
 ## WP7 regression corpus production checkpoint — 2026-08-22
 

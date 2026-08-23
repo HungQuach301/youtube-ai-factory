@@ -12,6 +12,7 @@ import {
   EVALUATION_PROVIDER_AUDIO_HASH_RECOVERY_VERSION,
   EVALUATION_HISTORICAL_RECOVERY_CLOSURE_VERSION,
   CONTROLLED_FIXTURE_PLAN_VERSION,
+  CONTROLLED_FIXTURE_MATERIALIZATION_VERSION,
   EVALUATION_OWNER_LABEL_POLICY_VERSION,
   EVALUATION_OWNER_REVIEW_UX_VERSION,
   EVALUATION_CORRELATION_CONTROL_VERSION,
@@ -745,7 +746,38 @@ test("migration 0072 closes unrecoverable history and seals a bounded controlled
   const ownerBoundary = read("app/api/factory/sequential-production/evaluation/route.ts");
   assert.match(ownerBoundary, /Không thể phục hồi 46 audio cũ/);
   assert.match(ownerBoundary, /CONTROLLED_FIXTURE_PLAN_V1/);
-  assert.match(ownerBoundary, /provider-native request ID/);
+  assert.match(read("lib/controlled-fixture-materialization.ts"), /providerNativeRequestId/);
+});
+
+test("migration 0073 enables exactly one clean-audio parent with hardened provider binding and no promotion authority", () => {
+  assert.equal(CONTROLLED_FIXTURE_MATERIALIZATION_VERSION, "CONTROLLED_FIXTURE_MATERIALIZATION_V1");
+  const migration = read("drizzle/0073_controlled_fixture_clean_audio_materialization.sql");
+  for (const table of [
+    "v7_evaluation_fixture_materialization_policies", "v7_evaluation_fixture_voice_identity_receipts", "v7_evaluation_fixture_materialization_runs",
+    "v7_evaluation_fixture_provider_binding_receipts", "v7_evaluation_materialized_fixture_artifacts",
+  ]) assert.match(migration, new RegExp(table));
+  for (const lock of ["rights_pass_authority", "dataset_sealing_authority", "assurance_qualification_authority", "release_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.match(migration, /maximum_materialized_fixtures` integer NOT NULL CHECK \(`maximum_materialized_fixtures` = 1\)/);
+  assert.match(migration, /maximum_provider_requests` integer NOT NULL CHECK \(`maximum_provider_requests` = 2\)/);
+  assert.match(migration, /maximum_tts_requests` integer NOT NULL CHECK \(`maximum_tts_requests` = 1\)/);
+  assert.match(migration, /reserved_spend_ceiling_usd` real NOT NULL CHECK \(`reserved_spend_ceiling_usd` = 0\.08\)/);
+  assert.match(migration, /provider_native_request_id/);
+  assert.match(migration, /r2_readback_hash/);
+  assert.match(migration, /PROVIDER_TERMS_RECEIPT_REQUIRED/);
+  const db = new DatabaseSync(":memory:");
+  for (const file of readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort()) db.exec(read(`drizzle/${file}`));
+  const policy = db.prepare("SELECT maximum_materialized_fixtures,maximum_provider_requests,maximum_tts_requests,maximum_tts_characters,reserved_spend_ceiling_usd,rights_pass_authority,dataset_sealing_authority,assurance_qualification_authority,release_authority FROM v7_evaluation_fixture_materialization_policies").get();
+  assert.deepEqual({ ...policy }, { maximum_materialized_fixtures: 1, maximum_provider_requests: 2, maximum_tts_requests: 1, maximum_tts_characters: 700, reserved_spend_ceiling_usd: 0.08, rights_pass_authority: 0, dataset_sealing_authority: 0, assurance_qualification_authority: 0, release_authority: 0 });
+  const identity = db.prepare("SELECT identity_scope,voice_id,model_id,output_format,production_inheritance_authority FROM v7_evaluation_fixture_voice_identity_receipts").get();
+  assert.deepEqual({ ...identity }, { identity_scope: "EVALUATION_FIXTURE_ONLY", voice_id: "JBFqnCBsd6RMkjVDRZzb", model_id: "eleven_multilingual_v2", output_format: "mp3_44100_128", production_inheritance_authority: 0 });
+  const materializer = read("lib/controlled-fixture-materialization.ts"), ownerBoundary = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(materializer, /headers\.get\("request-id"\).*headers\.get\("x-request-id"\)/);
+  assert.match(materializer, /exactResponseHash/);
+  assert.match(materializer, /R2_READBACK_HASH_MISMATCH/);
+  assert.match(materializer, /ELEVENLABS_REQUEST_ID_MISSING/);
+  assert.match(ownerBoundary, /MATERIALIZE_CLEAN_AUDIO_CONTROL/);
+  assert.match(ownerBoundary, /fixtureArtifact/);
+  assert.doesNotMatch(materializer, /rights_verification_state='PASS'|release_eligible=1|qualification_eligible=1/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

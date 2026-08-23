@@ -153,6 +153,8 @@ Phase 15 activates bounded provider-history recovery. Sites v442 seals 66 Eleven
 
 Phase 16 is production-active in Sites v444 from exact source `f7f9823fa6d7770e87c4c7b115415c501ca70383`. Migration `0072`, `EVALUATION_HISTORICAL_RECOVERY_CLOSURE_V1` and `CONTROLLED_FIXTURE_PLAN_V1` preserve the terminal no-match result, quarantine all 46 historical candidates as failure evidence and seal thirteen blueprints: eleven defect positives across every active taxonomy family, two clean negatives and planned coverage of all five P0 families. Full regression passes 175/175 and post-deploy Worker errors are zero. Materialized fixtures remain zero, so dataset/assurance/release authority remains false. Bounded materialization with clean parents first is next; FP4/FP5 remain closed.
 
+The next implementation slice is migration `0073` / `CONTROLLED_FIXTURE_MATERIALIZATION_V1`. It enables only the clean-audio parent with one TTS request, exact provider/R2 binding and no rights, dataset, assurance or release authority. After deployment the single fixture must be materialized and its immutable evidence read back; authoritative commercial-rights evidence and owner clean ground truth are the next gates. Clean A/V composition and isolated defect derivatives remain later steps. FP4/FP5 remain closed.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:
