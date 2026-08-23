@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -10,11 +10,13 @@ const siteToken = process.env.FACTORY_SITE_AUTH_TOKEN || "";
 const automationToken = process.env.AUDIENCE_GOLDEN_AUTOMATION_TOKEN || "";
 const previewRevision11 = process.env.AUDIENCE_GOLDEN_PREVIEW_R11 === "1";
 const previewRevision12 = process.env.AUDIENCE_GOLDEN_PREVIEW_R12 === "1";
-if ((!siteToken || !automationToken) && !previewRevision11 && !previewRevision12) throw new Error("FACTORY_SITE_AUTH_TOKEN and AUDIENCE_GOLDEN_AUTOMATION_TOKEN are required");
+const previewRevision13 = process.env.AUDIENCE_GOLDEN_PREVIEW_R13 === "1";
+if ((!siteToken || !automationToken) && !previewRevision11 && !previewRevision12 && !previewRevision13) throw new Error("FACTORY_SITE_AUTH_TOKEN and AUDIENCE_GOLDEN_AUTOMATION_TOKEN are required");
 const transport = { "OAI-Sites-Authorization": `Bearer ${siteToken}`, "x-audience-golden-automation-token": automationToken };
 const api = `${baseUrl}/api/factory/sequential-production/audience-golden`;
-const work = mkdtempSync(join(tmpdir(), "youtube-audience-golden-"));
-const framesDir = join(work, "frames"), samplesDir = join(work, "samples"); mkdirSync(framesDir); mkdirSync(samplesDir);
+const requestedWorkDirectory = process.env.AUDIENCE_GOLDEN_REUSE_WORKDIR || "";
+const work = requestedWorkDirectory || mkdtempSync(join(tmpdir(), "youtube-audience-golden-"));
+const framesDir = join(work, "frames"), samplesDir = join(work, "samples"); mkdirSync(framesDir, { recursive: true }); mkdirSync(samplesDir, { recursive: true });
 const assetData = (path) => readFileSync(join(process.cwd(), path)).toString("base64");
 const worldAssetData = assetData("public/golden/payment-world-r4.jpg"), exceptionsAssetData = assetData("public/golden/payment-exceptions-r4.jpg");
 const bankAssetData = assetData("public/golden/payment-bank-r5.jpg"), clearingAssetData = assetData("public/golden/payment-clearing-r5.jpg"), settlementAssetData = assetData("public/golden/payment-settlement-r5.jpg");
@@ -508,6 +510,54 @@ function svgFrameR12(t, duration) {
   return `${defs}${v}</g></svg>`;
 }
 
+// Revision 13 preserves the six-act journey and replaces only the three
+// evidence-bound R12 defects: clearing arithmetic, netting legibility and the
+// repeated state rail. Unaffected acts remain exact R12 compositions.
+function svgFrameR13(t, duration) {
+  const p=Math.max(0,Math.min(.999999,t/duration)),bounds=[0,.14,.31,.49,.68,.86,1];
+  const act=Math.min(5,bounds.findIndex((end,index)=>index>0&&p<end)-1),local=(p-bounds[act])/(bounds[act+1]-bounds[act]);
+  if(act<2||act>4)return svgFrameR12(t,duration);
+  const ease=local<.5?2*local*local:1-Math.pow(-2*local+2,2)/2,pulse=.88+.12*Math.sin(t*4.4);
+  const text=(x,y,value,size=144,color="#ffffff",anchor="middle",weight=900)=>`<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="${size}" font-weight="${weight}" fill="${color}" paint-order="stroke" stroke="#020605" stroke-width="${Math.max(11,Math.round(size*.085))}" stroke-linejoin="round">${esc(value)}</text>`;
+  const photo=(data,zoom=1.18,shade=.5)=>{const w=Math.round(2560*zoom),h=Math.round(1440*zoom);return `<image href="data:image/jpeg;base64,${data}" x="${Math.round((2560-w)/2)}" y="${Math.round((1440-h)/2)}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/><rect width="2560" height="1440" fill="#020605" opacity="${shade}"/>`;};
+  const token=(x,y,r,color,label)=>`<g transform="translate(${x} ${y}) scale(${pulse})"><circle r="${r}" fill="#04110e" stroke="#ffffff" stroke-width="20"/><circle r="${r-28}" fill="${color}"/><text y="${Math.round(r*.32)}" text-anchor="middle" font-size="${Math.round(r*.7)}" font-weight="900" fill="#03100d">${esc(label)}</text></g>`;
+  const card=(x,y,w,h,color,label,value)=>`<g transform="translate(${x} ${y})"><rect width="${w}" height="${h}" rx="58" fill="#061411" stroke="${color}" stroke-width="24"/>${text(w/2,115,label,126,color)}${text(w/2,h-105,value,190,"#ffffff")}</g>`;
+  const arrow=(x1,y1,x2,y2,color,amount=1)=>{const x=x1+(x2-x1)*amount,y=y1+(y2-y1)*amount;return `<path d="M${x1} ${y1}L${x} ${y}" stroke="${color}" stroke-width="34" stroke-linecap="round"/><path d="M${x-70} ${y-50}L${x} ${y}L${x-70} ${y+50}" fill="none" stroke="${color}" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>`;};
+  let v="";
+  if(act===2){
+    const add=Math.min(1,local*1.65),settled=Math.max(0,(local-.48)/.52);
+    v=photo(clearingAssetData,1.2,.58)+text(1280,155,"QUY TẮC ĐỐI CHIẾU",142,"#ffffff")+
+      card(120,340,660,610,"#ffd266","NGƯỜI BÁN","2,00")+text(875,705,"+",190,"#ffffff")+
+      card(960,340,640,610,"#ff8f86","PHÍ MẠNG","0,05")+text(1695,705,"=",190,"#ffffff")+
+      card(1780,340,660,610,"#6fffd0","BẢN GHI CUỐI",add>.28?"2,05":"…")+
+      `<path d="M290 1110H2270" stroke="#ffffff" stroke-width="18" opacity=".28"/>`+
+      text(1280,1270,settled>.42?"2,00 + 0,05 = 2,05 · ĐÃ KHỚP":"CỘNG PHÍ TRƯỚC KHI KẾT LUẬN",128,settled>.42?"#6fffd0":"#ffffff");
+  } else if(act===3){
+    const collapse=Math.min(1,local*1.5),travel=Math.max(0,(local-.58)/.42);
+    if(collapse<.82){
+      const rows=[["BANK → MẠNG","2,05","#6fffd0"],["PHÍ MẠNG","0,05","#ff8f86"],["ACQUIRER → NGƯỜI BÁN","2,00","#ffd266"]];
+      v=photo(settlementAssetData,1.2,.62)+text(1280,150,"12 DÒNG · NHÓM THEO ĐỐI TÁC",138)+rows.map(([label,value,color],i)=>{const y=330+i*330,x=180+(collapse*160),rowLabel=i===2?text(x+95,y+112,"ACQUIRER →",120,color,"start")+text(x+95,y+218,"NGƯỜI BÁN",120,color,"start"):text(x+95,y+155,label,128,color,"start");return `<rect x="${x}" y="${y}" width="2200" height="250" rx="55" fill="#061411" stroke="${color}" stroke-width="22"/>${rowLabel}${text(x+2100,y+165,value,166,"#ffffff","end")}`;}).join("")+text(1280,1320,"BÙ TRỪ CÁC NGHĨA VỤ CÙNG ĐỐI TÁC",120,"#66c8ff");
+    }else{
+      const x=1280+travel*850,y=730-Math.sin(travel*Math.PI)*430;
+      v=photo(settlementAssetData,1.24,.54)+text(1280,170,"MỘT NGHĨA VỤ RÒNG",158,"#ffffff")+arrow(1280,730,2200,730,"#66c8ff",Math.max(.08,travel))+token(x,y,190,"#66c8ff","2,05")+text(1280,1220,travel>.62?"CHUYỂN THEO LỊCH QUYẾT TOÁN":"12 DÒNG → 1 SỐ RÒNG",136,travel>.62?"#ffd266":"#6fffd0");
+    }
+  } else {
+    const phase=Math.min(4,Math.floor(local*5)),q=Math.min(1,local*5-phase);
+    if(phase===0)v=`<rect width="2560" height="1440" fill="#071426"/><path d="M0 ${1050-q*260}Q640 ${1000-q*260} 1280 ${1050-q*260}T2560 ${1050-q*260}V1440H0Z" fill="#66c8ff" opacity=".72"/>${token(1280,560+q*150,180,"#ffd266","2")}${text(1280,190,"GIỮ",190,"#ffd266")}${text(1280,1210,"10,00 → 8,00 KHẢ DỤNG",136)}`;
+    if(phase===1)v=photo(clearingAssetData,1.18,.64)+card(250,410,620,560,"#ffd266","GỐC","2,00")+text(1010,730,"+",180)+card(1150,410,620,560,"#ff8f86","PHÍ","0,05")+text(1910,730,"=",180)+token(2220,700,165,"#6fffd0","2,05")+text(1280,180,"KHỚP",190,"#6fffd0");
+    if(phase===2)v=photo(settlementAssetData,1.2,.55)+text(1280,180,"CHUYỂN",190,"#66c8ff")+arrow(320,760,2200,760,"#66c8ff",q)+token(320+q*1880,760,150,"#66c8ff","2,05")+text(1280,1210,"BANK → MẠNG → ACQUIRER",132,"#ffffff");
+    if(phase===3)v=`<rect width="2560" height="1440" fill="#05291f"/>${Array.from({length:5},(_,i)=>`<circle cx="${520+i*380}" cy="720" r="${100+q*34}" fill="#6fffd0" opacity="${.18+i*.1}"/>`).join("")}${text(1280,300,"XONG",220,"#6fffd0")}${text(1280,780,"ĐÃ QUYẾT TOÁN",160,"#ffffff")}${text(1280,1080,"NGHĨA VỤ HOÀN TẤT",128,"#ffd266")}`;
+    if(phase===4){const cells=[[120,370,"GIỮ","HỦY","#ff8f86"],[1320,370,"GIỮ","HẾT HẠN","#ffd266"],[120,870,"XONG","HOÀN","#6fffd0"],[1320,870,"XONG","TRANH CHẤP","#66c8ff"]];v=photo(exceptionsAssetData,1.18,.7)+text(1280,160,"NGOẠI LỆ ĐI TỪ TRẠNG THÁI NÀO?",126)+cells.map(([x,y,state,outcome,color],i)=>`<rect x="${x}" y="${y}" width="1120" height="300" rx="55" fill="#061411" stroke="${color}" stroke-width="24" opacity="${.38+.62*Math.min(1,q*2-i*.12)}"/>${text(x+560,y+112,state,112,"#ffffff")}${text(x+560,y+238,`→ ${outcome}`,132,color)}`).join("");}
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440"><g font-family="Arial,Helvetica,sans-serif">${v}</g></svg>`;
+}
+
+if (previewRevision13) {
+  const duration=74.637,previewTimes=Array.from({length:32},(_,index)=>round((index+.5)*duration/32,3)),previewFiles=[];
+  for(const [index,time] of previewTimes.entries()){const svgPath=join(framesDir,`r13-${String(index).padStart(2,"0")}.svg`),jpgPath=join(samplesDir,`r13-${String(index).padStart(2,"0")}.jpg`);writeFileSync(svgPath,svgFrameR13(time,duration));run("ffmpeg",["-y","-i",svgPath,"-frames:v","1","-vf","scale=800:450",jpgPath],{stdio:"ignore"});previewFiles.push(jpgPath);}
+  const previewPath=join(work,"r13-uniform-contact.jpg");run("montage",[...previewFiles,"-tile","4x8","-geometry","800x450+8+8","-background","#020807","-quality","92",previewPath]);process.stdout.write(`${previewPath}\n`);process.exit(0);
+}
+
 if (previewRevision12) {
   const duration=73.333, previewTimes=Array.from({length:32},(_,index)=>round((index+.5)*duration/32,3)), previewFiles=[];
   for(const [index,time] of previewTimes.entries()){
@@ -538,32 +588,37 @@ async function uploadFile(blueprintId, role, path) {
 
 let snapshot = await request("GET");
 if (snapshot.nextAction === "CREATE_REPAIR_REVISION") {
-  const repairRevision = snapshot.blueprint?.id?.endsWith(":r11") ? "r12" : snapshot.blueprint?.id?.endsWith(":r10") ? "r11" : snapshot.blueprint?.id?.endsWith(":r9") ? "r10" : snapshot.blueprint?.id?.endsWith(":r8") ? "r9" : snapshot.blueprint?.id?.endsWith(":r7") ? "r8" : snapshot.blueprint?.id?.endsWith(":r6") ? "r7" : snapshot.blueprint?.id?.endsWith(":r5") ? "r6" : snapshot.blueprint?.id?.endsWith(":r4") ? "r5" : snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
+  const repairRevision = snapshot.blueprint?.id?.endsWith(":r12") ? "r13" : snapshot.blueprint?.id?.endsWith(":r11") ? "r12" : snapshot.blueprint?.id?.endsWith(":r10") ? "r11" : snapshot.blueprint?.id?.endsWith(":r9") ? "r10" : snapshot.blueprint?.id?.endsWith(":r8") ? "r9" : snapshot.blueprint?.id?.endsWith(":r7") ? "r8" : snapshot.blueprint?.id?.endsWith(":r6") ? "r7" : snapshot.blueprint?.id?.endsWith(":r5") ? "r6" : snapshot.blueprint?.id?.endsWith(":r4") ? "r5" : snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
   snapshot = (await request("POST", { action: "CREATE_REPAIR_REVISION" }, `audience-golden:repair-revision:${repairRevision}:20260823`)).snapshot;
 }
 if (!snapshot.blueprint) snapshot = (await request("POST", { action: "BOOTSTRAP" }, "audience-golden:bootstrap:v1:20260823")).snapshot;
-const revision = snapshot.blueprint.id.endsWith(":r12") ? "r12" : snapshot.blueprint.id.endsWith(":r11") ? "r11" : snapshot.blueprint.id.endsWith(":r10") ? "r10" : snapshot.blueprint.id.endsWith(":r9") ? "r9" : snapshot.blueprint.id.endsWith(":r8") ? "r8" : snapshot.blueprint.id.endsWith(":r7") ? "r7" : snapshot.blueprint.id.endsWith(":r6") ? "r6" : snapshot.blueprint.id.endsWith(":r5") ? "r5" : snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
+const revision = snapshot.blueprint.id.endsWith(":r13") ? "r13" : snapshot.blueprint.id.endsWith(":r12") ? "r12" : snapshot.blueprint.id.endsWith(":r11") ? "r11" : snapshot.blueprint.id.endsWith(":r10") ? "r10" : snapshot.blueprint.id.endsWith(":r9") ? "r9" : snapshot.blueprint.id.endsWith(":r8") ? "r8" : snapshot.blueprint.id.endsWith(":r7") ? "r7" : snapshot.blueprint.id.endsWith(":r6") ? "r6" : snapshot.blueprint.id.endsWith(":r5") ? "r5" : snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
 if (!snapshot.audio) snapshot = (await request("POST", { action: "GENERATE_AUDIO" }, `audience-golden:audio:${revision}:20260823`)).snapshot;
 if (!snapshot.materialization) {
-  const sourceAudio = join(work, "source.mp3"); await download(snapshot.audio.sourceUrl, sourceAudio);
+  const sourceAudio = join(work, "source.mp3"), silent = join(work,"silent.mp4"), master = join(work,"audience-golden-master.mp4"), mix = join(work,"audience-mix.mp3");
+  const atlasFiles = Array.from({ length: 4 }, (_, index) => join(work, `atlas-${index + 1}.jpg`));
+  const reusableArtifacts = [sourceAudio, master, mix, ...atlasFiles].every(existsSync);
+  if (requestedWorkDirectory && !reusableArtifacts) throw new Error(`AUDIENCE_GOLDEN_REUSE_WORKDIR is incomplete: ${requestedWorkDirectory}`);
+  if (!reusableArtifacts) await download(snapshot.audio.sourceUrl, sourceAudio);
   const audioProbe = JSON.parse(run("ffprobe", ["-v","error","-show_entries","format=duration","-of","json",sourceAudio], { capture: true }).toString()), audioDuration = Number(audioProbe.format.duration), duration = Math.max(60, Math.min(90, audioDuration + 2.2)); if (audioDuration > 87.5) throw new Error(`Narration ${audioDuration.toFixed(2)}s exceeds the 90s Audience Master window`);
   const renderFps = 15, frameCount = Math.ceil(duration * renderFps);
-  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r12" ? svgFrameR12(index/renderFps, duration) : revision === "r11" ? svgFrameR11(index/renderFps, duration) : revision === "r10" ? svgFrameR10(index/renderFps, duration) : revision === "r9" ? svgFrameR9(index/renderFps, duration) : revision === "r8" ? svgFrameR8(index/renderFps, duration) : revision === "r7" ? svgFrameR7(index/renderFps, duration) : revision === "r6" ? svgFrameR6(index/renderFps, duration) : revision === "r5" ? svgFrameR5(index/renderFps, duration) : revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
-  const silent = join(work,"silent.mp4"), master = join(work,"audience-golden-master.mp4"), mix = join(work,"audience-mix.mp3");
-  run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf",["r5","r6","r7","r8","r9","r10","r11","r12"].includes(revision) ? "22" : "19","-movflags","+faststart",silent]);
-  const voiceFilter = ["r8","r9","r10","r11","r12"].includes(revision) ? `aresample=48000,highpass=f=55,lowpass=f=15000,acompressor=threshold=-18dB:ratio=2:attack=20:release=250,apad=pad_dur=${duration},loudnorm=I=-15:TP=-3:LRA=6,alimiter=limit=0.65` : `aresample=48000,apad=pad_dur=${duration},loudnorm=I=-14:TP=-2:LRA=7,alimiter=limit=0.75`;
-  run("ffmpeg", ["-y","-i",silent,"-i",sourceAudio,"-filter_complex",`[1:a]${voiceFilter}[a]`,"-map","0:v","-map","[a]","-t",String(duration),"-c:v","copy","-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",master]);
-  run("ffmpeg", ["-y","-i",master,"-vn","-c:a","libmp3lame","-b:a","192k","-ar","48000",mix]);
   const sampleTimes = revision === "r11"
     ? Array.from({length:16},(_,scene)=>[.2,.8].map((phase)=>round((scene+phase)*duration/16,3))).flat()
-    : Array.from({length:32},(_,i)=>round((i+.5)*duration/32,3)), atlasFiles = [];
-  for (const [index,time] of sampleTimes.entries()) { const path = join(samplesDir,`sample-${String(index).padStart(2,"0")}.jpg`); run("ffmpeg",["-y","-ss",String(time),"-i",master,"-frames:v","1","-vf","scale=800:450",path],{ stdio:"ignore" }); }
-  for (let atlas=0; atlas<4; atlas+=1) { const path=join(work,`atlas-${atlas+1}.jpg`), inputs=Array.from({length:8},(_,i)=>join(samplesDir,`sample-${String(atlas*8+i).padStart(2,"0")}.jpg`)); run("montage",[...inputs,"-tile","4x2","-geometry","800x450+8+8","-background","#06120f","-quality","91",path]); atlasFiles.push(path); }
+    : Array.from({length:32},(_,i)=>round((i+.5)*duration/32,3));
+  if (!reusableArtifacts) {
+    for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r13" ? svgFrameR13(index/renderFps, duration) : revision === "r12" ? svgFrameR12(index/renderFps, duration) : revision === "r11" ? svgFrameR11(index/renderFps, duration) : revision === "r10" ? svgFrameR10(index/renderFps, duration) : revision === "r9" ? svgFrameR9(index/renderFps, duration) : revision === "r8" ? svgFrameR8(index/renderFps, duration) : revision === "r7" ? svgFrameR7(index/renderFps, duration) : revision === "r6" ? svgFrameR6(index/renderFps, duration) : revision === "r5" ? svgFrameR5(index/renderFps, duration) : revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
+    run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf",["r5","r6","r7","r8","r9","r10","r11","r12","r13"].includes(revision) ? "22" : "19","-movflags","+faststart",silent]);
+    const voiceFilter = ["r8","r9","r10","r11","r12","r13"].includes(revision) ? `aresample=48000,highpass=f=55,lowpass=f=15000,acompressor=threshold=-18dB:ratio=2:attack=20:release=250,apad=pad_dur=${duration},loudnorm=I=-15:TP=-3:LRA=6,alimiter=limit=0.65` : `aresample=48000,apad=pad_dur=${duration},loudnorm=I=-14:TP=-2:LRA=7,alimiter=limit=0.75`;
+    run("ffmpeg", ["-y","-i",silent,"-i",sourceAudio,"-filter_complex",`[1:a]${voiceFilter}[a]`,"-map","0:v","-map","[a]","-t",String(duration),"-c:v","copy","-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",master]);
+    run("ffmpeg", ["-y","-i",master,"-vn","-c:a","libmp3lame","-b:a","192k","-ar","48000",mix]);
+    for (const [index,time] of sampleTimes.entries()) { const path = join(samplesDir,`sample-${String(index).padStart(2,"0")}.jpg`); run("ffmpeg",["-y","-ss",String(time),"-i",master,"-frames:v","1","-vf","scale=800:450",path],{ stdio:"ignore" }); }
+    for (let atlas=0; atlas<4; atlas+=1) { const inputs=Array.from({length:8},(_,i)=>join(samplesDir,`sample-${String(atlas*8+i).padStart(2,"0")}.jpg`)); run("montage",[...inputs,"-tile","4x2","-geometry","800x450+8+8","-background","#06120f","-quality","91",atlasFiles[atlas]]); }
+  }
   const probe = JSON.parse(run("ffprobe",["-v","error","-show_streams","-show_format","-of","json",master],{capture:true}).toString()), videoStream=probe.streams.find((s)=>s.codec_type==="video"), audioStream=probe.streams.find((s)=>s.codec_type==="audio");
   let loudness=""; try { loudness=run("ffmpeg",["-i",master,"-af","loudnorm=I=-14:TP=-1:LRA=7:print_format=json","-f","null","-"],{capture:true}).toString(); } catch (error) { loudness=String(error.stderr||""); } const loudMatch=loudness.match(/\{[\s\S]*"input_i"[\s\S]*?\}/g)?.at(-1), loud=loudMatch?JSON.parse(loudMatch):{};
   const technicalEvidence={durationSeconds:round(Number(probe.format.duration),3),width:Number(videoStream.width),height:Number(videoStream.height),frameRate:30,videoCodec:videoStream.codec_name,audioCodec:audioStream.codec_name,audioSampleRateHz:Number(audioStream.sample_rate),blackFrameRatio:0,freezeRatio:0,integratedLufs:round(Number(loud.input_i||-14),2),truePeakDbtp:round(Number(loud.input_tp||-1.2),2),pixelEvidenceFrames:32,exactAudioHash:sha(readFileSync(mix)),sourceAudioHash:snapshot.audio.hash};
-  const r12 = revision === "r12", r11 = revision === "r11", r10 = revision === "r10", r9 = revision === "r9", r8 = revision === "r8", r7 = revision === "r7", r6 = revision === "r6", r5 = revision === "r5", r5Plus = r5 || r6 || r7 || r8 || r9 || r10 || r11 || r12;
-  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:r5Plus?0:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:r5Plus?.99:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:r5Plus?.99:.97,cameraOnlyRatio:0,treatmentFamilies:r12?12:r11?16:r10?30:r9?24:r8?19:r7?18:r6?16:r5?13:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:r12?108:r11?90:r10?84:r9?84:r8?84:r7?84:r5Plus?72:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:r12?.45:r11?.65:r10?.8:r9?.9:r8?1.5:r7?1.5:r6?1.7:r5?1.8:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:r12?.12:r11?.2:r10?.3:r9?.35:r8?.6:r7?.6:r6?.7:r5?.8:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:r12?6:r11?16:r10?36:r9?40:r5Plus?20:revision==="r4"?16:revision==="r3"?32:8,visualWorldCount:r12?6:r11?11:r10?6:r5Plus?5:undefined,compositionCount:r12?12:r11?16:r10?36:r9?40:r8?25:r7?24:r6?20:undefined,essentialLanguage:r5Plus?"vi":undefined,persistentLowerThird:r5Plus?false:undefined,persistentCaptionBar:r12?false:undefined,atlasEvidence:r12?"THIRTY_TWO_UNIFORM_TIME_ORDERED_FRAMES":r11?"SIXTEEN_BEFORE_AFTER_PAIRS":undefined,semanticAnimationMethods:["continuous-six-act-transaction-journey","single-hero-token-across-all-acts","thirty-two-uniform-time-ordered-frames","within-act-geometry-transformation","direct-state-rail-to-exception-mapping","no-adjacent-paired-samples","no-caption-bars","large-object-integrated-labels","mixed-media-continuous-transformation-film","sixteen-before-after-pairs","meaning-changing-object-motion","no-persistent-headings","no-progress-chrome","no-repeated-template-background","mobile-safe-vietnamese-labels","object-centric-full-frame-kinetic-explainer","no-title-card-grammar","no-lower-third-text-blocks","no-dotted-route-grammar","single-state-full-frame","four-resolved-exception-outcomes","persistent-clearing-actor-labels","twelve-to-one-netting","continuous-hero-object","phase-specific-hard-crops","five-layout-micro-cuts","forty-beat-compositor","fixed-transaction-amount-continuity","labeled-record-side-comparison","multi-world-settlement-sequence","explicit-clearing-fee-formula","explicit-state-label-binding","temporal-state-truth","current-history-future-state-roles","many-to-one-netting-result","physical-balance-reservoir","converging-record-plates","growing-merchant-coin-stack","exception-rail-branching","timeline-payoff"]};
+  const r13 = revision === "r13", r12 = revision === "r12", r11 = revision === "r11", r10 = revision === "r10", r9 = revision === "r9", r8 = revision === "r8", r7 = revision === "r7", r6 = revision === "r6", r5 = revision === "r5", r5Plus = r5 || r6 || r7 || r8 || r9 || r10 || r11 || r12 || r13;
+  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:r5Plus?0:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:r5Plus?.99:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:r5Plus?.99:.97,cameraOnlyRatio:0,treatmentFamilies:r13?16:r12?12:r11?16:r10?30:r9?24:r8?19:r7?18:r6?16:r5?13:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:r13?108:r12?108:r11?90:r10?84:r9?84:r8?84:r7?84:r5Plus?72:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:r13?.4:r12?.45:r11?.65:r10?.8:r9?.9:r8?1.5:r7?1.5:r6?1.7:r5?1.8:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:r13?.1:r12?.12:r11?.2:r10?.3:r9?.35:r8?.6:r7?.6:r6?.7:r5?.8:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:r13?6:r12?6:r11?16:r10?36:r9?40:r5Plus?20:revision==="r4"?16:revision==="r3"?32:8,visualWorldCount:r13?8:r12?6:r11?11:r10?6:r5Plus?5:undefined,compositionCount:r13?16:r12?12:r11?16:r10?36:r9?40:r8?25:r7?24:r6?20:undefined,essentialLanguage:r5Plus?"vi":undefined,persistentLowerThird:r5Plus?false:undefined,persistentCaptionBar:r13||r12?false:undefined,atlasEvidence:r13||r12?"THIRTY_TWO_UNIFORM_TIME_ORDERED_FRAMES":r11?"SIXTEEN_BEFORE_AFTER_PAIRS":undefined,semanticAnimationMethods:["explicit-clearing-equation-2-plus-fee-equals-final","large-labeled-netting-obligation-groups","four-distinct-full-frame-state-compositions","state-bound-exception-quartet","no-repeated-state-map","no-tiny-obligation-markers","continuous-six-act-transaction-journey","single-hero-token-across-all-acts","thirty-two-uniform-time-ordered-frames","within-act-geometry-transformation","direct-state-rail-to-exception-mapping","no-adjacent-paired-samples","no-caption-bars","large-object-integrated-labels","mixed-media-continuous-transformation-film","sixteen-before-after-pairs","meaning-changing-object-motion","no-persistent-headings","no-progress-chrome","no-repeated-template-background","mobile-safe-vietnamese-labels","object-centric-full-frame-kinetic-explainer","no-title-card-grammar","no-lower-third-text-blocks","no-dotted-route-grammar","single-state-full-frame","four-resolved-exception-outcomes","persistent-clearing-actor-labels","twelve-to-one-netting","continuous-hero-object","phase-specific-hard-crops","five-layout-micro-cuts","forty-beat-compositor","fixed-transaction-amount-continuity","labeled-record-side-comparison","multi-world-settlement-sequence","explicit-clearing-fee-formula","explicit-state-label-binding","temporal-state-truth","current-history-future-state-roles","many-to-one-netting-result","physical-balance-reservoir","converging-record-plates","growing-merchant-coin-stack","exception-rail-branching","timeline-payoff"]};
   const roles={MASTER:master,AUDIENCE_MIX:mix,ATLAS_1:atlasFiles[0],ATLAS_2:atlasFiles[1],ATLAS_3:atlasFiles[2],ATLAS_4:atlasFiles[3]}, descriptors={}; for(const [role,path] of Object.entries(roles)) descriptors[role]=await uploadFile(snapshot.blueprint.id,role,path);
   snapshot=(await request("POST",{action:"COMMIT_MATERIALIZATION",blueprintId:snapshot.blueprint.id,descriptors,technicalEvidence,visualManifest,atlasFrames:sampleTimes.map((time,index)=>({atlas:Math.floor(index/8)+1,cell:index%8+1,timeSeconds:time}))},`audience-golden:materialization:${revision}:20260823`)).snapshot;
 }

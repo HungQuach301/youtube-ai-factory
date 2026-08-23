@@ -2,21 +2,21 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
-## Audience Golden Sequence — R11 rejected visually, R12 six-act repair in source verification
+## Audience Golden Sequence — R12 rejected visually, R13 evidence-bound repair in source verification
 
 ```text
 PRODUCTION_CHECKPOINT = SITES_V492
-R11_MASTER_SHA256 = 55995b0c1ef676ebdf51ab9a10f5939361d7565a0a625a295d09c6b7b448c9a6
-R11_FACTORY_VISUAL = FAIL_87__P0_0__P1_1__P2_2
-R11_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_1
-R12_SOURCE = READY__MIGRATION_0096__CONTINUOUS_SIX_ACT_TRANSACTION_JOURNEY
-R12_PIXEL_PREVIEW = PASS__32_UNIFORM_TIME_ORDERED_FRAMES__NO_CRITICAL_OVERFLOW
+R12_MASTER_SHA256 = a6f5d16acb3974bd356248c929456c9fc3b5d7b69beb0abe287fae71686cd5bf
+R12_FACTORY_VISUAL = FAIL_87__P0_0__P1_1__P2_2
+R12_FACTORY_AUDIO = PASS_94__P0_0__P1_0__P2_0
+R13_SOURCE = READY__MIGRATION_0097__EVIDENCE_DRIVEN_SIX_ACT_CONTINUOUS_FILM
+R13_PIXEL_PREVIEW = PASS__32_UNIFORM_TIME_ORDERED_FRAMES__CLEARING_EQUATION_NETTING_STATE_REPAIRS
 SOURCE_VERIFICATION = 199_OF_199_PASS__VERIFIED_BUILD_PASS__DOCS_SSOT_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0096__EXECUTE_R12__LET_FACTORY_QA_DECIDE
+NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0097__EXECUTE_R13__LET_FACTORY_QA_DECIDE
 ```
 
-Sites v492 materialized R11 as a deterministic/rights PASS 73.333-second 2560×1440 H.264/AAC master of 13,673,208 bytes with exact hash `55995b0c…`. Exact-audio QA passes 95 with no P0/P1. Visual QA fails 87 with one systemic P1: sixteen icon/caption sequences and near-identical adjacent pairs still read as slide-deck pacing despite richer media. Two P2 findings identify an unresolved mapping between the four-state rail and exception outcomes plus small obligation/exception labels. Migration `0096` permits one append-only R12 only from that exact visual FAIL plus exact-audio PASS. R12 replaces sixteen cards with one six-act journey, one persistent transaction token, within-act geometry transformation, direct state-to-exception mapping, no caption/progress bars and 32 uniform chronological evidence frames. The corrected source contact sheet has no critical overflow; it is not Production evidence. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
+Sites v493 materialized R12 as a deterministic/rights PASS 74.637-second 2560×1440 H.264/AAC master of 27,009,430 bytes with exact hash `a6f5d16a…`. Exact-audio QA passes 94 with no findings. Visual QA fails 87 with one P1: merchant `2,00` and network `2,05` resolve to `ĐÃ KHỚP 2,05` without an always-visible fee equation. Two P2 findings identify unreadably small twelve-obligation markers and a repeated state-map composition held for about thirteen seconds. Migration `0097` permits one append-only R13 only from that exact visual FAIL plus exact-audio PASS. R13 preserves the six-act journey, makes `2,00 + 0,05 = 2,05` explicit, replaces tiny markers with three large labeled obligation groups, and replaces the repeated rail with four full-frame states plus a 2×2 exception quartet. The 32-frame source preview passes inspection but is not Production evidence. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 
