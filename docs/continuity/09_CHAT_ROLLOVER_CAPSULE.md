@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_CLEAN_AV_MASTER_GATE__SOURCE_ACCEPTED__PRODUCTION_PENDING`
+**Current source classification:** `WP7_CLEAN_AV_MASTER__PRODUCTION_MATERIALIZED__BROWSER_QA_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -21,7 +21,7 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 
 ## Current handoff truth
 
-- Migration `0081`, `CLEAN_AV_MASTER_MATERIALIZATION_V1`, the exact-action runtime, FFmpeg executor and preview-only Browser QA workbench are source-accepted. They permit exactly one `cfp-v1-13` master from the exact eligible clean-audio parent, with two R2-verified VP9/Opus renditions, measured full-decode/checksum/motion/black/freeze/sync evidence, one bounded independent Factory visual review and one independent Browser receipt. Both likely-clean outcomes may only open an owner task; they cannot complete it or open dataset, assurance, Golden r10, Stage 11, release or publication. Next deploy, execute one master and stop at owner ground truth. V2 is untouched.
+- Sites v469 from source `2e6631171c5f798d981fe7a33e0290622aeaedb3` records the sole `cfp-v1-13` clean A/V master. The archival/distribution/contact-sheet hashes are sealed; an independent production download reproduces distribution SHA-256 `db65f24a28252757901ab5c16fac8711dd6f4ca8e83bd5963ebb6e80c666781c`. Both renditions decode to 1,072 VP9/Opus frames at 30 fps/48 kHz; black ratio is zero, freeze max 0.467 seconds, motion coverage 100%, and A/V start/end deltas are 7/−41 ms. The sole Factory request is `LIKELY_CLEAN` 95/100, P0=0, P1=0, spend USD 0.032484. Cloud Browser could not reach the healthy agent preview, so Browser QA is `PENDING`, no receipt was fabricated and the owner task remains unopened. Next complete exact-master Browser playback QA, then stop at the non-delegable owner decision. Dataset, assurance, Golden r10, Stage 11, release and publication remain locked. V2 is untouched.
 
 - Sites v463 from source `0de985fd87b6e4d5954bfefe3a5e947292250c7c` activated migration `0080` and `CONTROLLED_DEFECT_DERIVATION_V1`, then used the exact-action-only operator credential to record the sole deterministic `RIGHTS_LINEAGE_MISSING` P0 fixture. The clean parent and both manifests passed exact R2 read-back; the mutated business payload lacks only `rightsReceiptId`; mutation isolation and oracle both passed. WP7 now has 37 candidates, three owner-confirmed references, one clean control, one controlled injection and 1/5 P0 coverage. Readiness remains `INSUFFICIENT_GROUND_TRUTH`; provider/spend, Worker errors and dataset/assurance/release authority are zero. Next design the `cfp-v1-13` clean audio-visual master materialization gate. V2 is untouched.
 

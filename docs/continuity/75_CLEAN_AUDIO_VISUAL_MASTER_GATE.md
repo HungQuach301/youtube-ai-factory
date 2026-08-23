@@ -26,9 +26,15 @@
 
 Only when both independent receipts are likely-clean may the system open one `CLEAN_AV_OWNER_GROUND_TRUTH_V1` task. The Factory must never complete that task or claim the owner watched or heard the master.
 
-## Source acceptance
+## Production execution
 
-Migration `0081`, the runtime, exact-action API credentials, deterministic FFmpeg executor, preview-only Browser workbench and regression coverage are implemented. Targeted evaluation tests pass 36/36 and the verified build passes every commercial/sequential contract and the 310,000-byte client budget. Production deployment and runtime execution remain the next actions at this source checkpoint.
+Sites v465–v469 deployed migration `0081`, the runtime, three exact-action credentials, deterministic FFmpeg executor, staged-chunk transport and the preview-only Browser workbench. The first technical render stopped before upload because decoded motion coverage was only 43.66% and maximum freeze was 10 seconds. The corrected frame-evaluated compositor then passed with 100% decoded motion coverage. Two whole-request upload attempts were rejected with HTTP 413 before API receipt or master mutation; v468 replaced that transport with independently hashed, R2-read-back chunks and an atomic exact-hash assembly. The first chunk commit correctly failed before receipt because the JSON boundary discarded already-parsed objects; v469 preserves parsed objects and adds a regression assertion.
+
+The production run then recorded the sole materialization receipt `clean-av-master-materialization-receipt-5a0c0db2-a7e0-4fcd-b7d6-5591e7e3c602`. The archival hash is `84abd75c0848aa55b68a595f40ccd7618bb5efca4e0400a5fa18f800a3dca469`; the distribution hash is `db65f24a28252757901ab5c16fac8711dd6f4ca8e83bd5963ebb6e80c666781c`; the contact-sheet hash is `ed0c47b9e6b62edf241b04a9e5c522c1e71b463e1323d5cfd0125bbea785e06d`. An independent production download of the 612,485-byte distribution rendition reproduced the exact distribution hash.
+
+Both renditions decode to 1,072 frames at 30 fps with VP9 video and 48 kHz Opus audio. Measured audio duration is 35.781 seconds, video duration 35.733 seconds, start delta 7 ms, end delta −41 ms, black-frame ratio zero, maximum freeze 0.467 seconds and decoded motion coverage 100%. Technical QA and source rights are PASS; release eligibility remains false.
+
+The single bounded Factory request recorded `clean-av-factory-qa-receipt-573e211a-28c0-46c1-97d6-57c4b5474998` as `LIKELY_CLEAN`, 95/100, P0=0, P1=0, with actual spend USD 0.032484. The cloud browser could not reach the healthy agent preview and returned `ERR_BLOCKED_BY_CLIENT` for both the scoped path and required preview root. No Browser receipt was manufactured. Browser QA remains `PENDING`, the owner task remains unopened and recent production Worker error logs are empty.
 
 ## Protected downstream scope
 
