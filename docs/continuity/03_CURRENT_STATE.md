@@ -2,6 +2,28 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
+## Clean audio-visual master gate — source accepted, production pending
+
+```text
+MIGRATION_0081 = SOURCE_ACCEPTED__PRODUCTION_PENDING
+POLICY = CLEAN_AV_MASTER_MATERIALIZATION_V1
+TARGET_BLUEPRINT = CFP_V1_13__CLEAN_AUDIO_VISUAL_MASTER_NEGATIVE
+SOURCE_AUDIO = ELIGIBLE_CLEAN_CONTROL_REFERENCE__EXACT_R2_READBACK
+MAXIMUM_MASTERS = 1
+ARCHIVAL_DISTRIBUTION = 1920X1080__1280X720
+CODECS_RATE = VP9_OPUS__30FPS__48KHZ
+MAXIMUM_AV_END_DELTA_MS = 80
+FACTORY_QA = ONE_GPT_5_6_REQUEST__USD_0_50_MAX
+BROWSER_QA = EXACT_MASTER__98_PERCENT_PLAYBACK_MINIMUM
+OWNER_GROUND_TRUTH = SEPARATE_NON_DELEGABLE_TASK
+DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
+TARGETED_REGRESSION = 36_OF_36_PASS
+VERIFIED_BUILD = PASS
+NEXT_PROTECTED_ACTION = DEPLOY_0081_AND_MATERIALIZE_EXACTLY_ONE_MASTER
+```
+
+Migration `0081`, runtime/API gates, the deterministic FFmpeg executor and the preview-only Browser QA workbench are source-accepted. Technical, Factory, Browser and owner evidence remain separate; no task can manufacture the owner's perception. Document 75 and ADR-105 are authoritative. V2 is untouched.
+
 ## Controlled defect derivation gate — 2026-08-23
 
 ```text

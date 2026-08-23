@@ -100,6 +100,7 @@ When facts conflict, use this order:
 | Clean-audio owner ground-truth gate | [`continuity/72_CLEAN_AUDIO_OWNER_GROUND_TRUTH_GATE.md`](continuity/72_CLEAN_AUDIO_OWNER_GROUND_TRUTH_GATE.md) |
 | Clean-audio control eligibility gate | [`continuity/73_CLEAN_AUDIO_CONTROL_ELIGIBILITY_GATE.md`](continuity/73_CLEAN_AUDIO_CONTROL_ELIGIBILITY_GATE.md) |
 | Controlled defect derivation gate | [`continuity/74_CONTROLLED_DEFECT_DERIVATION_GATE.md`](continuity/74_CONTROLLED_DEFECT_DERIVATION_GATE.md) |
+| Clean audio-visual master gate | [`continuity/75_CLEAN_AUDIO_VISUAL_MASTER_GATE.md`](continuity/75_CLEAN_AUDIO_VISUAL_MASTER_GATE.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

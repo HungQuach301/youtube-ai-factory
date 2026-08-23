@@ -47,6 +47,7 @@ import { COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION, COMMERCIAL_CLEAN_AUDIO_REGENER
 import { CLEAN_AUDIO_OWNER_DEFECT_KEYS, CLEAN_AUDIO_OWNER_GROUND_TRUTH_VERSION } from "../lib/clean-audio-owner-ground-truth.ts";
 import { CLEAN_AUDIO_CONTROL_ELIGIBILITY_VERSION, evaluateCleanAudioControlEligibilityAuthorized } from "../lib/clean-audio-control-eligibility.ts";
 import { CONTROLLED_DEFECT_DERIVATION_VERSION, deriveRightsLineageMissingControlAuthorized } from "../lib/controlled-defect-derivation.ts";
+import { CLEAN_AV_MASTER_MATERIALIZATION_VERSION, materializeCleanAvMasterAuthorized, recordCleanAvBrowserQaAuthorized } from "../lib/clean-av-master.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -1007,6 +1008,40 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
   assert.match(route, /action === "DERIVE_RIGHTS_LINEAGE_MISSING_CONTROL"/);
   assert.match(route, /allowAutomation && allowControlledDefectAutomation/);
   assert.doesNotMatch(`${derivativeImplementation}\n${derivativeMigration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|api\.openai\.com|elevenlabs\.io/);
+
+  assert.equal(CLEAN_AV_MASTER_MATERIALIZATION_VERSION, "CLEAN_AV_MASTER_MATERIALIZATION_V1");
+  db.exec(read("drizzle/0081_clean_av_master_materialization.sql"));
+  const avTask = db.prepare("SELECT blueprint_id,source_clean_control_receipt_id,source_audio_artifact_id,source_audio_rights_receipt_id,source_audio_hash,source_controlled_defect_receipt_id,task_state FROM v7_evaluation_clean_av_master_tasks").get();
+  assert.equal(avTask.blueprint_id, "cfp-v1-13");
+  assert.equal(avTask.source_audio_artifact_id, "eligible-audio-artifact");
+  assert.equal(avTask.source_audio_rights_receipt_id, "eligible-rights");
+  assert.equal(avTask.source_audio_hash, exactHash);
+  assert.equal(avTask.task_state, "OPEN");
+  const archivalBytes = new Uint8Array(14000).fill(1), distributionBytes = new Uint8Array(12000).fill(2), contactSheetBytes = new Uint8Array(2000).fill(3);
+  const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+  const visualManifest = { schemaVersion: "CLEAN_AV_VISUAL_MANIFEST_V1", sourceAudioHash: exactHash, cueCount: 5, treatmentFamilies: 4, continuousMotion: true, minimumCriticalFontPx: 42 };
+  const technicalEvidence = {
+    schemaVersion: "CLEAN_AV_TECHNICAL_EVIDENCE_V1", scanState: "PASS", blackFrameRatio: 0, freezeMaxSeconds: 0.2, motionCoverageRatio: 1,
+    archival: { width: 1920, height: 1080, frameRate: 30, videoCodec: "vp9", audioCodec: "opus", audioSampleRateHz: 48000, durationSeconds: 35.1, startTimeSeconds: 0, frameCount: 1053 },
+    distribution: { width: 1280, height: 720, frameRate: 30, videoCodec: "vp9", audioCodec: "opus", audioSampleRateHz: 48000, durationSeconds: 35.1, startTimeSeconds: 0, frameCount: 1053 },
+    audioDurationSeconds: 35.08, videoDurationSeconds: 35.1, avStartDeltaMs: 0, avEndDeltaMs: 20,
+  };
+  const materialized = await materializeCleanAvMasterAuthorized({ db: d1, bucket, actor: "operator@example.com", idempotencyKey: "clean-av-master-materialization-test-v1", taskId: `clean-av-master-task:eligible-audio-artifact`, sourceAudioArtifactId: "eligible-audio-artifact", expectedSourceAudioHash: exactHash, visualManifest, technicalEvidence,
+    archival: { bytes: archivalBytes, declaredHash: hash(archivalBytes), contentType: "video/webm" }, distribution: { bytes: distributionBytes, declaredHash: hash(distributionBytes), contentType: "video/webm" }, contactSheet: { bytes: contactSheetBytes, declaredHash: hash(contactSheetBytes), contentType: "image/jpeg" } });
+  assert.equal(materialized.outcome, "RECORDED");
+  assert.deepEqual({ ...db.prepare("SELECT technical_qa_state,rights_state,factory_qa_state,browser_qa_state,owner_ground_truth_state,materialization_state,authority_boundary,dataset_eligible,qualification_eligible,release_eligible FROM v7_evaluation_clean_av_master_materialization_receipts").get() }, {
+    technical_qa_state: "PASS", rights_state: "PASS", factory_qa_state: "PENDING", browser_qa_state: "PENDING", owner_ground_truth_state: "NOT_EVALUATED", materialization_state: "EXACT_LINEAGE_CHECKSUM_SYNC_VERIFIED", authority_boundary: "CLEAN_AV_TECHNICAL_MATERIALIZATION_ONLY", dataset_eligible: 0, qualification_eligible: 0, release_eligible: 0,
+  });
+  const avReceipt = db.prepare("SELECT id,distribution_hash FROM v7_evaluation_clean_av_master_materialization_receipts").get();
+  const browser = await recordCleanAvBrowserQaAuthorized({ db: d1, actor: "operator@example.com", idempotencyKey: "clean-av-browser-qa-test-v1", materializationReceiptId: avReceipt.id, distributionHash: avReceipt.distribution_hash, playbackCoverageRatio: 1, pauseResumeObserved: true, seekObserved: true, endedObserved: true, audioTrackObserved: true, meaningfulMotionObserved: true, mobileLegibilityObserved: true, focusReflowObserved: true, pageErrorCount: 0, decisionState: "LIKELY_CLEAN", observations: ["Full local agent-preview playback completed with visible authored motion and audible narration."] });
+  assert.equal(browser.outcome, "LIKELY_CLEAN");
+  const avImplementation = read("lib/clean-av-master.ts"), avMigration = read("drizzle/0081_clean_av_master_materialization.sql");
+  assert.match(avImplementation, /CLEAN_AV_SOURCE_AUDIO_R2_HASH_MISMATCH/);
+  assert.match(avImplementation, /CLEAN_AV_SYNC_GATE_FAILED/);
+  assert.match(route, /x-clean-av-master-automation-token/);
+  assert.match(route, /x-clean-av-factory-qa-automation-token/);
+  assert.match(route, /x-clean-av-browser-qa-automation-token/);
+  assert.doesNotMatch(`${avImplementation}\n${avMigration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|DELETE FROM/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

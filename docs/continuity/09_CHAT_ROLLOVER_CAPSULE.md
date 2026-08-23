@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_CONTROLLED_DEFECT_DERIVATION__PRODUCTION_COMPLETE`
+**Current source classification:** `WP7_CLEAN_AV_MASTER_GATE__SOURCE_ACCEPTED__PRODUCTION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- Migration `0081`, `CLEAN_AV_MASTER_MATERIALIZATION_V1`, the exact-action runtime, FFmpeg executor and preview-only Browser QA workbench are source-accepted. They permit exactly one `cfp-v1-13` master from the exact eligible clean-audio parent, with two R2-verified VP9/Opus renditions, measured full-decode/checksum/motion/black/freeze/sync evidence, one bounded independent Factory visual review and one independent Browser receipt. Both likely-clean outcomes may only open an owner task; they cannot complete it or open dataset, assurance, Golden r10, Stage 11, release or publication. Next deploy, execute one master and stop at owner ground truth. V2 is untouched.
 
 - Sites v463 from source `0de985fd87b6e4d5954bfefe3a5e947292250c7c` activated migration `0080` and `CONTROLLED_DEFECT_DERIVATION_V1`, then used the exact-action-only operator credential to record the sole deterministic `RIGHTS_LINEAGE_MISSING` P0 fixture. The clean parent and both manifests passed exact R2 read-back; the mutated business payload lacks only `rightsReceiptId`; mutation isolation and oracle both passed. WP7 now has 37 candidates, three owner-confirmed references, one clean control, one controlled injection and 1/5 P0 coverage. Readiness remains `INSUFFICIENT_GROUND_TRUTH`; provider/spend, Worker errors and dataset/assurance/release authority are zero. Next design the `cfp-v1-13` clean audio-visual master materialization gate. V2 is untouched.
 
