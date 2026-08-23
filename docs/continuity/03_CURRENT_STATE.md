@@ -11,20 +11,28 @@ FACTORY_AUDIO_QA_FAILED_REQUEST_ID = a2f72a7cbf21a8bb
 FACTORY_AUDIO_QA_FAILED_STATUS = HTTP_502__FACTORY_AUDIO_QA_RESPONSE_INVALID
 FAILED_PROVIDER_REQUESTS = 1
 FAILED_ACTUAL_SPEND = UNVERIFIED_RESERVED_AT_0_20
-MIGRATION_0077 = SOURCE_READY__PRODUCTION_PENDING
+MIGRATION_0077 = PRODUCTION_ACTIVE_SITES_V456
+PRODUCTION_SOURCE_COMMIT = bd87521ef439d786640aa81d1693ee1ff510c4e8
 OUTPUT_CONTRACT = FORCED_FUNCTION_CALL_V1
 RECOVERY_AUTHORIZATIONS_MAX = 1
 ADDITIONAL_PROVIDER_REQUESTS_MAX = 1
 ADDITIONAL_RESERVED_SPEND_USD = 0.20
 CUMULATIVE_RESERVED_SPEND_USD = 0.40
+RECOVERY_REQUEST_ID = a2f758a3dc59a8ba
+RECOVERY_HTTP_STATUS_WALL_MS = 201_8816
+RECOVERY_PROVIDER_REQUESTS = 1
+RECOVERY_RESPONSE_USAGE_SPEND_EVIDENCE = SEALED
+FACTORY_AUDIO_QA = LIKELY_CLEAN_95_OF_100__P0_0__P1_0
+FACTORY_AUDIO_QA_AUTHORITY = INDEPENDENT_REVIEW_ONLY
 TARGETED_REGRESSION = 52_OF_52_PASS
 FULL_REGRESSION = 182_OF_182_PASS__VERIFIED_BUILD_PASS
 OWNER_GROUND_TRUTH = NOT_EVALUATED
 DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
-NEXT_PROTECTED_ACTION = DEPLOY_0077__RUN_ONE_CONDITIONAL_FACTORY_AUDIO_QA_RECOVERY
+POST_RUN_WORKER_ERRORS = 0
+NEXT_PROTECTED_ACTION = ONE_EXACT_AUDIO_OWNER_GROUND_TRUTH_DECISION
 ```
 
-The paid-plan recovery succeeded in Sites v455 and sealed a 35-second ElevenLabs replacement with exact subscription/audio R2 evidence, provider-native request identity and commercial rights PASS. The first `gpt-audio-1.5` QA call then failed closed because free-form content did not satisfy the JSON evidence contract. One provider request occurred; because response capture and usage sealing happened after parsing in the old path, actual spend is unverified and the full USD 0.20 remains reserved. Migration `0077` conditionally authorizes one forced-function recovery, captures exact response bytes and usage before parsing, and raises cumulative reserved exposure to USD 0.40. No QA receipt, owner truth, dataset, assurance or release authority exists. Document 71 and ADR-100 are authoritative.
+The paid-plan recovery succeeded in Sites v455 and sealed a 35-second ElevenLabs replacement with exact subscription/audio R2 evidence, provider-native request identity and commercial rights PASS. The first `gpt-audio-1.5` QA call failed closed; its one request and unknown actual spend remain preserved under the USD 0.20 reservation. Sites v456 activated migration `0077`. The single forced-function recovery returned 201, sealed exact provider response/usage/spend evidence and produced an independent `LIKELY_CLEAN` receipt at 95/100 with P0=0 and P1=0. Post-run Worker errors are zero. This is not owner ground truth and creates no dataset, assurance or release authority. Document 71 and ADR-100 are authoritative.
 
 ## Commercial clean-audio pre-TTS recovery — 2026-08-23
 

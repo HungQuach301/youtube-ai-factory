@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_FACTORY_AUDIO_QA_RESPONSE_RECOVERY__SOURCE_READY_PRODUCTION_PENDING`
+**Current source classification:** `WP7_FACTORY_AUDIO_QA_LIKELY_CLEAN__OWNER_GROUND_TRUTH_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- Sites v456 activated migration `0077` from source `bd87521ef439d786640aa81d1693ee1ff510c4e8`. The owner invoked the only authorized Factory Audio QA recovery. Request `a2f758a3dc59a8ba` returned 201 after 8.816 seconds; exact provider response, R2 read-back, usage and calculated actual spend were sealed. The independent receipt is `LIKELY_CLEAN`, 95/100, P0=0, P1=0 and `NO_IMMEDIATE_OWNER_ACTION`. There are zero post-run Worker errors. Replacement Rights remains PASS, while owner ground truth is `NOT_EVALUATED` and dataset/assurance/release authority remains false. Next is one separate exact-audio owner decision; the Factory result cannot supply it. V2 is untouched.
 
 - Sites v455 activated the pre-TTS recovery. Owner request `a2f71fdb9f51a8af` returned 201 and created the append-only 35-second replacement with `starter · active`, exact R2 evidence, provider-native request identity and Rights PASS. The first Factory Audio QA request `a2f72a7cbf21a8bb` returned 502 with `FACTORY_AUDIO_QA_RESPONSE_INVALID` after one provider request. No QA receipt or downstream authority was created. Actual spend is unverified, so USD 0.20 remains conservatively reserved. Migration `0077` adds exactly one conditional forced-function recovery, exact response/usage capture before parsing and an additional USD 0.20 reservation, for USD 0.40 cumulative exposure. Tests/build pass 182/182. Deploy `0077`, then invoke the recovery once. Owner truth, dataset, assurance and release remain locked. V2 is untouched.
 

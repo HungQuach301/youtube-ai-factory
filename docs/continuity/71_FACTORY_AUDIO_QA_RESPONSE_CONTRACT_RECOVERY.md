@@ -57,6 +57,28 @@ DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
 PRODUCTION_STATE = SOURCE_READY__DEPLOYMENT_PENDING
 ```
 
+## Production recovery acceptance
+
+Sites v456 activated migration `0077` from source checkpoint `bd87521ef439d786640aa81d1693ee1ff510c4e8`. The owner invoked the single authorized recovery. Production request `a2f758a3dc59a8ba` returned HTTP 201 after 8.816 seconds. The resulting append-only evidence reports:
+
+```text
+RECOVERY_RUN = COMPLETE
+PROVIDER_REQUESTS = 1
+OUTPUT_CONTRACT = FORCED_FUNCTION_CALL_V1
+EXACT_PROVIDER_RESPONSE_R2 = SEALED_AND_READ_BACK
+USAGE_AND_ACTUAL_SPEND = MEASURED_AND_SEALED_IN_RECOVERY_RECEIPT
+DECISION = LIKELY_CLEAN
+OVERALL_SCORE = 95_OF_100
+P0_P1 = 0_0
+OWNER_ATTENTION = NO_IMMEDIATE_OWNER_ACTION
+REPLACEMENT_RIGHTS = PASS
+OWNER_GROUND_TRUTH = NOT_EVALUATED
+DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
+POST_RUN_WORKER_ERRORS = 0
+```
+
+The independent rationale reports natural human-like delivery, perfect pronunciation, seamless continuity, practically no noise and clear distinction among authorization, clearing and settlement. It also notes a slightly instructional tone and possible mild listener fatigue from dense information; these are observations, not P0/P1 defects. The old malformed response and its unverified USD 0.20 reservation remain preserved. The recovery request's exact response, usage and calculated actual spend are sealed separately; the Factory does not merge them with or rewrite the failed attempt.
+
 ## Next protected action
 
-Deploy migration `0077`, prove the conditional recovery authorization from production state, and invoke **Chạy Factory Audio QA recovery** at most once. If the independent result is likely clean, route the exact audio to a separate owner-ground-truth decision. If it reports a likely defect or the recovery fails, preserve all evidence and stop; do not regenerate automatically. Golden r10, Stage 11, Videos 2–15 and publishing remain locked.
+Route this exact replacement audio to one separate owner-ground-truth decision. The owner must listen to the exact bytes before confirming clean or rejecting with observed defects; the Factory receipt cannot impersonate that decision. Only after owner confirmation may the controlled-fixture lane evaluate gold eligibility and isolated defect derivatives. Dataset sealing, assurance qualification, Golden r10, Stage 11, Videos 2–15 and publishing remain locked.
