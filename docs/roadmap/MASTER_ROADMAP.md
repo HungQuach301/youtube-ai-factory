@@ -163,6 +163,8 @@ Phase 19 is production-complete in Sites v455. The original Sites v454 D1 vocabu
 
 Phase 20 is production-complete in Sites v456. The original malformed QA response remains failed evidence with one request and its unknown spend conservatively reserved at USD 0.20. Migration `0077` authorized one forced-function recovery only. Request `a2f758a3dc59a8ba` returned 201, sealed exact response bytes/R2 read-back/usage/spend and produced `LIKELY_CLEAN` 95/100 with P0=0 and P1=0; Worker errors are zero. The receipt is independent-only. Next implement and execute one exact-audio owner-ground-truth decision before any gold eligibility or defect derivation; dataset, assurance, Golden r10, Stage 11 and release stay closed.
 
+Phase 21 implements the separate owner evidence boundary. Migration `0078` conditionally creates one task only from the Rights-PASS replacement and its exact-hash `LIKELY_CLEAN` Factory recovery receipt. The owner UI requires continuous full playback, a clean confirmation with zero defects or rejection with an allowlisted audio defect and rationale; the server re-hashes R2 bytes before one append-only receipt. The lane has zero provider/spend and `OWNER_GROUND_TRUTH_ONLY` authority. Targeted tests pass 53/53 and full regression/build passes 183/183. Next deploy and collect one owner decision; gold eligibility, defect derivatives, dataset, assurance and release remain separate future gates.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:

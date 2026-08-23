@@ -2,6 +2,27 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
+## Clean-audio owner ground-truth gate — 2026-08-23
+
+```text
+MIGRATION_0078 = SOURCE_READY__PRODUCTION_PENDING
+POLICY = CLEAN_AUDIO_OWNER_GROUND_TRUTH_V1
+SOURCE_ARTIFACT = COMMERCIAL_REPLACEMENT__RIGHTS_PASS
+SOURCE_FACTORY_QA = LIKELY_CLEAN_95_OF_100__P0_0__P1_0
+OWNER_TASKS_MAX = 1
+FULL_LISTEN_REQUIRED = TRUE
+EXACT_R2_READBACK_REQUIRED = TRUE
+OWNER_DECISIONS = 0
+PROVIDER_REQUESTS_SPEND = 0_0
+AUTHORITY = OWNER_GROUND_TRUTH_ONLY
+DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
+TARGETED_REGRESSION = 53_OF_53_PASS
+FULL_REGRESSION = 183_OF_183_PASS__VERIFIED_BUILD_PASS
+NEXT_PROTECTED_ACTION = DEPLOY_0078__ONE_EXACT_AUDIO_OWNER_DECISION
+```
+
+Migration `0078` conditionally creates one owner task only from the exact Rights-PASS replacement and the exact `LIKELY_CLEAN` Factory recovery receipt. The authenticated owner must listen through the end and either confirm clean with no defects or reject with one or more of eight audio-observable defects and rationale. The server re-hashes R2 bytes before accepting the immutable receipt. Targeted regression passes 53/53 and the full verified suite passes 183/183. This zero-provider, zero-spend gate creates owner ground truth only; it cannot seal a dataset, qualify a capability or release media. Document 72 and ADR-101 are authoritative.
+
 ## Factory Audio QA response-contract recovery — 2026-08-23
 
 ```text

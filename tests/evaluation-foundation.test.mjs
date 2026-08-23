@@ -43,6 +43,7 @@ import {
 } from "../lib/evaluation-foundation.ts";
 import { EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION } from "../lib/clean-audio-rights-evidence.ts";
 import { COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, FACTORY_AUDIO_QA_OUTPUT_CONTRACT_VERSION, FACTORY_AUDIO_QA_POLICY_VERSION, FACTORY_AUDIO_QA_RECOVERY_VERSION } from "../lib/commercial-clean-audio-regeneration.ts";
+import { CLEAN_AUDIO_OWNER_DEFECT_KEYS, CLEAN_AUDIO_OWNER_GROUND_TRUTH_VERSION } from "../lib/clean-audio-owner-ground-truth.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -889,6 +890,39 @@ test("migration 0077 recovers one malformed audio-QA response through a forced f
   assert.match(implementation, /FACTORY_AUDIO_QA_RESPONSE_R2_HASH_MISMATCH/);
   assert.doesNotMatch(implementation, /response_format/);
   assert.match(ownerBoundary, /factory-clean-audio-qa-recovery-v1/);
+});
+
+test("migration 0078 creates one exact-byte owner ground-truth gate without dataset or release authority", () => {
+  assert.equal(CLEAN_AUDIO_OWNER_GROUND_TRUTH_VERSION, "CLEAN_AUDIO_OWNER_GROUND_TRUTH_V1");
+  assert.equal(CLEAN_AUDIO_OWNER_DEFECT_KEYS.length, 8);
+  const db = new DatabaseSync(":memory:");
+  const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
+  const ownerIndex = migrations.indexOf("0078_clean_audio_owner_ground_truth.sql");
+  for (const file of migrations.slice(0, ownerIndex)) db.exec(read(`drizzle/${file}`));
+  db.exec("PRAGMA foreign_keys=OFF");
+  db.prepare(`INSERT INTO v7_evaluation_commercial_clean_audio_artifacts
+    (id,run_id,provider_receipt_id,channel_id,policy_version,replaces_artifact_id,storage_key,mime_type,byte_size,sha256,materialization_state,rights_state,owner_ground_truth_state,factory_audio_qa_state)
+    VALUES ('owner-audio-artifact','run','provider','channel-hidden-systems','COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1','old','audio.mp3','audio/mpeg',12000,?,'BYTES_PROVIDER_ENTITLEMENT_AND_RIGHTS_VERIFIED','PASS','NOT_EVALUATED','PENDING')`).run("c".repeat(64));
+  db.prepare(`INSERT INTO v7_evaluation_commercial_clean_audio_rights_receipts
+    (id,artifact_id,provider_receipt_id,subscription_receipt_id,official_terms_snapshot_receipt_id,channel_id,policy_version,jurisdiction_scope,input_ownership_state,model_state,entitlement_state,rights_state,adjudication_outcome,evidence_hash)
+    VALUES ('owner-rights','owner-audio-artifact','provider','subscription','terms','channel-hidden-systems','COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1','NON_EEA_VIETNAM','CHANNEL_AUTHORED_TEXT_HASH_BOUND','NON_BETA_PINNED_MODEL','EXPLICIT_ACTIVE_PAID_BASE_PLAN','PASS','COMMERCIAL_RIGHTS_PASS_GENERATION_TIME_PAID_PLAN',?)`).run("d".repeat(64));
+  db.prepare(`INSERT INTO v7_evaluation_factory_audio_qa_recovery_receipts
+    (id,recovery_run_id,provider_response_receipt_id,failed_run_id,artifact_id,channel_id,policy_version,exact_artifact_hash,model_id,provider_response_id,decision_state,owner_attention_state,overall_score,dimensions_json,p0_count,p1_count,findings_json,rationale,usage_json,actual_spend_usd,authority_boundary,evidence_hash)
+    VALUES ('owner-qa','recovery','response','failed','owner-audio-artifact','channel-hidden-systems','FACTORY_AUDIO_QA_RECOVERY_V1',?,'gpt-audio-1.5','provider-response','LIKELY_CLEAN','NO_IMMEDIATE_OWNER_ACTION',95,'{}',0,0,'[]','clean audio receipt','{}',0.05,'INDEPENDENT_REVIEW_ONLY',?)`).run("c".repeat(64), "e".repeat(64));
+  db.exec(read("drizzle/0078_clean_audio_owner_ground_truth.sql"));
+  db.exec("PRAGMA foreign_keys=ON");
+  const task = db.prepare("SELECT artifact_id,qa_recovery_receipt_id,exact_artifact_hash,task_state FROM v7_evaluation_clean_audio_owner_ground_truth_tasks").get();
+  assert.deepEqual({ ...task }, { artifact_id: "owner-audio-artifact", qa_recovery_receipt_id: "owner-qa", exact_artifact_hash: "c".repeat(64), task_state: "OPEN" });
+  const policy = db.prepare("SELECT maximum_owner_decisions,full_listen_required,exact_byte_readback_required,authority_boundary,provider_requests,spend_usd,dataset_sealing_authority,assurance_qualification_authority,release_authority FROM v7_evaluation_clean_audio_owner_ground_truth_policies").get();
+  assert.deepEqual({ ...policy }, { maximum_owner_decisions: 1, full_listen_required: 1, exact_byte_readback_required: 1, authority_boundary: "OWNER_GROUND_TRUTH_ONLY", provider_requests: 0, spend_usd: 0, dataset_sealing_authority: 0, assurance_qualification_authority: 0, release_authority: 0 });
+  assert.throws(() => db.prepare("UPDATE v7_evaluation_clean_audio_owner_ground_truth_tasks SET task_state='OPEN'").run(), /IMMUTABLE/);
+  const implementation = read("lib/clean-audio-owner-ground-truth.ts"), ownerBoundary = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(implementation, /CLEAN_AUDIO_FULL_LISTEN_REQUIRED/);
+  assert.match(implementation, /CLEAN_AUDIO_OWNER_R2_HASH_MISMATCH/);
+  assert.match(implementation, /OWNER_GROUND_TRUTH_ONLY/);
+  assert.match(ownerBoundary, /RECORD_CLEAN_AUDIO_OWNER_GROUND_TRUTH/);
+  assert.match(ownerBoundary, /ownerGroundTruthAudio/);
+  assert.doesNotMatch(implementation, /dataset_eligible=1|qualification_eligible=1|release_eligible=1|api\.openai\.com|elevenlabs\.io/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

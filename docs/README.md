@@ -97,6 +97,7 @@ When facts conflict, use this order:
 | Commercial clean-audio regeneration and Factory QA | [`continuity/69_COMMERCIAL_CLEAN_AUDIO_REGENERATION_AND_FACTORY_QA.md`](continuity/69_COMMERCIAL_CLEAN_AUDIO_REGENERATION_AND_FACTORY_QA.md) |
 | Commercial clean-audio pre-TTS recovery | [`continuity/70_COMMERCIAL_CLEAN_AUDIO_PRE_TTS_RECOVERY.md`](continuity/70_COMMERCIAL_CLEAN_AUDIO_PRE_TTS_RECOVERY.md) |
 | Factory Audio QA response-contract recovery | [`continuity/71_FACTORY_AUDIO_QA_RESPONSE_CONTRACT_RECOVERY.md`](continuity/71_FACTORY_AUDIO_QA_RESPONSE_CONTRACT_RECOVERY.md) |
+| Clean-audio owner ground-truth gate | [`continuity/72_CLEAN_AUDIO_OWNER_GROUND_TRUTH_GATE.md`](continuity/72_CLEAN_AUDIO_OWNER_GROUND_TRUTH_GATE.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

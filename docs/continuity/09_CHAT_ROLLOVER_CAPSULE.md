@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_FACTORY_AUDIO_QA_LIKELY_CLEAN__OWNER_GROUND_TRUTH_PENDING`
+**Current source classification:** `WP7_CLEAN_AUDIO_OWNER_GROUND_TRUTH_GATE__SOURCE_READY_PRODUCTION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- Migration `0078` and `CLEAN_AUDIO_OWNER_GROUND_TRUTH_V1` are source-ready. They conditionally create one task from the exact Rights-PASS replacement plus its exact `LIKELY_CLEAN` 95/100, P0=0/P1=0 Factory receipt. Only the allowlisted SIWC owner may submit; full playback is required, R2 bytes are re-hashed, clean confirmation cannot contain defects and rejection requires an audio-observable defect plus rationale. The append-only receipt grants owner-ground-truth authority only, with zero provider/spend and no dataset/assurance/release authority. Targeted tests pass 53/53 and the full verified suite passes 183/183. Next deploy `0078` and obtain one exact-audio owner decision. V2 is untouched.
 
 - Sites v456 activated migration `0077` from source `bd87521ef439d786640aa81d1693ee1ff510c4e8`. The owner invoked the only authorized Factory Audio QA recovery. Request `a2f758a3dc59a8ba` returned 201 after 8.816 seconds; exact provider response, R2 read-back, usage and calculated actual spend were sealed. The independent receipt is `LIKELY_CLEAN`, 95/100, P0=0, P1=0 and `NO_IMMEDIATE_OWNER_ACTION`. There are zero post-run Worker errors. Replacement Rights remains PASS, while owner ground truth is `NOT_EVALUATED` and dataset/assurance/release authority remains false. Next is one separate exact-audio owner decision; the Factory result cannot supply it. V2 is untouched.
 
