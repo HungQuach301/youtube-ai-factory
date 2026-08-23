@@ -33,3 +33,20 @@ All promotion authorities remain zero:
 ## Next gate
 
 Obtain authoritative generation-time base-plan or contract evidence. Only a separate adjudication policy may convert that evidence into a provider-terms receipt. Factory-first perceptual audio QA, owner clean-label verification, dataset membership and any downstream qualification remain blocked until that rights gate passes.
+
+## Production result — 2026-08-23
+
+Sites v448 activated migration 0074 and the owner-authenticated capture completed exactly once. Three source receipts passed with HTTP 200 and exact R2 read-back:
+
+- `TERMS_OF_USE`;
+- `PAYG_ADMINISTRATION_DOCS`;
+- `TTS_CAPABILITY_DOCS`.
+
+`PUBLISHING_COMMERCIAL_LICENSE_HELP` returned HTTP 403. Its exact HTTP response bytes were hashed and read back from R2, but the receipt is `HTTP_ERROR`, not verified commercial-license content. The immutable run therefore records 4/4 processed and 3/4 verified sources, zero account reads, zero generation requests and zero spend.
+
+The diagnostic outcome is `REVIEW_REQUIRED_OFFICIAL_SOURCE_CAPTURE_INCOMPLETE`. Independently, the generation-time `payg · active` snapshot still leaves `BASE_PLAN_COMMERCIAL_RIGHTS_NOT_PROVEN`. Sites v449 exposes all four receipt states to the owner without exposing hashes or storage keys.
+
+Production source checkpoints:
+
+- evidence capture: commit `9bb5fe43bdff9c5ca0219878caa0aedac4249203`;
+- receipt-detail projection: commit `2b0d2034d914be54eac707ad7db5f26dc972af3f`.
