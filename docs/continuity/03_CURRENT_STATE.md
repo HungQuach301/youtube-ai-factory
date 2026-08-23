@@ -2,20 +2,21 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
-## Audience Golden Sequence — R10 rejected visually, R11 continuous-motion repair ready
+## Audience Golden Sequence — R11 rejected visually, R12 six-act repair in source verification
 
 ```text
-PRODUCTION_CHECKPOINT = SITES_V491
-R10_MASTER_SHA256 = 0c542807e55f0224c4a10db3a28844d68d215e01a596da644cdd0e9030cdf88f
-R10_FACTORY_VISUAL = FAIL_84__P0_0__P1_1__P2_2
-R10_FACTORY_AUDIO = PASS_94__P0_0__P1_0__P2_2
-R11_SOURCE = READY__MIGRATION_0095__MIXED_MEDIA_CONTINUOUS_TRANSFORMATION_FILM
-SOURCE_VERIFICATION = 198_OF_198_PASS__BUILD_PASS__R11_BEFORE_AFTER_CONTACT_SHEET_32_OF_32_PASS__V2_FIREWALL_16_OF_16
+PRODUCTION_CHECKPOINT = SITES_V492
+R11_MASTER_SHA256 = 55995b0c1ef676ebdf51ab9a10f5939361d7565a0a625a295d09c6b7b448c9a6
+R11_FACTORY_VISUAL = FAIL_87__P0_0__P1_1__P2_2
+R11_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_1
+R12_SOURCE = READY__MIGRATION_0096__CONTINUOUS_SIX_ACT_TRANSACTION_JOURNEY
+R12_PIXEL_PREVIEW = PASS__32_UNIFORM_TIME_ORDERED_FRAMES__NO_CRITICAL_OVERFLOW
+SOURCE_VERIFICATION = 199_OF_199_PASS__VERIFIED_BUILD_PASS__DOCS_SSOT_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION__DEPLOY_0095__EXECUTE_R11__LET_FACTORY_QA_DECIDE
+NEXT_PROTECTED_ACTION = COMPLETE_FULL_REGRESSION_BUILD_FIREWALL_DOCS__DEPLOY_0096__EXECUTE_R12__LET_FACTORY_QA_DECIDE
 ```
 
-Sites v491 materialized R10 as a deterministic/rights PASS 74.367-second master of 8,490,438 bytes. Exact-audio QA passes 94 with no P0/P1. Visual QA fails 84 with one systemic P1: repeated gradient/bokeh backgrounds, centered object/text compositions and a thin bottom bar still read as slides, while sampled objects replace one another instead of proving continuous process motion. Two P2 observations identify undersized labels and mixed Vietnamese/English. Migration `0095` permits one append-only R11 only from that exact visual FAIL plus exact-audio PASS. R11 uses sixteen mixed-media continuous transformations, removes persistent heading/progress chrome and repeated template backgrounds, keeps essential labels Vietnamese/mobile-safe and supplies sixteen before/after evidence pairs. Source preview is not Production evidence. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
+Sites v492 materialized R11 as a deterministic/rights PASS 73.333-second 2560×1440 H.264/AAC master of 13,673,208 bytes with exact hash `55995b0c…`. Exact-audio QA passes 95 with no P0/P1. Visual QA fails 87 with one systemic P1: sixteen icon/caption sequences and near-identical adjacent pairs still read as slide-deck pacing despite richer media. Two P2 findings identify an unresolved mapping between the four-state rail and exception outcomes plus small obligation/exception labels. Migration `0096` permits one append-only R12 only from that exact visual FAIL plus exact-audio PASS. R12 replaces sixteen cards with one six-act journey, one persistent transaction token, within-act geometry transformation, direct state-to-exception mapping, no caption/progress bars and 32 uniform chronological evidence frames. The corrected source contact sheet has no critical overflow; it is not Production evidence. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 

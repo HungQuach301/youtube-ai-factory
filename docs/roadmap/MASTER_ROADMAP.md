@@ -6,7 +6,7 @@
 
 ## Current position
 
-- Audience Golden Sequence R1–R10 are preserved rejected evidence. Sites v491 sealed R10 exact master `0c542807…`; audio QA passes 94 with no P0/P1, while visual QA fails 84 because repeated gradient/centered-object/progress-chrome compositions still read as slides and do not prove continuous process motion. Migration `0095` prepares R11 with sixteen mixed-media continuous transformations, sixteen before/after evidence pairs and Vietnamese mobile-safe labels. Browser/device, owner review and freeze remain blocked until their owning gates open. Document 78 is authoritative; V2 is untouched.
+- Audience Golden Sequence R1–R11 are preserved rejected evidence. Sites v492 sealed R11 exact master `55995b0c…`; audio QA passes 95 with no P0/P1, while visual QA fails 87 because sixteen richer icon/caption sequences plus paired near-identical samples still read as slide-deck pacing and leave state/exception mapping unresolved. Migration `0096` prepares R12 as one six-act chronological journey with a persistent transaction token, direct state-to-exception mapping, large Vietnamese labels and 32 uniformly spaced evidence frames. Browser/device, owner review and freeze remain blocked until their owning gates open. Document 78 is authoritative; V2 is untouched.
 
 - FP1 truthful operator projection: implemented.
 - FP2 Capability Registry mechanism: implemented.
@@ -191,6 +191,8 @@ Phase 32 is active. Sites v490 materializes R9 master `f971ceacd97dceb3a42fe2ded
 
 Phase 33 is active. Sites v491 materializes R10 master `0c542807e55f0224c4a10db3a28844d68d215e01a596da644cdd0e9030cdf88f`. Audio QA passes at 94 with no P0/P1. Visual QA fails at 84 with one systemic P1 proving that full-frame objects on repeated gradient/centered/progress-chrome compositions remain infographic slides when motion is not evidenced continuously; P2 adds small labels and mixed Vietnamese/English. Migration `0095` creates R11 only from the exact R10 visual FAIL and audio PASS receipts. R11 uses sixteen mixed-media continuous transformations, forbids persistent headings/progress chrome/repeated template backgrounds, requires Vietnamese mobile-safe labels and samples sixteen ordered before/after pairs. The corrected 32-frame contact sheet passes source inspection, full regression/build passes 198/198 and the V2 firewall passes 16/16. Next deploy and execute R11. Browser/device and owner gates remain closed until Factory PASS. V2 is untouched.
 
+Phase 34 is active. Sites v492 materializes R11 master `55995b0c1ef676ebdf51ab9a10f5939361d7565a0a625a295d09c6b7b448c9a6`. Audio QA passes at 95 with no P0/P1. Visual QA fails at 87 with one systemic P1 proving that sixteen richer scenes and before/after sampling still preserve repeated centered card pacing; P2 identifies unresolved state-to-exception mapping and small obligation/branch labels. Migration `0096` creates R12 only from the exact R11 visual FAIL and audio PASS receipts. R12 is one six-act transaction journey with one persistent token, continuous within-act transformations, direct exception branches, no caption/progress bars and 32 uniformly spaced chronological evidence frames. The corrected source contact sheet passes 32/32 with no critical overflow or state-label occlusion; full regression/build passes 199/199, documentation SSOT passes and the V2 firewall passes 16/16. Commit/push, deploy owner-only and execute R12. Browser/device and owner gates remain closed until Factory PASS. V2 is untouched.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:
@@ -248,4 +250,4 @@ Before a second channel:
 
 ## Protected scope
 
-Until the owning wave passes, do not render Golden r10, reopen Stage 11, dispatch FP4/FP5 providers, produce Videos 2–15, enable auto-publish, delete historical evidence or open a second channel.
+Until the owning wave passes, do not reopen Stage 11 before Golden Sequence freeze, dispatch FP4/FP5 providers, produce Videos 2–15, enable auto-publish, delete historical evidence or open a second channel.
