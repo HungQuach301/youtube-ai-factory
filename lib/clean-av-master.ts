@@ -230,6 +230,8 @@ async function maybeCreateOwnerTask(db: CleanAvDB) {
   }
 }
 
+export async function createCleanAvOwnerTaskIfEligibleAuthorized(db: CleanAvDB) { await maybeCreateOwnerTask(db); }
+
 export async function runCleanAvFactoryQaAuthorized(args: { db: CleanAvDB; bucket: CleanAvBucket; openAiApiKey: string; actor: string; idempotencyKey: string }) {
   if (!/^[A-Za-z0-9._:-]{16,160}$/.test(args.idempotencyKey)) throw new CleanAvMasterError("IDEMPOTENCY_KEY_INVALID", 400, "A stable 16–160 character idempotency-key is required");
   const priorRun = await first(args.db, "SELECT * FROM v7_evaluation_clean_av_factory_qa_runs WHERE channel_id=? AND idempotency_key=? LIMIT 1", CHANNEL_ID, args.idempotencyKey);
@@ -298,7 +300,7 @@ export async function runCleanAvFactoryQaAuthorized(args: { db: CleanAvDB; bucke
   }
 }
 
-export async function recordCleanAvBrowserQaAuthorized(args: { db: CleanAvDB; actor: string; idempotencyKey: string; materializationReceiptId: string; distributionHash: string; playbackCoverageRatio: number; pauseResumeObserved: boolean; seekObserved: boolean; endedObserved: boolean; audioTrackObserved: boolean; meaningfulMotionObserved: boolean; mobileLegibilityObserved: boolean; focusReflowObserved: boolean; pageErrorCount: number; decisionState: string; observations: unknown[] }) {
+export async function recordCleanAvBrowserQaAuthorized(args: { db: CleanAvDB; actor: string; idempotencyKey: string; materializationReceiptId: string; distributionHash: string; playbackCoverageRatio: number; pauseResumeObserved: boolean; seekObserved: boolean; endedObserved: boolean; audioTrackObserved: boolean; meaningfulMotionObserved: boolean; mobileLegibilityObserved: boolean; focusReflowObserved: boolean; pageErrorCount: number; decisionState: string; observations: unknown[]; deferOwnerTask?: boolean }) {
   if (!/^[A-Za-z0-9._:-]{16,160}$/.test(args.idempotencyKey)) throw new CleanAvMasterError("IDEMPOTENCY_KEY_INVALID", 400, "A stable 16–160 character idempotency-key is required");
   const requestHash = await canonicalHash({
     policyVersion: CLEAN_AV_BROWSER_QA_VERSION,
@@ -336,6 +338,6 @@ export async function recordCleanAvBrowserQaAuthorized(args: { db: CleanAvDB; ac
   await run(args.db, `INSERT INTO v7_evaluation_clean_av_browser_qa_receipts
     (id,materialization_receipt_id,channel_id,policy_version,distribution_hash,playback_coverage_ratio,pause_resume_observed,seek_observed,ended_observed,audio_track_observed,meaningful_motion_observed,mobile_legibility_observed,focus_reflow_observed,page_error_count,decision_state,observations_json,actor,idempotency_key,request_hash,evidence_hash,authority_boundary)
     VALUES (?,?,?,'CLEAN_AV_BROWSER_QA_V1',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'INDEPENDENT_BROWSER_REVIEW_ONLY')`, receiptId, materialization.id, CHANNEL_ID, materialization.distribution_hash, args.playbackCoverageRatio, args.pauseResumeObserved ? 1 : 0, args.seekObserved ? 1 : 0, args.endedObserved ? 1 : 0, args.audioTrackObserved ? 1 : 0, args.meaningfulMotionObserved ? 1 : 0, args.mobileLegibilityObserved ? 1 : 0, args.focusReflowObserved ? 1 : 0, args.pageErrorCount, decision, canonicalStringify(args.observations), args.actor, args.idempotencyKey, requestHash, evidenceHash);
-  await maybeCreateOwnerTask(args.db);
+  if (!args.deferOwnerTask) await maybeCreateOwnerTask(args.db);
   return { outcome: decision, snapshot: await cleanAvMasterSnapshot(args.db) };
 }

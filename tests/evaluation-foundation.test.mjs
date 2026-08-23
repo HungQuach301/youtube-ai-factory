@@ -48,6 +48,7 @@ import { CLEAN_AUDIO_OWNER_DEFECT_KEYS, CLEAN_AUDIO_OWNER_GROUND_TRUTH_VERSION }
 import { CLEAN_AUDIO_CONTROL_ELIGIBILITY_VERSION, evaluateCleanAudioControlEligibilityAuthorized } from "../lib/clean-audio-control-eligibility.ts";
 import { CONTROLLED_DEFECT_DERIVATION_VERSION, deriveRightsLineageMissingControlAuthorized } from "../lib/controlled-defect-derivation.ts";
 import { CLEAN_AV_MASTER_MATERIALIZATION_VERSION, materializeCleanAvMasterAuthorized, readCleanAvStagedUploadAuthorized, recordCleanAvBrowserQaAuthorized, stageCleanAvUploadChunkAuthorized } from "../lib/clean-av-master.ts";
+import { CLEAN_AV_AUTONOMOUS_BROWSER_QA_VERSION, finalizeAutonomousCleanAvBrowserQaAuthorized, startAutonomousCleanAvBrowserQaAuthorized } from "../lib/clean-av-browser-automation.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -1043,6 +1044,14 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
     technical_qa_state: "PASS", rights_state: "PASS", factory_qa_state: "PENDING", browser_qa_state: "PENDING", owner_ground_truth_state: "NOT_EVALUATED", materialization_state: "EXACT_LINEAGE_CHECKSUM_SYNC_VERIFIED", authority_boundary: "CLEAN_AV_TECHNICAL_MATERIALIZATION_ONLY", dataset_eligible: 0, qualification_eligible: 0, release_eligible: 0,
   });
   const avReceipt = db.prepare("SELECT id,distribution_hash FROM v7_evaluation_clean_av_master_materialization_receipts").get();
+  db.exec(read("drizzle/0082_autonomous_clean_av_browser_qa.sql"));
+  assert.equal(CLEAN_AV_AUTONOMOUS_BROWSER_QA_VERSION, "CLEAN_AV_AUTONOMOUS_BROWSER_QA_V1");
+  const autonomous = await startAutonomousCleanAvBrowserQaAuthorized({ db: d1, actor: "operator@example.com", idempotencyKey: "clean-av-autonomous-browser-run-test-v1", materializationReceiptId: avReceipt.id, distributionHash: avReceipt.distribution_hash, browserSessionId: "cloud-browser-test-session-v1" });
+  assert.equal(autonomous.outcome, "STARTED");
+  const failedAutonomous = await finalizeAutonomousCleanAvBrowserQaAuthorized({ db: d1, bucket, actor: "operator@example.com", idempotencyKey: "clean-av-autonomous-browser-finalize-test-v1", runId: autonomous.runId, metrics: { browserSessionId: "cloud-browser-test-session-v1", browserName: "Chromium", browserVersion: "140.0", userAgent: "Mozilla/5.0 HeadlessChrome/140.0", viewportWidth: 390, viewportHeight: 844, playbackCoverageRatio: 0.97, pauseResumeObserved: true, seekObserved: true, endedObserved: true, audioTrackObserved: true, maximumAudioRms: 0.01, meaningfulMotionObserved: true, motionSamples: 4, mobileLegibilityObserved: true, mobileFrameSamples: 4, focusReflowObserved: true, pageErrorCount: 0, eventTrace: [{ type: "LOADEDMETADATA", mediaTimeSeconds: 0, wallTimeMs: 1 }, { type: "PLAY", mediaTimeSeconds: 0, wallTimeMs: 2 }, { type: "PAUSE", mediaTimeSeconds: 8, wallTimeMs: 3 }, { type: "PLAY", mediaTimeSeconds: 8, wallTimeMs: 4 }, { type: "SEEKED", mediaTimeSeconds: 16, wallTimeMs: 5 }, { type: "ENDED", mediaTimeSeconds: 35, wallTimeMs: 6 }], observations: [], frames: [] } });
+  assert.equal(failedAutonomous.outcome, "FAILED");
+  assert.equal(db.prepare("SELECT COUNT(*) count FROM v7_evaluation_clean_av_browser_qa_receipts").get().count, 0);
+  assert.deepEqual({ ...db.prepare("SELECT lifecycle_state,failure_code,release_eligible FROM v7_evaluation_clean_av_browser_qa_runs WHERE id=?").get(autonomous.runId) }, { lifecycle_state: "FAILED", failure_code: "PLAYBACK_COVERAGE_INCOMPLETE__FRAME_EVIDENCE_INCOMPLETE", release_eligible: 0 });
   const browser = await recordCleanAvBrowserQaAuthorized({ db: d1, actor: "operator@example.com", idempotencyKey: "clean-av-browser-qa-test-v1", materializationReceiptId: avReceipt.id, distributionHash: avReceipt.distribution_hash, playbackCoverageRatio: 1, pauseResumeObserved: true, seekObserved: true, endedObserved: true, audioTrackObserved: true, meaningfulMotionObserved: true, mobileLegibilityObserved: true, focusReflowObserved: true, pageErrorCount: 0, decisionState: "LIKELY_CLEAN", observations: ["Full local agent-preview playback completed with visible authored motion and audible narration."] });
   assert.equal(browser.outcome, "LIKELY_CLEAN");
   const avImplementation = read("lib/clean-av-master.ts"), avMigration = read("drizzle/0081_clean_av_master_materialization.sql");
@@ -1051,6 +1060,15 @@ test("migration 0079 creates and executes one exact-byte clean-control reference
   assert.match(route, /x-clean-av-master-automation-token/);
   assert.match(route, /x-clean-av-factory-qa-automation-token/);
   assert.match(route, /x-clean-av-browser-qa-automation-token/);
+  assert.match(route, /START_AUTONOMOUS_CLEAN_AV_BROWSER_QA/);
+  assert.match(route, /FINALIZE_AUTONOMOUS_CLEAN_AV_BROWSER_QA/);
+  assert.match(avImplementation, /CLEAN_AV_BROWSER_QA_PASS_EVIDENCE_INCOMPLETE/);
+  const autonomousImplementation = read("lib/clean-av-browser-automation.ts"), autonomousMigration = read("drizzle/0082_autonomous_clean_av_browser_qa.sql");
+  assert.match(autonomousImplementation, /captureStream/);
+  assert.match(autonomousImplementation, /requestVideoFrameCallback/);
+  assert.match(autonomousImplementation, /MOBILE_CUE_4/);
+  assert.match(autonomousMigration, /maximum_attempts.*= 3/s);
+  assert.doesNotMatch(`${autonomousImplementation}\n${autonomousMigration}`, /dataset_eligible\s*=\s*1|qualification_eligible\s*=\s*1|release_eligible\s*=\s*1|DELETE FROM/);
   assert.match(route, /COMMIT_CLEAN_AV_MASTER/);
   assert.match(route, /typeof value === "object"\) return value as T/);
   assert.match(avImplementation, /UPLOAD_STAGING_ONLY/);

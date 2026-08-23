@@ -8,6 +8,7 @@ import { CLEAN_AUDIO_OWNER_DEFECT_KEYS, CleanAudioOwnerGroundTruthError, cleanAu
 import { CleanAudioControlEligibilityError, cleanAudioControlEligibilitySnapshot, evaluateCleanAudioControlEligibilityAuthorized } from "@/lib/clean-audio-control-eligibility";
 import { ControlledDefectDerivationError, controlledDefectDerivationSnapshot, deriveRightsLineageMissingControlAuthorized } from "@/lib/controlled-defect-derivation";
 import { CleanAvMasterError, cleanAvMasterSnapshot, materializeCleanAvMasterAuthorized, readCleanAvSourceAudioAuthorized, readCleanAvStagedUploadAuthorized, recordCleanAvBrowserQaAuthorized, runCleanAvFactoryQaAuthorized, stageCleanAvUploadChunkAuthorized, type CleanAvStagedUploadDescriptor } from "@/lib/clean-av-master";
+import { autonomousCleanAvBrowserQaHtml, finalizeAutonomousCleanAvBrowserQaAuthorized, startAutonomousCleanAvBrowserQaAuthorized, type AutonomousBrowserMetrics } from "@/lib/clean-av-browser-automation";
 import {
   CORPUS_VERIFICATION_MAXIMUM_BATCH,
   CORPUS_VERIFICATION_MAXIMUM_OBJECT_BYTES,
@@ -214,9 +215,10 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url), view = clean(url.searchParams.get("view")), artifactCandidateId = clean(url.searchParams.get("artifact")), fixtureArtifactId = clean(url.searchParams.get("fixtureArtifact"));
     const cleanAvSourceTaskId = clean(url.searchParams.get("cleanAvSourceTask")), cleanAvSourceHash = clean(url.searchParams.get("expectedSourceHash")), cleanAvMasterReceiptId = clean(url.searchParams.get("cleanAvMaster")), cleanAvRendition = clean(url.searchParams.get("rendition"));
-    if (["owner-label-task", "owner-label-workflow", "provider-history-recovery", "commercial-clean-audio", "clean-av-master"].includes(view) || artifactCandidateId || fixtureArtifactId || cleanAvSourceTaskId || cleanAvMasterReceiptId) {
+    if (["owner-label-task", "owner-label-workflow", "provider-history-recovery", "commercial-clean-audio", "clean-av-master", "clean-av-browser-runner"].includes(view) || artifactCandidateId || fixtureArtifactId || cleanAvSourceTaskId || cleanAvMasterReceiptId) {
       const scopedCleanAvRead = Boolean(cleanAvSourceTaskId || cleanAvMasterReceiptId || view === "clean-av-master");
-      const { env } = scopedCleanAvRead ? await authorized(request, false, false, false, true) : await authorized(request, false);
+      const scopedCleanAvBrowserRead = view === "clean-av-browser-runner";
+      const { env } = scopedCleanAvRead || scopedCleanAvBrowserRead ? await authorized(request, false, false, false, true, false, true) : await authorized(request, false);
       if (cleanAvSourceTaskId) {
         const source = await readCleanAvSourceAudioAuthorized(env.DB, env.BUCKET, cleanAvSourceTaskId, cleanAvSourceHash);
         return new Response(source.bytes, { headers: { ...NO_STORE, "content-type": source.mimeType, "content-disposition": "attachment; filename=clean-av-source-audio.mp3", "x-content-sha256": source.hash } });
@@ -228,6 +230,12 @@ export async function GET(request: Request) {
         const object = await env.BUCKET.get(clean(item.storage_key)); if (!object) throw new EvaluationCommandError("CLEAN_AV_MASTER_BYTES_MISSING", 404, "The clean A/V master bytes could not be read from R2");
         const bytes = await object.arrayBuffer(), computedHash = await sha256(bytes); if (computedHash !== clean(item.exact_hash)) throw new EvaluationCommandError("CLEAN_AV_MASTER_HASH_MISMATCH", 409, "The clean A/V master R2 bytes no longer match the sealed hash");
         return new Response(bytes, { headers: { ...NO_STORE, "content-type": "video/webm", "content-disposition": `inline; filename=clean-av-${column}-master.webm` } });
+      }
+      if (scopedCleanAvBrowserRead) {
+        const snapshot = await cleanAvMasterSnapshot(env.DB), materialization = snapshot.materialization;
+        if (!materialization) throw new EvaluationCommandError("CLEAN_AV_MASTER_NOT_FOUND", 404, "The exact clean A/V master is not available");
+        if (snapshot.browserQa) throw new EvaluationCommandError("CLEAN_AV_BROWSER_QA_CEILING_REACHED", 409, "The single Browser QA receipt already exists");
+        return new Response(autonomousCleanAvBrowserQaHtml({ materializationReceiptId: materialization.id, distributionHash: materialization.distributionHash }), { headers: { ...NO_STORE, "content-type": "text/html; charset=utf-8", "x-frame-options": "DENY", "content-security-policy": "default-src 'self'; media-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" } });
       }
       if (view === "commercial-clean-audio") {
         const [commercialAudio, ownerGroundTruth, cleanControlEligibility, controlledDefectDerivation, cleanAvMaster] = await Promise.all([commercialCleanAudioSnapshot(env.DB), cleanAudioOwnerGroundTruthSnapshot(env.DB), cleanAudioControlEligibilitySnapshot(env.DB), controlledDefectDerivationSnapshot(env.DB), cleanAvMasterSnapshot(env.DB)]);
@@ -406,12 +414,12 @@ export async function POST(request: Request) {
     if (!rawFormSubmission && !contentType.includes("application/json")) throw new EvaluationCommandError("COMMAND_CONTENT_TYPE_REQUIRED", 415, "Use application/json or an owner-bound form submission");
     const body = rawFormSubmission ? Object.fromEntries(await request.formData()) : await request.json().catch(() => null) as Row | null, action = clean(body?.action).toUpperCase();
     formSubmission = rawFormSubmission && action !== "MATERIALIZE_CLEAN_AV_MASTER";
-    const cleanAvScopedAction = ["MATERIALIZE_CLEAN_AV_MASTER", "COMMIT_CLEAN_AV_MASTER", "RUN_CLEAN_AV_FACTORY_QA", "RECORD_CLEAN_AV_BROWSER_QA"].includes(action);
+    const cleanAvScopedAction = ["MATERIALIZE_CLEAN_AV_MASTER", "COMMIT_CLEAN_AV_MASTER", "RUN_CLEAN_AV_FACTORY_QA", "RECORD_CLEAN_AV_BROWSER_QA", "START_AUTONOMOUS_CLEAN_AV_BROWSER_QA", "FINALIZE_AUTONOMOUS_CLEAN_AV_BROWSER_QA"].includes(action);
     const { env, actor } = await authorized(request,
       !["RECORD_OWNER_LABEL_RECEIPT", "RECORD_CLEAN_AUDIO_OWNER_GROUND_TRUTH"].includes(action) && !cleanAvScopedAction,
       action === "EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY", action === "DERIVE_RIGHTS_LINEAGE_MISSING_CONTROL",
-      ["MATERIALIZE_CLEAN_AV_MASTER", "COMMIT_CLEAN_AV_MASTER"].includes(action), action === "RUN_CLEAN_AV_FACTORY_QA", action === "RECORD_CLEAN_AV_BROWSER_QA");
-    if (!["RUN_CORPUS_VERIFICATION_BATCH", "RECORD_OWNER_LABEL_RECEIPT", "DISCOVER_ELEVENLABS_HISTORY_METADATA", "HASH_ELEVENLABS_HISTORY_AUDIO", "MATERIALIZE_CLEAN_AUDIO_CONTROL", "CAPTURE_CURRENT_COMMERCIAL_RIGHTS_EVIDENCE", "REGENERATE_COMMERCIAL_CLEAN_AUDIO_CONTROL", "RUN_FACTORY_CLEAN_AUDIO_QA", "RECORD_CLEAN_AUDIO_OWNER_GROUND_TRUTH", "EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY", "DERIVE_RIGHTS_LINEAGE_MISSING_CONTROL", "MATERIALIZE_CLEAN_AV_MASTER", "COMMIT_CLEAN_AV_MASTER", "RUN_CLEAN_AV_FACTORY_QA", "RECORD_CLEAN_AV_BROWSER_QA"].includes(action)) throw new EvaluationCommandError("EVALUATION_ACTION_INVALID", 400, "Use a supported evaluation action");
+      ["MATERIALIZE_CLEAN_AV_MASTER", "COMMIT_CLEAN_AV_MASTER"].includes(action), action === "RUN_CLEAN_AV_FACTORY_QA", ["RECORD_CLEAN_AV_BROWSER_QA", "START_AUTONOMOUS_CLEAN_AV_BROWSER_QA", "FINALIZE_AUTONOMOUS_CLEAN_AV_BROWSER_QA"].includes(action));
+    if (!["RUN_CORPUS_VERIFICATION_BATCH", "RECORD_OWNER_LABEL_RECEIPT", "DISCOVER_ELEVENLABS_HISTORY_METADATA", "HASH_ELEVENLABS_HISTORY_AUDIO", "MATERIALIZE_CLEAN_AUDIO_CONTROL", "CAPTURE_CURRENT_COMMERCIAL_RIGHTS_EVIDENCE", "REGENERATE_COMMERCIAL_CLEAN_AUDIO_CONTROL", "RUN_FACTORY_CLEAN_AUDIO_QA", "RECORD_CLEAN_AUDIO_OWNER_GROUND_TRUTH", "EVALUATE_CLEAN_AUDIO_CONTROL_ELIGIBILITY", "DERIVE_RIGHTS_LINEAGE_MISSING_CONTROL", "MATERIALIZE_CLEAN_AV_MASTER", "COMMIT_CLEAN_AV_MASTER", "RUN_CLEAN_AV_FACTORY_QA", "RECORD_CLEAN_AV_BROWSER_QA", "START_AUTONOMOUS_CLEAN_AV_BROWSER_QA", "FINALIZE_AUTONOMOUS_CLEAN_AV_BROWSER_QA"].includes(action)) throw new EvaluationCommandError("EVALUATION_ACTION_INVALID", 400, "Use a supported evaluation action");
     const idempotencyKey = clean(request.headers.get("idempotency-key") || (formSubmission ? body?.idempotencyKey : ""));
     if (idempotencyKey.length < 16 || idempotencyKey.length > 160) throw new EvaluationCommandError("IDEMPOTENCY_KEY_INVALID", 400, "A 16–160 character idempotency-key is required");
     if (action === "DISCOVER_ELEVENLABS_HISTORY_METADATA") {
@@ -525,6 +533,16 @@ export async function POST(request: Request) {
         mobileLegibilityObserved: body?.mobileLegibilityObserved === true, focusReflowObserved: body?.focusReflowObserved === true, pageErrorCount: number(body?.pageErrorCount),
         decisionState: clean(body?.decisionState), observations: Array.isArray(body?.observations) ? body.observations : [],
       });
+      return Response.json(payload, { status: 201, headers: NO_STORE });
+    }
+    if (action === "START_AUTONOMOUS_CLEAN_AV_BROWSER_QA") {
+      const payload = await startAutonomousCleanAvBrowserQaAuthorized({ db: env.DB, actor, idempotencyKey, materializationReceiptId: clean(body?.materializationReceiptId), distributionHash: clean(body?.distributionHash), browserSessionId: clean(body?.browserSessionId) });
+      return Response.json(payload, { status: 201, headers: NO_STORE });
+    }
+    if (action === "FINALIZE_AUTONOMOUS_CLEAN_AV_BROWSER_QA") {
+      const metrics = body?.metrics && typeof body.metrics === "object" && !Array.isArray(body.metrics) ? body.metrics as AutonomousBrowserMetrics : null;
+      if (!metrics) throw new EvaluationCommandError("CLEAN_AV_BROWSER_QA_METRICS_REQUIRED", 400, "Autonomous Browser QA metrics are required");
+      const payload = await finalizeAutonomousCleanAvBrowserQaAuthorized({ db: env.DB, bucket: env.BUCKET, actor, idempotencyKey, runId: clean(body?.runId), metrics });
       return Response.json(payload, { status: 201, headers: NO_STORE });
     }
     if (action === "RECORD_OWNER_LABEL_RECEIPT") {

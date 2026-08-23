@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_CLEAN_AV_MASTER__PRODUCTION_MATERIALIZED__BROWSER_QA_PENDING`
+**Current source classification:** `WP7_AUTONOMOUS_CLEAN_AV_BROWSER_QA__SOURCE_READY__PRODUCTION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- Migration `0082` and `CLEAN_AV_AUTONOMOUS_BROWSER_QA_V1` are source-ready. The mobile runner binds the exact v469 distribution hash, plays in real time, exercises pause/resume/backward-seek/end, measures decoded audio RMS and frame motion, seals four mobile cue JPEGs through R2 read-back, checks focus/reflow and rejects any page/media error. At most three append-only runs are allowed; a failed run keeps Browser QA `PENDING`, while only a complete evidence bundle can consume the one Browser receipt. Source build and the 36-test evaluation suite pass. Next deploy `0082` and execute one real cloud-browser run. Owner truth remains non-delegable; V2 and all downstream gates remain untouched.
 
 - Sites v469 from source `2e6631171c5f798d981fe7a33e0290622aeaedb3` records the sole `cfp-v1-13` clean A/V master. The archival/distribution/contact-sheet hashes are sealed; an independent production download reproduces distribution SHA-256 `db65f24a28252757901ab5c16fac8711dd6f4ca8e83bd5963ebb6e80c666781c`. Both renditions decode to 1,072 VP9/Opus frames at 30 fps/48 kHz; black ratio is zero, freeze max 0.467 seconds, motion coverage 100%, and A/V start/end deltas are 7/−41 ms. The sole Factory request is `LIKELY_CLEAN` 95/100, P0=0, P1=0, spend USD 0.032484. Cloud Browser could not reach the healthy agent preview, so Browser QA is `PENDING`, no receipt was fabricated and the owner task remains unopened. Next complete exact-master Browser playback QA, then stop at the non-delegable owner decision. Dataset, assurance, Golden r10, Stage 11, release and publication remain locked. V2 is untouched.
 
