@@ -157,6 +157,8 @@ Migration `0073` / `CONTROLLED_FIXTURE_MATERIALIZATION_V1` is production-active 
 
 Phase 17 corrects ElevenLabs commercial-entitlement handling. Official sources prove that PAYG can coexist with a Free base plan, so `payg · active` is not paid-subscription evidence. `ELEVENLABS_COMMERCIAL_ENTITLEMENT_V1` replaces the former non-Free predicate with one explicit paid-tier evaluator shared by clean-fixture, Stage 10 and Golden-audio synthesis. PAYG alone, Free, inactive and unknown tiers fail closed. Sites v451 activates the correction from source `d59842961082845793c912328ff57fc8312699b9`. The current clean fixture remains immutable and rights-pending; Audio QA stays blocked until generation-time paid-plan evidence is appended or a new fixture is generated under an explicit paid base plan. The correction adds zero provider request and zero spend.
 
+Phase 18 is source-ready under migration `0075`. `COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1` adds one append-only replacement opportunity after paid-plan activation, bounded to one subscription read, one TTS request, 700 characters and USD 0.08. It requires the verified official Terms snapshot, exact subscription and audio bytes with SHA-256/R2 read-back, and a provider-native request ID before the replacement can receive rights PASS. `FACTORY_AUDIO_QA_POLICY_V1` then permits one exact-byte `gpt-audio-1.5` review under USD 0.20. The review is independent-only; owner ground truth, dataset, assurance and release remain separate. The verified build and 180/180 regressions pass with zero provider calls/spend in the source slice. Next deploy, execute at most one replacement, and run Factory audio QA only after rights PASS.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:

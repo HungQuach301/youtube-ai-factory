@@ -42,6 +42,7 @@ import {
   summarizeEvaluationInventory,
 } from "../lib/evaluation-foundation.ts";
 import { EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION } from "../lib/clean-audio-rights-evidence.ts";
+import { COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, FACTORY_AUDIO_QA_POLICY_VERSION } from "../lib/commercial-clean-audio-regeneration.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -803,6 +804,39 @@ test("migration 0074 seals official current-rights evidence but keeps ambiguous 
   assert.match(collector, /readbackVerified/);
   assert.match(ownerBoundary, /CAPTURE_CURRENT_COMMERCIAL_RIGHTS_EVIDENCE/);
   assert.doesNotMatch(collector, /rights_verification_state='PASS'|release_eligible=1|qualification_eligible=1/);
+});
+
+test("migration 0075 permits exactly one paid-plan replacement and one bounded Factory audio QA request", () => {
+  assert.equal(COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, "COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1");
+  assert.equal(FACTORY_AUDIO_QA_POLICY_VERSION, "FACTORY_AUDIO_QA_POLICY_V1");
+  const migration = read("drizzle/0075_commercial_clean_audio_regeneration.sql");
+  for (const table of [
+    "v7_evaluation_commercial_clean_audio_policies", "v7_evaluation_commercial_clean_audio_runs",
+    "v7_evaluation_commercial_subscription_receipts", "v7_evaluation_commercial_clean_audio_provider_receipts",
+    "v7_evaluation_commercial_clean_audio_artifacts", "v7_evaluation_commercial_clean_audio_rights_receipts",
+    "v7_evaluation_factory_audio_qa_policies", "v7_evaluation_factory_audio_qa_runs", "v7_evaluation_factory_audio_qa_receipts",
+  ]) assert.match(migration, new RegExp(table));
+  assert.match(migration, /maximum_replacement_fixtures` integer NOT NULL CHECK \(`maximum_replacement_fixtures` = 1\)/);
+  assert.match(migration, /maximum_subscription_reads` integer NOT NULL CHECK \(`maximum_subscription_reads` = 1\)/);
+  assert.match(migration, /maximum_tts_requests` integer NOT NULL CHECK \(`maximum_tts_requests` = 1\)/);
+  assert.match(migration, /maximum_provider_requests` integer NOT NULL CHECK \(`maximum_provider_requests` = 1\)/);
+  assert.match(migration, /rights_state` text NOT NULL CHECK \(`rights_state` = 'PASS'\)/);
+  assert.match(migration, /owner_ground_truth_required` integer NOT NULL CHECK \(`owner_ground_truth_required` = 1\)/);
+  assert.doesNotMatch(migration, /UPDATE `v7_evaluation_materialized_fixture_artifacts`|DELETE FROM|release_eligible=1|dataset_eligible=1|qualification_eligible=1/);
+  const db = new DatabaseSync(":memory:");
+  for (const file of readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort()) db.exec(read(`drizzle/${file}`));
+  const replacement = db.prepare("SELECT maximum_replacement_fixtures,maximum_subscription_reads,maximum_tts_requests,maximum_tts_characters,reserved_spend_ceiling_usd,rights_pass_authority,dataset_sealing_authority,assurance_qualification_authority,release_authority FROM v7_evaluation_commercial_clean_audio_policies").get();
+  assert.deepEqual({ ...replacement }, { maximum_replacement_fixtures: 1, maximum_subscription_reads: 1, maximum_tts_requests: 1, maximum_tts_characters: 700, reserved_spend_ceiling_usd: 0.08, rights_pass_authority: 1, dataset_sealing_authority: 0, assurance_qualification_authority: 0, release_authority: 0 });
+  const qa = db.prepare("SELECT model_id,maximum_provider_requests,reserved_spend_ceiling_usd,overall_floor,dimension_floor,maximum_p0,maximum_p1,owner_ground_truth_required,release_authority FROM v7_evaluation_factory_audio_qa_policies").get();
+  assert.deepEqual({ ...qa }, { model_id: "gpt-audio-1.5", maximum_provider_requests: 1, reserved_spend_ceiling_usd: 0.2, overall_floor: 92, dimension_floor: 90, maximum_p0: 0, maximum_p1: 0, owner_ground_truth_required: 1, release_authority: 0 });
+  const implementation = read("lib/commercial-clean-audio-regeneration.ts"), ownerBoundary = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(implementation, /evaluateElevenLabsCommercialEntitlement/);
+  assert.match(implementation, /COMMERCIAL_SUBSCRIPTION_R2_HASH_MISMATCH/);
+  assert.match(implementation, /providerNativeRequestId/);
+  assert.match(implementation, /FACTORY_AUDIO_QA_SPEND_CEILING_EXCEEDED/);
+  assert.match(implementation, /input_audio/);
+  assert.match(ownerBoundary, /REGENERATE_COMMERCIAL_CLEAN_AUDIO_CONTROL/);
+  assert.match(ownerBoundary, /RUN_FACTORY_CLEAN_AUDIO_QA/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {

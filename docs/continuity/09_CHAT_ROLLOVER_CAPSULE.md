@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_CLEAN_AUDIO_RIGHTS_PENDING__PAYG_ENTITLEMENT_HARDENING_PRODUCTION_ACTIVE`
+**Current source classification:** `WP7_COMMERCIAL_CLEAN_AUDIO_REPLACEMENT_AND_FACTORY_QA__SOURCE_READY_PRODUCTION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- Migration `0075`, `COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1` and `FACTORY_AUDIO_QA_POLICY_V1` are source-ready with 180/180 tests and verified build passing. The append-only lane permits one subscription read, one TTS request under USD 0.08 and, only after exact commercial-rights PASS, one `gpt-audio-1.5` review under USD 0.20. The old fixture remains immutable and rights-pending; Factory review is independent only, owner ground truth is not evaluated, and dataset/assurance/release authority remains false. No provider request or spend has occurred in this slice. Next deploy, then run the single paid-plan replacement and conditional Factory audio QA. The separate V2 project is out of scope and untouched.
 
 - The clean-audio fixture is exact-byte sealed and browser-decodable but remains rights-pending. Official ElevenLabs evidence proves PAYG may sit on a Free or paid base plan, so `payg · active` cannot prove commercial use. Sites v451 activates `ELEVENLABS_COMMERCIAL_ENTITLEMENT_V1` from source `d59842961082845793c912328ff57fc8312699b9`: PAYG alone fails closed and only explicit active Starter/Creator/Pro/Scale/Business/Enterprise tiers may enter clean-fixture, Stage 10 or Golden-audio synthesis. Targeted regression passes 24/24 and the verified full build/regression passes 179/179 with zero provider generation/spend. Next obtain generation-time paid-plan evidence or regenerate after an explicit paid plan is active; Audio QA remains blocked.
 

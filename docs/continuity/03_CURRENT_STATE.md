@@ -2,6 +2,29 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
+## Commercial clean-audio replacement and Factory QA — 2026-08-23
+
+```text
+MIGRATION_0075 = SOURCE_READY__PRODUCTION_PENDING
+REGENERATION_POLICY = COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1
+FACTORY_QA_POLICY = FACTORY_AUDIO_QA_POLICY_V1
+REPLACEMENT_ATTEMPTS_SUBSCRIPTION_READS_TTS_REQUESTS_MAX = 1_1_1
+REGEN_RESERVED_SPEND_USD = 0.08
+FACTORY_AUDIO_QA_REQUESTS_MAX = 1
+FACTORY_AUDIO_QA_RESERVED_SPEND_USD = 0.20
+REPLACEMENT_RIGHTS_PASS = CONDITIONAL_ON_EXPLICIT_PAID_PLAN_AND_EXACT_EVIDENCE_CHAIN
+FACTORY_RECEIPT_AUTHORITY = INDEPENDENT_REVIEW_ONLY
+OWNER_GROUND_TRUTH = NOT_EVALUATED
+DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
+TARGETED_REGRESSION = 50_OF_50_PASS
+FULL_REGRESSION = 180_OF_180_PASS__VERIFIED_BUILD_PASS
+PROVIDER_REQUESTS_THIS_SOURCE_SLICE = 0
+SPEND_USD_THIS_SOURCE_SLICE = 0
+NEXT_PROTECTED_ACTION = DEPLOY__THEN_ONE_BOUNDED_REGENERATION__THEN_FACTORY_AUDIO_QA_IF_RIGHTS_PASS
+```
+
+The first clean-audio fixture remains immutable and rights-pending. Migration `0075` adds one append-only replacement opportunity after an explicit paid plan is active, with exact generation-time subscription bytes, official Terms binding, provider-native request identity, exact audio hashes and R2 read-back. A separate one-request Factory perceptual review can run only against a replacement that passes that rights chain. It is independent evidence, never owner ground truth or release authority. Full regression and verified build pass 180/180 with no provider call or spend in this source slice. Document 69 and ADR-098 are authoritative.
+
 ## ElevenLabs commercial-entitlement correction — 2026-08-23
 
 ```text
