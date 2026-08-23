@@ -1,4 +1,5 @@
 import { canonicalHash, sha256Hex } from "@/lib/canonical-json";
+import { evaluateElevenLabsCommercialEntitlement } from "@/lib/elevenlabs-commercial-entitlement";
 
 export const CONTROLLED_FIXTURE_MATERIALIZATION_VERSION = "CONTROLLED_FIXTURE_MATERIALIZATION_V1" as const;
 export const CLEAN_AUDIO_CONTROL_BLUEPRINT_KEY = "CLEAN_AUDIO_NEGATIVE" as const;
@@ -106,8 +107,9 @@ export async function materializeCleanAudioControlAuthorized(env: FixtureMateria
     const subscriptionResponse = await fetch("https://api.elevenlabs.io/v1/user/subscription", { headers, signal: AbortSignal.timeout(30_000) });
     await run(env.DB, "UPDATE v7_evaluation_fixture_materialization_runs SET provider_requests=1 WHERE id=?", runId);
     if (!subscriptionResponse.ok) throw new FixtureMaterializationError("ELEVENLABS_SUBSCRIPTION_CHECK_FAILED", 502, `ElevenLabs subscription check failed (${subscriptionResponse.status})`);
-    const subscription = await subscriptionResponse.json() as Record<string, unknown>, tier = clean(subscription.tier).toLowerCase(), status = clean(subscription.status).toLowerCase();
-    if (!tier || tier === "free" || status !== "active") throw new FixtureMaterializationError("ELEVENLABS_ACTIVE_PAID_PLAN_REQUIRED", 409, "A currently active non-free ElevenLabs plan is required for new fixture synthesis");
+    const subscription = await subscriptionResponse.json() as Record<string, unknown>;
+    const entitlement = evaluateElevenLabsCommercialEntitlement(subscription), { tier, status } = entitlement;
+    if (!entitlement.commercialUseEligible) throw new FixtureMaterializationError("ELEVENLABS_ACTIVE_PAID_PLAN_REQUIRED", 409, `An explicit active paid ElevenLabs base plan is required for new fixture synthesis (${entitlement.state})`);
     const subscriptionResponseHash = await canonicalHash(subscription), subscriptionObservedAt = now();
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(clean(identity.voice_id))}?output_format=${encodeURIComponent(clean(identity.output_format))}`, {
       method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(requestBody), signal: AbortSignal.timeout(180_000),

@@ -81,7 +81,7 @@ test("Stage 08 requires an approved bounded plan and adaptive canonical-duration
   assert.match(executor, /SHOT_TIMELINE_COVERAGE_INVALID/);
   assert.match(plan, /APPROVE_COST_RIGHTS_PLAN/);
   assert.match(plan, /PER_VIDEO_HARD_CAP_USD = 40/);
-  assert.match(plan, /NON_FREE_COMMERCIAL_PLAN_VERIFIED_BEFORE_SYNTHESIS/);
+  assert.match(plan, /EXPLICIT_PAID_SUBSCRIPTION_TIER_VERIFIED_BEFORE_SYNTHESIS__PAYG_ALONE_INELIGIBLE/);
   assert.match(plan, /LEGACY_ASSET_REUSE/);
 });
 
@@ -94,6 +94,7 @@ test("Stage 09–10 executor stores real media/audio bytes with rights and measu
   assert.match(media, /MEDIA_HASH_MISMATCH/);
   assert.match(media, /output_format=pcm_24000/);
   assert.match(media, /ELEVENLABS_COMMERCIAL_RIGHTS_REQUIRED/);
+  assert.match(media, /evaluateElevenLabsCommercialEntitlement/);
   assert.match(media, /peakDbfs/);
   assert.match(media, /audio\/wav/);
   assert.match(command, /storedMediaAssets/);

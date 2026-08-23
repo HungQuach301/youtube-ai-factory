@@ -1,6 +1,27 @@
 # Current State
 
-Last reconciled: 2026-08-22 (Asia/Bangkok)
+Last reconciled: 2026-08-23 (Asia/Bangkok)
+
+## ElevenLabs commercial-entitlement correction — 2026-08-23
+
+```text
+POLICY = ELEVENLABS_COMMERCIAL_ENTITLEMENT_V1
+ROOT_CAUSE = ACTIVE_NON_FREE_PREDICATE_TREATED_PAYG_AS_COMMERCIAL
+AUTHORITATIVE_FACT = PAYG_CAN_EXIST_ON_FREE_OR_PAID_BASE_PLAN
+ELIGIBLE_TIERS = STARTER_CREATOR_PRO_SCALE_BUSINESS_ENTERPRISE
+PAYG_ALONE = INELIGIBLE
+ACTIVE_V7_SYNTHESIS_PATHS_HARDENED = CLEAN_FIXTURE_STAGE_10_GOLDEN_AUDIO
+CURRENT_CLEAN_AUDIO_RIGHTS = PROVIDER_TERMS_RECEIPT_REQUIRED
+RIGHTS_DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE_FALSE
+TARGETED_REGRESSION = 24_OF_24_PASS
+FULL_REGRESSION = 179_OF_179_PASS__VERIFIED_BUILD_PASS
+PROVIDER_GENERATION_REQUESTS = 0
+SPEND_USD = 0
+PRODUCTION_STATE = SOURCE_READY__DEPLOYMENT_PENDING
+NEXT_PROTECTED_ACTION = DEPLOY_HARDENED_GATE__THEN_EXPLICIT_PAID_BASE_PLAN_EVIDENCE_OR_REGENERATE
+```
+
+ElevenLabs Terms and publishing guidance require a paid subscription for commercial use, while the PAYG administration documentation explicitly allows PAYG on Free accounts. The previous `tier != free` predicate was therefore insufficient. The shared evaluator now permits only an explicit active paid base tier and fails closed for `payg`, Free, inactive or unknown values. Existing bytes and receipts remain immutable; the current fixture cannot enter Factory-first audio QA until its generation-time plan is proven or a new fixture is generated after an explicit paid plan is active. Targeted tests pass 24/24 and the verified full build/regression passes 179/179. Document 68 and ADR-097 are authoritative for this correction.
 
 ## Historical recovery closure and controlled fixture plan — 2026-08-22
 

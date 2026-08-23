@@ -50,3 +50,9 @@ Production source checkpoints:
 
 - evidence capture: commit `9bb5fe43bdff9c5ca0219878caa0aedac4249203`;
 - receipt-detail projection: commit `2b0d2034d914be54eac707ad7db5f26dc972af3f`.
+
+## Entitlement correction
+
+Subsequent authoritative-source review confirmed that PAYG is available on the Free tier as well as paid base plans. The old `active && tier != free` synthesis predicate was therefore insufficient and is superseded by `ELEVENLABS_COMMERCIAL_ENTITLEMENT_V1` and ADR-097. `payg · active` remains generation-time account evidence, but it cannot become a commercial-rights receipt without an explicit paid base tier or contract covering that timestamp.
+
+The existing clean audio remains exact, immutable, decodable and rights-pending. Factory-first perceptual audio QA must not start from it. The next admissible evidence is either an authoritative generation-time paid-base-plan receipt for the exact request or a newly generated clean fixture after an explicit paid plan is active.

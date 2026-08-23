@@ -13,6 +13,7 @@ import {
   lintFinancialSafety,
   redactTraceAttributes,
 } from "../lib/production-integrity.ts";
+import { evaluateElevenLabsCommercialEntitlement } from "../lib/elevenlabs-commercial-entitlement.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -79,6 +80,28 @@ test("failure taxonomy and trace redaction preserve incident evidence without se
   assert.equal(classifyProviderFailure("OPENAI_429_RATE_LIMIT"), "TRANSIENT");
   assert.equal(classifyProviderFailure("LICENSE_NOT_COMMERCIAL"), "RIGHTS");
   assert.deepEqual(redactTraceAttributes({ stage: "09", authorization: "Bearer secret", prompt: "private", count: 2 }), { stage: "09", authorization: "[REDACTED]", prompt: "[REDACTED]", count: 2 });
+});
+
+test("ElevenLabs commercial entitlement requires an explicit active paid base plan", () => {
+  for (const tier of ["starter", "creator", "pro", "scale", "business", "enterprise"]) {
+    assert.equal(evaluateElevenLabsCommercialEntitlement({ tier, status: "active" }).commercialUseEligible, true);
+  }
+  for (const subscription of [
+    { tier: "payg", status: "active" },
+    { tier: "free", status: "active" },
+    { tier: "starter", status: "inactive" },
+    { tier: "unknown", status: "active" },
+    {},
+  ]) assert.equal(evaluateElevenLabsCommercialEntitlement(subscription).commercialUseEligible, false);
+  assert.equal(evaluateElevenLabsCommercialEntitlement({ tier: "payg", status: "active" }).state, "PAYG_BASE_PLAN_AMBIGUOUS");
+});
+
+test("every active V7 ElevenLabs synthesis path uses the shared entitlement evaluator", () => {
+  for (const path of [
+    "lib/controlled-fixture-materialization.ts",
+    "app/api/factory/sequential-production/media/route.ts",
+    "app/api/factory/sequential-production/quality/route.ts",
+  ]) assert.match(read(path), /evaluateElevenLabsCommercialEntitlement/);
 });
 
 test("FP3.1 migration defines durable integrity state and atomic budget guards", () => {

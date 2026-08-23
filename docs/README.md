@@ -92,6 +92,8 @@ When facts conflict, use this order:
 | ElevenLabs history and exact-audio recovery | [`continuity/64_ELEVENLABS_HISTORY_AND_AUDIO_HASH_RECOVERY_EXECUTION_RECORD.md`](continuity/64_ELEVENLABS_HISTORY_AND_AUDIO_HASH_RECOVERY_EXECUTION_RECORD.md) |
 | Historical recovery closure and controlled fixture plan | [`continuity/65_HISTORICAL_RECOVERY_CLOSURE_AND_CONTROLLED_FIXTURE_PLAN.md`](continuity/65_HISTORICAL_RECOVERY_CLOSURE_AND_CONTROLLED_FIXTURE_PLAN.md) |
 | Clean audio control materialization | [`continuity/66_CLEAN_AUDIO_CONTROL_MATERIALIZATION.md`](continuity/66_CLEAN_AUDIO_CONTROL_MATERIALIZATION.md) |
+| Clean audio commercial-rights evidence | [`continuity/67_CLEAN_AUDIO_COMMERCIAL_RIGHTS_EVIDENCE.md`](continuity/67_CLEAN_AUDIO_COMMERCIAL_RIGHTS_EVIDENCE.md) |
+| ElevenLabs commercial-entitlement hardening | [`continuity/68_ELEVENLABS_COMMERCIAL_ENTITLEMENT_HARDENING.md`](continuity/68_ELEVENLABS_COMMERCIAL_ENTITLEMENT_HARDENING.md) |
 | Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
 | External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
 

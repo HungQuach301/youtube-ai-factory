@@ -1,7 +1,7 @@
 # Master Issue Registry
 
 **Registry version:** `MASTER_ISSUE_REGISTRY_V1`
-**Reconciled:** 2026-08-22
+**Reconciled:** 2026-08-23
 **Total original A–G findings:** 47 = 9 P0 + 28 P1 + 10 P2
 
 ## Status definitions
@@ -119,6 +119,7 @@
 | X17 | P0 | Hidden input `name=action` shadows `HTMLFormElement.action`, sending owner receipts to `[object HTMLInputElement]` | `HANDLED__PRODUCTION_ACTIVE`: Sites v418 deploys attribute-based endpoint resolution from exact source `fce8dbc65da228d21b6526b5dd987716c7fdf3e6`; 165/165 regressions pass, post-deploy Worker errors are zero and owner refresh/resubmission remains pending | Evaluation |
 | X18 | P0 | Evaluation architecture makes the owner manually classify the entire primary corpus before the Factory has performed first-pass QA | `HANDLED__PRODUCTION_ACTIVE`: Sites v425 passed combined exact-byte calibration at 2/2 and drained all 80 non-anchor primaries; Sites v430 corrects the result to 33 likely-defect images plus 47 structured JSON evidence artifacts, with zero open Browser/likely-clean/owner-attention outcomes; owner identity remains separate and no result can promote fixture/dataset/assurance/release state | Evaluation |
 | X19 | P0 | Temporal/audio corpus items have no Factory-operated real-browser execution lane after first-pass triage | `HANDLED__PRODUCTION_ACTIVE_NO_CURRENT_MEDIA`: `FACTORY_BROWSER_QA_POLICY_V1` is deployed and its exact-byte full-playback fixture passes; migration `0066` proves the 47 legacy Browser-labelled rows were JSON and immutably supersedes their routing to `STRUCTURED_EVIDENCE_ONLY`, leaving zero eligible media tasks without fabricating receipts | Evaluation |
+| X20 | P0 | Active ElevenLabs synthesis treated any non-`free` tier, including ambiguous `payg`, as commercial-rights evidence | `HANDLED__SOURCE_READY_PRODUCTION_PENDING`: `ELEVENLABS_COMMERCIAL_ENTITLEMENT_V1` centralizes explicit active paid-tier allowlisting across clean fixture, Stage 10 and Golden audio; PAYG alone, Free, inactive and unknown tiers fail closed; current fixture stays rights-pending; 24/24 targeted and 179/179 full regressions pass with zero provider generation/spend | Technical media/WP7 |
 
 ## Closure rule
 
