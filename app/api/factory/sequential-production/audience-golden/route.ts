@@ -18,17 +18,17 @@ import {
 
 export const dynamic = "force-dynamic";
 const NO_STORE = { "cache-control": "no-store" };
-type RuntimeEnv = AudienceGoldenEnv & { FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string };
+type RuntimeEnv = AudienceGoldenEnv & { FACTORY_EXPERT_EMAILS?: string; FACTORY_AUTOMATION_ACTOR_EMAIL?: string; AUDIENCE_GOLDEN_AUTOMATION_TOKEN?: string };
 type Row = Record<string, unknown>;
 const clean = (value: unknown) => String(value ?? "").trim();
 const fromBase64 = (value: string) => { const binary = atob(value), bytes = new Uint8Array(binary.length); for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index); return bytes; };
+async function secretMatches(left: string, right: string) { if (!left || !right) return false; const encode = (value: string) => new TextEncoder().encode(value), [a, b] = await Promise.all([crypto.subtle.digest("SHA-256", encode(left)), crypto.subtle.digest("SHA-256", encode(right))]); const av = new Uint8Array(a), bv = new Uint8Array(b); let difference = av.length ^ bv.length; for (let index = 0; index < Math.min(av.length, bv.length); index += 1) difference |= av[index] ^ bv[index]; return difference === 0; }
 
 async function authorized(request: Request, allowAutomation = false) {
   const { env } = await import("cloudflare:workers") as unknown as { env: RuntimeEnv };
   if (!env.DB || !env.BUCKET) throw new AudienceGoldenError("RUNTIME_UNAVAILABLE", 503, "Canonical D1 and R2 bindings are required");
   let user = await getChatGPTUser();
-  const sitesBearerPresent = /^Bearer\s+\S{20,}$/i.test(clean(request.headers.get("OAI-Sites-Authorization")));
-  const scopedAutomation = allowAutomation && sitesBearerPresent && clean(request.headers.get("x-audience-golden-automation")) === "AUDIENCE_GOLDEN_EXECUTOR_V1";
+  const scopedAutomation = allowAutomation && await secretMatches(clean(request.headers.get("x-audience-golden-automation-token")), clean(env.AUDIENCE_GOLDEN_AUTOMATION_TOKEN));
   if (!user && scopedAutomation && clean(env.FACTORY_AUTOMATION_ACTOR_EMAIL)) user = { email: clean(env.FACTORY_AUTOMATION_ACTOR_EMAIL), displayName: "Audience Golden Executor", fullName: null };
   if (!user) throw new AudienceGoldenError("SIWC_AUTHENTICATION_REQUIRED", 401, "Owner or scoped Golden executor authentication is required");
   const allowlist = new Set(clean(env.FACTORY_EXPERT_EMAILS).split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
