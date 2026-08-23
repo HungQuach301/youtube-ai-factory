@@ -56,9 +56,10 @@ FULL_REGRESSION = 180_OF_180_PASS__VERIFIED_BUILD_PASS
 PROVIDER_REQUESTS_THIS_SOURCE_SLICE = 0
 SPEND_USD_THIS_SOURCE_SLICE = 0
 RIGHTS_DATASET_ASSURANCE_RELEASE_AUTHORITY = 0_0_0_0
-PRODUCTION_STATE = SOURCE_READY__DEPLOYMENT_PENDING
+PRODUCTION_STATE = PRODUCTION_ACTIVE_SITES_V453
+PRODUCTION_SOURCE_COMMIT = 6a024081acc54e70815ecd1d4dccdb85860f6935
 ```
 
 ## Next protected action
 
-Deploy the source checkpoint, verify the paid plan through the bounded production action, and create at most one replacement. Run Factory audio QA only if the replacement receives a fully bound commercial-rights PASS. Owner clean ground truth remains a separate later gate. Golden r10, Stage 11, Videos 2–15 and auto-publish remain blocked.
+Sites v453 deploys the bounded lane from exact source `6a024081acc54e70815ecd1d4dccdb85860f6935`. Verify the paid plan through the authenticated production action and create at most one replacement. Run Factory audio QA only if the replacement receives a fully bound commercial-rights PASS. Owner clean ground truth remains a separate later gate. Golden r10, Stage 11, Videos 2–15 and auto-publish remain blocked.

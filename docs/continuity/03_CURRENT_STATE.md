@@ -5,7 +5,8 @@ Last reconciled: 2026-08-23 (Asia/Bangkok)
 ## Commercial clean-audio replacement and Factory QA — 2026-08-23
 
 ```text
-MIGRATION_0075 = SOURCE_READY__PRODUCTION_PENDING
+MIGRATION_0075 = PRODUCTION_ACTIVE_SITES_V453
+PRODUCTION_SOURCE_COMMIT = 6a024081acc54e70815ecd1d4dccdb85860f6935
 REGENERATION_POLICY = COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1
 FACTORY_QA_POLICY = FACTORY_AUDIO_QA_POLICY_V1
 REPLACEMENT_ATTEMPTS_SUBSCRIPTION_READS_TTS_REQUESTS_MAX = 1_1_1
@@ -20,10 +21,10 @@ TARGETED_REGRESSION = 50_OF_50_PASS
 FULL_REGRESSION = 180_OF_180_PASS__VERIFIED_BUILD_PASS
 PROVIDER_REQUESTS_THIS_SOURCE_SLICE = 0
 SPEND_USD_THIS_SOURCE_SLICE = 0
-NEXT_PROTECTED_ACTION = DEPLOY__THEN_ONE_BOUNDED_REGENERATION__THEN_FACTORY_AUDIO_QA_IF_RIGHTS_PASS
+NEXT_PROTECTED_ACTION = ONE_BOUNDED_REGENERATION__THEN_FACTORY_AUDIO_QA_IF_RIGHTS_PASS
 ```
 
-The first clean-audio fixture remains immutable and rights-pending. Migration `0075` adds one append-only replacement opportunity after an explicit paid plan is active, with exact generation-time subscription bytes, official Terms binding, provider-native request identity, exact audio hashes and R2 read-back. A separate one-request Factory perceptual review can run only against a replacement that passes that rights chain. It is independent evidence, never owner ground truth or release authority. Full regression and verified build pass 180/180 with no provider call or spend in this source slice. Document 69 and ADR-098 are authoritative.
+The first clean-audio fixture remains immutable and rights-pending. Sites v453 activates migration `0075` from source `6a024081acc54e70815ecd1d4dccdb85860f6935`, adding one append-only replacement opportunity after an explicit paid plan is active, with exact generation-time subscription bytes, official Terms binding, provider-native request identity, exact audio hashes and R2 read-back. A separate one-request Factory perceptual review can run only against a replacement that passes that rights chain. It is independent evidence, never owner ground truth or release authority. Full regression and verified build pass 180/180 with no provider call or spend in this source/deployment slice. Document 69 and ADR-098 are authoritative.
 
 ## ElevenLabs commercial-entitlement correction — 2026-08-23
 
