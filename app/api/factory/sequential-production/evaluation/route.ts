@@ -235,7 +235,7 @@ export async function GET(request: Request) {
         const snapshot = await cleanAvMasterSnapshot(env.DB), materialization = snapshot.materialization;
         if (!materialization) throw new EvaluationCommandError("CLEAN_AV_MASTER_NOT_FOUND", 404, "The exact clean A/V master is not available");
         if (snapshot.browserQa) throw new EvaluationCommandError("CLEAN_AV_BROWSER_QA_CEILING_REACHED", 409, "The single Browser QA receipt already exists");
-        return new Response(autonomousCleanAvBrowserQaHtml({ materializationReceiptId: materialization.id, distributionHash: materialization.distributionHash }), { headers: { ...NO_STORE, "content-type": "text/html; charset=utf-8", "x-frame-options": "DENY", "content-security-policy": "default-src 'self'; media-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" } });
+        return new Response(autonomousCleanAvBrowserQaHtml({ materializationReceiptId: materialization.id, distributionHash: materialization.distributionHash }), { headers: { ...NO_STORE, "content-type": "text/html; charset=utf-8", "x-frame-options": "DENY", "content-security-policy": "default-src 'self'; frame-src 'self'; media-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" } });
       }
       if (view === "commercial-clean-audio") {
         const [commercialAudio, ownerGroundTruth, cleanControlEligibility, controlledDefectDerivation, cleanAvMaster] = await Promise.all([commercialCleanAudioSnapshot(env.DB), cleanAudioOwnerGroundTruthSnapshot(env.DB), cleanAudioControlEligibilitySnapshot(env.DB), controlledDefectDerivationSnapshot(env.DB), cleanAvMasterSnapshot(env.DB)]);
