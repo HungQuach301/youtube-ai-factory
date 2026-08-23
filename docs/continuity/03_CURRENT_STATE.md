@@ -2,20 +2,20 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
-## Audience Golden Sequence — R4 rejected, R5 source ready
+## Audience Golden Sequence — R5 rejected, R6 source ready
 
 ```text
-PRODUCTION_CHECKPOINT = SITES_V484
-R4_MASTER_SHA256 = 0e7e1401864fb3536cf409c9880b33a07364974e05b64b9d0d46e08b5549a4a1
-R4_FACTORY_VISUAL = FAIL_76__P0_0__P1_2__P2_3
-R4_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_2
-R5_SOURCE = V485_RENDER_COMPLETE__UPLOAD_CEILING_STOPPED_BEFORE_RECEIPT__CRF22_TRANSPORT_REPAIR_READY
-SOURCE_VERIFICATION = 191_OF_191_PASS__BUILD_PASS__V2_FIREWALL_16_OF_16
+PRODUCTION_CHECKPOINT = SITES_V486
+R5_MASTER_SHA256 = bddc055889a4754b4a0afe13b07b5fc8d9c654518d2222fc1e18c486b3b73970
+R5_FACTORY_VISUAL = FAIL_83__P0_0__P1_2__P2_3
+R5_FACTORY_AUDIO = PASS_94__P0_0__P1_0__P2_2
+R6_SOURCE = READY__MIGRATION_0089__PHASE_COMPOSITION_RESET__SYNCHRONIZED_ARITHMETIC
+SOURCE_VERIFICATION = 192_OF_192_PASS__BUILD_PASS__V2_FIREWALL_16_OF_16
 BROWSER_OWNER_FREEZE = BLOCKED_BLOCKED_FALSE
-NEXT_PROTECTED_ACTION = DEPLOY_R5_TRANSPORT_REPAIR__REPLAY_MATERIALIZATION__RUN_FACTORY_VISUAL_AUDIO_QA
+NEXT_PROTECTED_ACTION = DEPLOY_R6__MATERIALIZE__RUN_FACTORY_VISUAL_AUDIO_QA
 ```
 
-R4's cinematic world improved richness but kept a prolonged repeated tableau/lower-third and moved a marker without visibly transforming balances, records or settlement objects. R5 corrects those exact root owners with five asset-bound worlds, physical balance/record/netting transformations, Vietnamese-only essential labels and 72 px minimum critical text at 1080. Sites v485 completed the 69.34-second render but the CRF-19 master exceeded the immutable 128-chunk upload ceiling, so materialization and QA receipts were not created. The transport-only CRF-22 repair now preflights this ceiling while preserving the blueprint, audio and timeline. Document 78 is authoritative for the revision history; V2, Stage 11, full-video expansion, release and publication remain untouched.
+R5 improved the independent visual score to 83 but preserved two P1 defects: four compositions remained locked too long, and the animated hold example showed an inconsistent intermediate remainder. Its three P2 findings were one opening collision, one unmapped clearing delta and three color states without direct labels. R6 corrects those exact findings through per-phase hard crops/composition resets, frame-synchronized arithmetic, an explicit fee equation, one active opening label and labels bound to every state node. Production evidence is not inferred from source. Document 78 is authoritative; V2, Stage 11, full-video expansion, release and publication remain untouched.
 
 ## YouTube audience-master correction — owner rejection recorded
 

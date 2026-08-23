@@ -86,8 +86,22 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /physical-balance-reservoir/);
   assert.match(executor, /converging-record-plates/);
   assert.match(executor, /growing-merchant-coin-stack/);
-  assert.match(executor, /revision==="r5"\?20/);
-  assert.match(executor, /minimumCriticalFontPx1080:revision==="r5"\?72/);
-  assert.match(executor, /revision === "r5" \? "22" : "19"/);
+  assert.match(executor, /sceneCount:r5OrR6\?20/);
+  assert.match(executor, /minimumCriticalFontPx1080:r5OrR6\?72/);
+  assert.match(executor, /revision === "r5" \|\| revision === "r6" \? "22" : "19"/);
   assert.match(executor, /chunks\.length > 128/);
+});
+
+test("Revision 5 rejection creates immutable Revision 6 with composition and arithmetic repairs", () => {
+  const migration = read("drizzle/0089_youtube_audience_golden_revision_6.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_6/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_6_IMMUTABLE/);
+  assert.match(runtime, /CINEMATIC_MULTI_COMPOSITION_PROCESS/);
+  assert.match(runtime, /10\.00_MINUS_HOLD_EQUALS_AVAILABLE/);
+  assert.match(runtime, /2\.00_PLUS_FEE_0\.05_EQUALS_2\.05/);
+  assert.match(runtime, /BẢN GHI KHỚP/);
+  assert.match(executor, /function svgFrameR6/);
+  assert.match(executor, /phase-specific-hard-crops/);
+  assert.match(executor, /synchronized-hold-arithmetic/);
+  assert.match(executor, /explicit-state-label-binding/);
 });

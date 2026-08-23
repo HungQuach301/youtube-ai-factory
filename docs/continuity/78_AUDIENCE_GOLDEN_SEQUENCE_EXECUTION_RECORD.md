@@ -1,7 +1,7 @@
 # Audience Golden Sequence execution record
 
 **Class:** `EXECUTION_EVIDENCE`  
-**Status:** `ACTIVE__REVISION_5_SOURCE_READY__PRODUCTION_PENDING`  
+**Status:** `ACTIVE__REVISION_5_REJECTED__REVISION_6_SOURCE_READY`
 **Date:** 2026-08-23 (Asia/Bangkok)  
 **Scope:** original YouTube AI Factory only; Production V2 is excluded and untouched.
 
@@ -17,8 +17,11 @@
 | R2 | `4cc05b331036262c9010361a702a5c046208719aec3a050eab5679519dbc2852` | FAIL 80 | PASS 95 | preserved rejected evidence |
 | R3 | `a5fed86b903c2dba80874efbb2ef39a4dfc5cd41d464fb77c93ba746f6e37163` | FAIL 70 | PASS 95 | preserved rejected evidence |
 | R4 | `0e7e1401864fb3536cf409c9880b33a07364974e05b64b9d0d46e08b5549a4a1` | FAIL 76 | PASS 95 | preserved rejected evidence |
+| R5 | `bddc055889a4754b4a0afe13b07b5fc8d9c654518d2222fc1e18c486b3b73970` | FAIL 83 | PASS 94 | preserved rejected evidence |
 
 R4 improved visual richness but retained two P1 defects: the same tableau/lower-third grammar persisted across the explanation, and the moving marker did not make institutions, balances or records visibly transform. Its three P2 findings were insufficient state differentiation, mixed English without visible definition and secondary mobile typography. No Browser or owner PASS was inferred.
+
+R5 is a deterministic/rights PASS 69.335-second 2560×1440 H.264/AAC master of 37,430,032 bytes. Factory visual QA improved to 83 but still found two P1 defects: four world compositions remained locked too long, and the animated hold example displayed an inconsistent intermediate remainder. Three P2 findings identify the opening stage-label collision, an unlabeled clearing delta and state colors without labels bound to each node. Exact-audio QA passed at 94 with two P2 observations. Browser, owner review and freeze remain unopened.
 
 ## Revision 5 source contract
 
@@ -37,11 +40,11 @@ The 20-phase renderer removes persistent lower thirds and numbered badges. It ph
 ```text
 NODE_SYNTAX = PASS
 CONTACT_SHEET_INSPECTION = PASS__20_OF_20_PHASES_NONEMPTY__NO_PHASE_18_COLLISION
-FULL_REGRESSION = 191_OF_191_PASS
+FULL_REGRESSION = 192_OF_192_PASS
 VERIFIED_BUILD = PASS
 PRODUCTION_V2_LEGACY_DEPENDENCY_FIREWALL = 16_OF_16_PASS
-PRODUCTION_R5 = V485_RENDER_COMPLETE__UPLOAD_CEILING_STOPPED_BEFORE_RECEIPT__TRANSPORT_REPAIR_READY
-FACTORY_VISUAL_AUDIO_QA = PENDING
+PRODUCTION_R5 = MATERIALIZED__EXACT_MASTER_BDDC0558__DETERMINISTIC_RIGHTS_PASS
+FACTORY_VISUAL_AUDIO_QA = FAIL_83__PASS_94
 BROWSER_DEVICE_QA = BLOCKED_UNTIL_FACTORY_PASS
 OWNER_FULL_PLAYBACK = BLOCKED_UNTIL_BROWSER_PASS
 FREEZE_RELEASE_PUBLICATION = FALSE_FALSE_FALSE
@@ -49,4 +52,4 @@ FREEZE_RELEASE_PUBLICATION = FALSE_FALSE_FALSE
 
 ## Exact next action
 
-Sites v485 created the one R5 audio artifact and rendered the complete 69.34-second master, but the 55 MB CRF-19 file required more than the immutable 128×400,000-byte upload ceiling. The first chunk was rejected from its descriptor before any materialization or QA receipt. The transport repair keeps the exact blueprint/audio/visual timeline, uses CRF 22 for R5, and now preflights chunk count before any upload request. Deploy this repair, replay materialization from the existing audio, and run independent Factory visual/audio review only after exact R2 commit. A visual or audio failure opens a new evidence-bound root repair; a conjunction PASS opens Browser/device QA. Only after Browser PASS may the owner watch the exact master and provide the non-delegable decision required for freeze. Production V2, Stage 11, full-video expansion, release and publication remain untouched.
+Sites v485 created the one R5 audio artifact and rendered the complete timeline, but its CRF-19 file exceeded the immutable upload ceiling before any materialization or QA receipt. Sites v486 preserved the blueprint/audio/timeline, re-encoded at CRF 22, preflighted chunk count, exact-read the complete artifact set and sealed R5 plus both independent QA receipts. Migration `0089` now authorizes one R6 only from the R5 visual FAIL plus audio PASS. R6 uses a hard crop and diagonal composition reset per phase, synchronizes `10.00 − hold = available` every frame, explicitly maps `2.00 + fee 0.05 = 2.05`, replaces the crowded opening labels with one active-stage label and binds a label directly to every transaction-state node. Deploy R6, materialize once and continue from stored Factory evidence. Production V2, Stage 11, full-video expansion, release and publication remain untouched.

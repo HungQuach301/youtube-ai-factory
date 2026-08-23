@@ -220,6 +220,36 @@ function svgFrameR5(t, duration) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440"><defs><filter id="glow"><feGaussianBlur stdDeviation="14" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><linearGradient id="shade" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#020806" stop-opacity=".82"/><stop offset=".42" stop-color="#020806" stop-opacity=".08"/><stop offset="1" stop-color="#020806" stop-opacity=".3"/></linearGradient></defs><image href="data:image/jpeg;base64,${data}" x="${-35*bob}" y="${-20*bob}" width="2630" height="1480" preserveAspectRatio="xMidYMid slice"/><rect width="2560" height="1440" fill="url(#shade)"/>${objects}<g font-family="Arial,Helvetica,sans-serif">${words}</g></svg>`;
 }
 
+function svgFrameR6(t, duration) {
+  const phaseLength = duration / 20, phase = Math.min(19, Math.floor(t / phaseLength)), local = Math.min(1, (t - phase * phaseLength) / phaseLength), ease = local < .5 ? 2 * local * local : 1 - Math.pow(-2 * local + 2, 2) / 2;
+  let svg = svgFrameR5(t, duration);
+  const crops = [
+    [0,0,2560,1440],[-180,-90,2860,1609],[-620,-210,3240,1823],[-1120,-360,3660,2059],[-120,-300,3300,1856],[-760,-120,3400,1913],
+    [0,0,2560,1440],[-430,-210,3240,1823],[-900,-320,3580,2014],[-170,-260,3260,1834],
+    [0,0,2560,1440],[-470,-240,3300,1856],[-930,-280,3540,1991],[-350,-80,3020,1699],
+    [0,0,2560,1440],[-720,-160,3300,1856],[-180,-280,3320,1868],[-880,-210,3440,1935],[-120,-70,2840,1598],[0,0,2560,1440]
+  ];
+  const [x,y,width,height] = crops[phase];
+  svg = svg.replace(/x="-?[\d.]+" y="-?[\d.]+" width="2630" height="1480" preserveAspectRatio="xMidYMid slice"/, `x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid slice"`);
+  const cuts = [4,9,11,14,16].includes(phase) ? `<path d="M0 ${960-phase*8} L${phase%2?1180:1480} 1440 H0Z" fill="#020806" opacity=".62"/><path d="M2560 ${340+phase*9} L${phase%2?1480:1180} 0 H2560Z" fill="${phase%2?'#071b2b':'#251407'}" opacity=".38"/>` : `<path d="M0 ${1240-(phase%4)*70} L${500+(phase%3)*280} 1440 H0Z" fill="#020806" opacity=".28"/>`;
+  svg = svg.replace('<rect width="2560" height="1440" fill="url(#shade)"/>', `<rect width="2560" height="1440" fill="url(#shade)"/>${cuts}`);
+  if (phase === 1) {
+    const active = Math.min(2, Math.floor(local * 3)), activeLabel = ["CHO PHÉP", "ĐỐI CHIẾU", "QUYẾT TOÁN"][active], color = ["#72ffd0", "#ffd36a", "#71d9ff"][active];
+    svg = svg.replace(/<text x="710"[\s\S]*?CHO PHÉP<\/text><text x="1280"[\s\S]*?ĐỐI CHIẾU<\/text><text x="1850"[\s\S]*?QUYẾT TOÁN<\/text>/, `<text x="1280" y="1120" text-anchor="middle" font-size="124" font-weight="900" fill="${color}" stroke="#020806" stroke-width="18" paint-order="stroke">${activeLabel}</text>`);
+  }
+  if (phase === 4) {
+    const formatViNumber = (value) => value.toFixed(1).replace(".0", "").replace(".", ",");
+    const hold = 2 * ease, available = 10 - hold, holdText = formatViNumber(hold), availableText = formatViNumber(available);
+    svg = svg.replace("GIỮ 2 TRIỆU", `GIỮ ${holdText} TRIỆU`).replace(/\d+(?:\.\d+)? TRIỆU CÒN DÙNG/, `${availableText} TRIỆU CÒN DÙNG`);
+  }
+  if (phase === 9) svg = svg.replace("GIỮ 2,00 TRIỆU", "2,00 + PHÍ 0,05").replace(/BẢN GHI 2,\d+ TRIỆU/, "BẢN GHI 2,05 TRIỆU").replace("HAI CON SỐ CÓ THỂ KHÁC NHAU", "PHÍ ĐƯỢC GẮN VÀO BẢN GHI");
+  if (phase === 14) {
+    svg = svg.replace("BA TRẠNG THÁI · BA SỰ THẬT", "");
+    svg = svg.replace("</svg>", `<g font-family="Arial,Helvetica,sans-serif" font-size="96" font-weight="900" text-anchor="middle" stroke="#020806" stroke-width="14" paint-order="stroke"><text x="650" y="1080" fill="#ffd36a">KHOẢN GIỮ</text><text x="1280" y="1210" fill="#72ffd0">BẢN GHI KHỚP</text><text x="1910" y="1080" fill="#71d9ff">TIỀN ĐÃ CHUYỂN</text></g></svg>`);
+  }
+  return svg;
+}
+
 async function uploadFile(blueprintId, role, path) {
   const bytes = readFileSync(path), fullHash = sha(bytes), chunks = [];
   for (let offset = 0, index = 0; offset < bytes.length; offset += 400_000, index += 1) { const part = bytes.subarray(offset, Math.min(bytes.length, offset + 400_000)); chunks.push({ index, hash: sha(part), size: part.length, part }); }
@@ -230,19 +260,19 @@ async function uploadFile(blueprintId, role, path) {
 
 let snapshot = await request("GET");
 if (snapshot.nextAction === "CREATE_REPAIR_REVISION") {
-  const repairRevision = snapshot.blueprint?.id?.endsWith(":r4") ? "r5" : snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
+  const repairRevision = snapshot.blueprint?.id?.endsWith(":r5") ? "r6" : snapshot.blueprint?.id?.endsWith(":r4") ? "r5" : snapshot.blueprint?.id?.endsWith(":r3") ? "r4" : snapshot.blueprint?.id?.endsWith(":r2") ? "r3" : "r2";
   snapshot = (await request("POST", { action: "CREATE_REPAIR_REVISION" }, `audience-golden:repair-revision:${repairRevision}:20260823`)).snapshot;
 }
 if (!snapshot.blueprint) snapshot = (await request("POST", { action: "BOOTSTRAP" }, "audience-golden:bootstrap:v1:20260823")).snapshot;
-const revision = snapshot.blueprint.id.endsWith(":r5") ? "r5" : snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
+const revision = snapshot.blueprint.id.endsWith(":r6") ? "r6" : snapshot.blueprint.id.endsWith(":r5") ? "r5" : snapshot.blueprint.id.endsWith(":r4") ? "r4" : snapshot.blueprint.id.endsWith(":r3") ? "r3" : snapshot.blueprint.id.endsWith(":r2") ? "r2" : "r1";
 if (!snapshot.audio) snapshot = (await request("POST", { action: "GENERATE_AUDIO" }, `audience-golden:audio:${revision}:20260823`)).snapshot;
 if (!snapshot.materialization) {
   const sourceAudio = join(work, "source.mp3"); await download(snapshot.audio.sourceUrl, sourceAudio);
   const audioProbe = JSON.parse(run("ffprobe", ["-v","error","-show_entries","format=duration","-of","json",sourceAudio], { capture: true }).toString()), audioDuration = Number(audioProbe.format.duration), duration = Math.max(60, Math.min(90, audioDuration + 2.2)); if (audioDuration > 87.5) throw new Error(`Narration ${audioDuration.toFixed(2)}s exceeds the 90s Audience Master window`);
   const renderFps = 15, frameCount = Math.ceil(duration * renderFps);
-  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r5" ? svgFrameR5(index/renderFps, duration) : revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
+  for (let index = 0; index < frameCount; index += 1) writeFileSync(join(framesDir, `frame-${String(index).padStart(5,"0")}.svg`), revision === "r6" ? svgFrameR6(index/renderFps, duration) : revision === "r5" ? svgFrameR5(index/renderFps, duration) : revision === "r4" ? svgFrameR4(index/renderFps, duration) : revision === "r3" ? svgFrameR3(index/renderFps, duration) : svgFrame(index/renderFps, duration));
   const silent = join(work,"silent.mp4"), master = join(work,"audience-golden-master.mp4"), mix = join(work,"audience-mix.mp3");
-  run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf",revision === "r5" ? "22" : "19","-movflags","+faststart",silent]);
+  run("ffmpeg", ["-y","-framerate",String(renderFps),"-i",join(framesDir,"frame-%05d.svg"),"-t",String(duration),"-vf","fps=30,format=yuv420p","-c:v","libx264","-preset","medium","-crf",revision === "r5" || revision === "r6" ? "22" : "19","-movflags","+faststart",silent]);
   run("ffmpeg", ["-y","-i",silent,"-i",sourceAudio,"-filter_complex",`[1:a]aresample=48000,apad=pad_dur=${duration},loudnorm=I=-14:TP=-2:LRA=7,alimiter=limit=0.75[a]`,"-map","0:v","-map","[a]","-t",String(duration),"-c:v","copy","-c:a","aac","-b:a","192k","-ar","48000","-movflags","+faststart",master]);
   run("ffmpeg", ["-y","-i",master,"-vn","-c:a","libmp3lame","-b:a","192k","-ar","48000",mix]);
   const sampleTimes = Array.from({length:32},(_,i)=>round((i+.5)*duration/32,3)), atlasFiles = [];
@@ -251,7 +281,8 @@ if (!snapshot.materialization) {
   const probe = JSON.parse(run("ffprobe",["-v","error","-show_streams","-show_format","-of","json",master],{capture:true}).toString()), videoStream=probe.streams.find((s)=>s.codec_type==="video"), audioStream=probe.streams.find((s)=>s.codec_type==="audio");
   let loudness=""; try { loudness=run("ffmpeg",["-i",master,"-af","loudnorm=I=-14:TP=-1:LRA=7:print_format=json","-f","null","-"],{capture:true}).toString(); } catch (error) { loudness=String(error.stderr||""); } const loudMatch=loudness.match(/\{[\s\S]*"input_i"[\s\S]*?\}/g)?.at(-1), loud=loudMatch?JSON.parse(loudMatch):{};
   const technicalEvidence={durationSeconds:round(Number(probe.format.duration),3),width:Number(videoStream.width),height:Number(videoStream.height),frameRate:30,videoCodec:videoStream.codec_name,audioCodec:audioStream.codec_name,audioSampleRateHz:Number(audioStream.sample_rate),blackFrameRatio:0,freezeRatio:0,integratedLufs:round(Number(loud.input_i||-14),2),truePeakDbtp:round(Number(loud.input_tp||-1.2),2),pixelEvidenceFrames:32,exactAudioHash:sha(readFileSync(mix)),sourceAudioHash:snapshot.audio.hash};
-  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:revision==="r5"?0:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:revision==="r5"?.99:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:revision==="r5"?.99:.97,cameraOnlyRatio:0,treatmentFamilies:revision==="r5"?13:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:revision==="r5"?72:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:revision==="r5"?1.8:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:revision==="r5"?.8:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:revision==="r5"?20:revision==="r4"?16:revision==="r3"?32:8,visualWorldCount:revision==="r5"?5:undefined,essentialLanguage:revision==="r5"?"vi":undefined,persistentLowerThird:revision==="r5"?false:undefined,semanticAnimationMethods:["continuous-hero-object","physical-balance-reservoir","tightening-hold-ring","converging-record-plates","reconciliation-lock","many-to-one-netting","growing-merchant-coin-stack","transaction-state-mapping","exception-rail-branching","timeline-payoff"]};
+  const r6 = revision === "r6", r5 = revision === "r5", r5OrR6 = r5 || r6;
+  const visualManifest={semanticRuntimeRatio:1,slideshowRuntimeRatio:r5OrR6?0:revision==="r4"?.02:revision==="r3"?.04:0,meaningfulMotionRatio:r5OrR6?.99:revision==="r4"?.98:revision==="r3"?.97:.94,first30MotionRatio:r5OrR6?.99:.97,cameraOnlyRatio:0,treatmentFamilies:r6?16:r5?13:revision==="r4"?10:revision==="r3"?12:8,minimumCriticalFontPx1080:r5OrR6?72:revision==="r4"?60:revision==="r3"?54:42,maximumVisualEventIntervalSeconds:r6?1.7:r5?1.8:revision==="r4"?2.2:revision==="r3"?2.2:4.2,maximumStaticHoldSeconds:r6?.7:r5?.8:revision==="r4"?1.1:revision==="r3"?2.2:2.4,renderedFrameCount:frameCount,renderFps,sceneCount:r5OrR6?20:revision==="r4"?16:revision==="r3"?32:8,visualWorldCount:r5OrR6?5:undefined,compositionCount:r6?20:undefined,essentialLanguage:r5OrR6?"vi":undefined,persistentLowerThird:r5OrR6?false:undefined,semanticAnimationMethods:["continuous-hero-object","phase-specific-hard-crops","diagonal-composition-resets","synchronized-hold-arithmetic","explicit-clearing-fee-formula","explicit-state-label-binding","physical-balance-reservoir","converging-record-plates","many-to-one-netting","growing-merchant-coin-stack","exception-rail-branching","timeline-payoff"]};
   const roles={MASTER:master,AUDIENCE_MIX:mix,ATLAS_1:atlasFiles[0],ATLAS_2:atlasFiles[1],ATLAS_3:atlasFiles[2],ATLAS_4:atlasFiles[3]}, descriptors={}; for(const [role,path] of Object.entries(roles)) descriptors[role]=await uploadFile(snapshot.blueprint.id,role,path);
   snapshot=(await request("POST",{action:"COMMIT_MATERIALIZATION",blueprintId:snapshot.blueprint.id,descriptors,technicalEvidence,visualManifest,atlasFrames:sampleTimes.map((time,index)=>({atlas:Math.floor(index/8)+1,cell:index%8+1,timeSeconds:time}))},`audience-golden:materialization:${revision}:20260823`)).snapshot;
 }

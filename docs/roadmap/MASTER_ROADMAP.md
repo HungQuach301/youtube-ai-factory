@@ -6,7 +6,7 @@
 
 ## Current position
 
-- Audience Golden Sequence R1–R4 are preserved rejected evidence. Production R4 visual QA is FAIL 76 while exact-audio QA is PASS 95. R5 source is ready under migration `0088` with five image worlds and physical balance/record/netting transformations; regression/build pass 191/191 and Production execution is next. Browser/device, owner review and freeze remain blocked until their owning gates open. Document 78 is authoritative; V2 is untouched.
+- Audience Golden Sequence R1–R5 are preserved rejected evidence. Production R5 exact master is deterministic/rights PASS; visual QA is FAIL 83 while exact-audio QA is PASS 94. R6 source is ready under migration `0089` with per-phase composition resets, synchronized arithmetic and direct component/state labeling. Browser/device, owner review and freeze remain blocked until their owning gates open. Document 78 is authoritative; V2 is untouched.
 
 - FP1 truthful operator projection: implemented.
 - FP2 Capability Registry mechanism: implemented.
@@ -178,6 +178,8 @@ Phase 25 is production-complete in Sites v474 from source `237210850aaa9ad01a15e
 Phase 26 records the owner audience-quality rejection and activates `YOUTUBE_AUDIENCE_MASTER_STANDARD_V1`. The exact master remains valid infrastructure evidence but is classified `TECHNICAL_CLEAN_CONTROL_ONLY`: output-form mismatch is P0; insufficient visual richness, low meaningful-motion density, weak mobile typography and high retention risk are P1. No full-playback attestation is inferred. The next execution wave is: compile the standard into enforceable contracts and analyzers; design a 60–90 second mixed-treatment Golden Sequence; qualify its minimum capabilities/assets; render and pass deterministic, full-video multimodal, Browser/device and owner QA; freeze only at ≥92, every critical dimension ≥90 and P0/P1=0; then expand to the full Video #1 master. Golden r10, Stage 11, Videos 2–15, release and publication remain blocked. V2 is untouched.
 
 Phase 27 is active. R1–R4 preserve their exact masters and independent failures; R4 visual FAIL 76 identifies prolonged tableau grammar and missing object transformation while audio PASS 95 remains separate. Migration `0088` and R5 source bind five image worlds and 20 physical transformation phases. Full regression/build pass 191/191. Next deploy and execute one Production R5 materialization and Factory visual/audio QA; Browser/device and owner gates remain closed until Factory PASS. Document 78 is authoritative; V2 is untouched.
+
+Phase 28 is active. Sites v486 seals R5 master `bddc055889a4754b4a0afe13b07b5fc8d9c654518d2222fc1e18c486b3b73970`; visual FAIL 83/audio PASS 94 open only the evidence-bound R6 repair. Migration `0089` corrects all five observations at their owning composition, arithmetic, clearing-map, state-label and collision layers. Next deploy and execute R6. Browser/device and owner gates remain closed until Factory PASS. Document 78 is authoritative; V2 is untouched.
 
 ## Wave 4 — Upstream and technical standards
 
