@@ -161,6 +161,8 @@ Phase 18 is production-active in Sites v453 from source `6a024081acc54e70815ecd1
 
 Phase 19 repairs the production pre-TTS contract failure without resetting history. Sites v454 received the owner action but D1 rejected the subscription receipt because the eligible classifier state and canonical evidence state used different vocabularies. The failure precedes TTS, so one subscription read is retained while TTS/spend remain zero. Migration `0076` and `COMMERCIAL_CLEAN_AUDIO_RECOVERY_V1` conditionally authorize exactly one recovery only for that exact failed-run signature and bind consumption append-only before external work. The runtime now performs explicit state normalization after the shared paid-plan evaluator passes. Tests/build pass 181/181. Next deploy, verify the conditional authorization appears, and run one recovery; Factory Audio QA remains locked until rights PASS.
 
+Phase 20 preserves the successful commercial replacement and repairs the Factory Audio QA response contract. Sites v455 created one 35-second replacement with exact R2/provider evidence and Rights PASS. The original QA request then failed closed after one provider call because free-form content did not satisfy the JSON evidence parser; no QA receipt or downstream authority exists, and actual spend is conservatively reserved at USD 0.20. Migration `0077` conditionally grants one forced-function recovery, captures exact response bytes and usage before parsing, and permits one additional USD 0.20 reservation for USD 0.40 cumulative exposure. Tests/build pass 182/182. Next deploy, verify the exact conditional authorization and run the recovery once; owner truth remains a separate later gate.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:

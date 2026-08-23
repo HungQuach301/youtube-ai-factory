@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `WP7_COMMERCIAL_CLEAN_AUDIO_PRE_TTS_RECOVERY__SOURCE_READY_PRODUCTION_PENDING`
+**Current source classification:** `WP7_FACTORY_AUDIO_QA_RESPONSE_RECOVERY__SOURCE_READY_PRODUCTION_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- Sites v455 activated the pre-TTS recovery. Owner request `a2f71fdb9f51a8af` returned 201 and created the append-only 35-second replacement with `starter · active`, exact R2 evidence, provider-native request identity and Rights PASS. The first Factory Audio QA request `a2f72a7cbf21a8bb` returned 502 with `FACTORY_AUDIO_QA_RESPONSE_INVALID` after one provider request. No QA receipt or downstream authority was created. Actual spend is unverified, so USD 0.20 remains conservatively reserved. Migration `0077` adds exactly one conditional forced-function recovery, exact response/usage capture before parsing and an additional USD 0.20 reservation, for USD 0.40 cumulative exposure. Tests/build pass 182/182. Deploy `0077`, then invoke the recovery once. Owner truth, dataset, assurance and release remain locked. V2 is untouched.
 
 - The owner invoked the paid-plan replacement on Sites v454; production returned HTTP 500 at request `a2f6e76fb9a9a8b5`. Root cause is an internal state-contract mismatch: the evaluator emitted `PAID_SUBSCRIPTION_CONFIRMED` while D1 requires normalized `EXPLICIT_ACTIVE_PAID_BASE_PLAN`. The insert fails before TTS, so the incident used one subscription read, zero TTS and zero TTS spend. Migration `0076` preserves the failed attempt and conditionally grants exactly one recovery only for that exact signature. It permits one additional subscription read and the still-unused single TTS under USD 0.08. Source tests/build pass 181/181; deploy `0076`, then use the recovery button. Factory Audio QA remains conditional on rights PASS. V2 is untouched.
 

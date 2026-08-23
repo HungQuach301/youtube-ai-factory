@@ -2,6 +2,30 @@
 
 Last reconciled: 2026-08-23 (Asia/Bangkok)
 
+## Factory Audio QA response-contract recovery — 2026-08-23
+
+```text
+COMMERCIAL_REPLACEMENT = PRODUCTION_ACTIVE_SITES_V455__RIGHTS_PASS
+REPLACEMENT_REQUEST_ID = a2f71fdb9f51a8af
+FACTORY_AUDIO_QA_FAILED_REQUEST_ID = a2f72a7cbf21a8bb
+FACTORY_AUDIO_QA_FAILED_STATUS = HTTP_502__FACTORY_AUDIO_QA_RESPONSE_INVALID
+FAILED_PROVIDER_REQUESTS = 1
+FAILED_ACTUAL_SPEND = UNVERIFIED_RESERVED_AT_0_20
+MIGRATION_0077 = SOURCE_READY__PRODUCTION_PENDING
+OUTPUT_CONTRACT = FORCED_FUNCTION_CALL_V1
+RECOVERY_AUTHORIZATIONS_MAX = 1
+ADDITIONAL_PROVIDER_REQUESTS_MAX = 1
+ADDITIONAL_RESERVED_SPEND_USD = 0.20
+CUMULATIVE_RESERVED_SPEND_USD = 0.40
+TARGETED_REGRESSION = 52_OF_52_PASS
+FULL_REGRESSION = 182_OF_182_PASS__VERIFIED_BUILD_PASS
+OWNER_GROUND_TRUTH = NOT_EVALUATED
+DATASET_ASSURANCE_RELEASE_AUTHORITY = FALSE_FALSE_FALSE
+NEXT_PROTECTED_ACTION = DEPLOY_0077__RUN_ONE_CONDITIONAL_FACTORY_AUDIO_QA_RECOVERY
+```
+
+The paid-plan recovery succeeded in Sites v455 and sealed a 35-second ElevenLabs replacement with exact subscription/audio R2 evidence, provider-native request identity and commercial rights PASS. The first `gpt-audio-1.5` QA call then failed closed because free-form content did not satisfy the JSON evidence contract. One provider request occurred; because response capture and usage sealing happened after parsing in the old path, actual spend is unverified and the full USD 0.20 remains reserved. Migration `0077` conditionally authorizes one forced-function recovery, captures exact response bytes and usage before parsing, and raises cumulative reserved exposure to USD 0.40. No QA receipt, owner truth, dataset, assurance or release authority exists. Document 71 and ADR-100 are authoritative.
+
 ## Commercial clean-audio pre-TTS recovery — 2026-08-23
 
 ```text

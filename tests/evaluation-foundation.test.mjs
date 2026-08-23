@@ -42,7 +42,7 @@ import {
   summarizeEvaluationInventory,
 } from "../lib/evaluation-foundation.ts";
 import { EVALUATION_CURRENT_RIGHTS_EVIDENCE_CAPTURE_VERSION } from "../lib/clean-audio-rights-evidence.ts";
-import { COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, FACTORY_AUDIO_QA_POLICY_VERSION } from "../lib/commercial-clean-audio-regeneration.ts";
+import { COMMERCIAL_CLEAN_AUDIO_RECOVERY_VERSION, COMMERCIAL_CLEAN_AUDIO_REGENERATION_VERSION, FACTORY_AUDIO_QA_OUTPUT_CONTRACT_VERSION, FACTORY_AUDIO_QA_POLICY_VERSION, FACTORY_AUDIO_QA_RECOVERY_VERSION } from "../lib/commercial-clean-audio-regeneration.ts";
 import { canonicalStringify } from "../lib/canonical-json.ts";
 import { applyDeterministicImageSignals, detectedRasterMime, prepareImageReviewSurface } from "../lib/image-review-surface.ts";
 
@@ -860,6 +860,35 @@ test("migration 0076 authorizes one append-only recovery only for the exact pre-
   assert.match(implementation, /'EXPLICIT_ACTIVE_PAID_BASE_PLAN',1/);
   assert.match(implementation, /RECOVERY_ATTEMPT_CONSUMED/);
   assert.match(ownerBoundary, /commercial-clean-audio-recovery-v1/);
+});
+
+test("migration 0077 recovers one malformed audio-QA response through a forced function contract", () => {
+  assert.equal(FACTORY_AUDIO_QA_RECOVERY_VERSION, "FACTORY_AUDIO_QA_RECOVERY_V1");
+  assert.equal(FACTORY_AUDIO_QA_OUTPUT_CONTRACT_VERSION, "FORCED_FUNCTION_CALL_V1");
+  const db = new DatabaseSync(":memory:");
+  const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
+  const recoveryIndex = migrations.indexOf("0077_factory_audio_qa_response_recovery.sql");
+  for (const file of migrations.slice(0, recoveryIndex)) db.exec(read(`drizzle/${file}`));
+  db.exec("PRAGMA foreign_keys=OFF");
+  db.prepare(`INSERT INTO v7_evaluation_factory_audio_qa_runs
+    (id,channel_id,policy_version,artifact_id,idempotency_key,request_hash,lifecycle_state,provider_requests,reserved_spend_usd,actual_spend_usd,actor,error_code,completed_at)
+    VALUES ('failed-audio-qa','channel-hidden-systems','FACTORY_AUDIO_QA_POLICY_V1','commercial-artifact','failed-audio-qa-key',?,'FAILED',1,0.20,0,'owner','FACTORY_AUDIO_QA_RESPONSE_INVALID','2026-08-23T03:52:44.269Z')`).run("b".repeat(64));
+  db.exec(read("drizzle/0077_factory_audio_qa_response_recovery.sql"));
+  db.exec("PRAGMA foreign_keys=ON");
+  const authorization = db.prepare("SELECT failed_run_id,artifact_id,failed_provider_requests,failed_error_code,failed_actual_spend_state,authorization_state FROM v7_evaluation_factory_audio_qa_recovery_authorizations").get();
+  assert.deepEqual({ ...authorization }, {
+    failed_run_id: "failed-audio-qa", artifact_id: "commercial-artifact", failed_provider_requests: 1,
+    failed_error_code: "FACTORY_AUDIO_QA_RESPONSE_INVALID", failed_actual_spend_state: "UNVERIFIED_RESERVED_AT_0_20",
+    authorization_state: "AUTHORIZED_ONE_RECOVERY",
+  });
+  const policy = db.prepare("SELECT maximum_authorized_recovery_attempts,maximum_additional_provider_requests,additional_reserved_spend_usd,cumulative_reserved_spend_ceiling_usd,authority_boundary,release_authority FROM v7_evaluation_factory_audio_qa_recovery_policies").get();
+  assert.deepEqual({ ...policy }, { maximum_authorized_recovery_attempts: 1, maximum_additional_provider_requests: 1, additional_reserved_spend_usd: 0.2, cumulative_reserved_spend_ceiling_usd: 0.4, authority_boundary: "INDEPENDENT_REVIEW_ONLY", release_authority: 0 });
+  const implementation = read("lib/commercial-clean-audio-regeneration.ts"), ownerBoundary = read("app/api/factory/sequential-production/evaluation/route.ts");
+  assert.match(implementation, /tool_choice: \{ type: "function", function: \{ name: "record_factory_audio_qa" \} \}/);
+  assert.match(implementation, /FACTORY_AUDIO_QA_PROVIDER_RESPONSE_CAPTURE_V1/);
+  assert.match(implementation, /FACTORY_AUDIO_QA_RESPONSE_R2_HASH_MISMATCH/);
+  assert.doesNotMatch(implementation, /response_format/);
+  assert.match(ownerBoundary, /factory-clean-audio-qa-recovery-v1/);
 });
 
 test("migration 0053 adds bounded zero-spend verification runs and durable receipts", () => {
