@@ -405,5 +405,6 @@ test("Revision 20 visual failure creates immutable Revision 21 for the US Englis
   assert.match(executor, /bank-obligation-network-map/);
   assert.match(executor, /essentialLanguage: "en-US"/);
   assert.match(executor, /revision === "r21" \? svgFrameR21/);
+  assert.doesNotMatch(runtime, /Vietnamese audience mix/);
   assert.match(ui, /US MARKET · ENGLISH \/ EN-US/);
 });

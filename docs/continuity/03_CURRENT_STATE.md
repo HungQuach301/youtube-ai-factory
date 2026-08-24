@@ -2,7 +2,7 @@
 
 Last reconciled: 2026-08-24 (Asia/Bangkok)
 
-## Audience Golden R21 — US English Hybrid Documentary source ready
+## Audience Golden R21 — US English audio passes; visual system rejected
 
 ```text
 OWNER_DIRECTIVE = OWNER_US_ENGLISH_HYBRID_DOCUMENTARY_2026_08_24
@@ -15,12 +15,17 @@ ATLAS_SHA256 = 1032FE0F031887A6D70358824A60E049045758EB1B4A5CB5C1CFC80DD6496DD6
 TARGETED_REGRESSION = 24_OF_24_PASS
 FULL_REGRESSION = 211_OF_211_PASS
 VERIFIED_BUILD = PASS
-PRODUCTION = NOT_DEPLOYED_NOT_EXECUTED
-PROVIDER_REQUESTS_SPEND = 0_0
-NEXT_PROTECTED_ACTION = CHECKPOINT_DEPLOY_0105__EXECUTE_ONE_R21_CHAIN__LET_FACTORY_QA_DECIDE
+PRODUCTION_CHECKPOINT = SITES_V504__SOURCE_B2C7536A
+PRODUCTION_MASTER = 63.833_SECONDS__10069490_BYTES__2560x1440_30FPS
+PRODUCTION_MASTER_SHA256 = 3F968794B1D5A0C01EA924E2E61D8EFD5AED072F587157D515701CF4C0213A89
+PRODUCTION_AUDIO_SHA256 = 94791B552AFC903623A3DCF499E8D7E7BD01B44BDDA9DB7553DCC0BBEFF45EA2
+FACTORY_VISUAL = FAIL_67__P0_0__P1_2__P2_3__SPEND_USD_0.0890772
+FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_2
+BROWSER_OWNER_FREEZE_RELEASE = BLOCKED_BLOCKED_FALSE_FALSE
+NEXT_PROTECTED_ACTION = DESIGN_APPEND_ONLY_R22_FROM_EXACT_R21_VISUAL_FAIL_AUDIO_PASS__NO_DISPATCH_YET
 ```
 
-R21 is the first Golden revision to reconcile the owner's US-market language requirement with the current R20 visual failure. It does not inherit R20's Vietnamese narration or treat its audio PASS as reusable market audio; that receipt remains evidence only. The source contract creates new English/en-US narration and exact audio, rotates eleven reality-anchor beats through six explanation treatments, samples 32 different causal compositions, forbids persistent slide templates and uses semantic transitions from tap to signal, network, ledger and settlement. The corrected contact atlas removed the first preview's duplicate-pair and exception-footer collision before any provider dispatch. Source inspection, 211/211 full regression and a passing verified build create no Production, Factory, Browser, owner, freeze, release or publication authority. R20 remains the current Production authority until an exact R21 materialization is sealed. V2 remains untouched.
+Sites v504 materialized the sole R21 exact master. Its English/en-US audio passes at 95 with no P0/P1 and two P2 observations for a slight seam near 00:23 and an uneven pause near 00:47, proving the market-language correction. Visual QA fails at 67. P1 evidence shows the closing ledger never visibly completes merchant settlement and the sequence still repeats slide-like path/Sankey/map/status compositions. P2 evidence identifies small low-contrast diagram labels, reused topology across different phases and future ledger values displayed before they become current. The R21 source atlas remains useful pre-dispatch evidence but did not predict independent Production quality. Browser/device, owner playback, freeze, release and publication stay blocked. The next bounded repair must be append-only from the exact R21 visual FAIL/audio PASS pair; it must complete settlement visibly, give authorization/clearing/settlement distinct mechanisms, remove future ledger rows until active and use fewer, larger mobile labels. No R22 dispatch is authorized by this record alone. V2 remains untouched.
 
 ## Canonical Production projection — R20 exact state reconciled
 

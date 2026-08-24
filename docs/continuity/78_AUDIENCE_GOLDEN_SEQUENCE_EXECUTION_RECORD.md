@@ -176,7 +176,9 @@ R21_SOURCE_ATLAS = PASS__32_UNIQUE_CAUSAL_BEATS__US_ENGLISH_EN_US__HYBRID_DOCUME
 R21_TARGETED_REGRESSION = 24_OF_24_PASS
 R21_FULL_REGRESSION = 211_OF_211_PASS
 R21_VERIFIED_BUILD = PASS
-PRODUCTION_R21 = NOT_DEPLOYED_NOT_EXECUTED
+PRODUCTION_R21 = MATERIALIZED__EXACT_MASTER_3F968794__63.833_SECONDS__10069490_BYTES__DETERMINISTIC_RIGHTS_PASS
+R21_FACTORY_VISUAL = FAIL_67__P0_0__P1_2__P2_3__ACTUAL_SPEND_USD_0.0890772
+R21_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_2
 FACTORY_VISUAL_AUDIO_QA = COMPLETE__FAIL_PASS
 BROWSER_DEVICE_QA = BLOCKED_UNTIL_FACTORY_PASS
 OWNER_FULL_PLAYBACK = BLOCKED_UNTIL_BROWSER_PASS
@@ -185,4 +187,4 @@ FREEZE_RELEASE_PUBLICATION = FALSE_FALSE_FALSE
 
 ## Exact next action
 
-R20 is Production materialized and Factory-adjudicated; Projection Integrity is already Production-active. Preserve R20 as rejected visual evidence. Next checkpoint and deploy migration `0105` plus the R21 source, create the sole evidence-bound R21, generate its new English/en-US exact voice, materialize one exact master, and let Factory visual/audio QA decide. Browser/device remains closed until the same later exact master passes both Factory layers; owner playback remains closed until Browser PASS. Production V2, Stage 11, full-video expansion, release and publication remain untouched.
+R21 is Production materialized and Factory-adjudicated. Preserve its exact master and receipts; do not rerun R21. Audio PASS proves the English/en-US voice path, while visual FAIL requires a new append-only R22 bound to this exact visual FAIL/audio PASS pair. The repair must visibly finish settlement and merchant receipt, replace repeated path/Sankey/map/status slides with phase-distinct mechanisms, remove future ledger values until active and enlarge/simplify mobile labels. Browser/device remains closed until a later same exact master passes both Factory layers; owner playback remains closed until Browser PASS. Production V2, Stage 11, full-video expansion, release and publication remain untouched.
