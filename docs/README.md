@@ -1,147 +1,60 @@
 # AI Factory Knowledge Base
 
-This directory is the canonical knowledge base for YouTube AI Factory. The Git repository, its tracked documents, migrations, source code, tests and commit history are the sole source of truth. Chat transcripts, Personal Context, Library files, local scratch folders, screenshots and exported capsules are discovery or recovery aids only.
+This directory is the active knowledge source for YouTube AI Factory. Git `main` owns code, contracts, policies, current state and implementation truth. Chat transcripts, Drive, Library, screenshots and local files cannot override it.
 
-## Canonical repository
+## Repository identity
 
 ```text
 repository: youtube-ai-factory
-Sites remote: origin/main
-personal GitHub mirror: github/main (HungQuach301/youtube-ai-factory)
 branch: main
-production URL: https://youtube-ai-factory.quach-hung.chatgpt.site
-source policy: GIT_REPOSITORY_SSOT_V1
-replication policy: DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
-excluded repository: HungQuach301/youtube-ai-factory-v2
+Sites mirror: origin/main
+personal GitHub mirror: github/main (HungQuach301/youtube-ai-factory)
+policy: GIT_REPOSITORY_SSOT_V1 + DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
+excluded: HungQuach301/youtube-ai-factory-v2
 ```
 
-The exact current source identity is always the output of:
+The personal GitHub repository is owner-reported created but is not yet visible to the connected GitHub integration. Until exact SHA equality is proved, status remains `CONNECTOR_ACCESS_REQUIRED`.
 
-```bash
-git rev-parse HEAD
-git status --short --branch
-git remote -v
-```
-
-Do not copy a commit hash from a chat transcript and treat it as current without running these commands in this repository.
-
-## Authority order
-
-When facts conflict, use this order:
-
-1. Stored production bytes, immutable receipts and reconciled runtime evidence.
-2. Reproducible tests, benchmarks and checksums.
-3. Deployed source, database migrations and active configuration.
-4. Approved architecture decisions in the tracked decision log.
-5. Reconciled standards and issue decisions in this knowledge base.
-6. Expert proposals awaiting calibration.
-7. Historical documents, UI labels, plans and chat summaries.
-
-`READY`, `PASS`, `FROZEN`, a document statement or a UI label never overrides missing runtime evidence.
-
-## Required reading order for a new chat
+## Required reading order
 
 1. [`../AGENTS.md`](../AGENTS.md)
 2. [`governance/REPOSITORY_SOURCE_OF_TRUTH.md`](governance/REPOSITORY_SOURCE_OF_TRUTH.md)
-3. [`governance/REPOSITORY_SYNC_AND_RECOVERY.md`](governance/REPOSITORY_SYNC_AND_RECOVERY.md)
-4. [`continuity/03_CURRENT_STATE.md`](continuity/03_CURRENT_STATE.md)
-5. [`continuity/09_CHAT_ROLLOVER_CAPSULE.md`](continuity/09_CHAT_ROLLOVER_CAPSULE.md)
-6. [`governance/MASTER_ISSUE_REGISTRY.md`](governance/MASTER_ISSUE_REGISTRY.md)
-7. [`roadmap/MASTER_ROADMAP.md`](roadmap/MASTER_ROADMAP.md)
-8. The architecture or stage documents named by the current roadmap item.
+3. [`continuity/03_CURRENT_STATE.md`](continuity/03_CURRENT_STATE.md)
+4. [`governance/MASTER_ISSUE_REGISTRY.md`](governance/MASTER_ISSUE_REGISTRY.md)
+5. [`roadmap/MASTER_ROADMAP.md`](roadmap/MASTER_ROADMAP.md)
+6. Only the active architecture documents named by the current roadmap phase.
 
-## Canonical document map
+Do not read `docs/archive` as current authority. Use it only when investigating history, incidents or exact prior evidence.
+
+## Active canonical documents
 
 | Concern | Canonical document |
 |---|---|
-| Product charter | [`continuity/00_AI_FACTORY_CHARTER.md`](continuity/00_AI_FACTORY_CHARTER.md) |
-| Architecture principles | [`continuity/01_ARCHITECTURE_AND_PRINCIPLES.md`](continuity/01_ARCHITECTURE_AND_PRINCIPLES.md) |
-| Target multi-channel architecture | [`architecture/TARGET_OPERATING_ARCHITECTURE.md`](architecture/TARGET_OPERATING_ARCHITECTURE.md) |
+| Product and operating planes | [`architecture/TARGET_OPERATING_ARCHITECTURE.md`](architecture/TARGET_OPERATING_ARCHITECTURE.md) |
 | Business capabilities, authority and economics | [`architecture/BUSINESS_OPERATING_MODEL.md`](architecture/BUSINESS_OPERATING_MODEL.md) |
-| Technical runtime, events, timebase and UI planes | [`architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md`](architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md) |
-| Visual production operating model | [`architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md`](architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md) |
-| End-to-end workflow and stage gates | [`architecture/E2E_PRODUCTION_GATE_MODEL.md`](architecture/E2E_PRODUCTION_GATE_MODEL.md) |
-| Visual and motion technique playbook | [`architecture/VISUAL_MOTION_TECHNIQUE_PLAYBOOK.md`](architecture/VISUAL_MOTION_TECHNIQUE_PLAYBOOK.md) |
+| Runtime services, events, timebase, fencing and UI truth | [`architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md`](architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md) |
+| Visual hierarchy, grammar, Blueprint/Shot/Scene Graph | [`architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md`](architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md) |
+| End-to-end workflow and gates | [`architecture/E2E_PRODUCTION_GATE_MODEL.md`](architecture/E2E_PRODUCTION_GATE_MODEL.md) |
+| Visual and motion techniques | [`architecture/VISUAL_MOTION_TECHNIQUE_PLAYBOOK.md`](architecture/VISUAL_MOTION_TECHNIQUE_PLAYBOOK.md) |
+| AI-first exact-master assurance | [`architecture/AI_FIRST_PRODUCTION_ASSURANCE.md`](architecture/AI_FIRST_PRODUCTION_ASSURANCE.md) |
+| Data lineage, storage and Provider Gateway | [`architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md`](architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md) |
 | Multi-channel scale and learning | [`architecture/MULTI_CHANNEL_SCALE_AND_LEARNING.md`](architecture/MULTI_CHANNEL_SCALE_AND_LEARNING.md) |
-| AI-first Production Assurance | [`architecture/AI_FIRST_PRODUCTION_ASSURANCE.md`](architecture/AI_FIRST_PRODUCTION_ASSURANCE.md) |
-| Data and Provider Control Plane | [`architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md`](architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md) |
 | Cross-cutting controls | [`governance/CROSS_CUTTING_CONTROL_STANDARD.md`](governance/CROSS_CUTTING_CONTROL_STANDARD.md) |
-| Dual-remote synchronization and recovery | [`governance/REPOSITORY_SYNC_AND_RECOVERY.md`](governance/REPOSITORY_SYNC_AND_RECOVERY.md) |
-| Document completion and implementation boundary | [`governance/DOCUMENT_COMPLETION_MATRIX.md`](governance/DOCUMENT_COMPLETION_MATRIX.md) |
-| Current production truth | [`continuity/03_CURRENT_STATE.md`](continuity/03_CURRENT_STATE.md) |
-| Approved decisions | [`continuity/04_DECISION_LOG.md`](continuity/04_DECISION_LOG.md) |
-| Master risks and findings | [`governance/MASTER_ISSUE_REGISTRY.md`](governance/MASTER_ISSUE_REGISTRY.md) |
-| Program roadmap and gates | [`roadmap/MASTER_ROADMAP.md`](roadmap/MASTER_ROADMAP.md) |
-| Chat continuation | [`continuity/09_CHAT_ROLLOVER_CAPSULE.md`](continuity/09_CHAT_ROLLOVER_CAPSULE.md) |
-| Sequential Video Engine | [`continuity/30_V7_V23_4_V281_SEQUENTIAL_PRODUCTION.md`](continuity/30_V7_V23_4_V281_SEQUENTIAL_PRODUCTION.md) |
-| Stage techniques and tools | [`continuity/31_STAGE_TECHNIQUES_TOOLS_QUALITY_CONTROLS.md`](continuity/31_STAGE_TECHNIQUES_TOOLS_QUALITY_CONTROLS.md) |
-| Historical Video Quality Standard V2 | [`continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md`](continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md) |
-| Active Video Quality Standard V3 | [`continuity/81_VIDEO_PRODUCTION_QUALITY_STANDARD_V3.md`](continuity/81_VIDEO_PRODUCTION_QUALITY_STANDARD_V3.md) |
 | Hidden Systems Visual DNA and R22 Blueprint | [`continuity/80_HIDDEN_SYSTEMS_VISUAL_DNA_AND_R22_BLUEPRINT.md`](continuity/80_HIDDEN_SYSTEMS_VISUAL_DNA_AND_R22_BLUEPRINT.md) |
-| First-pass architecture | [`continuity/37_FIRST_PASS_QUALITY_ARCHITECTURE.md`](continuity/37_FIRST_PASS_QUALITY_ARCHITECTURE.md) |
-| Learning-ready Contract Pack | [`architecture/LEARNING_READY_CONTRACT_PACK.md`](architecture/LEARNING_READY_CONTRACT_PACK.md) |
-| Evaluation Foundation | [`architecture/EVALUATION_FOUNDATION.md`](architecture/EVALUATION_FOUNDATION.md) |
-| Capability Registry evidence | [`continuity/38_FP2_CAPABILITY_REGISTRY_EXECUTION_RECORD.md`](continuity/38_FP2_CAPABILITY_REGISTRY_EXECUTION_RECORD.md) |
-| FP3 ShotCueProgram evidence | [`continuity/39_FP3_EXECUTABLE_SHOT_CUE_PROGRAM_EXECUTION_RECORD.md`](continuity/39_FP3_EXECUTABLE_SHOT_CUE_PROGRAM_EXECUTION_RECORD.md) |
-| FP3.1 source implementation evidence | [`continuity/41_FP3_1_PRODUCTION_INTEGRITY_EXECUTION_RECORD.md`](continuity/41_FP3_1_PRODUCTION_INTEGRITY_EXECUTION_RECORD.md) |
-| FP3.1 production runtime acceptance | [`continuity/42_FP3_1_PRODUCTION_RUNTIME_ACCEPTANCE.md`](continuity/42_FP3_1_PRODUCTION_RUNTIME_ACCEPTANCE.md) |
-| Wave 2 source implementation evidence | [`continuity/43_WAVE_2_LEARNING_READY_CONTRACT_PACK_EXECUTION_RECORD.md`](continuity/43_WAVE_2_LEARNING_READY_CONTRACT_PACK_EXECUTION_RECORD.md) |
-| Wave 2 production runtime acceptance | [`continuity/44_WAVE_2_PRODUCTION_RUNTIME_ACCEPTANCE.md`](continuity/44_WAVE_2_PRODUCTION_RUNTIME_ACCEPTANCE.md) |
-| Wave 3 Evaluation Foundation source evidence | [`continuity/45_WAVE_3_EVALUATION_FOUNDATION_EXECUTION_RECORD.md`](continuity/45_WAVE_3_EVALUATION_FOUNDATION_EXECUTION_RECORD.md) |
-| Wave 3 production runtime acceptance | [`continuity/46_WAVE_3_EVALUATION_FOUNDATION_PRODUCTION_ACCEPTANCE.md`](continuity/46_WAVE_3_EVALUATION_FOUNDATION_PRODUCTION_ACCEPTANCE.md) |
-| Wave 3 corpus-verification source evidence | [`continuity/47_WAVE_3_CORPUS_VERIFICATION_EXECUTION_RECORD.md`](continuity/47_WAVE_3_CORPUS_VERIFICATION_EXECUTION_RECORD.md) |
-| Wave 3 corpus-verification production acceptance | [`continuity/48_WAVE_3_CORPUS_VERIFICATION_PRODUCTION_ACCEPTANCE.md`](continuity/48_WAVE_3_CORPUS_VERIFICATION_PRODUCTION_ACCEPTANCE.md) |
-| Wave 3 blocked-evidence diagnostic source evidence | [`continuity/49_WAVE_3_BLOCKED_EVIDENCE_DIAGNOSTIC_EXECUTION_RECORD.md`](continuity/49_WAVE_3_BLOCKED_EVIDENCE_DIAGNOSTIC_EXECUTION_RECORD.md) |
-| Wave 3 evidence-disposition source evidence | [`continuity/50_WAVE_3_EVIDENCE_DISPOSITION_EXECUTION_RECORD.md`](continuity/50_WAVE_3_EVIDENCE_DISPOSITION_EXECUTION_RECORD.md) |
-| Wave 3 metadata-binding reconciliation evidence | [`continuity/51_WAVE_3_METADATA_BINDING_RECONCILIATION_EXECUTION_RECORD.md`](continuity/51_WAVE_3_METADATA_BINDING_RECONCILIATION_EXECUTION_RECORD.md) |
-| Wave 3 rights reconciliation evidence | [`continuity/52_WAVE_3_RIGHTS_RECONCILIATION_EXECUTION_RECORD.md`](continuity/52_WAVE_3_RIGHTS_RECONCILIATION_EXECUTION_RECORD.md) |
-| Wave 3 rights evidence collection | [`continuity/53_WAVE_3_RIGHTS_EVIDENCE_COLLECTION_EXECUTION_RECORD.md`](continuity/53_WAVE_3_RIGHTS_EVIDENCE_COLLECTION_EXECUTION_RECORD.md) |
-| Wave 3 owner-label workflow | [`continuity/54_WAVE_3_OWNER_LABEL_WORKFLOW_EXECUTION_RECORD.md`](continuity/54_WAVE_3_OWNER_LABEL_WORKFLOW_EXECUTION_RECORD.md) |
-| Wave 3 correlation control | [`continuity/55_WAVE_3_CORRELATION_CONTROL_EXECUTION_RECORD.md`](continuity/55_WAVE_3_CORRELATION_CONTROL_EXECUTION_RECORD.md) |
-| Mandatory Browser assurance gate | [`continuity/56_BROWSER_ASSURANCE_GATE_EXECUTION_RECORD.md`](continuity/56_BROWSER_ASSURANCE_GATE_EXECUTION_RECORD.md) |
-| Owner-review canonical form hotfix | [`continuity/57_OWNER_REVIEW_CANONICAL_FORM_HOTFIX_EXECUTION_RECORD.md`](continuity/57_OWNER_REVIEW_CANONICAL_FORM_HOTFIX_EXECUTION_RECORD.md) |
-| Owner-review form-action hotfix | [`continuity/58_OWNER_REVIEW_FORM_ACTION_SHADOWING_HOTFIX_EXECUTION_RECORD.md`](continuity/58_OWNER_REVIEW_FORM_ACTION_SHADOWING_HOTFIX_EXECUTION_RECORD.md) |
-| Factory-first QA | [`continuity/59_FACTORY_FIRST_QA_EXECUTION_RECORD.md`](continuity/59_FACTORY_FIRST_QA_EXECUTION_RECORD.md) |
-| Factory Browser QA | [`continuity/60_FACTORY_BROWSER_QA_EXECUTION_RECORD.md`](continuity/60_FACTORY_BROWSER_QA_EXECUTION_RECORD.md) |
-| WP7 regression corpus | [`continuity/61_WP7_REGRESSION_CORPUS_EXECUTION_RECORD.md`](continuity/61_WP7_REGRESSION_CORPUS_EXECUTION_RECORD.md) |
-| Rights-lineage diagnostic and render hardening | [`continuity/62_RIGHTS_LINEAGE_DIAGNOSTIC_EXECUTION_RECORD.md`](continuity/62_RIGHTS_LINEAGE_DIAGNOSTIC_EXECUTION_RECORD.md) |
-| ElevenLabs provider-binding diagnostic and future audio hardening | [`continuity/63_ELEVENLABS_PROVIDER_BINDING_DIAGNOSTIC_EXECUTION_RECORD.md`](continuity/63_ELEVENLABS_PROVIDER_BINDING_DIAGNOSTIC_EXECUTION_RECORD.md) |
-| ElevenLabs history and exact-audio recovery | [`continuity/64_ELEVENLABS_HISTORY_AND_AUDIO_HASH_RECOVERY_EXECUTION_RECORD.md`](continuity/64_ELEVENLABS_HISTORY_AND_AUDIO_HASH_RECOVERY_EXECUTION_RECORD.md) |
-| Historical recovery closure and controlled fixture plan | [`continuity/65_HISTORICAL_RECOVERY_CLOSURE_AND_CONTROLLED_FIXTURE_PLAN.md`](continuity/65_HISTORICAL_RECOVERY_CLOSURE_AND_CONTROLLED_FIXTURE_PLAN.md) |
-| Clean audio control materialization | [`continuity/66_CLEAN_AUDIO_CONTROL_MATERIALIZATION.md`](continuity/66_CLEAN_AUDIO_CONTROL_MATERIALIZATION.md) |
-| Clean audio commercial-rights evidence | [`continuity/67_CLEAN_AUDIO_COMMERCIAL_RIGHTS_EVIDENCE.md`](continuity/67_CLEAN_AUDIO_COMMERCIAL_RIGHTS_EVIDENCE.md) |
-| ElevenLabs commercial-entitlement hardening | [`continuity/68_ELEVENLABS_COMMERCIAL_ENTITLEMENT_HARDENING.md`](continuity/68_ELEVENLABS_COMMERCIAL_ENTITLEMENT_HARDENING.md) |
-| Commercial clean-audio regeneration and Factory QA | [`continuity/69_COMMERCIAL_CLEAN_AUDIO_REGENERATION_AND_FACTORY_QA.md`](continuity/69_COMMERCIAL_CLEAN_AUDIO_REGENERATION_AND_FACTORY_QA.md) |
-| Commercial clean-audio pre-TTS recovery | [`continuity/70_COMMERCIAL_CLEAN_AUDIO_PRE_TTS_RECOVERY.md`](continuity/70_COMMERCIAL_CLEAN_AUDIO_PRE_TTS_RECOVERY.md) |
-| Factory Audio QA response-contract recovery | [`continuity/71_FACTORY_AUDIO_QA_RESPONSE_CONTRACT_RECOVERY.md`](continuity/71_FACTORY_AUDIO_QA_RESPONSE_CONTRACT_RECOVERY.md) |
-| Clean-audio owner ground-truth gate | [`continuity/72_CLEAN_AUDIO_OWNER_GROUND_TRUTH_GATE.md`](continuity/72_CLEAN_AUDIO_OWNER_GROUND_TRUTH_GATE.md) |
-| Clean-audio control eligibility gate | [`continuity/73_CLEAN_AUDIO_CONTROL_ELIGIBILITY_GATE.md`](continuity/73_CLEAN_AUDIO_CONTROL_ELIGIBILITY_GATE.md) |
-| Controlled defect derivation gate | [`continuity/74_CONTROLLED_DEFECT_DERIVATION_GATE.md`](continuity/74_CONTROLLED_DEFECT_DERIVATION_GATE.md) |
-| Clean audio-visual master gate | [`continuity/75_CLEAN_AUDIO_VISUAL_MASTER_GATE.md`](continuity/75_CLEAN_AUDIO_VISUAL_MASTER_GATE.md) |
-| Autonomous clean A/V Browser QA | [`continuity/76_AUTONOMOUS_CLEAN_AV_BROWSER_QA.md`](continuity/76_AUTONOMOUS_CLEAN_AV_BROWSER_QA.md) |
-| YouTube audience-master standard and current-master disposition | [`continuity/77_YOUTUBE_AUDIENCE_MASTER_STANDARD_V1.md`](continuity/77_YOUTUBE_AUDIENCE_MASTER_STANDARD_V1.md) |
-| Audience Golden Sequence revision and QA evidence | [`continuity/78_AUDIENCE_GOLDEN_SEQUENCE_EXECUTION_RECORD.md`](continuity/78_AUDIENCE_GOLDEN_SEQUENCE_EXECUTION_RECORD.md) |
-| Production projection integrity and recurrence prevention | [`continuity/79_PROJECTION_INTEGRITY_EXECUTION_RECORD.md`](continuity/79_PROJECTION_INTEGRITY_EXECUTION_RECORD.md) |
-| Expert assessment reconciliation | [`expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md`](expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md) |
-| External-source migration | [`migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md`](migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md) |
+| Active Video Quality Standard V3 | [`continuity/81_VIDEO_PRODUCTION_QUALITY_STANDARD_V3.md`](continuity/81_VIDEO_PRODUCTION_QUALITY_STANDARD_V3.md) |
+| Current runtime/project truth | [`continuity/03_CURRENT_STATE.md`](continuity/03_CURRENT_STATE.md) |
+| Active decisions | [`continuity/04_DECISION_LOG.md`](continuity/04_DECISION_LOG.md) |
+| QA and qualification registry | [`continuity/07_QA_EVAL_REGISTRY.md`](continuity/07_QA_EVAL_REGISTRY.md) |
+| Chat continuation protocol and handoff | [`continuity/08_CONTINUATION_PACK.md`](continuity/08_CONTINUATION_PACK.md), [`continuity/09_CHAT_ROLLOVER_CAPSULE.md`](continuity/09_CHAT_ROLLOVER_CAPSULE.md) |
+| Open issues | [`governance/MASTER_ISSUE_REGISTRY.md`](governance/MASTER_ISSUE_REGISTRY.md) |
+| Current roadmap | [`roadmap/MASTER_ROADMAP.md`](roadmap/MASTER_ROADMAP.md) |
+| Document coverage boundary | [`governance/DOCUMENT_COMPLETION_MATRIX.md`](governance/DOCUMENT_COMPLETION_MATRIX.md) |
+| Repository synchronization and recovery | [`governance/REPOSITORY_SYNC_AND_RECOVERY.md`](governance/REPOSITORY_SYNC_AND_RECOVERY.md) |
 
-Documents 10–29 remain canonical for the product slices they explicitly own. Documents 32, 35, 36, 38 and 39 are execution evidence. Earlier claims that conflict with a later approved decision or current runtime evidence are historical, not active authority.
+## Archive boundary
 
-## Document classes
-
-- `NORMATIVE`: approved architecture, policy, contract or standard.
-- `CURRENT_STATE`: reconciled operating truth at a named checkpoint.
-- `EXECUTION_EVIDENCE`: immutable record of what was actually run and measured.
-- `ADVISORY`: expert input that requires a recorded disposition.
-- `HISTORICAL`: preserved context with no current mutation or release authority.
-- `SUPERSEDED`: retained for lineage but replaced by a named later document or decision.
+[`archive/README.md`](archive/README.md) inventories superseded plans, execution records, diagnostics and prior snapshots. Archived files are tracked for audit and recovery but cannot authorize a command, provider request, PASS, release, publication or current implementation choice.
 
 ## Change protocol
 
-Every material change must update the relevant canonical document in the same commit as the source change, record verification truth, and identify the next protected action. A chat is not a durable handoff until the same commit is present at `origin/main` and `github/main` and the worktree is clean. While the new GitHub remote is pending, the handoff must be labelled `SYNC_BLOCKED`, never synchronized.
-
-Run the documentation control check with:
-
-```bash
-npm run check:docs
-```
+Every material change updates the relevant active document in the same commit, runs `npm run check:docs` plus applicable source gates, and preserves a clean exact checkpoint. Historical evidence is append-only: move it to the archive or supersede it; never rewrite it as if it were current.

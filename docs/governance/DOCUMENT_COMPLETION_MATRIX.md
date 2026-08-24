@@ -25,13 +25,14 @@ This matrix records where each approved concern is canonical. It prevents a chat
 | Diagrams, Sankey, maps, timelines, ledgers, transformations, charts, topology, documentary footage, transitions and motion | `docs/architecture/VISUAL_MOTION_TECHNIQUE_PLAYBOOK.md` | Complete for design; capability qualification pending |
 | Multi-channel isolation, experiment validity, learning promotion, scaling and rollback | `docs/architecture/MULTI_CHANNEL_SCALE_AND_LEARNING.md` | Complete for design; implementation/calibration pending |
 | Privacy/secrets, Content ID, drift, retention/deletion, SLA/capacity, DR, accessibility/localization and incident containment | `docs/governance/CROSS_CUTTING_CONTROL_STANDARD.md` | Complete for design; enforcement/exercises pending |
-| Current R21/R22 runtime truth | `docs/continuity/03_CURRENT_STATE.md`, Document 78 | Reconciled |
-| Decisions and supersession | `docs/continuity/04_DECISION_LOG.md` | ADR-123 through ADR-133 recorded |
-| Risks and open implementation work | `docs/governance/MASTER_ISSUE_REGISTRY.md` | X30-X43 recorded |
-| Implementation sequence | `docs/roadmap/MASTER_ROADMAP.md` | Phases 44-46 recorded |
+| Current R21/R22 runtime truth | `docs/continuity/03_CURRENT_STATE.md` | Reconciled; detailed execution evidence archived |
+| Decisions and supersession | `docs/continuity/04_DECISION_LOG.md` | Active ADR-123 through ADR-134 recorded; prior decisions archived |
+| Risks and open implementation work | `docs/governance/MASTER_ISSUE_REGISTRY.md` | Current open issues only; closed history archived |
+| Implementation sequence | `docs/roadmap/MASTER_ROADMAP.md` | Active Phases 44-48 only; prior roadmap archived |
 | Repository SSOT | `docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md` | Active |
 | Sites/GitHub SSOT, initial migration, divergence and recovery | `docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md` | Policy/migration complete; connector repository access required |
 | New-chat handoff | `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` | Updated |
+| Historical plans, execution evidence, diagnostics and snapshots | `docs/archive/README.md` | Read-only; no current authority |
 
 ## Not completed by documentation alone
 

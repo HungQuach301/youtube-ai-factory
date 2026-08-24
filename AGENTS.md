@@ -15,6 +15,8 @@ The active policy is [`docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md`](docs/gove
 5. Reconcile current state, open issues, active roadmap wave and protected scope.
 6. State the bounded outcome, acceptance evidence and protected scope.
 
+Do not load or treat `docs/archive` as ordinary development context. It is read-only historical evidence and may be consulted only for a named investigation.
+
 ## Non-negotiable controls
 
 - New portfolio slices are read-only until a separately approved typed command contract grants mutation authority.

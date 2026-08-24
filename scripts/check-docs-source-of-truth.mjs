@@ -21,15 +21,12 @@ const required = [
   "docs/governance/CROSS_CUTTING_CONTROL_STANDARD.md",
   "docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md",
   "docs/governance/DOCUMENT_COMPLETION_MATRIX.md",
+  "docs/archive/README.md",
   "docs/roadmap/MASTER_ROADMAP.md",
-  "docs/expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md",
-  "docs/expert-assessments/2026-08-20_VIDEO_ENGINE_DETAILED_IMPROVEMENT_SPEC.md",
-  "docs/migration/2026-08-20_EXTERNAL_SOURCE_MIGRATION.md",
   "docs/continuity/03_CURRENT_STATE.md",
   "docs/continuity/04_DECISION_LOG.md",
   "docs/continuity/08_CONTINUATION_PACK.md",
   "docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md",
-  "docs/continuity/40_REPOSITORY_KNOWLEDGE_BASE_CHECKPOINT.md",
   "docs/continuity/80_HIDDEN_SYSTEMS_VISUAL_DNA_AND_R22_BLUEPRINT.md",
   "docs/continuity/81_VIDEO_PRODUCTION_QUALITY_STANDARD_V3.md",
 ];
@@ -45,6 +42,8 @@ if (!text("docs/README.md").includes("DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1")) failu
 if (!text("docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md").includes("origin/main")) failures.push("ROLLOVER_GIT_REMOTE_MISSING");
 if (!text("docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md").includes("github/main")) failures.push("ROLLOVER_GITHUB_MIRROR_MISSING");
 if (!text("docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md").includes("youtube-ai-factory-v2")) failures.push("EXCLUDED_REPOSITORY_RULE_MISSING");
+if (!text("docs/archive/README.md").includes("HISTORICAL_READ_ONLY")) failures.push("ARCHIVE_AUTHORITY_BOUNDARY_MISSING");
+if (!text("docs/README.md").includes("Do not read `docs/archive` as current authority")) failures.push("ACTIVE_ARCHIVE_READING_BOUNDARY_MISSING");
 
 function files(path) {
   const output = [];
@@ -56,9 +55,16 @@ function files(path) {
   return output;
 }
 
-const markdownFiles = [join(root, "README.md"), join(root, "AGENTS.md"), ...files(join(root, "docs"))];
+const allDocumentation = files(join(root, "docs"));
+const archivePrefix = join(root, "docs", "archive") + "/";
+const activeMarkdownFiles = [
+  join(root, "README.md"),
+  join(root, "AGENTS.md"),
+  ...allDocumentation.filter((path) => !path.startsWith(archivePrefix)),
+];
+const archiveMarkdownFiles = allDocumentation.filter((path) => path.startsWith(archivePrefix));
 const localLink = /\[[^\]]*\]\(([^)]+)\)/g;
-for (const source of markdownFiles) {
+for (const source of activeMarkdownFiles) {
   const content = readFileSync(source, "utf8");
   for (const match of content.matchAll(localLink)) {
     const raw = match[1].trim().replace(/^<|>$/g, "");
@@ -70,9 +76,9 @@ for (const source of markdownFiles) {
   }
 }
 
-const roadmapCopies = markdownFiles.filter((path) => path.endsWith("MASTER_ROADMAP.md"));
+const roadmapCopies = activeMarkdownFiles.filter((path) => path.endsWith("MASTER_ROADMAP.md"));
 if (roadmapCopies.length !== 1) failures.push(`MASTER_ROADMAP_COUNT:${roadmapCopies.length}`);
-const issueCopies = markdownFiles.filter((path) => path.endsWith("MASTER_ISSUE_REGISTRY.md"));
+const issueCopies = activeMarkdownFiles.filter((path) => path.endsWith("MASTER_ISSUE_REGISTRY.md"));
 if (issueCopies.length !== 1) failures.push(`MASTER_ISSUE_REGISTRY_COUNT:${issueCopies.length}`);
 
 if (failures.length) {
@@ -81,4 +87,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Documentation SSOT PASS · ${markdownFiles.length} Markdown files · ${required.length} canonical files present · local links resolve`);
+console.log(`Documentation SSOT PASS · ${activeMarkdownFiles.length} active Markdown files · ${archiveMarkdownFiles.length} historical archive files · ${required.length} canonical files present · active local links resolve`);

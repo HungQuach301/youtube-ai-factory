@@ -54,7 +54,7 @@ Every normative or current-state document must have an identifiable owner scope 
 - `EVIDENCE_ONLY`
 - `CALIBRATION_REQUIRED`
 
-Numbered continuity documents remain in place to avoid breaking lineage. New cross-cutting documents live under `docs/governance`, `docs/architecture`, `docs/roadmap`, `docs/expert-assessments`, `docs/evidence` or `docs/migration` and are indexed by `docs/README.md`.
+Only active documents remain in the ordinary reading tree and are indexed by `docs/README.md`. Superseded plans, numbered execution records, diagnostics and prior snapshots live under `docs/archive` with `HISTORICAL_READ_ONLY` authority. Git history and the archive preserve lineage without letting old plans drive current work.
 
 ## New-chat recovery protocol
 
@@ -84,11 +84,11 @@ Optional bundles or archives may be generated for disaster recovery, but they ar
 
 ## Deletion and cleanup
 
-Legacy documents, source or evidence may be deleted only when:
+Legacy documents, source or evidence may be removed from the active tree only when:
 
 - their canonical replacement is committed;
 - provenance and relevant decisions are preserved;
 - no active code, test, migration or document references them;
-- the deletion is separately reviewed as a destructive change.
+- the cleanup is explicitly owner-authorized and independently validated.
 
-This consolidation does not delete historical evidence or runtime state.
+Prefer a tracked move to `docs/archive` over byte deletion when the material retains audit value. This consolidation does not delete runtime evidence or change Production state.
