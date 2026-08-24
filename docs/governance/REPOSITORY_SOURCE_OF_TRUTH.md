@@ -11,7 +11,7 @@
 
 The tracked contents and history of this Git repository are the sole durable source of project truth and knowledge. A future chat must be able to recover the project state, governing decisions, exact next action and protected scope by cloning or fetching this repository without reading a prior conversation.
 
-The repository is replicated as the same Git object graph to ChatGPT Sites `origin/main` and the new private personal GitHub repository `HungQuach301/youtube-ai-factory` at `github/main`. One exact `main` commit is the source of truth; the remotes are mirrors, not independent authorities. Until the GitHub repository exists and both refs match, status is `GITHUB_REMOTE_PENDING`, not synchronized. The full divergence and recovery protocol is in [`REPOSITORY_SYNC_AND_RECOVERY.md`](REPOSITORY_SYNC_AND_RECOVERY.md).
+The repository is replicated as the same Git object graph to ChatGPT Sites `origin/main` and the new private personal GitHub repository `HungQuach301/youtube-ai-factory` at `github/main`. One exact `main` commit is the source of truth; the remotes are mirrors, not independent authorities. The owner reports the target is created, but the connected GitHub integration does not yet have repository access. Until access is granted and both refs match, status is `CONNECTOR_ACCESS_REQUIRED`, not synchronized. The full migration, divergence and recovery protocol is in [`REPOSITORY_SYNC_AND_RECOVERY.md`](REPOSITORY_SYNC_AND_RECOVERY.md).
 
 Chat history, model memory, local scratch directories, ChatGPT Library, Google Drive, exported patches, Git bundles and archives may preserve redundant evidence. They cannot introduce, override or complete a project fact until that fact is reconciled and committed here.
 

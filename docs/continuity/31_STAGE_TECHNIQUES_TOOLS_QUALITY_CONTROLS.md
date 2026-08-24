@@ -2,7 +2,7 @@
 
 Status: authoritative stage-technique and tool specification for the `V7_V23_4_V281` sequential production contract. Document 81 supersedes Documents 31 and 34 for new audience-facing quality thresholds; Document 34 remains historical V2 evidence. Document 37 remains authoritative for first-pass capability qualification where V3 does not supersede it. Stage 00–10 remain historical control-state evidence for video #1; Stage 11, full-video expansion, release and publication remain blocked.
 
-The Factory-wide visual grammar, Blueprint, Shot Contract, Scene Graph, candidate tournament and anti-slide controls are in [`../architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md`](../architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md). AI-first exact-master acceptance is in [`../architecture/AI_FIRST_PRODUCTION_ASSURANCE.md`](../architecture/AI_FIRST_PRODUCTION_ASSURANCE.md); data/provider routing is in [`../architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md`](../architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md); Hidden Systems and R22 specifics are in Documents 80–81.
+The Factory-wide visual grammar, Blueprint, Shot Contract, Scene Graph, candidate tournament and anti-slide controls are in [`../architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md`](../architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md). The detailed diagram/map/chart/ledger/footage/transition playbook is in [`../architecture/VISUAL_MOTION_TECHNIQUE_PLAYBOOK.md`](../architecture/VISUAL_MOTION_TECHNIQUE_PLAYBOOK.md), and the complete stage gate chain is in [`../architecture/E2E_PRODUCTION_GATE_MODEL.md`](../architecture/E2E_PRODUCTION_GATE_MODEL.md). AI-first exact-master acceptance is in [`../architecture/AI_FIRST_PRODUCTION_ASSURANCE.md`](../architecture/AI_FIRST_PRODUCTION_ASSURANCE.md); data/provider routing is in [`../architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md`](../architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md); Hidden Systems and R22 specifics are in Documents 80–81.
 
 ## Product and language decisions
 
@@ -18,11 +18,11 @@ The Factory-wide visual grammar, Blueprint, Shot Contract, Scene Graph, candidat
 2. **Bounded execution:** jobs have an idempotency identity, exclusive lease, timeout, checkpoint, retry ceiling, cost ceiling, and emergency stop.
 3. **Unique provider requests:** every external request has a unique request ID. Blind retries and unchanged batch reruns are forbidden.
 4. **Real-output proof:** a URL, prompt, plan, provider acknowledgement, or database row is not a media output. Eligible media requires stored bytes, successful decode/read-back, and evidence from the actual bytes.
-5. **Separated storage authority:** D1 owns operational state and eligibility, R2 owns runtime bytes, and Google Drive owns the durable user archive. No layer silently substitutes for another.
+5. **Separated storage authority:** Git owns code/contracts/docs, D1 owns operational state and eligibility, R2 owns active runtime bytes, and Google Drive is `USER_CONTROLLED_RECOVERY_ARCHIVE`. No layer silently substitutes for another.
 6. **Integrity:** checksums are recorded before and after transfer, transform, render, and archive handoff.
 7. **Rights and provenance:** source, license/usage rights, provider response, transformation history, and production binding are required before downstream use.
 8. **Quality floors:** overall score ≥92, every critical critic ≥90, every dimension ≥86, P0=0, and unresolved material P1=0. An average cannot compensate for a hard-gate failure.
-9. **Root-cause repair:** at most two repair loops under the active contract. Repair reopens the owning stage, creates a new immutable revision, and preserves failed artifacts and critic evidence.
+9. **Root-cause repair:** one bounded append-only root revision under the active contract, then escalation. Repair reopens the owning stage and preserves failed artifacts and critic evidence; automatic QA-repair loops are forbidden.
 10. **Legacy firewall:** prior masters, media, bindings, hashes, stale designs, and QA PASS decisions remain audit-only and cannot enter candidate search, rendering, rescoring, or release.
 
 ## Tool availability legend

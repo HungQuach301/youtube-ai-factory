@@ -28,7 +28,7 @@ An infrastructure failure that prevents observation is `ASSURANCE_INCOMPLETE`, n
 ## Outcomes
 
 - `AI_ACCEPTED`: all required evidence is complete and every authority condition passes.
-- `AI_REJECTED`: content or artifact fails a proved hard or critical gate.
+- `CONTENT_REJECTED`: content or artifact fails a proved hard or critical gate.
 - `HUMAN_ESCALATION_REQUIRED`: evidence is complete enough to identify a real decision but qualification, disagreement, novelty, brand, rights or legal risk requires a person.
 - `ASSURANCE_INCOMPLETE`: required evidence could not be observed or a judge/runtime failed; no content verdict or downstream authority is granted.
 

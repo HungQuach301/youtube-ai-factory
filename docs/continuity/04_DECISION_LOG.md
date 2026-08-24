@@ -417,7 +417,7 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 
 ## ADR-124 — AI assurance is multi-layer, exact-artifact-bound and qualification-gated
 
-**Decision:** activate `AI_FIRST_PRODUCTION_ASSURANCE_V1` with deterministic, factual, visual-semantic, temporal, audio-native, audience, Browser and independent-adjudication layers. The only outcomes are `AI_ACCEPTED`, `AI_REJECTED`, `HUMAN_ESCALATION_REQUIRED` and `ASSURANCE_INCOMPLETE`. AI PASS has no authority until its capability meets the stored qualification thresholds. Infrastructure observation failure is not content rejection. Owner playback transitions only through explicit calibrated modes; publication remains separate.
+**Decision:** activate `AI_FIRST_PRODUCTION_ASSURANCE_V1` with deterministic, factual, visual-semantic, temporal, audio-native, audience, Browser and independent-adjudication layers. The only outcomes are `AI_ACCEPTED`, `CONTENT_REJECTED`, `HUMAN_ESCALATION_REQUIRED` and `ASSURANCE_INCOMPLETE`. AI PASS has no authority until its capability meets the stored qualification thresholds. Infrastructure observation failure is not content rejection. Owner playback transitions only through explicit calibrated modes; publication remains separate.
 
 **Reason:** the target is 100% AI inspection and 90-95% routine exception-free handling, while R21 proves a source atlas and one judge can miss temporal, phase and payoff defects.
 
@@ -438,3 +438,39 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** activate `DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1`. `origin/main` and `github/main` must contain the same exact commit; divergence blocks mutation. The new personal target is `HungQuach301/youtube-ai-factory`, private by default. `HungQuach301/youtube-ai-factory-v2` is excluded as upstream, mirror, fallback and recovery input. No synchronization is claimed until both refs are verified identical.
 
 **Reason:** one repository must remain the durable source of truth while being recoverable outside ChatGPT Sites, without merging a separately evolved V2 project or allowing two independently editable histories.
+
+## ADR-128 — Business authority and economics are explicit Factory contracts
+
+**Decision:** activate `FACTORY_BUSINESS_OPERATING_MODEL_V1`. Factory policy owns hard floors and shared capabilities; Channel/Format/Video/Shot own progressively narrower creative intent; qualified AI may execute only within an active envelope; providers have no acceptance authority. Exception routing names one root owner and one bounded revision. Portfolio decisions use accepted-output cost, yield, capacity and risk rather than request volume.
+
+**Reason:** technical stages and provider calls cannot determine channel identity, capital allocation, release authority or scale. Without explicit decision rights and unit economics, automation would optimize throughput rather than defensible business outcomes.
+
+## ADR-129 — Runtime architecture uses typed events, one timebase and fenced workers
+
+**Decision:** activate `FACTORY_TECHNICAL_RUNTIME_ARCHITECTURE_V1`. Business/Creative, Control, Production/Media, Evidence/Assurance and Learning planes communicate through typed commands/events. One canonical timebase binds narration, samples, frames, captions, QA and retention. Workers require monotonic fencing; projections cannot create authority; replay is evidence-bound and read-only before mutation.
+
+**Reason:** independent UI status, stage-owned state and unfenced retries can publish stale bytes, double-spend and detach QA from the released artifact.
+
+## ADR-130 — Every production stage has an independent typed gate
+
+**Decision:** activate `E2E_PRODUCTION_GATE_MODEL_V1`. The workflow from audience need through learning requires Definition of Ready, producer self-check, independent gate, failure owner and typed handoff. Release and publication are separate. Infrastructure failure is `ASSURANCE_INCOMPLETE`; repair is limited to one append-only root revision before escalation.
+
+**Reason:** a strong final QA gate cannot compensate for unsupported claims, uncovered visual intent, unlicensed assets, invalid timebase or an unqualified renderer introduced upstream.
+
+## ADR-131 — Visual and motion techniques are qualified capabilities, not ad hoc templates
+
+**Decision:** activate `VISUAL_MOTION_TECHNIQUE_PLAYBOOK_V1`. Documentary footage, diagrams, Sankey, maps, timelines, ledgers, transformations, charts, topology and evidence UI each have a semantic use, construction contract, motion grammar and failure checks. Mobile, accessibility and en-US localization remain acceptance requirements.
+
+**Reason:** layout counts, transitions and source variety do not prove causal visual explanation. Technique-specific contracts allow the Visual Grammar Resolver and judges to evaluate meaning rather than decorative motion.
+
+## ADR-132 — Cross-channel learning promotes versions only from valid evidence
+
+**Decision:** activate `MULTI_CHANNEL_SCALE_AND_LEARNING_V1`. Factory capabilities may be shared, but Channel identity, assets, rights, credentials, economics and conclusions remain isolated. Promotion requires pre-registered prediction, comparable outcomes, minimum independent evidence and no unresolved drift or P0/P1. Rollback selects a prior immutable version for future work.
+
+**Reason:** a single high-performing video or another channel's result cannot establish causal, reusable learning. Versioned promotion prevents cross-channel contamination and retroactive history edits.
+
+## ADR-133 — Cross-cutting controls cannot be weakened by a stage
+
+**Decision:** activate `CROSS_CUTTING_CONTROL_STANDARD_V1` for privacy/secrets, rights/Content ID, provider drift, retention/deletion, SLA/capacity, disaster recovery, accessibility, localization, taxonomy/versioning, experiment validity and incident containment. Thresholds inherit the Standard Registry; unknown rights/spend and incomplete assurance fail closed.
+
+**Reason:** these risks cross provider, media, channel and lifecycle boundaries. Duplicated local policies would produce conflicting thresholds, incomplete deletion/recovery and unsafe fallbacks.

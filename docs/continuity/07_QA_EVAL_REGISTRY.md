@@ -4,7 +4,7 @@ Every finding includes severity, exact evidence, affected artifact/hash, root st
 
 ## AI-first Production Assurance — V1
 
-The active exact-master stack is L0 deterministic, L1 claim/factual, L2 visual-semantic, L3 temporal/motion, L4 audio-native, L5 audience/retention, L6 Browser and L7 independent adjudication. Outcomes are `AI_ACCEPTED`, `AI_REJECTED`, `HUMAN_ESCALATION_REQUIRED` and `ASSURANCE_INCOMPLETE`. An infrastructure observation failure is never converted into a content rejection or acceptance.
+The active exact-master stack is L0 deterministic, L1 claim/factual, L2 visual-semantic, L3 temporal/motion, L4 audio-native, L5 audience/retention, L6 Browser and L7 independent adjudication. Outcomes are `AI_ACCEPTED`, `CONTENT_REJECTED`, `HUMAN_ESCALATION_REQUIRED` and `ASSURANCE_INCOMPLETE`. An infrastructure observation failure is never converted into a content rejection or acceptance.
 
 Auto-accept requires all deterministic gates, 100% required evidence, overall at least 92, every active critical floor at least 90, P0/P1 zero, qualified visual/temporal/audio/Browser PASS, no critical disagreement, confidence at least 0.92, rights PASS, reconciled cost and zero active request. Standard Registry floors override generic numbers when higher.
 

@@ -15,7 +15,7 @@ Stage 09 is split into six planes. Sites is the control plane; CPU/GPU-heavy vid
 | Source intelligence | provider/local/Drive retrieval, actual-video decoding, frame sampling, negative evidence | queue-backed media workers | Blocked pending actual-frame extractor |
 | Semantic composition | family renderer registry, structured factual data, composite tournament | stateless renderer workers | Partial; MP-001 renderer only |
 | Perceptual QA | candidate, composite, motion and sequence critics | bounded AI jobs with stored inputs/outputs | Partial; candidate and composite QA implemented |
-| Evidence plane | R2 working bytes, Google Drive canonical archive, checksum, rights and lineage | content-addressed immutable storage | Ready |
+| Evidence plane | R2 active bytes, Google Drive `USER_CONTROLLED_RECOVERY_ARCHIVE`, checksum, rights and lineage | content-addressed immutable storage | Ready |
 | Scale governor | tranche admission, adaptive concurrency, backpressure and circuit breakers | one unit → pilot → sequence → waves | Contracted; locked until quality pilot passes |
 
 ### Non-negotiable separation
@@ -25,7 +25,7 @@ The control plane never treats a provider thumbnail as decoded video evidence an
 ## Quality-production process v2
 
 1. **Compile the immutable material brief.** Inherit timing, narration clause, viewer-state change, factual acceptance, required evidence and prohibited evidence from Stage 08.
-2. **Acquire real source bytes.** Search provider, personal and reusable libraries. Record rights before download; store the selected original in R2 and Google Drive.
+2. **Acquire real source bytes.** Search provider, personal and reusable libraries. Record rights before download; store the selected original in R2 and copy eligible frozen evidence to the Google Drive recovery archive.
 3. **Decode the actual video.** Sample frames and short clip windows from the stored MP4. A provider thumbnail is discovery evidence only.
 4. **Run negative-evidence detection.** Reject cash, wrong payment mode, logos, faces, obstructed focal objects, unreadable screens and every brief-specific prohibition before scoring relevance.
 5. **Run the source-frame tournament.** Rank actual frames or clip windows for context, action, composition, authenticity and editability.

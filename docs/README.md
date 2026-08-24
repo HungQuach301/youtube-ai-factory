@@ -57,9 +57,15 @@ When facts conflict, use this order:
 | Product charter | [`continuity/00_AI_FACTORY_CHARTER.md`](continuity/00_AI_FACTORY_CHARTER.md) |
 | Architecture principles | [`continuity/01_ARCHITECTURE_AND_PRINCIPLES.md`](continuity/01_ARCHITECTURE_AND_PRINCIPLES.md) |
 | Target multi-channel architecture | [`architecture/TARGET_OPERATING_ARCHITECTURE.md`](architecture/TARGET_OPERATING_ARCHITECTURE.md) |
+| Business capabilities, authority and economics | [`architecture/BUSINESS_OPERATING_MODEL.md`](architecture/BUSINESS_OPERATING_MODEL.md) |
+| Technical runtime, events, timebase and UI planes | [`architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md`](architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md) |
 | Visual production operating model | [`architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md`](architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md) |
+| End-to-end workflow and stage gates | [`architecture/E2E_PRODUCTION_GATE_MODEL.md`](architecture/E2E_PRODUCTION_GATE_MODEL.md) |
+| Visual and motion technique playbook | [`architecture/VISUAL_MOTION_TECHNIQUE_PLAYBOOK.md`](architecture/VISUAL_MOTION_TECHNIQUE_PLAYBOOK.md) |
+| Multi-channel scale and learning | [`architecture/MULTI_CHANNEL_SCALE_AND_LEARNING.md`](architecture/MULTI_CHANNEL_SCALE_AND_LEARNING.md) |
 | AI-first Production Assurance | [`architecture/AI_FIRST_PRODUCTION_ASSURANCE.md`](architecture/AI_FIRST_PRODUCTION_ASSURANCE.md) |
 | Data and Provider Control Plane | [`architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md`](architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md) |
+| Cross-cutting controls | [`governance/CROSS_CUTTING_CONTROL_STANDARD.md`](governance/CROSS_CUTTING_CONTROL_STANDARD.md) |
 | Dual-remote synchronization and recovery | [`governance/REPOSITORY_SYNC_AND_RECOVERY.md`](governance/REPOSITORY_SYNC_AND_RECOVERY.md) |
 | Document completion and implementation boundary | [`governance/DOCUMENT_COMPLETION_MATRIX.md`](governance/DOCUMENT_COMPLETION_MATRIX.md) |
 | Current production truth | [`continuity/03_CURRENT_STATE.md`](continuity/03_CURRENT_STATE.md) |

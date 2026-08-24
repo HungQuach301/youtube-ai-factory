@@ -1,6 +1,6 @@
 # Repository Synchronization and Recovery
 
-**State:** `ACTIVE_NORMATIVE__GITHUB_REMOTE_PENDING`
+**State:** `ACTIVE_NORMATIVE__OWNER_REPORTED_CREATED__CONNECTOR_ACCESS_REQUIRED`
 **Policy:** `DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1`
 **Effective:** 2026-08-24
 
@@ -16,7 +16,19 @@ Canonical identity:          one exact commit SHA on main
 
 `HungQuach301/youtube-ai-factory-v2` is explicitly excluded. It is neither a source, mirror, upstream, fallback nor recovery input for this repository.
 
-The personal GitHub target is a new private repository named `HungQuach301/youtube-ai-factory`. Until it exists and both remote refs match, repository state is `GITHUB_REMOTE_PENDING` and must not be described as synchronized.
+The owner reports that the new `HungQuach301/youtube-ai-factory` repository has been created. The connected GitHub integration cannot currently enumerate it, so creation is not yet independently verified and the remote cannot be synchronized. Until repository access is granted and both remote refs match, state is `CONNECTOR_ACCESS_REQUIRED`, never synchronized.
+
+## Initial mirror migration
+
+1. Grant the existing ChatGPT GitHub connection access to the exact new repository; do not provide a token in chat or store credentials in Git.
+2. Verify the repository owner/name, privacy, default branch and whether it has unexpected commits, tags or protected rules.
+3. Add remote name `github` using a credential-safe URL and fetch it without mutation.
+4. If the target is empty, push the complete canonical `main` history and applicable tags. If it is non-empty or divergent, stop under the divergence protocol; never force or merge automatically.
+5. Fetch `origin` and `github`, then verify local `HEAD`, `origin/main` and `github/main` are the same exact commit and tree.
+6. Record a sync receipt containing remote names, exact SHAs, checks, deployment checkpoint and clean-worktree proof.
+7. Only after this proof change status to `SYNCHRONIZED`.
+
+No file, branch, commit or tag may be copied from `youtube-ai-factory-v2` during migration.
 
 ## Single-source semantics
 
