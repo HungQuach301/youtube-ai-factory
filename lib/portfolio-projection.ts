@@ -67,7 +67,7 @@ export async function portfolioProjection(databaseOverride?: DB) {
       { id: "INTELLIGENCE", label: "Market intelligence", href: "/market-intelligence", state: "AVAILABLE" },
       { id: "NICHE", label: "Niche discovery", href: "/niche-discovery", state: "AVAILABLE" },
       { id: "STUDIO", label: "Channel studio", href: "/channel-studio", state: "AVAILABLE" },
-      { id: "PRODUCTION", label: "Video Production Engine", href: "/control-plane", state: "COMPATIBILITY_EXECUTION" },
+      { id: "PRODUCTION", label: "Video Production Engine", href: "/video-engine", state: "CANONICAL_OPERATOR" },
     ],
   };
 }

@@ -1,36 +1,19 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-
-type Surface = "portfolio" | "intelligence" | "niches" | "studio" | "production" | "continuity";
+import { CANONICAL_FACTORY_SURFACES, type CanonicalFactorySurface } from "./factory-surface-registry";
 
 function Mark() {
   return <span className="pfMark" aria-hidden="true"><i /><i /><i /></span>;
 }
 
-export function FactoryShell({ children, active = "portfolio", mode = "projection" }: { children: ReactNode; active?: Surface; mode?: "projection" | "operator" }) {
-  const navigation: Array<[Surface, string, string]> = [
-    ["portfolio", "01", "Portfolio"],
-    ["intelligence", "02", "Intelligence"],
-    ["niches", "03", "Niche discovery"],
-    ["studio", "04", "Channel studio"],
-    ["production", "05", "Video engine"],
-    ["continuity", "06", "Continuity"],
-  ];
-  const href: Record<Surface, string> = {
-    portfolio: "/",
-    intelligence: "/market-intelligence",
-    niches: "/niche-discovery",
-    studio: "/channel-studio",
-    production: "/video-engine",
-    continuity: "/continuity",
-  };
+export function FactoryShell({ children, active = "portfolio", mode = "projection" }: { children: ReactNode; active?: CanonicalFactorySurface; mode?: "projection" | "operator" }) {
   return <>
     <a className="pfSkipLink" href="#main-content">Skip to main content</a>
     <div className="pfShell">
     <aside className="pfSidebar">
       <Link className="pfBrand" href="/"><Mark /><span><strong>AI Factory</strong><small>Multi-channel operations</small></span></Link>
       <nav aria-label="Factory navigation">
-        {navigation.map(([key, number, label]) => <Link key={key} aria-current={active === key ? "page" : undefined} className={active === key ? "active" : ""} href={href[key]}><span>{number}</span>{label}</Link>)}
+        {CANONICAL_FACTORY_SURFACES.map((item) => <Link key={item.key} aria-current={active === item.key ? "page" : undefined} className={active === item.key ? "active" : ""} href={item.href}><span>{item.number}</span>{item.label}</Link>)}
       </nav>
       <div className="pfSidebarFoot"><div><i />{mode === "operator" ? "Operator workspace" : "Read-only projection"}</div><Link href="/settings">Factory settings →</Link></div>
     </aside>

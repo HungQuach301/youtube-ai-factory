@@ -1,7 +1,7 @@
 # Audience Golden Sequence execution record
 
 **Class:** `EXECUTION_EVIDENCE`  
-**Status:** `ACTIVE__REVISION_18_VISUAL_REJECTED_AUDIO_PASS__REVISION_19_SOURCE_VERIFIED`
+**Status:** `ACTIVE__REVISION_20_VISUAL_REJECTED_AUDIO_PASS`
 **Date:** 2026-08-24 (Asia/Bangkok)
 **Scope:** original YouTube AI Factory only; Production V2 is excluded and untouched.
 
@@ -31,6 +31,10 @@
 | R16 | `ee476c59d79599c4a63a2b62f9ded0714b0e2e8ff06c96015f6f6016b74aff73` | FAIL 68 | PASS 95 | preserved rejected visual evidence; audio pass retained |
 | R17 | `b2f3de5e8a5568a7ac411fcd336e0e4b842b8f45e0c0dde56d2db8b6fbbad033` | FAIL 87 | PASS 94 | preserved rejected visual evidence; audio pass retained |
 | R18 | `78867b18667a5304014911a66126292335073efba7d1b9321b8d3a86f787dfa7` | FAIL 77 | PASS 94 | preserved rejected visual evidence; audio pass retained |
+| R19 | `226f40bd7c2522bd21daee5f43ef6a2fadb43168f100f74a479c1fcde77ccf1b` | FAIL 87 | FAIL 88 | preserved dual-failure evidence |
+| R20 | `880e2fca00cd0405d5c8b604725885bc319d9dd3c69cf7a35cc9109b61a2a706` | FAIL 89 | PASS 95 | current rejected visual evidence; Browser blocked |
+
+R20 is a deterministic/rights PASS 77.1-second 2560×1440/30 H.264/AAC master of 17,057,292 bytes. Factory visual QA fails 89 with P0=0, P1=2 and P2=2; Factory audio QA passes 95 with P0=0, P1=0 and P2=1. Because visual QA failed, Browser/device QA, owner playback, freeze, release and publication remain blocked. The exact current materialization is `audience-golden-materialization-3049d7a5-2b00-4b8c-bf6b-79da41291db8`. Document 79 corrects the frontend projection so this record is visible from the canonical Video Engine.
 
 R4 improved visual richness but retained two P1 defects: the same tableau/lower-third grammar persisted across the explanation, and the moving marker did not make institutions, balances or records visibly transform. Its three P2 findings were insufficient state differentiation, mixed English without visible definition and secondary mobile typography. No Browser or owner PASS was inferred.
 
@@ -161,7 +165,8 @@ PRODUCTION_R17 = MATERIALIZED__EXACT_MASTER_B2F3DE5E__VISUAL_FAIL_87__AUDIO_PASS
 PRODUCTION_R18 = MATERIALIZED__EXACT_MASTER_78867B18__VISUAL_FAIL_77__AUDIO_PASS_94
 PRODUCTION_R19 = MATERIALIZED__EXACT_MASTER_226F40BD__VISUAL_FAIL_87__AUDIO_FAIL_88
 R20_SOURCE_ATLAS = PASS__32_OF_32__FULL_FRAME_MOBILE_REFLOW__SAFE_ARROW_CORRIDOR__DISTINCT_PAIR_GEOMETRY__SEALED_VOICE_CONTRACT
-FACTORY_VISUAL_AUDIO_QA = BLOCKED_UNTIL_R20_PRODUCTION
+PRODUCTION_R20 = MATERIALIZED__EXACT_MASTER_880E2FCA__VISUAL_FAIL_89__AUDIO_PASS_95
+FACTORY_VISUAL_AUDIO_QA = COMPLETE__FAIL_PASS
 BROWSER_DEVICE_QA = BLOCKED_UNTIL_FACTORY_PASS
 OWNER_FULL_PLAYBACK = BLOCKED_UNTIL_BROWSER_PASS
 FREEZE_RELEASE_PUBLICATION = FALSE_FALSE_FALSE
@@ -169,4 +174,4 @@ FREEZE_RELEASE_PUBLICATION = FALSE_FALSE_FALSE
 
 ## Exact next action
 
-Sites v500 sealed R19 exact materialization and dual Factory FAIL receipts. Complete the R20 docs/firewall gate, commit and push migration `0104` plus its exact source contract, deploy owner-only, create R20, materialize one new exact master and let independent Factory visual/audio QA decide. Browser/device remains closed until Factory visual and audio both PASS; owner playback remains closed until Browser PASS. Production V2, Stage 11, full-video expansion, release and publication remain untouched.
+R20 is Production materialized and Factory-adjudicated. Preserve it as rejected visual evidence, deploy the canonical projection-integrity repair from Document 79, then create only a bounded append-only repair revision derived from the exact R20 visual findings. Browser/device remains closed until a later exact master passes both Factory visual and audio; owner playback remains closed until Browser PASS. Production V2, Stage 11, full-video expansion, release and publication remain untouched.

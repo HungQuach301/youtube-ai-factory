@@ -179,6 +179,7 @@ export type SequentialProductionProjection = {
     budgetState: string;
   };
   quality: {
+    canonicalSource: "YOUTUBE_AUDIENCE_GOLDEN" | "LEGACY_GOLDEN_FALLBACK";
     eligibility: "BLOCKED_VIDEO_STANDARD_V2" | "VIDEO_EXCELLENCE_ELIGIBLE";
     standardVersion: string;
     registryCount: number;
@@ -191,6 +192,17 @@ export type SequentialProductionProjection = {
     goldenMasterSha256?: string;
     goldenMasterState: string;
     goldenMasterProbe?: { width?: number; height?: number; durationSeconds?: number; averageFrameRate?: number; audioSampleRate?: number; audioChannels?: number };
+    audienceGolden?: {
+      revision?: number;
+      blueprintId?: string;
+      materializationId?: string;
+      nextAction: string;
+      masterBytes?: number;
+      materialsHref: "/video-engine/audience-golden";
+      visualQa?: { decisionState: string; overallScore: number; p0Count: number; p1Count: number; p2Count: number } | null;
+      audioQa?: { decisionState: string; overallScore: number; p0Count: number; p1Count: number; p2Count: number } | null;
+      browserQa?: { decisionState: string; overallScore: number; p0Count: number; p1Count: number; p2Count: number } | null;
+    };
     gaps: Array<{ standardId: string; level: string; owningStage: string; status: string; evidenceRequired: string[] }>;
   };
   stages: Array<{

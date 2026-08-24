@@ -10,6 +10,8 @@ import {
 import { deriveRootStageKeys } from "@/lib/first-pass-quality-projection";
 import { FP3_GOLDEN_CONTRACT_SUMMARY } from "@/lib/first-pass-shot-cue-program";
 import { summarizeCorpusEvidenceConflicts, summarizeEvaluationRightsQueue } from "@/lib/evaluation-foundation";
+import { audienceGoldenSnapshot, type AudienceGoldenDB } from "@/lib/youtube-audience-golden";
+import { canonicalGoldenRootStages, reconcileCanonicalGolden } from "@/lib/canonical-production-projection";
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }>; first<T = Row>(): Promise<T | null> };
@@ -258,10 +260,19 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
   const resolvedStandards = resolveVideoQualityStandards(registry, VIDEO_01_QUALITY_ROUTE);
   const qualityEligibility = evaluateVideoQualityEligibility(resolvedStandards, [...latestEvidence.values()]);
   const qualityGaps = qualityEligibility.gaps.map((gap) => ({ standardId: gap.standardId, level: gap.level, owningStage: gap.owningStage, status: gap.status, evidenceRequired: gap.evidenceRequired }));
-  const goldenState = text(goldenSequence?.lifecycle_state) || "NOT_STARTED";
+  const legacyGoldenState = text(goldenSequence?.lifecycle_state) || "NOT_STARTED";
   const goldenQuality = goldenSequence?.quality_json ? json<Record<string, unknown>>(goldenSequence.quality_json, {}) : {};
   const goldenScan = goldenMasterJob?.scan_json ? json<Record<string, unknown>>(goldenMasterJob.scan_json, {}) : {};
-  const rootStageKeys = deriveRootStageKeys(goldenState, goldenQuality, goldenScan, qualityGaps);
+  const audienceGolden = channelId === "channel-hidden-systems" ? await audienceGoldenSnapshot(db as unknown as AudienceGoldenDB) : null;
+  const canonicalGolden = reconcileCanonicalGolden({
+    state: legacyGoldenState,
+    masterUrl: goldenAssetUrl("GOLDEN_MASTER_VIDEO"),
+    masterSha256: goldenAssetHash("GOLDEN_MASTER_VIDEO"),
+    durationSeconds: number(goldenSequence?.duration_seconds),
+    probe: goldenMasterJob?.probe_json ? json<Record<string, number>>(goldenMasterJob.probe_json, {}) : undefined,
+  }, audienceGolden);
+  const goldenState = canonicalGolden.state;
+  const rootStageKeys = canonicalGoldenRootStages(canonicalGolden, deriveRootStageKeys(legacyGoldenState, goldenQuality, goldenScan, qualityGaps));
   const latestQualification = new Map<string, Row>();
   for (const qualification of qualificationRows) latestQualification.set(`${text(qualification.capability_id)}:${text(qualification.archetype_id)}`, qualification);
   const uniqueRequirementPairs = [...new Map(requirementRows.map((requirement) => [`${text(requirement.capability_id)}:${text(requirement.archetype_id)}`, requirement])).values()];
@@ -486,6 +497,7 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       budgetState: text(budgetPlan?.lifecycle_state) || "NOT_APPROVED",
     },
     quality: {
+      canonicalSource: canonicalGolden.authority,
       eligibility: qualityEligibility.eligibility,
       standardVersion: VIDEO_QUALITY_STANDARD_VERSION,
       registryCount: registry.length,
@@ -493,11 +505,22 @@ export async function sequentialProductionProjection(channelId: string, db: Sequ
       hardStandards: qualityEligibility.hardStandards,
       passedHardStandards: qualityEligibility.passedHardStandards,
       goldenSequenceState: goldenState,
-      goldenSequenceDurationSeconds: number(goldenSequence?.duration_seconds),
-      goldenMasterUrl: goldenAssetUrl("GOLDEN_MASTER_VIDEO"),
-      goldenMasterSha256: goldenAssetHash("GOLDEN_MASTER_VIDEO"),
-      goldenMasterState: text(goldenMasterJob?.lifecycle_state) || "MASTER_REQUIRED",
-      goldenMasterProbe: goldenMasterJob?.probe_json ? json<Record<string, number>>(goldenMasterJob.probe_json, {}) : undefined,
+      goldenSequenceDurationSeconds: canonicalGolden.durationSeconds,
+      goldenMasterUrl: canonicalGolden.masterUrl,
+      goldenMasterSha256: canonicalGolden.masterSha256,
+      goldenMasterState: canonicalGolden.materializationId ? "MATERIALIZED" : text(goldenMasterJob?.lifecycle_state) || "MASTER_REQUIRED",
+      goldenMasterProbe: canonicalGolden.probe,
+      audienceGolden: canonicalGolden.authority === "YOUTUBE_AUDIENCE_GOLDEN" ? {
+        revision: canonicalGolden.revision,
+        blueprintId: canonicalGolden.blueprintId,
+        materializationId: canonicalGolden.materializationId,
+        nextAction: canonicalGolden.nextAction,
+        masterBytes: canonicalGolden.masterBytes,
+        materialsHref: canonicalGolden.materialsHref,
+        visualQa: canonicalGolden.visualQa,
+        audioQa: canonicalGolden.audioQa,
+        browserQa: canonicalGolden.browserQa,
+      } : undefined,
       gaps: qualityGaps,
     },
     stages: stages.map((stage) => {

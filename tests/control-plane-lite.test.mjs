@@ -6,6 +6,7 @@ const route = await readFile(new URL("../app/api/factory/material-production/rou
 const page = await readFile(new URL("../app/material-production/page.tsx", import.meta.url), "utf8");
 const home = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 const shell = await readFile(new URL("../app/factory-shell.tsx", import.meta.url), "utf8");
+const surfaceRegistry = await readFile(new URL("../app/factory-surface-registry.ts", import.meta.url), "utf8");
 const portfolioRoute = await readFile(new URL("../app/api/factory/portfolio/route.ts", import.meta.url), "utf8");
 const channelRoute = await readFile(new URL("../app/api/factory/channels/[id]/route.ts", import.meta.url), "utf8");
 const portfolioProjection = await readFile(new URL("../lib/portfolio-projection.ts", import.meta.url), "utf8");
@@ -57,7 +58,8 @@ test("the canonical shell is portfolio-first without replacing the protected pro
 });
 
 test("the canonical shell exposes connected factory capabilities and preserves protected routes", () => {
-  for (const href of ["/", "/market-intelligence", "/niche-discovery", "/channel-studio", "/video-engine", "/continuity", "/settings"]) assert.match(shell, new RegExp(href.replaceAll("/", "\\/")));
+  for (const href of ["/", "/market-intelligence", "/niche-discovery", "/channel-studio", "/video-engine", "/continuity"]) assert.match(surfaceRegistry, new RegExp(href.replaceAll("/", "\\/")));
+  assert.match(shell, /\/settings/);
   assert.match(shell, /No demo or local fallback was substituted/);
   assert.match(shell, /Skip to main content/);
   assert.match(shell, /aria-current=/);

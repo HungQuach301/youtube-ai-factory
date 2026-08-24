@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `YOUTUBE_AUDIENCE_MASTER_STANDARD_V1__OWNER_REJECTED_CURRENT_MASTER__GOLDEN_SEQUENCE_REBUILD_REQUIRED`
+**Current source classification:** `R20_PRODUCTION_VISUAL_REJECTED__CANONICAL_PROJECTION_RECONCILED__DEPLOYMENT_PENDING`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- Production R20 is materialized at 77.1 seconds, 17,057,292 bytes, 2560×1440/30 with SHA-256 `880e2fca00cd0405d5c8b604725885bc319d9dd3c69cf7a35cc9109b61a2a706`. Factory visual QA fails 89 (P0=0, P1=2, P2=2); audio passes 95 (P0=0, P1=0, P2=1); Browser remains pending and release authority is false. The source projection-integrity repair makes `/video-engine` read this Audience Golden authority, exposes `/video-engine/audience-golden`, redirects canonical production navigation away from `/control-plane`, labels eight V7/V23 routes as compatibility evidence, and adds a mandatory build gate plus pure projection tests. Deploy and verify this source; do not run Browser QA or owner freeze because visual QA failed. Document 79 is authoritative for the projection incident; V2 is untouched.
 
 - Sites v500 materialized Audience Golden R19 master `226f40bd7c2522bd21daee5f43ef6a2fadb43168f100f74a479c1fcde77ccf1b` at 70.876 seconds/24,591,221 bytes with deterministic/rights PASS. Visual QA fails 87 (P0=0, P1=2, P2=2) on mobile label hierarchy, obligation-arrow collisions, crowded opening and paired card holds. Exact-audio QA fails 88 (P0=0, P1=1, P2=3); source audit proves the executor contract regex stopped at R18, so R19 defaulted instead of applying sealed voice settings. Migration `0104` and R20 source perform full-frame mobile reflow, collision-free arrow corridors, structurally distinct paired states and explicit `.92/.88/.76/0` voice selection with seam-safe mastering. The 32-frame R20 atlas, targeted 41/41 tests, verified build and full regression 207/207 pass; V2 firewall remains 16/16. Production Factory, Browser, owner and freeze gates remain. Document 78 is authoritative; V2 is untouched.
 

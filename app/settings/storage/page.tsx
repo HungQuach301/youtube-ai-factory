@@ -87,7 +87,7 @@ export default function StorageSettingsPage() {
   return <main className="storageShell">
     <header className="storageTopbar">
       <div><Link href="/settings">← Factory connections</Link><p>PRODUCTION V7 · WAVE 1.1</p><h1>Google Drive–first storage</h1></div>
-      <div><span className={`storageState ${data.connected ? "verified" : "blocked"}`}>{readable(data.status)}</span><Link className="storageOutline" href="/control-plane">V7 Control Plane</Link></div>
+      <div><span className={`storageState ${data.connected ? "verified" : "blocked"}`}>{readable(data.status)}</span><Link className="storageOutline" href="/video-engine">Canonical Video Engine</Link></div>
     </header>
 
     {error && <section className="storageAlert" role="alert"><strong>Connection stopped</strong><p>{error}</p></section>}
@@ -139,6 +139,6 @@ export default function StorageSettingsPage() {
       <div><p>LOCAL SYNC POLICY</p><h2>Optional, not a Wave 2 blocker</h2><span>The desktop agent will be implemented later for Premiere, DaVinci and CapCut handoff. Google Drive remains the durable source of truth.</span></div><b>OPTIONAL</b>
     </section>
 
-    <footer className="storageFooter"><Link href="/settings">← All Factory connections</Link><Link href="/control-plane">Run Foundation Audit after Drive verifies →</Link></footer>
+    <footer className="storageFooter"><Link href="/settings">← All Factory connections</Link><Link href="/video-engine">Return to canonical production state →</Link></footer>
   </main>;
 }

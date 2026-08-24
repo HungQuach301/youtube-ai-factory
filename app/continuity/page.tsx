@@ -38,7 +38,7 @@ export default function ContinuityPage() {
   if (!data) return <main className="continuityLoading"><span>V7 · CONTINUITY</span><h1>Recovering authoritative state…</h1>{error && <><p>{error}</p><button onClick={() => void load()}>Try again</button></>}</main>;
   return <main className="continuityShell">
     <header className="continuityTop">
-      <div><Link href="/control-plane">← Control plane</Link><p>AI FACTORY CONTINUITY SYSTEM</p><h1>One checkpoint. No hidden reruns.</h1><span>State, evidence, cost, lineage and immutable handoff are reconciled before Stage 09 can continue.</span></div>
+      <div><Link href="/video-engine">← Canonical Video Engine</Link><p>AI FACTORY CONTINUITY SYSTEM</p><h1>One checkpoint. No hidden reruns.</h1><span>State, evidence, cost, lineage and immutable handoff are reconciled before Stage 09 can continue.</span></div>
       <div><b className={tone(data.state.checkpointStatus)}>{data.state.checkpointStatus.replaceAll("_", " ")}</b><a href="/api/factory/continuity?format=md">Download continuation pack</a></div>
     </header>
     {error && <div className="continuityError"><strong>Action stopped</strong><span>{error}</span></div>}

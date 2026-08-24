@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 
 const files = Object.fromEntries(await Promise.all([
   ["shell", "app/factory-shell.tsx"],
+  ["surfaceRegistry", "app/factory-surface-registry.ts"],
   ["portfolio", "app/page.tsx"],
   ["market", "app/market-intelligence/page.tsx"],
   ["niche", "app/niche-discovery/page.tsx"],
@@ -109,7 +110,7 @@ const checks = [
   ["Content Autopilot system actor", files.contentPlanningContract.includes("SYSTEM_AUTOPILOT") && files.contentAutopilotCommand.includes("'SYSTEM_AUTOPILOT'") && files.contentPlanningProjection.includes('actorType: run ? "SYSTEM_AUTOPILOT" : null')],
   ["Content Autopilot production boundary remains separate", files.contentPlanningProjection.includes("productionDispatchAuthorized") && files.contentPlanningProjection.includes("publishingAuthorized") && files.canonicalContentBootstrap.includes("autoProduction: true") && files.canonicalContentBootstrap.includes("autoPublish: false")],
   ["Content Autopilot responsive production workspace", files.css.includes(".ownerSettingsGrid") && files.css.includes("@media(max-width:1120px)") && files.css.includes("@media(max-width:820px)") && files.css.includes("@media(max-width:520px)")],
-  ["Sequential production owner-first navigation", files.shell.includes('production: "/video-engine"') && files.productionV2Page.includes("Next valid action")],
+  ["Sequential production owner-first navigation", files.surfaceRegistry.includes('key: "production"') && files.surfaceRegistry.includes('href: "/video-engine"') && files.productionV2Page.includes("Next valid action")],
   ["Sequential production five-view workspace", ["Operate", "18-stage process", "Design & data", "15-video queue", "Rejected evidence"].every((label) => files.productionV2Page.includes(label))],
   ["Sequential production defaults to current video", files.productionV2Page.includes('requested as TabKey : "current"')],
   ["Sequential production exact exclusive lease", files.sequentialProductionContract.includes("ONE_VIDEO_AT_A_TIME") && files.sequentialProductionProjection.includes("Exactly one video has an active lease")],

@@ -41,7 +41,7 @@ export default function ChannelPage() {
         <article><span>01</span><small>INTELLIGENCE</small><strong>{data.intelligence.sources} sources</strong><p>{data.intelligence.claims} controlled claims · {data.intelligence.primarySources} primary</p><Link href={`/market-intelligence?channel=${encodeURIComponent(id)}`}>Inspect evidence →</Link></article>
         <article><span>02</span><small>STRATEGY FOUNDATION</small><strong>{data.strategy.state.replaceAll("_", " ")}</strong><p>{data.strategy.program?.status || "No mapped program"}</p><Link href={`/niche-discovery?channel=${encodeURIComponent(id)}`}>Inspect niche gate →</Link></article>
         <article><span>03</span><small>CONTENT SYSTEM</small><strong>{data.contentSystem.videos.length} bridge item(s)</strong><p>Canonical strategy/pillar identities pending</p><Link href={`/channel-studio?channel=${encodeURIComponent(id)}`}>Open Channel Studio →</Link></article>
-        <article><span>04</span><small>PRODUCTION</small><strong>{data.production.stages.length} stage contract(s)</strong><p>{data.production.evidenceCount} evidence · {data.production.assetCount} assets</p><Link href="/control-plane">Open Video Engine →</Link></article>
+        <article><span>04</span><small>PRODUCTION</small><strong>Canonical Video Engine</strong><p>{data.production.stages.length} historical V7 stage records · compatibility evidence only</p><Link href="/video-engine">Open current operating state →</Link></article>
         <article><span>05</span><small>LEARNING</small><strong>{data.learning.decisions.length} decision record(s)</strong><p>{data.learning.lineage.length} recent lineage records</p><Link href="/continuity">Inspect continuity →</Link></article>
       </section>
       <div className="pfTwoCol">

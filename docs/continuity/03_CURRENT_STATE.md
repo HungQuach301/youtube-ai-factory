@@ -2,7 +2,24 @@
 
 Last reconciled: 2026-08-24 (Asia/Bangkok)
 
-## Audience Golden Sequence — R19 dual rejection, R20 mobile/audio repair source-verified
+## Canonical Production projection — R20 exact state reconciled
+
+```text
+CANONICAL_OPERATOR = /video-engine
+CANONICAL_MATERIALS = /video-engine/audience-golden
+R20_MASTER_SHA256 = 880e2fca00cd0405d5c8b604725885bc319d9dd3c69cf7a35cc9109b61a2a706
+R20_MASTER = 77.1_SECONDS__17057292_BYTES__2560x1440_30FPS
+R20_FACTORY_VISUAL = FAIL_89__P0_0__P1_2__P2_2
+R20_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_1
+R20_BROWSER = PENDING
+RELEASE_AUTHORITY = FALSE
+PROJECTION_INTEGRITY = SOURCE_VERIFIED__PRODUCTION_DEPLOYMENT_PENDING
+V2 = UNTOUCHED
+```
+
+R20 exists in Production and is the current Audience Golden authority. The old Video Engine quality panel and V7/V23 surfaces were projecting different historical tables, so valid R20 materials were hidden while an older master and compatibility states appeared current. The source now reconciles Video Engine directly from `audienceGoldenSnapshot`, routes every canonical production entry point to `/video-engine`, makes Golden materials discoverable, labels all compatibility routes as non-authoritative, and enforces these boundaries during every build. R20 remains visual FAIL and cannot advance to Browser, owner freeze, release or publication. Document 79 records the correction; Document 78 retains the exact Golden history.
+
+## Historical pre-R20 source checkpoint
 
 ```text
 PRODUCTION_CHECKPOINT = SITES_V500
