@@ -13,11 +13,11 @@ R20_FACTORY_VISUAL = FAIL_89__P0_0__P1_2__P2_2
 R20_FACTORY_AUDIO = PASS_95__P0_0__P1_0__P2_1
 R20_BROWSER = PENDING
 RELEASE_AUTHORITY = FALSE
-PROJECTION_INTEGRITY = SOURCE_VERIFIED__PRODUCTION_DEPLOYMENT_PENDING
+PROJECTION_INTEGRITY = PRODUCTION_ACTIVE__SITES_V502__SOURCE_A5753DB4
 V2 = UNTOUCHED
 ```
 
-R20 exists in Production and is the current Audience Golden authority. The old Video Engine quality panel and V7/V23 surfaces were projecting different historical tables, so valid R20 materials were hidden while an older master and compatibility states appeared current. The source now reconciles Video Engine directly from `audienceGoldenSnapshot`, routes every canonical production entry point to `/video-engine`, makes Golden materials discoverable, labels all compatibility routes as non-authoritative, and enforces these boundaries during every build. R20 remains visual FAIL and cannot advance to Browser, owner freeze, release or publication. Document 79 records the correction; Document 78 retains the exact Golden history.
+R20 exists in Production and is the current Audience Golden authority. The old Video Engine quality panel and V7/V23 surfaces were projecting different historical tables, so valid R20 materials were hidden while an older master and compatibility states appeared current. Sites v502 from source `a5753db44c146a51a4afc6e3e3ce46333efeccec` now reconciles Video Engine directly from `audienceGoldenSnapshot`, routes every canonical production entry point to `/video-engine`, makes Golden materials discoverable, labels all compatibility routes as non-authoritative, and enforces these boundaries during every build. R20 remains visual FAIL and cannot advance to Browser, owner freeze, release or publication. Document 79 records the correction; Document 78 retains the exact Golden history.
 
 ## Historical pre-R20 source checkpoint
 

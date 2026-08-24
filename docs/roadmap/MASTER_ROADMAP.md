@@ -6,7 +6,7 @@
 
 ## Current position
 
-- Projection Integrity repair is source-complete and deployment-pending. The canonical Portfolio → Channel → Video Engine → Golden Materials path now shares the current Audience Golden authority; V7/V23 screens are compatibility evidence only. A mandatory build gate prevents canonical links, data authority or disclosure boundaries from drifting. Production R20 is visual FAIL 89/audio PASS 95, so Browser, owner freeze, release and publication remain blocked. Document 79 is authoritative; V2 is untouched.
+- Projection Integrity repair is production-active in Sites v502 from source `a5753db44c146a51a4afc6e3e3ce46333efeccec`. The canonical Portfolio → Channel → Video Engine → Golden Materials path now shares the current Audience Golden authority; V7/V23 screens are compatibility evidence only. A mandatory build gate prevents canonical links, data authority or disclosure boundaries from drifting. Production R20 is visual FAIL 89/audio PASS 95, so Browser, owner freeze, release and publication remain blocked. Document 79 is authoritative; V2 is untouched.
 
 - Audience Golden Sequence R1–R19 are preserved rejected evidence. Sites v500 sealed R19 exact master `226f40bd…`; visual QA fails 87 on mobile hierarchy/collision/pair geometry and audio QA fails 88 after the executor bypassed R19's sealed voice settings. Migration `0104` prepares R20 as a bounded mobile reflow with collision-free obligation lanes, structurally distinct paired states and an explicitly selected seam-safe audio contract. Browser/device, owner review and freeze remain blocked until their owning gates open. Document 78 is authoritative; V2 is untouched.
 

@@ -1,7 +1,7 @@
 # Production projection integrity execution record
 
 **Class:** `EXECUTION_EVIDENCE`  
-**Status:** `SOURCE_VERIFIED__PRODUCTION_DEPLOYMENT_PENDING`  
+**Status:** `PRODUCTION_ACTIVE__SITES_V502`
 **Date:** 2026-08-24 (Asia/Bangkok)  
 **Scope:** original YouTube AI Factory only; the separate Production V2 project is excluded and untouched.
 
@@ -48,4 +48,4 @@ RELEASE_AUTHORITY = FALSE
 
 ## Verification and next protected action
 
-Source projection tests, the Projection Integrity Gate, full verified build, documentation check and the 16/16 V2 firewall must pass before checkpoint deployment. After deployment, read back the Sites deployment and verify the canonical Portfolio → Video Engine → Golden materials journey. R20 remains rejected visual evidence; the next production action is a bounded repair revision, not Browser QA, owner freeze, release or publication.
+Source projection tests, the Projection Integrity Gate, full verified build, documentation check and the 16/16 V2 firewall passed. Sites v502 deployed source `a5753db44c146a51a4afc6e3e3ce46333efeccec` successfully to the owner-only Production Site. Browser preview verified canonical navigation, the Golden-material return path and the compatibility disclosure; preview D1 was intentionally empty and failed closed rather than substituting data. R20 remains rejected visual evidence; the next production action is a bounded repair revision, not Browser QA, owner freeze, release or publication.
