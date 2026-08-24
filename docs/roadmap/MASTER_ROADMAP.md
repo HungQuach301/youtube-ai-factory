@@ -6,6 +6,8 @@
 
 ## Current position
 
+- Architecture/document closure is source-complete: the Visual Production Operating Model, AI-first Production Assurance, Data and Provider Control Plane, Hidden Systems Visual DNA/R22 Blueprint and Video Production Quality Standard V3 are canonical. They create no runtime or R22 dispatch authority. Repository replication is `GITHUB_REMOTE_PENDING` until the new private `HungQuach301/youtube-ai-factory` remote exists and matches Sites `origin/main`; `youtube-ai-factory-v2` is excluded.
+
 - Sites v504 materializes Audience Golden R21 exact master `3f968794…` at 63.833 seconds/10,069,490 bytes. English/en-US audio passes 95 with no P0/P1. Visual QA fails 67 with two P1 findings for unresolved final settlement and repeated slide compositions, plus three P2 findings for small labels, reused phase topology and premature future ledger values. Preserve R21 and design one append-only R22 from its exact visual FAIL/audio PASS pair; no R21 rerun. Browser, owner freeze, Stage 11, full-video expansion, release, publication and V2 stay blocked.
 
 - Projection Integrity repair is production-active in Sites v502 from source `a5753db44c146a51a4afc6e3e3ce46333efeccec`. The canonical Portfolio → Channel → Video Engine → Golden Materials path now shares the current Audience Golden authority; V7/V23 screens are compatibility evidence only. A mandatory build gate prevents canonical links, data authority or disclosure boundaries from drifting. Production R20 is visual FAIL 89/audio PASS 95, so Browser, owner freeze, release and publication remain blocked. Document 79 is authoritative; V2 is untouched.
@@ -215,6 +217,12 @@ Phase 42 is active. Sites v502 keeps R20 as the canonical exact Production maste
 
 Phase 43 is active. Sites v504 materializes R21 master `3f968794b1d5a0c01ea924e2e61d8efd5aed072f587157d515701cf4c0213a89`. Audio passes 95, confirming English/en-US market delivery. Visual QA fails 67 because the ending never visibly completes settlement, repeated system compositions remain slide-like, labels are too small, one topology is reused across phases and inactive future ledger values remain visible. One append-only R22 may be designed only from this exact visual FAIL/audio PASS pair; Browser/device and owner gates remain closed until both Factory layers PASS. V2 is untouched.
 
+Phase 44 is active. Lock the five canonical architecture/standard documents, update all SSOT projections, run documentation and source integrity checks, create one bounded commit and replicate the same commit to Sites `origin/main` and the new private `HungQuach301/youtube-ai-factory` at `github/main`. Do not use `youtube-ai-factory-v2`; do not deploy, migrate, dispatch or mutate Production in this documentation phase.
+
+Phase 45 is next. Implement append-only D1 contracts for Channel Visual Profile, Video Blueprint, Shot Contract, Scene Graph, Provider/Capability Qualification, Rights/Cost/QA receipts and Learning Promotion. Add the Visual Grammar Resolver, Provider Gateway, Evidence Lineage and AI Assurance Orchestrator; update Control Plane, Channel Studio, Video Engine and Factory QA Cockpit. Required verification includes schema, timebase, rights, cost, idempotency, routing, drift, exact-artifact and judge-consistency tests.
+
+Phase 46 is gated. Compile R22 only after Phase 45, qualify its exact dependencies and pass zero-spend preflight. Run the hardest integrated canary before full master expansion, then L0-L7 exact-master assurance. Current owner playback remains unless AI qualification separately opens exception-only authority. Publication remains blocked.
+
 ## Wave 4 — Upstream and technical standards
 
 Scope:
@@ -226,6 +234,9 @@ Scope:
 - Forced-alignment and pronunciation calibration.
 - Frame-rate, mix, A/V sync and technical-master policy.
 - Rights-safe source acquisition and reusable-asset eligibility.
+- Typed Visual Profile, Video Blueprint, Shot Contract and Scene Graph.
+- Visual Grammar Resolver, Provider Gateway and Evidence/Assurance orchestration.
+- Video Production Quality Standard V3 inheritance and R22 canary preflight.
 
 Candidate thresholds remain `CALIBRATION_REQUIRED` until fixtures prove false-positive and false-negative behavior.
 

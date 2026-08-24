@@ -2,6 +2,14 @@
 
 Every finding includes severity, exact evidence, affected artifact/hash, root stage, repair action, acceptance test, confidence and status.
 
+## AI-first Production Assurance — V1
+
+The active exact-master stack is L0 deterministic, L1 claim/factual, L2 visual-semantic, L3 temporal/motion, L4 audio-native, L5 audience/retention, L6 Browser and L7 independent adjudication. Outcomes are `AI_ACCEPTED`, `AI_REJECTED`, `HUMAN_ESCALATION_REQUIRED` and `ASSURANCE_INCOMPLETE`. An infrastructure observation failure is never converted into a content rejection or acceptance.
+
+Auto-accept requires all deterministic gates, 100% required evidence, overall at least 92, every active critical floor at least 90, P0/P1 zero, qualified visual/temporal/audio/Browser PASS, no critical disagreement, confidence at least 0.92, rights PASS, reconciled cost and zero active request. Standard Registry floors override generic numbers when higher.
+
+Judge qualification requires P0 recall 100%, P1 recall at least 95%, clean precision at least 98%, critical false-clean zero, exact-byte repeatability at least 95%, P0/P1 decision flip zero, evidence/timecode validity at least 95% and structured output validity 100%. Otherwise authority is `ADVISORY`. See [`../architecture/AI_FIRST_PRODUCTION_ASSURANCE.md`](../architecture/AI_FIRST_PRODUCTION_ASSURANCE.md).
+
 ## Stage 09 material gates — CONTROLLED_RELEASE_GATE_V1
 
 - Standard: overall ≥92; every dimension ≥90; P0/P1 = 0.
@@ -13,7 +21,7 @@ Every finding includes severity, exact evidence, affected artifact/hash, root st
 - Audience pixels contain no URLs, filenames, provider names, debug labels or production instructions.
 - Composite tournament pass does not substitute for motion or sequence proof.
 
-Rubrics and thresholds cannot be changed after failure without a new decision record.
+Rubrics and thresholds cannot be changed after failure without a new decision record. Model, prompt, rubric, schema or evidence-sampler changes make prior judge qualification stale.
 
 ## Video Excellence golden sequence — 2026-08-17
 

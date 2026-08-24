@@ -21,6 +21,15 @@ npm run check:docs
 
 The active roadmap is [`docs/roadmap/MASTER_ROADMAP.md`](docs/roadmap/MASTER_ROADMAP.md). The active issue source is [`docs/governance/MASTER_ISSUE_REGISTRY.md`](docs/governance/MASTER_ISSUE_REGISTRY.md).
 
+The same `main` commit is replicated to the ChatGPT Sites source remote and the new private personal GitHub repository `HungQuach301/youtube-ai-factory`. See [`docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md`](docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md). `HungQuach301/youtube-ai-factory-v2` is explicitly excluded.
+
+## Current governing checkpoint
+
+- Production R21 is immutable: exact master `3f968794…`, English/en-US audio PASS 95 and visual FAIL 67.
+- R22 is design-only and may be append-only from the exact R21 visual FAIL/audio PASS pair; no R22 dispatch is authorized by documentation alone.
+- The active visual, assurance, data/provider, Channel Visual DNA and quality policies are Documents 80–81 plus the three architecture documents indexed in `docs/README.md`.
+- Browser, owner freeze, Stage 11/full-video expansion, release, publication and auto-publish remain blocked.
+
 ## Current implementation checkpoint
 
 - Production functional baseline: the 15 Production Engine V2 masters were owner-rejected for perceived quality on 2026-08-16. The active replacement is the V7 → V23.4 → V281 sequential control: exactly one video may produce or spend at a time, and the next video remains blocked until the current master is owner-ready.

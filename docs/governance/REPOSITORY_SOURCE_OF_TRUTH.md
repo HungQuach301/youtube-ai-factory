@@ -4,10 +4,14 @@
 **Effective:** 2026-08-20
 **Canonical repository:** `youtube-ai-factory`
 **Canonical branch:** `main`
+**Replication policy:** `DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1`
+**Excluded repository:** `HungQuach301/youtube-ai-factory-v2`
 
 ## Decision
 
 The tracked contents and history of this Git repository are the sole durable source of project truth and knowledge. A future chat must be able to recover the project state, governing decisions, exact next action and protected scope by cloning or fetching this repository without reading a prior conversation.
+
+The repository is replicated as the same Git object graph to ChatGPT Sites `origin/main` and the new private personal GitHub repository `HungQuach301/youtube-ai-factory` at `github/main`. One exact `main` commit is the source of truth; the remotes are mirrors, not independent authorities. Until the GitHub repository exists and both refs match, status is `GITHUB_REMOTE_PENDING`, not synchronized. The full divergence and recovery protocol is in [`REPOSITORY_SYNC_AND_RECOVERY.md`](REPOSITORY_SYNC_AND_RECOVERY.md).
 
 Chat history, model memory, local scratch directories, ChatGPT Library, Google Drive, exported patches, Git bundles and archives may preserve redundant evidence. They cannot introduce, override or complete a project fact until that fact is reconciled and committed here.
 
@@ -55,10 +59,10 @@ Numbered continuity documents remain in place to avoid breaking lineage. New cro
 ## New-chat recovery protocol
 
 ```bash
-git clone <canonical-origin>
+git clone -o github https://github.com/HungQuach301/youtube-ai-factory.git
 cd youtube-ai-factory
 git switch main
-git pull --ff-only origin main
+git pull --ff-only github main
 git status --short --branch
 npm run check:docs
 ```
@@ -72,8 +76,8 @@ Then read the required sequence in `docs/README.md`. Do not reconstruct source f
 3. Update current state, decisions, issue disposition and roadmap truth.
 4. Review the full diff and confirm no secrets or generated runtime data are tracked.
 5. Commit with a bounded message.
-6. Push to `origin/main`.
-7. Verify local HEAD equals `origin/main` and the worktree is clean.
+6. Push the same exact commit to `origin/main` and `github/main` without history rewrite.
+7. Verify local HEAD, `origin/main` and `github/main` are identical and the worktree is clean.
 8. Report the exact commit, verification results, limitations, protected scope and next action.
 
 Optional bundles or archives may be generated for disaster recovery, but they are derivative exports and must never be required for ordinary chat continuation.

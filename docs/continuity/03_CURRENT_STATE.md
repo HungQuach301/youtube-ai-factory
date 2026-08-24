@@ -2,6 +2,26 @@
 
 Last reconciled: 2026-08-24 (Asia/Bangkok)
 
+## Architecture and repository SSOT closure
+
+```text
+REPOSITORY_POLICY = GIT_REPOSITORY_SSOT_V1
+REPLICATION_POLICY = DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
+SITES_REMOTE = ORIGIN_MAIN
+PERSONAL_GITHUB_TARGET = HUNGQUACH301/YOUTUBE-AI-FACTORY__PRIVATE
+EXCLUDED_REPOSITORY = HUNGQUACH301/YOUTUBE-AI-FACTORY-V2
+GITHUB_SYNC_STATE = GITHUB_REMOTE_PENDING
+VISUAL_OPERATING_MODEL = ACTIVE_NORMATIVE
+AI_ASSURANCE = ACTIVE_NORMATIVE__CALIBRATION_REQUIRED
+DATA_PROVIDER_PLANE = ACTIVE_NORMATIVE
+HIDDEN_SYSTEMS_VISUAL_DNA = ACTIVE_CHANNEL_STANDARD
+QUALITY_STANDARD = VIDEO_PRODUCTION_QUALITY_STANDARD_V3
+PRODUCTION_MUTATION = NONE
+NEXT_PROTECTED_ACTION = COMPLETE_DOC_CHECKPOINT_AND_DUAL_REMOTE_SYNC__THEN_IMPLEMENT_TYPED_CONTRACTS_BEFORE_R22
+```
+
+The repository now contains the missing Factory-wide Visual Production Operating Model, AI-first exact-master assurance architecture, Data and Provider Control Plane, Hidden Systems Visual DNA/R22 Blueprint and Video Production Quality Standard V3. V3 supersedes V2 only for new production; prior evidence remains immutable. The Git repository is one object graph mirrored to ChatGPT Sites and a new private personal GitHub repository. The existing `youtube-ai-factory-v2` repository is explicitly excluded. Until the new GitHub remote exists and its `main` matches `origin/main`, the repository is `GITHUB_REMOTE_PENDING`, not synchronized. This documentation closure creates no schema, code, provider, Browser, owner, release or publication authority.
+
 ## Audience Golden R21 — US English audio passes; visual system rejected
 
 ```text

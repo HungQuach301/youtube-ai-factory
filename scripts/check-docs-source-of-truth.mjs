@@ -10,6 +10,11 @@ const required = [
   "docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md",
   "docs/governance/MASTER_ISSUE_REGISTRY.md",
   "docs/architecture/TARGET_OPERATING_ARCHITECTURE.md",
+  "docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md",
+  "docs/architecture/AI_FIRST_PRODUCTION_ASSURANCE.md",
+  "docs/architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md",
+  "docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md",
+  "docs/governance/DOCUMENT_COMPLETION_MATRIX.md",
   "docs/roadmap/MASTER_ROADMAP.md",
   "docs/expert-assessments/2026-08-20_EXPERT_ASSESSMENT_RECONCILIATION.md",
   "docs/expert-assessments/2026-08-20_VIDEO_ENGINE_DETAILED_IMPROVEMENT_SPEC.md",
@@ -19,6 +24,8 @@ const required = [
   "docs/continuity/08_CONTINUATION_PACK.md",
   "docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md",
   "docs/continuity/40_REPOSITORY_KNOWLEDGE_BASE_CHECKPOINT.md",
+  "docs/continuity/80_HIDDEN_SYSTEMS_VISUAL_DNA_AND_R22_BLUEPRINT.md",
+  "docs/continuity/81_VIDEO_PRODUCTION_QUALITY_STANDARD_V3.md",
 ];
 
 const failures = [];
@@ -28,7 +35,10 @@ const text = (path) => readFileSync(join(root, path), "utf8");
 if (!text("AGENTS.md").includes("sole source of project truth")) failures.push("AGENTS_SSOT_RULE_MISSING");
 if (!text("README.md").includes("docs/README.md")) failures.push("ROOT_README_KNOWLEDGE_ENTRY_MISSING");
 if (!text("docs/README.md").includes("GIT_REPOSITORY_SSOT_V1")) failures.push("DOC_INDEX_POLICY_MISSING");
+if (!text("docs/README.md").includes("DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1")) failures.push("DUAL_REMOTE_POLICY_MISSING");
 if (!text("docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md").includes("origin/main")) failures.push("ROLLOVER_GIT_REMOTE_MISSING");
+if (!text("docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md").includes("github/main")) failures.push("ROLLOVER_GITHUB_MIRROR_MISSING");
+if (!text("docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md").includes("youtube-ai-factory-v2")) failures.push("EXCLUDED_REPOSITORY_RULE_MISSING");
 
 function files(path) {
   const output = [];

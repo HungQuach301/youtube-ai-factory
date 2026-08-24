@@ -10,7 +10,7 @@ The active policy is [`docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md`](docs/gove
 
 1. Read `docs/README.md` and follow its required reading order before changing source.
 2. Verify the exact repository, branch, HEAD, remote and `git status --short --branch`; never infer source from a prior chat transcript.
-3. If the required commit is absent, fetch or clone `origin/main`. Do not reconstruct ordinary source from an old chat or Library capsule while the canonical remote is available.
+3. If the required commit is absent, fetch the canonical `main` object graph. `origin/main` is the ChatGPT Sites source remote and `github/main` is the personal GitHub mirror; after setup they must resolve to the same commit. Do not reconstruct ordinary source from an old chat or Library capsule while either verified mirror is available.
 4. Treat the product as a multi-channel operating system. V7/V23 is the Video Production Engine, not the whole product.
 5. Reconcile current state, open issues, active roadmap wave and protected scope.
 6. State the bounded outcome, acceptance evidence and protected scope.
@@ -45,12 +45,12 @@ Before a chat rollover or after a coherent material milestone, the active assist
 2. update the relevant current state, decision, issue and roadmap documents;
 3. run `npm run check:docs` and the relevant source checks;
 4. review the full diff and create a bounded Git commit;
-5. push to `origin/main`;
-6. verify local HEAD equals `origin/main` and the worktree is clean;
+5. push the exact commit to `origin/main` and `github/main` under [`docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md`](docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md);
+6. verify local HEAD, `origin/main` and `github/main` are identical and the worktree is clean;
 7. report `ROLLOVER READY` only after those gates pass.
 
 Optional patches, bundles and archives are derivative disaster-recovery exports, not project authority. Do not copy nested repository bundles into this repository. If the Git checkpoint cannot complete, report `ROLLOVER BLOCKED`, keep the worktree intact and name the failed gate.
 
 ## End every material session
 
-Record actual tests/build/lint results, deployment truth, known limitations, exact next action and protected scope. A material handoff is not complete until the canonical Git remote contains the checkpoint.
+Record actual tests/build/lint results, deployment truth, known limitations, exact next action and protected scope. A material handoff is not complete until both canonical Git mirrors contain the same checkpoint. `HungQuach301/youtube-ai-factory-v2` is excluded and must never be used as an upstream, mirror, fallback or recovery input.

@@ -6,10 +6,13 @@ This directory is the canonical knowledge base for YouTube AI Factory. The Git r
 
 ```text
 repository: youtube-ai-factory
-remote: origin
+Sites remote: origin/main
+personal GitHub mirror: github/main (HungQuach301/youtube-ai-factory)
 branch: main
 production URL: https://youtube-ai-factory.quach-hung.chatgpt.site
 source policy: GIT_REPOSITORY_SSOT_V1
+replication policy: DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
+excluded repository: HungQuach301/youtube-ai-factory-v2
 ```
 
 The exact current source identity is always the output of:
@@ -40,11 +43,12 @@ When facts conflict, use this order:
 
 1. [`../AGENTS.md`](../AGENTS.md)
 2. [`governance/REPOSITORY_SOURCE_OF_TRUTH.md`](governance/REPOSITORY_SOURCE_OF_TRUTH.md)
-3. [`continuity/03_CURRENT_STATE.md`](continuity/03_CURRENT_STATE.md)
-4. [`continuity/09_CHAT_ROLLOVER_CAPSULE.md`](continuity/09_CHAT_ROLLOVER_CAPSULE.md)
-5. [`governance/MASTER_ISSUE_REGISTRY.md`](governance/MASTER_ISSUE_REGISTRY.md)
-6. [`roadmap/MASTER_ROADMAP.md`](roadmap/MASTER_ROADMAP.md)
-7. The stage or product documents named by the current roadmap item.
+3. [`governance/REPOSITORY_SYNC_AND_RECOVERY.md`](governance/REPOSITORY_SYNC_AND_RECOVERY.md)
+4. [`continuity/03_CURRENT_STATE.md`](continuity/03_CURRENT_STATE.md)
+5. [`continuity/09_CHAT_ROLLOVER_CAPSULE.md`](continuity/09_CHAT_ROLLOVER_CAPSULE.md)
+6. [`governance/MASTER_ISSUE_REGISTRY.md`](governance/MASTER_ISSUE_REGISTRY.md)
+7. [`roadmap/MASTER_ROADMAP.md`](roadmap/MASTER_ROADMAP.md)
+8. The architecture or stage documents named by the current roadmap item.
 
 ## Canonical document map
 
@@ -53,6 +57,11 @@ When facts conflict, use this order:
 | Product charter | [`continuity/00_AI_FACTORY_CHARTER.md`](continuity/00_AI_FACTORY_CHARTER.md) |
 | Architecture principles | [`continuity/01_ARCHITECTURE_AND_PRINCIPLES.md`](continuity/01_ARCHITECTURE_AND_PRINCIPLES.md) |
 | Target multi-channel architecture | [`architecture/TARGET_OPERATING_ARCHITECTURE.md`](architecture/TARGET_OPERATING_ARCHITECTURE.md) |
+| Visual production operating model | [`architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md`](architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md) |
+| AI-first Production Assurance | [`architecture/AI_FIRST_PRODUCTION_ASSURANCE.md`](architecture/AI_FIRST_PRODUCTION_ASSURANCE.md) |
+| Data and Provider Control Plane | [`architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md`](architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md) |
+| Dual-remote synchronization and recovery | [`governance/REPOSITORY_SYNC_AND_RECOVERY.md`](governance/REPOSITORY_SYNC_AND_RECOVERY.md) |
+| Document completion and implementation boundary | [`governance/DOCUMENT_COMPLETION_MATRIX.md`](governance/DOCUMENT_COMPLETION_MATRIX.md) |
 | Current production truth | [`continuity/03_CURRENT_STATE.md`](continuity/03_CURRENT_STATE.md) |
 | Approved decisions | [`continuity/04_DECISION_LOG.md`](continuity/04_DECISION_LOG.md) |
 | Master risks and findings | [`governance/MASTER_ISSUE_REGISTRY.md`](governance/MASTER_ISSUE_REGISTRY.md) |
@@ -60,7 +69,9 @@ When facts conflict, use this order:
 | Chat continuation | [`continuity/09_CHAT_ROLLOVER_CAPSULE.md`](continuity/09_CHAT_ROLLOVER_CAPSULE.md) |
 | Sequential Video Engine | [`continuity/30_V7_V23_4_V281_SEQUENTIAL_PRODUCTION.md`](continuity/30_V7_V23_4_V281_SEQUENTIAL_PRODUCTION.md) |
 | Stage techniques and tools | [`continuity/31_STAGE_TECHNIQUES_TOOLS_QUALITY_CONTROLS.md`](continuity/31_STAGE_TECHNIQUES_TOOLS_QUALITY_CONTROLS.md) |
-| Video quality standard | [`continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md`](continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md) |
+| Historical Video Quality Standard V2 | [`continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md`](continuity/34_VIDEO_PRODUCTION_QUALITY_STANDARD_V2.md) |
+| Active Video Quality Standard V3 | [`continuity/81_VIDEO_PRODUCTION_QUALITY_STANDARD_V3.md`](continuity/81_VIDEO_PRODUCTION_QUALITY_STANDARD_V3.md) |
+| Hidden Systems Visual DNA and R22 Blueprint | [`continuity/80_HIDDEN_SYSTEMS_VISUAL_DNA_AND_R22_BLUEPRINT.md`](continuity/80_HIDDEN_SYSTEMS_VISUAL_DNA_AND_R22_BLUEPRINT.md) |
 | First-pass architecture | [`continuity/37_FIRST_PASS_QUALITY_ARCHITECTURE.md`](continuity/37_FIRST_PASS_QUALITY_ARCHITECTURE.md) |
 | Learning-ready Contract Pack | [`architecture/LEARNING_READY_CONTRACT_PACK.md`](architecture/LEARNING_READY_CONTRACT_PACK.md) |
 | Evaluation Foundation | [`architecture/EVALUATION_FOUNDATION.md`](architecture/EVALUATION_FOUNDATION.md) |
@@ -121,7 +132,7 @@ Documents 10–29 remain canonical for the product slices they explicitly own. D
 
 ## Change protocol
 
-Every material change must update the relevant canonical document in the same commit as the source change, record verification truth, and identify the next protected action. A chat is not a durable handoff until the commit is pushed to `origin/main` and the worktree is clean.
+Every material change must update the relevant canonical document in the same commit as the source change, record verification truth, and identify the next protected action. A chat is not a durable handoff until the same commit is present at `origin/main` and `github/main` and the worktree is clean. While the new GitHub remote is pending, the handoff must be labelled `SYNC_BLOCKED`, never synchronized.
 
 Run the documentation control check with:
 

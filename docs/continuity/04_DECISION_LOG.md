@@ -408,3 +408,33 @@ Effective 2026-08-16, Slice 6 records the complete current comparable portfolio 
 **Decision:** preserve the sole R21 exact master and its Factory receipts without rerun. Its English/en-US audio PASS is valid only for the exact R21 mix. Any R22 must be append-only and require the same R21 visual FAIL/audio PASS pair. It must visibly complete settlement and merchant receipt, use different explanatory mechanisms for authorization, clearing and settlement, omit future ledger values until they become current, and reduce mobile labels to fewer larger high-contrast elements. Browser/device, owner, freeze, release and publication remain blocked.
 
 **Reason:** independent Production visual QA scored R21 at 67 despite a locally inspected 32-beat atlas. The receipts show two systemic P1 defects—an unresolved final settlement and repeated slide compositions—and three P2 defects involving label size, topology reuse and premature ledger values. Audio independently passes at 95, so the next repair owns the visual system rather than regenerating or re-adjudicating R21 audio.
+
+## ADR-123 — Visual production is a Factory capability with Channel/Format/Video/Shot ownership
+
+**Decision:** activate `VISUAL_PRODUCTION_OPERATING_MODEL_V1`. Factory owns hard gates, typed contracts, qualification, rights, cost, evidence and assurance; Channel owns Visual DNA; Format owns repeatable structure and variation; Video owns claim/narrative/treatment allocation; Shot owns exact visual intent and evidence. `Reality -> Mechanism -> Proof`, SOURCE/MAKE/HYBRID routing, candidate tournaments, one canonical timebase and a code-native Scene Graph are mandatory. A contact sheet, prompt, asset count or layout variety cannot prove temporal quality.
+
+**Reason:** R1-R21 repeatedly changed revision-specific layouts without eliminating slide grammar or proving phase-distinct causality. The missing control is a reusable operating system, not another hard-coded renderer branch.
+
+## ADR-124 — AI assurance is multi-layer, exact-artifact-bound and qualification-gated
+
+**Decision:** activate `AI_FIRST_PRODUCTION_ASSURANCE_V1` with deterministic, factual, visual-semantic, temporal, audio-native, audience, Browser and independent-adjudication layers. The only outcomes are `AI_ACCEPTED`, `AI_REJECTED`, `HUMAN_ESCALATION_REQUIRED` and `ASSURANCE_INCOMPLETE`. AI PASS has no authority until its capability meets the stored qualification thresholds. Infrastructure observation failure is not content rejection. Owner playback transitions only through explicit calibrated modes; publication remains separate.
+
+**Reason:** the target is 100% AI inspection and 90-95% routine exception-free handling, while R21 proves a source atlas and one judge can miss temporal, phase and payoff defects.
+
+## ADR-125 — Data and providers use one Evidence and Provider Control Plane
+
+**Decision:** activate `DATA_PROVIDER_CONTROL_PLANE_V1`. Git owns code/contracts/docs, D1 operational metadata, R2 active bytes and Google Drive user-controlled recovery archives. Business stages submit typed work to a Provider Gateway; qualified routing, secrets, rights, budget, idempotency, raw response, output hashing and cost reconciliation are centralized. Unknown rights or spend fail closed; fallback is explicit and separately qualified.
+
+**Reason:** distributed SDK calls, file storage and rights inference would recreate the observed mismatches between frontend, backend, materials, cost and QA identity and would prevent provider replacement or reliable scale.
+
+## ADR-126 — Video Quality Standard V3 governs new production without rewriting history
+
+**Decision:** activate `VIDEO_PRODUCTION_QUALITY_STANDARD_V3` for new canaries and masters. It combines market/language, factual, narrative, visual, temporal, phase, mobile, audio, A/V, rights, accessibility, technical, cost/runtime and Browser dimensions. Overall at least 92 is necessary but cannot compensate for a critical failure. Document 34 remains immutable historical V2 evidence.
+
+**Reason:** the earlier standards did not consolidate the complete cross-cutting requirements or the new AI-assurance and Visual Production architecture, and retroactive rescoring would corrupt evidence lineage.
+
+## ADR-127 — One Git object graph is mirrored to Sites and a new private personal GitHub repository
+
+**Decision:** activate `DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1`. `origin/main` and `github/main` must contain the same exact commit; divergence blocks mutation. The new personal target is `HungQuach301/youtube-ai-factory`, private by default. `HungQuach301/youtube-ai-factory-v2` is excluded as upstream, mirror, fallback and recovery input. No synchronization is claimed until both refs are verified identical.
+
+**Reason:** one repository must remain the durable source of truth while being recoverable outside ChatGPT Sites, without merging a separately evolved V2 project or allowing two independently editable histories.

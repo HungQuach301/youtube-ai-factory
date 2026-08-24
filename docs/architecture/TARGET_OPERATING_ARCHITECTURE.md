@@ -33,6 +33,8 @@ Portfolio
 | Quality & Assurance | Deterministic verification, independent assurance and owner gate | Gate evidence, assurance verdict, owner-ready receipt |
 | Measurement & Learning | Prediction, analytics, experiments and owner-authorized promotion | Prediction, actuals, learning candidate, promoted version |
 
+The detailed visual hierarchy, treatment system, Blueprint/Shot/Scene Graph contracts and R22 boundary are governed by [`VISUAL_PRODUCTION_OPERATING_MODEL.md`](VISUAL_PRODUCTION_OPERATING_MODEL.md). Exact-artifact AI acceptance is governed by [`AI_FIRST_PRODUCTION_ASSURANCE.md`](AI_FIRST_PRODUCTION_ASSURANCE.md). Provider routing, data lineage and storage authority are governed by [`DATA_AND_PROVIDER_CONTROL_PLANE.md`](DATA_AND_PROVIDER_CONTROL_PLANE.md).
+
 ## Cross-cutting control planes
 
 - Governance, typed commands and immutable lineage.
@@ -41,6 +43,18 @@ Portfolio
 - Rights, platform compliance and asset eligibility.
 - Observability, tracing, reconciliation and incident evidence.
 - Owner attention, escalation and sampling policy.
+
+## Technical execution planes
+
+| Plane | Owns | Interface rule |
+|---|---|---|
+| Business/Creative | Audience, claims, narrative, Visual DNA, Blueprint and Shot Contracts | Emits typed immutable production intent |
+| Control | State machine, commands, policy, qualification, rights, cost and leases | All mutation is identity-bound and idempotent |
+| Media Production | Candidate tournament, Scene Graph, audio, composition and exact master | Cannot self-accept or call providers directly |
+| Evidence/Assurance | Deterministic QA, independent judges, Browser and adjudication | Binds only to exact Production bytes |
+| Learning | Predictions, actuals, experiments and promotion | Cannot rewrite past versions or learn from one noisy result |
+
+The canonical timebase links narration clauses, audio samples, frames, transitions, captions, QA timecodes and retention observations. Provider access exists only through the Provider Gateway.
 
 ## Video Engine mapping
 

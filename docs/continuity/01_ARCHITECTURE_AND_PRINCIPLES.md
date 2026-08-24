@@ -25,3 +25,14 @@ The Continuity API projects state directly from authoritative V7 tables. It does
 3. Organization Costs or invoice data is required to label an amount as billing-verified.
 
 The system must display all three states separately. Missing billing access is an explicit `NOT_VERIFIED` state, never zero-cost proof and never permission to relabel an estimate as incurred spend.
+
+## Visual, assurance and provider invariants
+
+- Visual intent, Video Blueprint, Shot Contract and Scene Graph are typed versioned artifacts, not prose prompts.
+- One canonical timebase binds narration, audio samples, frames, captions, findings and performance.
+- A contact sheet or source atlas cannot prove temporal quality; assurance observes the exact Production master.
+- Production workers never accept their own output. Independent assurance produces evidence; release and publication remain separate authorities.
+- Every external call goes through the Provider Gateway after capability, settings, cost, rights, safety, idempotency and fencing checks.
+- Git owns code/contracts/docs truth, D1 owns operational state, R2 owns active bytes and Drive is a user-controlled recovery archive.
+- A provider, model, prompt, rubric, schema or sampler change makes dependent qualification stale.
+- The repository is one Git object graph mirrored to `origin/main` and `github/main`; divergence blocks mutation. `youtube-ai-factory-v2` is excluded.

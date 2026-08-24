@@ -1,6 +1,8 @@
 # Stage Techniques, Tools, and Quality Controls
 
-Status: authoritative stage-technique and tool specification for the `V7_V23_4_V281` sequential production contract. Document 34 supersedes its audience-facing quality thresholds where the two conflict. Document 37 is authoritative for first-pass capability qualification, production preflight and the independent-assurance failure policy. Stage 00–10 remain control-state frozen for video #1; Stage 11 is state-ready but quality-ineligible and operationally paused.
+Status: authoritative stage-technique and tool specification for the `V7_V23_4_V281` sequential production contract. Document 81 supersedes Documents 31 and 34 for new audience-facing quality thresholds; Document 34 remains historical V2 evidence. Document 37 remains authoritative for first-pass capability qualification where V3 does not supersede it. Stage 00–10 remain historical control-state evidence for video #1; Stage 11, full-video expansion, release and publication remain blocked.
+
+The Factory-wide visual grammar, Blueprint, Shot Contract, Scene Graph, candidate tournament and anti-slide controls are in [`../architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md`](../architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md). AI-first exact-master acceptance is in [`../architecture/AI_FIRST_PRODUCTION_ASSURANCE.md`](../architecture/AI_FIRST_PRODUCTION_ASSURANCE.md); data/provider routing is in [`../architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md`](../architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md); Hidden Systems and R22 specifics are in Documents 80–81.
 
 ## Product and language decisions
 
@@ -33,7 +35,7 @@ Current inventory:
 
 - **Available and bound:** Cloudflare D1/R2; the 18-stage registry; eligibility engine; all five typed commands; immutable command receipts; exclusive leases; OpenAI Stage 01–08 compiler; approved cost/rights plans; Pexels/Pixabay acquisition; deterministic channel-owned SVG construction; ElevenLabs synthesis; provider/cost ledger; SHA-256/read-back proof; legacy dependency firewall.
 - **Partial:** Google Drive archive handoff, renderer/compositor, FFmpeg/ffprobe execution in the new sequential namespace, media candidate tournament, automated timeline evaluators, voice/prosody evaluation and full-duration audio mixing.
-- **Required next:** Standard Registry and inheritance/trigger resolver; canonical control-state plus quality-eligibility projection; real temporal-pixel motion proof; perceptual voice and production music/SFX gates; adaptive narration-duration shot compilation; golden-sequence assurance. Stage 11–16 remain downstream work after these gates.
+- **Required next:** typed Visual Profile, Blueprint, Shot Contract and Scene Graph contracts; Visual Grammar Resolver; Provider Gateway adapters; AI Assurance Orchestrator and judge qualification; real temporal-pixel proof; Factory QA Cockpit. R22 is the bounded canary only after these design and implementation gates.
 
 ## Detailed 18-stage production specification
 

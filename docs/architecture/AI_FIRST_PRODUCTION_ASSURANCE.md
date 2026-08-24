@@ -1,0 +1,119 @@
+# AI-First Production Assurance
+
+**State:** `ACTIVE_NORMATIVE__CALIBRATION_REQUIRED`
+**Policy:** `AI_FIRST_PRODUCTION_ASSURANCE_V1`
+**Effective:** 2026-08-24
+
+## Objective
+
+Every Production master is checked by AI and deterministic systems. After qualification, 90-95% of routine eligible videos should reach an acceptance or rejection outcome without the owner watching the entire video. Humans handle novel risk, disagreement, legal/rights ambiguity, new formats and publication decisions.
+
+Production workers cannot accept their own output. All decisions bind to the exact Production bytes, deployment and policy versions.
+
+## Assurance stack
+
+| Layer | Scope | Required output |
+|---|---|---|
+| L0 Deterministic | Hash, decode, A/V sync, freeze/black frames, overflow, OCR, contrast, loudness, rights, arithmetic, layout repetition, future-state leakage, cost and active requests | Typed PASS/FAIL with measured evidence |
+| L1 Claim/Factual | Promise, claims, sources, narration and visual proof | Timecoded factual findings and unobserved claims |
+| L2 Visual-Semantic | Relevance, phase distinction, documentary integration, mobile legibility, composition, slide grammar and residue | Timecoded findings with frame evidence |
+| L3 Temporal/Motion | Before/mid/after, causal progression, holds, repeated composition, object continuity and final payoff | Dense temporal evidence, not one contact sheet |
+| L4 Audio-Native | Exact full mix, en-US pronunciation, voice consistency, pacing, prosody, seams, music/SFX and A/V timing | Exact-audio verdict and timecoded findings |
+| L5 Audience/Retention | Hook, comprehension, fatigue, overload, attention risk and promise payoff | Predicted drop-off and audience-impact findings |
+| L6 Browser Agent | Full Production playback, seek, pause/resume, ended state, audio presence, viewport/reflow, page errors and media identity | Browser receipt bound to exact master |
+| L7 Independent Adjudicator | Structured evidence from all prior layers plus rights/cost/security | One authoritative outcome and root routing |
+
+An infrastructure failure that prevents observation is `ASSURANCE_INCOMPLETE`, not `CONTENT_REJECTED`.
+
+## Outcomes
+
+- `AI_ACCEPTED`: all required evidence is complete and every authority condition passes.
+- `AI_REJECTED`: content or artifact fails a proved hard or critical gate.
+- `HUMAN_ESCALATION_REQUIRED`: evidence is complete enough to identify a real decision but qualification, disagreement, novelty, brand, rights or legal risk requires a person.
+- `ASSURANCE_INCOMPLETE`: required evidence could not be observed or a judge/runtime failed; no content verdict or downstream authority is granted.
+
+## Auto-accept contract
+
+`AI_ACCEPTED` requires:
+
+- all deterministic gates PASS;
+- 100% required evidence coverage;
+- overall score at least 92;
+- every critical dimension at least the Standard Registry floor and never below 90;
+- P0=0, P1=0 and P2 within the active policy ceiling;
+- visual, temporal, audio and Browser PASS;
+- no critical judge disagreement;
+- adjudicator confidence at least 0.92;
+- rights PASS, cost reconciled and zero active provider request;
+- every model, prompt, rubric, schema and evidence sampler still qualified;
+- exact master hash matches the artifact presented for release.
+
+An average score cannot compensate for factual, rights, lineage, exact-artifact, safety, accessibility or critical perceptual failure.
+
+## Rejection and routing
+
+Automatic rejection is required for a deterministic hard failure, proved P0, corroborated P1, exact-artifact mismatch, unknown/invalid rights, unsupported critical claim, incorrect data, uncompleted payoff or another active hard gate. The result routes to one root owner:
+
+```text
+Factory capability | Channel Visual DNA | Video Blueprint | Shot Contract
+Audio | Renderer | Runtime | Rights | Data/claim | Browser surface
+```
+
+Automated repair is limited to one append-only root revision under the active plan unless a separately approved contract grants another. No infinite repair-QA loop is allowed.
+
+## Qualification
+
+Each judge is qualified per capability, channel, format, evidence sampler and decision role. Calibration uses immutable rejected masters, known clean controls, owner labels, controlled isolated defects and production holdouts.
+
+| Metric | Requirement |
+|---|---:|
+| P0 defect recall | 100% |
+| P1 defect recall | at least 95% |
+| Clean precision | at least 98% |
+| Critical false-clean | 0 |
+| Repeatability on exact bytes | at least 95% |
+| P0/P1 decision flip | 0 |
+| Evidence/timecode validity | at least 95% |
+| Structured output validity | 100% |
+
+Below these thresholds, a judge is `ADVISORY` and cannot write PASS. Any model, provider, prompt, rubric, schema or sampler change makes the related qualification stale until requalification.
+
+## Automation maturity
+
+1. `AI_SHADOW`: AI evaluates; human retains routine decision authority.
+2. `AI_PRIMARY_HUMAN_SAMPLE`: AI decides first; humans review escalations, new-format firsts and a bounded sample.
+3. `AI_AUTONOMOUS_EXCEPTION_ONLY`: qualified AI accepts/rejects; risk-based audit is normally about 5%.
+4. `FULL_AUTOPILOT_RELEASE_READY`: qualified AI may create `RELEASE_READY`; publication remains a separate authority.
+
+The current owner-full-playback gate remains until qualification evidence authorizes a transition. A future `QUALIFIED_AI_AUDIENCE_ACCEPTANCE_RECEIPT` may replace routine playback only for a qualified channel and format with no novel risk, disagreement or rights ambiguity.
+
+## Receipt contract
+
+Every verdict stores:
+
+- exact master, audio and evidence hashes;
+- source commit, deployment and runtime version;
+- provider/model/version and native response ID;
+- prompt, rubric, schema and sampler hashes;
+- input/output usage, reservation and reconciled actual cost;
+- dimension scores and P0/P1/P2/P3 findings;
+- timecodes, evidence references and confidence;
+- unobserved dimensions and judge disagreements;
+- root repair owner and acceptance authority;
+- idempotency key and full raw response exact bytes.
+
+An incomplete receipt cannot open a downstream gate.
+
+## Cost and retry controls
+
+Run zero-spend checks first, then artifact-level claim/shot checks, one full visual/temporal review, one full audio review, one Browser review and one evidence-only adjudication. Call an extra judge only for disagreement.
+
+Cache by exact hash; do not QA unchanged bytes. Reconcile provider history before retrying, preserve the same idempotency identity, reserve cost before dispatch and fail closed as `UNKNOWN_SPEND_RESERVED` when execution state is unknown.
+
+## Factory QA Cockpit
+
+The operator surface must show the exact master, each judge's progress and authority, evidence coverage, timecoded findings with seek, frame/audio evidence, confidence, disagreement, root owner, estimated/actual cost, escalation reason and exact next action. Summary counts must distinguish accepted, automatically rejected, escalated and assurance-incomplete videos.
+
+## R22 canary
+
+R22 is the first canary for L0-L7. Because the capability is not yet qualified, a first apparent AI PASS still requires the current owner gate or an explicit calibration decision. R22 must not inherit a PASS from R21 audio or from source-atlas inspection; every verdict binds only to R22 exact bytes.

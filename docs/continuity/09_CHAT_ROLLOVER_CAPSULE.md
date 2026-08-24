@@ -4,11 +4,13 @@
 
 **Current source classification:** `R21_PRODUCTION_VISUAL_FAIL_67__AUDIO_PASS_95__R22_REPAIR_REQUIRED`
 
+**Repository sync classification:** `DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1__GITHUB_REMOTE_PENDING`
+
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
 ## Canonical recovery source
 
-The canonical source is `origin/main` of this repository. Project memory and prior chats may help discover context, but a new chat must continue from the tracked knowledge base and exact Git state.
+The canonical source is one exact `main` commit mirrored to Sites `origin/main` and the new private personal GitHub `github/main`. `HungQuach301/youtube-ai-factory-v2` is excluded. Project memory and prior chats may help discover context, but a new chat must continue from the tracked knowledge base and exact Git state.
 
 ## Required new-chat sequence
 
@@ -19,7 +21,11 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 5. Read the current roadmap wave and only the documents it names.
 6. Reconcile production/runtime state before any externally mutating action.
 
+When `github` is configured, verify `git rev-parse HEAD`, `git rev-parse origin/main` and `git rev-parse github/main` are identical. A mismatch is `SYNC_BLOCKED`.
+
 ## Current handoff truth
+
+- Canonical design closure now includes `VISUAL_PRODUCTION_OPERATING_MODEL_V1`, `AI_FIRST_PRODUCTION_ASSURANCE_V1`, `DATA_PROVIDER_CONTROL_PLANE_V1`, `HIDDEN_SYSTEMS_VISUAL_DNA_V1`/R22 Blueprint and `VIDEO_PRODUCTION_QUALITY_STANDARD_V3`. These documents do not authorize schema/runtime/provider/Production mutation. The new personal GitHub target is `HungQuach301/youtube-ai-factory` private; synchronization is not complete until the remote exists and matches `origin/main`. The existing V2 repository is explicitly excluded.
 
 - Sites v504 from source `b2c7536aedecee33255bebd4fd56fa6bdbfcb390` materialized the sole R21 English/en-US master: 63.833 seconds, 10,069,490 bytes, SHA-256 `3f968794b1d5a0c01ea924e2e61d8efd5aed072f587157d515701cf4c0213a89`. Factory audio passes 95 (P0=0, P1=0, P2=2). Factory visual fails 67 (P0=0, P1=2, P2=3), with exact evidence for an unresolved final settlement, repeated slide compositions, small mobile labels, reused phase topology and premature future ledger values. Visual QA spend is USD 0.0890772; the first provider attempt returned 503 before a receipt and the same idempotency key completed on one bounded retry. Next design one append-only R22 only from this exact visual FAIL/audio PASS pair; do not rerun R21 or open Browser, owner freeze, Stage 11, release, publication or V2.
 
@@ -108,6 +114,6 @@ Do not:
 
 ## Rollover-ready gate
 
-A material session is ready to roll over only when intended changes are committed, pushed to `origin/main`, documentation checks and relevant regressions are recorded, local HEAD equals the remote and the worktree is clean.
+A material session is ready to roll over only when intended changes are committed, the same commit is pushed to `origin/main` and `github/main`, documentation checks and relevant regressions are recorded, all three SHAs match and the worktree is clean. While GitHub creation or push is blocked, report `ROLLOVER BLOCKED` and preserve the worktree.
 
 Historical FP2/FP3 bundles and archives remain external derivative recovery exports. They are not required for ordinary continuation and are not project authority.
