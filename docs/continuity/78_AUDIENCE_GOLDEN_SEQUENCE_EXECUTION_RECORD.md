@@ -1,7 +1,7 @@
 # Audience Golden Sequence execution record
 
 **Class:** `EXECUTION_EVIDENCE`  
-**Status:** `ACTIVE__REVISION_20_VISUAL_REJECTED_AUDIO_PASS`
+**Status:** `ACTIVE__REVISION_21_US_ENGLISH_HYBRID_DOCUMENTARY_SOURCE_READY`
 **Date:** 2026-08-24 (Asia/Bangkok)
 **Scope:** original YouTube AI Factory only; Production V2 is excluded and untouched.
 
@@ -35,6 +35,12 @@
 | R20 | `880e2fca00cd0405d5c8b604725885bc319d9dd3c69cf7a35cc9109b61a2a706` | FAIL 89 | PASS 95 | current rejected visual evidence; Browser blocked |
 
 R20 is a deterministic/rights PASS 77.1-second 2560×1440/30 H.264/AAC master of 17,057,292 bytes. Factory visual QA fails 89 with P0=0, P1=2 and P2=2; Factory audio QA passes 95 with P0=0, P1=0 and P2=1. Because visual QA failed, Browser/device QA, owner playback, freeze, release and publication remain blocked. The exact current materialization is `audience-golden-materialization-3049d7a5-2b00-4b8c-bf6b-79da41291db8`. Document 79 corrects the frontend projection so this record is visible from the canonical Video Engine.
+
+## Revision 21 source contract
+
+Migration `0105_youtube_audience_golden_revision_21.sql` permits one append-only R21 only from the exact R20 visual FAIL and exact-audio PASS receipts plus owner directive `OWNER_US_ENGLISH_HYBRID_DOCUMENTARY_2026_08_24`. R20's audio PASS is preserved as evidence only because Vietnamese audio is ineligible for the US-market artifact. R21 creates new English/en-US narration and voice bytes under the existing paid-plan, provider-native, rights and R2 controls.
+
+The visual form is `HYBRID_DOCUMENTARY_EXPLANATION_SYSTEM_FILM`: eleven real-world/owned reality anchors are interleaved with dynamic system diagrams, animated ledgers, Sankey money/data flows, obligation network maps and exception timelines. Thirty-two uniformly sampled positions map to thirty-two causal beats, no treatment persists longer than 3.2 seconds, persistent slide templates/headline bands and camera-only progress are forbidden, and semantic transitions follow `tap → signal → network → ledger → settlement`. The first atlas exposed duplicate compositions and a colliding mobile exception footer; both were corrected before provider dispatch. The final source atlas is SHA-256 `1032fe0f031887a6d70358824a60e049045758eb1b4a5cb5c1cfc80dd6496dd6`, passes manual 32/32 inspection with no critical overflow, and remains source evidence only.
 
 R4 improved visual richness but retained two P1 defects: the same tableau/lower-third grammar persisted across the explanation, and the moving marker did not make institutions, balances or records visibly transform. Its three P2 findings were insufficient state differentiation, mixed English without visible definition and secondary mobile typography. No Browser or owner PASS was inferred.
 
@@ -166,6 +172,11 @@ PRODUCTION_R18 = MATERIALIZED__EXACT_MASTER_78867B18__VISUAL_FAIL_77__AUDIO_PASS
 PRODUCTION_R19 = MATERIALIZED__EXACT_MASTER_226F40BD__VISUAL_FAIL_87__AUDIO_FAIL_88
 R20_SOURCE_ATLAS = PASS__32_OF_32__FULL_FRAME_MOBILE_REFLOW__SAFE_ARROW_CORRIDOR__DISTINCT_PAIR_GEOMETRY__SEALED_VOICE_CONTRACT
 PRODUCTION_R20 = MATERIALIZED__EXACT_MASTER_880E2FCA__VISUAL_FAIL_89__AUDIO_PASS_95
+R21_SOURCE_ATLAS = PASS__32_UNIQUE_CAUSAL_BEATS__US_ENGLISH_EN_US__HYBRID_DOCUMENTARY__NO_CRITICAL_OVERFLOW
+R21_TARGETED_REGRESSION = 24_OF_24_PASS
+R21_FULL_REGRESSION = 211_OF_211_PASS
+R21_VERIFIED_BUILD = PASS
+PRODUCTION_R21 = NOT_DEPLOYED_NOT_EXECUTED
 FACTORY_VISUAL_AUDIO_QA = COMPLETE__FAIL_PASS
 BROWSER_DEVICE_QA = BLOCKED_UNTIL_FACTORY_PASS
 OWNER_FULL_PLAYBACK = BLOCKED_UNTIL_BROWSER_PASS
@@ -174,4 +185,4 @@ FREEZE_RELEASE_PUBLICATION = FALSE_FALSE_FALSE
 
 ## Exact next action
 
-R20 is Production materialized and Factory-adjudicated. Preserve it as rejected visual evidence, deploy the canonical projection-integrity repair from Document 79, then create only a bounded append-only repair revision derived from the exact R20 visual findings. Browser/device remains closed until a later exact master passes both Factory visual and audio; owner playback remains closed until Browser PASS. Production V2, Stage 11, full-video expansion, release and publication remain untouched.
+R20 is Production materialized and Factory-adjudicated; Projection Integrity is already Production-active. Preserve R20 as rejected visual evidence. Next checkpoint and deploy migration `0105` plus the R21 source, create the sole evidence-bound R21, generate its new English/en-US exact voice, materialize one exact master, and let Factory visual/audio QA decide. Browser/device remains closed until the same later exact master passes both Factory layers; owner playback remains closed until Browser PASS. Production V2, Stage 11, full-video expansion, release and publication remain untouched.

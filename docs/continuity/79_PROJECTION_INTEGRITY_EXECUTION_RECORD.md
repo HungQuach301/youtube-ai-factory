@@ -46,6 +46,6 @@ BROWSER_QA = PENDING
 RELEASE_AUTHORITY = FALSE
 ```
 
-## Verification and next protected action
+## Verification and successor action
 
-Source projection tests, the Projection Integrity Gate, full verified build, documentation check and the 16/16 V2 firewall passed. Sites v502 deployed source `a5753db44c146a51a4afc6e3e3ce46333efeccec` successfully to the owner-only Production Site. Browser preview verified canonical navigation, the Golden-material return path and the compatibility disclosure; preview D1 was intentionally empty and failed closed rather than substituting data. R20 remains rejected visual evidence; the next production action is a bounded repair revision, not Browser QA, owner freeze, release or publication.
+Source projection tests, the Projection Integrity Gate, full verified build, documentation check and the 16/16 V2 firewall passed. Sites v502 deployed source `a5753db44c146a51a4afc6e3e3ce46333efeccec` successfully to the owner-only Production Site. Browser preview verified canonical navigation, the Golden-material return path and the compatibility disclosure; preview D1 was intentionally empty and failed closed rather than substituting data. R20 remains rejected visual evidence. The bounded successor is now R21 under Document 78 and ADR-121; projection integrity itself grants no Browser QA, owner freeze, release or publication authority.

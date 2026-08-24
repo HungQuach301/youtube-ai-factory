@@ -88,7 +88,7 @@ test("Revision 4 rejection creates an immutable five-world transforming-process 
   assert.match(executor, /growing-merchant-coin-stack/);
   assert.match(executor, /sceneCount:r19\?16:r18\?32:r17\?24:r16\?15:r15\?1:r14\?32:r13\?6:r12\?6:r11\?16:r10\?36:r9\?40:r5Plus\?20/);
   assert.match(executor, /minimumCriticalFontPx1080:r19\?132:r18\?132:r17\?132:r16\?120:r15\?120:r14\?108:r13\?108:r12\?108:r11\?90:r10\?84:r9\?84:r8\?84:r7\?84:r5Plus\?72/);
-  assert.match(executor, /\["r5","r6","r7","r8","r9","r10","r11","r12","r13","r14","r15","r16","r17","r18","r19","r20"\]\.includes\(revision\) \? "22" : "19"/);
+  assert.match(executor, /\["r5","r6","r7","r8","r9","r10","r11","r12","r13","r14","r15","r16","r17","r18","r19","r20","r21"\]\.includes\(revision\) \? "22" : "19"/);
   assert.match(executor, /chunks\.length > 128/);
 });
 
@@ -374,10 +374,36 @@ test("Revision 19 dual failure creates immutable Revision 20 with mobile reflow 
   assert.match(runtime, /arrowMayCrossLabelOrAmount: false/);
   assert.match(runtime, /contractVoiceSettingsMustApply: true/);
   assert.match(runtime, /REVISION_20_EVIDENCE_REQUIRED/);
-  assert.match(runtime, /contractVoiceRevision = \/:r\(\?:15\|16\|17\|18\|19\|20\)\$\//);
+  assert.match(runtime, /contractVoiceRevision = \/:r\(\?:15\|16\|17\|18\|19\|20\|21\)\$\//);
   assert.match(executor, /function svgFrameR20/);
   assert.match(executor, /AUDIENCE_GOLDEN_PREVIEW_R20/);
   assert.match(executor, /safe-obligation-arrow-corridor/);
   assert.match(executor, /contract-voice-settings-applied/);
   assert.match(executor, /revision === "r20" \? svgFrameR20/);
+});
+
+test("Revision 20 visual failure creates immutable Revision 21 for the US English Hybrid Documentary system", () => {
+  const migration = read("drizzle/0105_youtube_audience_golden_revision_21.sql"), runtime = read("lib/youtube-audience-golden.ts"), executor = read("scripts/audience-golden-executor.mjs"), ui = read("app/video-engine/audience-golden/audience-golden-client.tsx");
+  assert.match(migration, /AUDIENCE_GOLDEN_REVISION_21/);
+  assert.match(migration, /visual_failure_receipt_id/);
+  assert.match(migration, /audio_pass_receipt_id/);
+  assert.match(migration, /OWNER_US_ENGLISH_HYBRID_DOCUMENTARY_2026_08_24/);
+  assert.match(migration, /YOUTUBE_GOLDEN_REVISION_21_IMMUTABLE/);
+  assert.match(runtime, /HYBRID_DOCUMENTARY_EXPLANATION_SYSTEM_FILM/);
+  assert.match(runtime, /market: "US"/);
+  assert.match(runtime, /language: "en-US"/);
+  assert.match(runtime, /essentialLabelsOnlyEnglish: true/);
+  assert.match(runtime, /SANKEY_MONEY_DATA_FLOW/);
+  assert.match(runtime, /NETWORK_MAP/);
+  assert.match(runtime, /maximumSameTreatmentSeconds: 3\.2/);
+  assert.match(runtime, /previousAudioPassIsEvidenceOnly: true/);
+  assert.match(runtime, /REVISION_21_EVIDENCE_REQUIRED/);
+  assert.match(executor, /function svgFrameR21/);
+  assert.match(executor, /AUDIENCE_GOLDEN_PREVIEW_R21/);
+  assert.match(executor, /hybrid-documentary-explanation-system-film/);
+  assert.match(executor, /sankey-principal-and-fee-split/);
+  assert.match(executor, /bank-obligation-network-map/);
+  assert.match(executor, /essentialLanguage: "en-US"/);
+  assert.match(executor, /revision === "r21" \? svgFrameR21/);
+  assert.match(ui, /US MARKET · ENGLISH \/ EN-US/);
 });

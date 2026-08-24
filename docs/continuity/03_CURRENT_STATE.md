@@ -2,6 +2,26 @@
 
 Last reconciled: 2026-08-24 (Asia/Bangkok)
 
+## Audience Golden R21 — US English Hybrid Documentary source ready
+
+```text
+OWNER_DIRECTIVE = OWNER_US_ENGLISH_HYBRID_DOCUMENTARY_2026_08_24
+SOURCE_MIGRATION = 0105_YOUTUBE_AUDIENCE_GOLDEN_REVISION_21
+MARKET_LANGUAGE = US__ENGLISH_EN_US
+VISUAL_FORM = HYBRID_DOCUMENTARY_EXPLANATION_SYSTEM_FILM
+TREATMENTS = REAL_WORLD_MACRO__SYSTEM_DIAGRAM__ANIMATED_LEDGER__SANKEY_FLOW__NETWORK_MAP__EXCEPTION_TIMELINE
+ATLAS = 32_UNIQUE_CAUSAL_BEATS__SOURCE_INSPECTED__NO_CRITICAL_OVERFLOW
+ATLAS_SHA256 = 1032FE0F031887A6D70358824A60E049045758EB1B4A5CB5C1CFC80DD6496DD6
+TARGETED_REGRESSION = 24_OF_24_PASS
+FULL_REGRESSION = 211_OF_211_PASS
+VERIFIED_BUILD = PASS
+PRODUCTION = NOT_DEPLOYED_NOT_EXECUTED
+PROVIDER_REQUESTS_SPEND = 0_0
+NEXT_PROTECTED_ACTION = CHECKPOINT_DEPLOY_0105__EXECUTE_ONE_R21_CHAIN__LET_FACTORY_QA_DECIDE
+```
+
+R21 is the first Golden revision to reconcile the owner's US-market language requirement with the current R20 visual failure. It does not inherit R20's Vietnamese narration or treat its audio PASS as reusable market audio; that receipt remains evidence only. The source contract creates new English/en-US narration and exact audio, rotates eleven reality-anchor beats through six explanation treatments, samples 32 different causal compositions, forbids persistent slide templates and uses semantic transitions from tap to signal, network, ledger and settlement. The corrected contact atlas removed the first preview's duplicate-pair and exception-footer collision before any provider dispatch. Source inspection, 211/211 full regression and a passing verified build create no Production, Factory, Browser, owner, freeze, release or publication authority. R20 remains the current Production authority until an exact R21 materialization is sealed. V2 remains untouched.
+
 ## Canonical Production projection — R20 exact state reconciled
 
 ```text

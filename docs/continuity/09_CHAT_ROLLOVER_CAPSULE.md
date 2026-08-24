@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`
 
-**Current source classification:** `R20_PRODUCTION_VISUAL_REJECTED__CANONICAL_PROJECTION_ACTIVE_SITES_V502`
+**Current source classification:** `R21_US_ENGLISH_HYBRID_DOCUMENTARY_SOURCE_READY__R20_PRODUCTION_VISUAL_REJECTED`
 
 **Production URL:** `https://youtube-ai-factory.quach-hung.chatgpt.site`
 
@@ -20,6 +20,8 @@ The canonical source is `origin/main` of this repository. Project memory and pri
 6. Reconcile production/runtime state before any externally mutating action.
 
 ## Current handoff truth
+
+- R21 source is ready under owner directive `OWNER_US_ENGLISH_HYBRID_DOCUMENTARY_2026_08_24`. Migration `0105` creates exactly one append-only revision only from R20 visual FAIL/audio PASS. R20's Vietnamese audio PASS remains evidence-only; R21 regenerates English/en-US narration for the US market. Its six-treatment Hybrid Documentary system combines eleven real-world/owned anchors with system diagrams, animated ledgers, Sankey flows, network maps and exception timelines across 32 unique causal beats. The first local atlas exposed duplicate pairs and a colliding exception footer; both were corrected before dispatch. Final atlas SHA-256 is `1032fe0f031887a6d70358824a60e049045758eb1b4a5cb5c1cfc80dd6496dd6`; targeted tests pass 24/24, full regression passes 211/211 and verified build passes with zero provider requests/spend. Next checkpoint/deploy `0105`, execute the sole R21 chain and let Factory visual/audio QA decide. Browser, owner freeze, Stage 11, release, publication and V2 remain untouched.
 
 - Production R20 is materialized at 77.1 seconds, 17,057,292 bytes, 2560×1440/30 with SHA-256 `880e2fca00cd0405d5c8b604725885bc319d9dd3c69cf7a35cc9109b61a2a706`. Factory visual QA fails 89 (P0=0, P1=2, P2=2); audio passes 95 (P0=0, P1=0, P2=1); Browser remains pending and release authority is false. Sites v502 from source `a5753db44c146a51a4afc6e3e3ce46333efeccec` makes `/video-engine` read this Audience Golden authority, exposes `/video-engine/audience-golden`, redirects canonical production navigation away from `/control-plane`, labels eight V7/V23 routes as compatibility evidence, and adds a mandatory build gate plus pure projection tests. Do not run Browser QA or owner freeze because visual QA failed. Document 79 is authoritative for the projection incident; V2 is untouched.
 

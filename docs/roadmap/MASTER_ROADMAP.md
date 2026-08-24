@@ -1,10 +1,12 @@
 # AI Factory Master Roadmap
 
 **State:** `ACTIVE`
-**Reconciled:** 2026-08-22
+**Reconciled:** 2026-08-24
 **Code baseline at consolidation:** `5b669fc9230f5b012ebe4aa2c0b5c21fa50df890`
 
 ## Current position
+
+- Audience Golden R21 source is ready under owner directive `OWNER_US_ENGLISH_HYBRID_DOCUMENTARY_2026_08_24`. Migration `0105` requires the exact R20 visual FAIL/audio PASS pair, treats the Vietnamese audio PASS as evidence-only and creates new English/en-US narration for the US market. The renderer interleaves eleven reality anchors with system diagrams, animated ledgers, Sankey flows, obligation maps and exception timelines across 32 unique causal beats. The corrected source atlas passes 32/32 manual inspection; 24/24 targeted regressions, 211/211 full regression and the verified build pass with zero provider request/spend. Next checkpoint/deploy and execute only R21. Browser, owner freeze, Stage 11, full-video expansion, release, publication and V2 stay blocked.
 
 - Projection Integrity repair is production-active in Sites v502 from source `a5753db44c146a51a4afc6e3e3ce46333efeccec`. The canonical Portfolio → Channel → Video Engine → Golden Materials path now shares the current Audience Golden authority; V7/V23 screens are compatibility evidence only. A mandatory build gate prevents canonical links, data authority or disclosure boundaries from drifting. Production R20 is visual FAIL 89/audio PASS 95, so Browser, owner freeze, release and publication remain blocked. Document 79 is authoritative; V2 is untouched.
 
@@ -208,6 +210,8 @@ Phase 39 is complete. Sites v498 materializes R17 master `b2f3de5e8a5568a7ac411f
 Phase 40 is complete. Sites v499 materializes R18 master `78867b18667a5304014911a66126292335073efba7d1b9321b8d3a86f787dfa7`. Exact-audio QA passes at 94 and visual QA fails at 77. Migration `0103` creates R19 as sixteen object-ledger sequences with reconciled amounts, directional obligations and truthful exception chronology. Sites v500 executes R19 and preserves its exact dual-failure evidence for Phase 41. Browser/device and owner gates remain closed until both Factory layers PASS. V2 is untouched.
 
 Phase 41 is active. Sites v500 materializes R19 master `226f40bd7c2522bd21daee5f43ef6a2fadb43168f100f74a479c1fcde77ccf1b`. Visual QA improves to 87 but fails on small/crowded mobile ledger, branch and recap labels, obligation-arrow collisions, a crowded opening and paired card holds. Exact-audio QA fails at 88; source audit proves the voice-contract regex ended at R18 and R19 used defaults, with a P1 discontinuity near 00:25. Migration `0104` creates R20 only from both exact FAIL receipts. R20 performs full-frame mobile reflow, reserves safe arrow corridors, changes pair geometry and applies the `.92/.88/.76/0` voice contract with seam-safe mastering. Full regression passes 207/207. Complete docs/firewall, commit/push, deploy owner-only and execute R20; Browser/device and owner gates remain closed until both Factory layers PASS. V2 is untouched.
+
+Phase 42 is active. Sites v502 keeps R20 as the canonical exact Production master and makes its visual FAIL 89/audio PASS 95 discoverable across the Video Engine. The owner's US-market directive identifies a separate P0 suitability gap: the Golden artifact and operator surface remained Vietnamese, while the visual system still lacked the required documentary reality-anchor plus diagram/chart/map mix. Migration `0105` creates R21 only from R20's exact visual FAIL/audio PASS receipts and binds `OWNER_US_ENGLISH_HYBRID_DOCUMENTARY_2026_08_24`. R21 regenerates English/en-US narration, uses six treatment families and 32 unique causal beats, and preserves R20 audio PASS as non-reusable evidence. The first atlas's duplicate pairs and mobile branch-footer collision were repaired before dispatch. Targeted regression passes 24/24 and verified build passes. Checkpoint/deploy owner-only, execute exactly one R21 chain, and let Factory visual/audio QA decide; Browser/device and owner gates remain closed until both Factory layers PASS. V2 is untouched.
 
 ## Wave 4 — Upstream and technical standards
 
