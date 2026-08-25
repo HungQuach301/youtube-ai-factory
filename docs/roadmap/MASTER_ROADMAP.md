@@ -76,7 +76,7 @@ Completed in the fourth bounded Phase 45 slice:
 - SOURCE/HYBRID nodes require exact asset-version bindings, so missing real-media inputs cannot be replaced by generic visuals;
 - the authenticated action has a separately disabled renderer flag and retains zero provider requests, zero spend and the R22 block.
 
-Evidence passes 231/231 repository tests, 13/13 focused Gateway/compiler/writer/renderer tests, the verified Production build and documentation SSOT gate. Sites version 521 deploys migration `0109` and live D1 exposes thirty-one `factory_*` tables. The output is a deterministic render tape, not a pixel/video master; asset-qualified composition, integrated canary, provider dispatch/reconciliation, L0-L7 assurance and all R22 authority remain incomplete.
+Evidence passes 231/231 repository tests, 13/13 focused Gateway/compiler/writer/renderer tests, the verified Production build and documentation SSOT gate. Sites version 521 deploys migration `0109`; live D1 exposes 50 user tables in total and thirty `factory_*` tables, including all three renderer tables. The output is a deterministic render tape, not a pixel/video master; asset-qualified composition, integrated canary, provider dispatch/reconciliation, L0-L7 assurance and all R22 authority remain incomplete.
 
 ## Phase 46 — R22 canary
 
