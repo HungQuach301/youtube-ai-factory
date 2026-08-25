@@ -2,7 +2,7 @@
 
 **Policy:** `GIT_REPOSITORY_SSOT_V1`  
 **Source classification:** `R21_VISUAL_FAIL_67__AUDIO_PASS_95__R22_DESIGN_ONLY`  
-**Repository sync:** `OWNER_REPORTED_CREATED__CONNECTOR_ACCESS_REQUIRED`
+**Repository sync:** `SYNCHRONIZED`
 
 ## Start here
 
@@ -18,18 +18,18 @@
 - R21 exact master `3f968794…` is immutable: en-US audio PASS 95, visual FAIL 67.
 - R22 is design-only and may not dispatch until Phase 45 implementation, dependency qualification, zero-spend preflight and integrated canary admission pass.
 - Browser, owner freeze, release and publication are blocked.
-- The owner reports `HungQuach301/youtube-ai-factory` exists, but the connected GitHub integration cannot enumerate it.
+- `HungQuach301/youtube-ai-factory` contains the complete Sites Git history; the verified common baseline is `2431a800d2d540bcfea141c98c9977cd46667950`.
 - `HungQuach301/youtube-ai-factory-v2` is never an upstream, mirror, fallback or recovery source.
 
 ## Exact next action
 
-Grant GitHub connection access to the new repository, then mirror the exact Sites commit and prove:
+Begin Phase 45 contracts/runtime only from a clean checkpoint after proving:
 
 ```text
 HEAD = origin/main = github/main
 ```
 
-After synchronization, begin Phase 45 contracts/runtime. Do not reconstruct from chat, re-run R21, dispatch R22, weaken a gate or publish.
+Do not reconstruct from chat, re-run R21, dispatch R22, weaken a gate or publish.
 
 ## Rollover completion
 

@@ -21,7 +21,7 @@ personal mirror: github/main (HungQuach301/youtube-ai-factory)
 excluded repository: HungQuach301/youtube-ai-factory-v2
 ```
 
-The GitHub mirror is not synchronized until local `HEAD`, `origin/main` and `github/main` are verified as the same exact commit.
+The personal GitHub mirror was initialized from the complete Sites Git history and exact-SHA equality was verified on 2026-08-25. A later material checkpoint is complete only after local `HEAD`, `origin/main` and `github/main` are again verified as the same exact commit.
 
 ## Current checkpoint
 

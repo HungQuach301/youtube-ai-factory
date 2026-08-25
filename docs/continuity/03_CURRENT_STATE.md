@@ -1,7 +1,7 @@
 # Current State
 
 **State:** `ACTIVE_CURRENT_STATE`  
-**Reconciled:** 2026-08-24 (Asia/Bangkok)
+**Reconciled:** 2026-08-25 (Asia/Bangkok)
 
 ## Repository and documentation
 
@@ -10,7 +10,8 @@ REPOSITORY_POLICY = GIT_REPOSITORY_SSOT_V1
 REPLICATION_POLICY = DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
 SITES_REMOTE = origin/main
 GITHUB_TARGET = HungQuach301/youtube-ai-factory
-GITHUB_SYNC = OWNER_REPORTED_CREATED__CONNECTOR_ACCESS_REQUIRED
+GITHUB_SYNC = SYNCHRONIZED
+LAST_VERIFIED_COMMON_SHA = 2431a800d2d540bcfea141c98c9977cd46667950
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
@@ -51,16 +52,15 @@ Still required before R22:
 - Provider Gateway, rights/cost/idempotency reconciliation and qualified bindings;
 - L0-L7 Assurance Orchestrator, judge calibration and QA Cockpit;
 - retention, recovery and incident-control enforcement exercises;
-- exact dual-remote Git synchronization.
+- exact dual-remote verification after every material checkpoint.
 
 ## Next protected action
 
 ```text
-1. Complete and checkpoint documentation cleanup to origin/main.
-2. Grant the GitHub integration access to HungQuach301/youtube-ai-factory.
-3. Verify HEAD = origin/main = github/main with no V2 input.
-4. Implement Phase 45 contracts/runtime and qualify exact R22 dependencies.
-5. Compile and run R22 only after zero-spend preflight and integrated canary authorization.
+1. Implement Phase 45 contracts/runtime from a clean synchronized `main`.
+2. Qualify exact R22 provider, visual, audio and assurance dependencies.
+3. Pass zero-spend preflight and the integrated canary admission gate.
+4. Compile and run R22 only after those controls create explicit Production authority.
 ```
 
 This state creates no migration, paid request, R22, Browser, release or publication authority.

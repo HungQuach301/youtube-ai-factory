@@ -1,8 +1,8 @@
 # Repository Synchronization and Recovery
 
-**State:** `ACTIVE_NORMATIVE__OWNER_REPORTED_CREATED__CONNECTOR_ACCESS_REQUIRED`
+**State:** `ACTIVE_NORMATIVE__SYNCHRONIZED`
 **Policy:** `DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1`
-**Effective:** 2026-08-24
+**Effective:** 2026-08-25
 
 ## Decision
 
@@ -16,17 +16,22 @@ Canonical identity:          one exact commit SHA on main
 
 `HungQuach301/youtube-ai-factory-v2` is explicitly excluded. It is neither a source, mirror, upstream, fallback nor recovery input for this repository.
 
-The owner reports that the new `HungQuach301/youtube-ai-factory` repository has been created. The connected GitHub integration cannot currently enumerate it, so creation is not yet independently verified and the remote cannot be synchronized. Until repository access is granted and both remote refs match, state is `CONNECTOR_ACCESS_REQUIRED`, never synchronized.
+The new private `HungQuach301/youtube-ai-factory` repository is connected. Its bootstrap history was replaced by the complete canonical Sites history after checksum verification and a non-destructive staging-branch proof. Exact common commit `2431a800d2d540bcfea141c98c9977cd46667950` was independently observed on Sites `origin/main` and GitHub `main` on 2026-08-25. The bootstrap workflow and bundle parts are absent from canonical `main`.
 
-## Initial mirror migration
+## Initial mirror migration receipt
 
-1. Grant the existing ChatGPT GitHub connection access to the exact new repository; do not provide a token in chat or store credentials in Git.
-2. Verify the repository owner/name, privacy, default branch and whether it has unexpected commits, tags or protected rules.
-3. Add remote name `github` using a credential-safe URL and fetch it without mutation.
-4. If the target is empty, push the complete canonical `main` history and applicable tags. If it is non-empty or divergent, stop under the divergence protocol; never force or merge automatically.
-5. Fetch `origin` and `github`, then verify local `HEAD`, `origin/main` and `github/main` are the same exact commit and tree.
-6. Record a sync receipt containing remote names, exact SHAs, checks, deployment checkpoint and clean-worktree proof.
-7. Only after this proof change status to `SYNCHRONIZED`.
+| Evidence | Verified result |
+|---|---|
+| Target | Private `HungQuach301/youtube-ai-factory`, default branch `main` |
+| Connected authority | GitHub integration `admin` and `push` |
+| Bundle integrity | SHA-256 `83b7fca58df377350634b39ecbb6fc247f94785bfa0640f9661a57586750b2c1`; complete history |
+| Staging proof | `canonical-import` resolved to exact canonical commit before `main` replacement |
+| Common baseline | `2431a800d2d540bcfea141c98c9977cd46667950` |
+| Documentation gate | `Documentation SSOT PASS` |
+| Bootstrap disposition | Workflow and bundle parts absent from canonical `main`; bootstrap issues closed |
+| Excluded input | No file, commit, branch or tag imported from `youtube-ai-factory-v2` |
+
+The initial force-replacement applied only to the owner-created bootstrap history after explicit owner continuation. It is not precedent or standing authority for future force-pushes.
 
 No file, branch, commit or tag may be copied from `youtube-ai-factory-v2` during migration.
 

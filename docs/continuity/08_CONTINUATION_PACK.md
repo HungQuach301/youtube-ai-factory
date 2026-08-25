@@ -24,6 +24,6 @@ Ordinary recovery uses either verified mirror of the same Git object graph. Arch
 - R21 is immutable visual FAIL/audio PASS evidence.
 - R22 is design-only and undispatched.
 - Phase 45 contracts/runtime and qualification precede R22.
-- GitHub synchronization remains blocked on connection access.
+- The private GitHub mirror is synchronized; every material session must re-prove exact three-ref equality before close.
 - `youtube-ai-factory-v2` is prohibited as input.
 - No auto-publish, hard-gate weakening or infinite repair loop.

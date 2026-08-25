@@ -19,6 +19,7 @@ Only decisions that govern current and next work remain here. ADR-001 through AD
 | ADR-132 | `MULTI_CHANNEL_SCALE_AND_LEARNING_V1`: channel isolation and version promotion only from valid minimum evidence; no single-video learning authority. |
 | ADR-133 | `CROSS_CUTTING_CONTROL_STANDARD_V1`: privacy, Content ID, drift, retention, SLA, DR, accessibility, localization and incident controls cannot be weakened locally. |
 | ADR-134 | `ACTIVE_DOCS_AND_ARCHIVE_BOUNDARY_V1`: only the active index is ordinary development authority; superseded plans, execution records and old snapshots move to a read-only archive while Git history preserves recovery. |
+| ADR-135 | `INITIAL_GITHUB_MIRROR_MIGRATION_COMPLETE_V1`: the private personal repo contains the complete canonical Sites history; exact common baseline `2431a800…` was verified, bootstrap artifacts were removed from `main`, and future divergence is `SYNC_BLOCKED`. |
 
 ## Shared decision constraints
 

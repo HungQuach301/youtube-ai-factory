@@ -1,15 +1,15 @@
 # AI Factory Master Roadmap
 
 **State:** `ACTIVE`  
-**Reconciled:** 2026-08-24
+**Reconciled:** 2026-08-25
 
 ## Current position
 
-Architecture and documentation are complete for the approved design scope. Historical plans and execution records are archived. Runtime implementation, qualification and R22 Production remain open. GitHub mirroring is blocked only by repository access in the connected GitHub integration.
+Architecture and documentation are complete for the approved design scope. Historical plans and execution records are archived. The private GitHub mirror contains the complete canonical history and exact-SHA synchronization is proven. Runtime implementation, qualification and R22 Production remain open.
 
 ## Phase 44 — SSOT closure and repository synchronization
 
-**Status:** `ACTIVE__GITHUB_ACCESS_REQUIRED`
+**Status:** `COMPLETE__SYNCHRONIZED`
 
 Exit evidence:
 
@@ -18,6 +18,8 @@ Exit evidence:
 - documentation/build checks PASS and Sites checkpoint is clean;
 - GitHub target is verified without importing any V2 content;
 - local `HEAD`, `origin/main` and `github/main` are the same exact commit.
+
+Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a800d2d540bcfea141c98c9977cd46667950`; later checkpoints must repeat the equality proof.
 
 ## Phase 45 — Contracts and technical runtime
 

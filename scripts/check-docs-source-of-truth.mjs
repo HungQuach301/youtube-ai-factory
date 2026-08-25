@@ -42,6 +42,9 @@ if (!text("docs/README.md").includes("DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1")) failu
 if (!text("docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md").includes("origin/main")) failures.push("ROLLOVER_GIT_REMOTE_MISSING");
 if (!text("docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md").includes("github/main")) failures.push("ROLLOVER_GITHUB_MIRROR_MISSING");
 if (!text("docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md").includes("youtube-ai-factory-v2")) failures.push("EXCLUDED_REPOSITORY_RULE_MISSING");
+if (!text("docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md").includes("ACTIVE_NORMATIVE__SYNCHRONIZED")) failures.push("REPOSITORY_SYNC_RECEIPT_MISSING");
+if (text("docs/continuity/03_CURRENT_STATE.md").includes("CONNECTOR_ACCESS_REQUIRED")) failures.push("STALE_GITHUB_ACCESS_BLOCKER_IN_CURRENT_STATE");
+if (!text("docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md").includes("SYNCHRONIZED")) failures.push("ROLLOVER_SYNC_STATE_MISSING");
 if (!text("docs/archive/README.md").includes("HISTORICAL_READ_ONLY")) failures.push("ARCHIVE_AUTHORITY_BOUNDARY_MISSING");
 if (!text("docs/README.md").includes("Do not read `docs/archive` as current authority")) failures.push("ACTIVE_ARCHIVE_READING_BOUNDARY_MISSING");
 

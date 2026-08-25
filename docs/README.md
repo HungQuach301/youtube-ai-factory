@@ -13,7 +13,7 @@ policy: GIT_REPOSITORY_SSOT_V1 + DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
 excluded: HungQuach301/youtube-ai-factory-v2
 ```
 
-The personal GitHub repository is owner-reported created but is not yet visible to the connected GitHub integration. Until exact SHA equality is proved, status remains `CONNECTOR_ACCESS_REQUIRED`.
+The private personal GitHub repository is connected and synchronized with the complete Sites Git history. Repository state is `SYNCHRONIZED`; every later material checkpoint must restore and prove exact SHA equality across local `HEAD`, `origin/main` and `github/main`.
 
 ## Required reading order
 

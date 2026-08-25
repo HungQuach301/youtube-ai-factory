@@ -1,7 +1,7 @@
 # Master Issue Registry
 
 **State:** `ACTIVE_CURRENT_ISSUES`  
-**Reconciled:** 2026-08-24
+**Reconciled:** 2026-08-25
 
 Closed and superseded issue history is preserved in [`../archive/snapshots/MASTER_ISSUE_REGISTRY.md`](../archive/snapshots/MASTER_ISSUE_REGISTRY.md). Only the items below may drive current work.
 
@@ -14,7 +14,6 @@ Closed and superseded issue history is preserved in [`../archive/snapshots/MASTE
 | X33 | P1 | Runtime still contains legacy quality/storage terminology and behavior | Migrate runtime/UI to V3 and `USER_CONTROLLED_RECOVERY_ARCHIVE`; design docs already corrected |
 | X34 | P1 | Hidden Systems Visual DNA is not executable independently of a renderer revision | Compile Visual DNA V1 into Phase 45 contracts; prove in R22 canary |
 | X35 | P1 | Provider/model/prompt/rubric/sampler drift may leave stale qualifications active | Implement automatic staleness and requalification |
-| X36 | P1 | Personal GitHub mirror cannot yet be synchronized | Grant GitHub integration repo access; fetch and prove exact three-ref equality |
 | X38 | P0 | Business authority/economics are not yet executable controls | Implement envelopes, exception ownership, portfolio reservation and accepted-output economics |
 | X39 | P0 | Typed runtime/event/timebase/fencing architecture is not implemented | Complete Phase 45 with stale-worker and exact replay tests |
 | X40 | P0 | Upstream production gates are documented but not executable end to end | Implement each DoR/self-check/independent gate/handoff contract |
