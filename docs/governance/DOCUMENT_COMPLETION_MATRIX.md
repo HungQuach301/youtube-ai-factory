@@ -1,7 +1,7 @@
 # Document Completion Matrix
 
 **State:** `ACTIVE_CURRENT_STATE`
-**Effective:** 2026-08-24
+**Effective:** 2026-08-25
 
 This matrix records where each approved concern is canonical. It prevents a chat answer or pasted design note from becoming an unindexed parallel specification.
 
@@ -30,7 +30,7 @@ This matrix records where each approved concern is canonical. It prevents a chat
 | Risks and open implementation work | `docs/governance/MASTER_ISSUE_REGISTRY.md` | Current open issues only; closed history archived |
 | Implementation sequence | `docs/roadmap/MASTER_ROADMAP.md` | Active Phases 44-48 only; prior roadmap archived |
 | Repository SSOT | `docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md` | Active |
-| Sites/GitHub SSOT, initial migration, divergence and recovery | `docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md` | Policy/migration complete; connector repository access required |
+| Sites/GitHub SSOT, initial migration, divergence and recovery | `docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md` | Complete; exact-SHA synchronization verified |
 | New-chat handoff | `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` | Updated |
 | Historical plans, execution evidence, diagnostics and snapshots | `docs/archive/README.md` | Read-only; no current authority |
 
@@ -41,6 +41,5 @@ This matrix records where each approved concern is canonical. It prevents a chat
 - Factory QA Cockpit and UI integration.
 - Judge/provider capability qualification.
 - R22 provider dispatch, master, QA, Browser, owner freeze, release or publication.
-- Connector access plus exact-SHA verification of the owner-reported-created GitHub mirror.
 
 These items remain roadmap work and cannot be described as implemented because their architecture is documented.

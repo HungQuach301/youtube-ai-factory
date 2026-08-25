@@ -66,6 +66,19 @@ const activeMarkdownFiles = [
   ...allDocumentation.filter((path) => !path.startsWith(archivePrefix)),
 ];
 const archiveMarkdownFiles = allDocumentation.filter((path) => path.startsWith(archivePrefix));
+const staleActiveSyncMarkers = [
+  "connector repository access required",
+  "connector access plus exact-sha verification",
+  "owner_reported_created__connector_access_required",
+];
+for (const source of activeMarkdownFiles) {
+  const normalized = readFileSync(source, "utf8").toLowerCase();
+  for (const marker of staleActiveSyncMarkers) {
+    if (normalized.includes(marker)) {
+      failures.push(`STALE_GITHUB_SYNC_BLOCKER:${relative(root, source)} -> ${marker}`);
+    }
+  }
+}
 const localLink = /\[[^\]]*\]\(([^)]+)\)/g;
 for (const source of activeMarkdownFiles) {
   const content = readFileSync(source, "utf8");
