@@ -1,7 +1,7 @@
 # Active Decision Log
 
 **State:** `ACTIVE_NORMATIVE_DECISIONS`  
-**Effective:** 2026-08-24
+**Effective:** 2026-08-25
 
 Only decisions that govern current and next work remain here. ADR-001 through ADR-122 are preserved in [`../archive/snapshots/04_DECISION_LOG.md`](../archive/snapshots/04_DECISION_LOG.md) and have no authority where they conflict with this log, current state or runtime evidence.
 
@@ -20,6 +20,10 @@ Only decisions that govern current and next work remain here. ADR-001 through AD
 | ADR-133 | `CROSS_CUTTING_CONTROL_STANDARD_V1`: privacy, Content ID, drift, retention, SLA, DR, accessibility, localization and incident controls cannot be weakened locally. |
 | ADR-134 | `ACTIVE_DOCS_AND_ARCHIVE_BOUNDARY_V1`: only the active index is ordinary development authority; superseded plans, execution records and old snapshots move to a read-only archive while Git history preserves recovery. |
 | ADR-135 | `INITIAL_GITHUB_MIRROR_MIGRATION_COMPLETE_V1`: the private personal repo contains the complete canonical Sites history; exact common baseline `2431a800…` was verified, bootstrap artifacts were removed from `main`, and future divergence is `SYNC_BLOCKED`. |
+| ADR-136 | `FACTORY_RUNTIME_CONTRACT_FOUNDATION_V1`: new Production planning uses immutable Factory-wide contracts and integer canonical timebase rather than renderer-revision tables; status changes are events, upstream changes append dependency invalidations, and migration `0106` grants no provider, R22 or release authority. |
+| ADR-137 | `BOUNDED_DUAL_REMOTE_RECONCILIATION_V1`: when the GitHub API canonicalizes an identical Sites source tree under a different commit identity, preserve the displaced Sites tip on an explicit recovery branch, verify identical tree bytes, and permit one exact-old-SHA `force-with-lease` update of Sites `main`; this receipt grants no standing force-push authority. |
+| ADR-138 | `CANONICAL_RUNTIME_SINGLE_WRITER_V1`: all new Factory stream mutation passes through one append-only command/event writer with optimistic expected version/state, exclusive expiring lease, monotonic fencing, persisted rejection, projection checkpoint and exact replay receipt. The public route is SIWC/allowlist protected, disabled by default, zero-spend and R22-blocked until separately authorized. |
+| ADR-139 | `CONCURRENT_GITHUB_TIP_FORWARD_RECONCILIATION_V1`: concurrent merge `03434774…` is retained as a parent for audit but its older source tree and statement that Phase 45 belongs to V2 are non-normative. Reconciliation must use a forward merge with the reviewed canonical tree, never force-push; `youtube-ai-factory-v2` remains excluded. |
 
 ## Shared decision constraints
 

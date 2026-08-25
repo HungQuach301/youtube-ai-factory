@@ -18,6 +18,10 @@ Canonical identity:          one exact commit SHA on main
 
 The new private `HungQuach301/youtube-ai-factory` repository is connected. Its bootstrap history was replaced by the complete canonical Sites history after checksum verification and a non-destructive staging-branch proof. Exact common commit `2431a800d2d540bcfea141c98c9977cd46667950` was independently observed on Sites `origin/main` and GitHub `main` on 2026-08-25. The bootstrap workflow and bundle parts are absent from canonical `main`.
 
+Phase 45 synchronization receipt: the exact source tree first deployed by Sites was written to the private personal repository and canonicalized as commit `4c45e5bd36ec69c0eb09682fba3b411c723b84b2`, preserving parent `5f874568…` and tree `90a88e46…`. Because the GitHub API necessarily assigned a different commit identity to those identical bytes, displaced Sites tip `e16c8a0c…` was first preserved on `recovery/sites-e16c8a0-phase45`, then Sites `main` received one bounded `force-with-lease` update pinned to exact old SHA `e16c8a0c…`. The subsequent checkpoint restored exact equality across local `HEAD`, Sites `origin/main` and GitHub `main`. This exception is recoverable, content-preserving and grants no standing force-push authority. All later material changes must repeat the normal no-rewrite proof before new implementation begins.
+
+Concurrent-tip receipt: while the canonical runtime writer checkpoint was being published, GitHub `main` advanced from common base `b6583a23…` to merge `03434774…`, whose tree restored an older baseline and whose message incorrectly assigned Phase 45 to V2. Publication stopped without force. The resolution preserves `03434774…` in ancestry, records its source/V2 claim as non-normative under ADR-139, and creates a forward merge using the reviewed canonical tree. This is a divergence reconciliation, not permission to import V2 or discard concurrent history.
+
 ## Initial mirror migration receipt
 
 | Evidence | Verified result |

@@ -99,3 +99,7 @@ Secrets are connection-scoped and server-only. Least privilege separates Product
 7. Learning, scale and rollback services.
 
 R22 may compile only after its exact Phase 1-6 dependencies are implemented and qualified.
+
+## Current implementation evidence
+
+Migrations `0106` and `0107` implement the contract/timebase foundation and canonical stream writer. The active implementation persists commands and events through optimistic expected state/version, exclusive leases and monotonic fencing; records rejected conflicts; materializes transitive dependency staleness; and verifies exact event replay against the stored projection hash. The authenticated runtime route is fail-closed, disabled by default, zero-spend and R22-blocked. Qualified worker integration, Provider Gateway, compilers, renderer, assurance and UI projections remain later work and gain no authority from this implementation evidence.
