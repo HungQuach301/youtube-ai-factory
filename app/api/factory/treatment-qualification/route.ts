@@ -70,7 +70,8 @@ export async function POST(request: Request) {
     if (!authorized || !actorEmail || !allowlist.has(actorEmail)) return failure("OWNER_EXPERT_AUTHORIZATION_REQUIRED", "A bounded owner qualification credential is required", 403);
     const body = record(JSON.parse(await readBody(request)));
     if (String(body.action || "").toUpperCase() !== "QUALIFY_HIDDEN_SYSTEMS_TREATMENTS") return failure("QUALIFICATION_ACTION_UNSUPPORTED", "Use the exact bounded treatment qualification action", 400);
-    if (Number(body.providerRequests ?? 0) !== 0 || Number(body.spendMicros ?? 0) !== 0 || JSON.stringify(body).toUpperCase().includes("R22")) throw new FactoryRuntimeError("QUALIFICATION_AUTHORITY_BOUNDARY_VIOLATED", 409, "The treatment qualification request cannot dispatch, spend or name R22");
+    const authorityPayload = JSON.stringify({ action: body.action, corpus: body.corpus, execution: body.execution }).toUpperCase();
+    if (Number(body.providerRequests ?? 0) !== 0 || Number(body.spendMicros ?? 0) !== 0 || authorityPayload.includes("R22")) throw new FactoryRuntimeError("QUALIFICATION_AUTHORITY_BOUNDARY_VIOLATED", 409, "The treatment qualification request cannot dispatch, spend or name R22");
     const corpus = record(body.corpus) as unknown as HiddenSystemsTreatmentCorpus;
     const execution = record(body.execution) as unknown as HiddenSystemsTreatmentExecutionReceipt;
     const outputBytes = decodeBase64(body.outputBase64);

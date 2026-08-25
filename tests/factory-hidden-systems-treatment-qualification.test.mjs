@@ -79,7 +79,9 @@ test("migration 0112 installs append-only production-scale treatment qualificati
   assert.match(route, /FACTORY_RUNTIME_WRITER_ENABLED/);
   assert.match(route, /x-factory-runtime-qualification-token/);
   assert.match(route, /QUALIFY_HIDDEN_SYSTEMS_TREATMENTS/);
-  assert.match(route, /includes\("R22"\)/);
+  assert.match(route, /authorityPayload\.includes\("R22"\)/);
+  assert.match(route, /action: body\.action, corpus: body\.corpus, execution: body\.execution/);
+  assert.doesNotMatch(route, /JSON\.stringify\(body\)\.toUpperCase\(\)\.includes\("R22"\)/);
   assert.doesNotMatch(route, /getChatGPTUser|api\.openai\.com|elevenlabs\.io/);
 });
 
