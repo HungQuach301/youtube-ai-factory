@@ -24,6 +24,8 @@ Concurrent-tip receipt: while the canonical runtime writer checkpoint was being 
 
 Runtime-writer deployment receipt: the reconciled source tree built and deployed as Sites version 514; deployment `appgdep_6a8cf594c1c08191a846ec8365522b8c` succeeded and the live D1 overview verified nineteen `factory_*` tables including the seven `0107` writer/replay tables. The checkpoint made no provider request and changed no R21/R22 Production bytes.
 
+Gateway/compiler deployment receipt: migration `0108` and its zero-dispatch runtime source built and deployed as Sites version 516; deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded and the live D1 overview verified twenty-eight `factory_*` tables. Writer/compiler feature flags remain disabled, no provider request or spend occurred, and no R21/R22 Production bytes changed.
+
 ## Initial mirror migration receipt
 
 | Evidence | Verified result |

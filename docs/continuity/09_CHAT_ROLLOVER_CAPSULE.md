@@ -20,7 +20,7 @@
 - Browser, owner freeze, release and publication are blocked.
 - Phase 45 foundation `4c45e5bd…` is canonicalized and deployed: migration `0106` and its twelve `factory_*` tables are verified in live D1.
 - Migration `0107`, the single command/event writer, leases/fencing, persisted stale projections and exact replay deployed in Sites version 514; all nineteen `factory_*` tables are verified in live D1. The SIWC/allowlist-protected route remains disabled by default, zero-spend and R22-blocked.
-- Migration `0108`, the zero-dispatch Provider Gateway and deterministic Visual Profile -> Blueprint -> Shot Contract -> Scene Graph compiler are implemented and locally verified. Deployment/live-D1 verification is the active checkpoint; automatic fallback, provider dispatch, R22 and Production rendering remain blocked.
+- Migration `0108`, the zero-dispatch Provider Gateway and deterministic Visual Profile -> Blueprint -> Shot Contract -> Scene Graph compiler deployed in Sites version 516; all twenty-eight `factory_*` tables are verified in live D1 and the deployment-receipt commit is synchronized exactly to private GitHub. Automatic fallback, provider dispatch, R22 and Production rendering remain blocked.
 - Local, Sites and private GitHub `main` are synchronized on one exact commit after the Phase 45 synchronization checkpoint.
 - `HungQuach301/youtube-ai-factory` contains the complete Sites Git history; the verified common baseline is `2431a800d2d540bcfea141c98c9977cd46667950`.
 - `HungQuach301/youtube-ai-factory-v2` is never an upstream, mirror, fallback or recovery source.
@@ -34,7 +34,7 @@ Before the next mutation, re-prove:
 HEAD = origin/main = github/main
 ```
 
-Then deploy/verify migration `0108`, preserve exact dual-remote equality, and implement the deterministic Scene Graph Renderer plus qualified worker/recovery path. Do not reconstruct from chat, re-run R21, dispatch R22, weaken a gate or publish.
+Then implement the deterministic Scene Graph Renderer plus qualified worker/recovery path. Do not reconstruct from chat, re-run R21, dispatch R22, weaken a gate or publish.
 
 ## Rollover completion
 

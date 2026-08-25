@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__ZERO_DISPATCH_GATEWAY_AND_COMPILER_SOURCE_COMPLETE`
+**Status:** `IN_PROGRESS__ZERO_DISPATCH_GATEWAY_AND_COMPILER_DEPLOYED`
 
 Implement:
 
@@ -65,7 +65,7 @@ Completed in the third bounded Phase 45 slice:
 - compiler records, artifact lineage and route decisions commit atomically with `ArtifactMaterialized` through the fenced canonical writer;
 - the authenticated API adds a separately disabled compiler action while retaining zero-spend and R22 blocks.
 
-Local source evidence passes 228/228 repository tests, 10/10 targeted Gateway/compiler/writer tests, the verified Production build and documentation SSOT gate. Deployment of migration `0108` and exact dual-remote synchronization remain the next checkpoint. Actual provider dispatch/reconciliation, renderer workers, L0-L7 assurance and all R22 authority remain incomplete.
+Evidence passes 228/228 repository tests, 10/10 targeted Gateway/compiler/writer tests, the verified Production build and documentation SSOT gate. Sites version 516 deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded, live D1 exposes all twenty-eight `factory_*` tables and the deployment-receipt commit is synchronized exactly to private GitHub. Actual provider dispatch/reconciliation, renderer workers, L0-L7 assurance and all R22 authority remain incomplete.
 
 ## Phase 46 — R22 canary
 
