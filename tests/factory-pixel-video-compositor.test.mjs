@@ -210,6 +210,7 @@ test("migrations 0110-0111 install append-only canary admission and one bounded 
   assert.match(route, /action === "RUN_NON_R22_LIVE_CANARY_QUALIFICATION"/);
   assert.match(route, /await secretMatches/);
   assert.match(route, /if \(!left \|\| !right\) return false/);
+  assert.match(route, /assertR22Blocked\(env, body, action\)/);
 });
 
 test("controlled FFmpeg executor produces exact-repeat VP9 bytes from one sealed SOURCE/MAKE/HYBRID package", { skip: spawnSync("ffmpeg", ["-version"]).status !== 0 || spawnSync("ffprobe", ["-version"]).status !== 0 }, () => {

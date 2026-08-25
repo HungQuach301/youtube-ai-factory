@@ -119,8 +119,9 @@ function assertZeroSpend(body: JsonRecord) {
   }
 }
 
-function assertR22Blocked(env: RuntimeEnv, body: JsonRecord) {
+function assertR22Blocked(env: RuntimeEnv, body: JsonRecord, action = "") {
   if (env.FACTORY_RUNTIME_R22_AUTHORIZED === "true") return;
+  if (action === "RUN_NON_R22_LIVE_CANARY_QUALIFICATION") return;
   if (JSON.stringify(body).toUpperCase().includes("R22")) throw new FactoryRuntimeError("R22_RUNTIME_NOT_AUTHORIZED", 409, "R22 remains design-only and cannot be dispatched by this runtime slice");
 }
 
@@ -180,7 +181,7 @@ export async function POST(request: Request) {
     try { decoded = JSON.parse(raw); } catch { return failure("COMMAND_JSON_INVALID", "The request body is not valid JSON", 400); }
     const body = record(decoded), action = string(body.action).toUpperCase();
     assertZeroSpend(body);
-    assertR22Blocked(env, body);
+    assertR22Blocked(env, body, action);
     const user = await authorize(env, request, action);
     const actor = { actorType: "OWNER" as const, actorId: user.email };
 
