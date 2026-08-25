@@ -114,7 +114,7 @@ Completed in source in the eighth bounded Phase 45 provider-control slice:
 - fallback requires a separate one-time owner-approved plan pointing to the declared same-capability, active and currently qualified binding; automatic fallback remains blocked;
 - all reservation, reconciliation and fallback records structurally retain zero dispatch, retry, R22, master, release and publication authority.
 
-Evidence passes 3/3 focused provider-control tests and 244/244 repository tests plus the verified Production build. This is source qualification only: no API dispatch path, provider credential, provider request, spend or live D1 mutation is opened. Conservative reservation accounting does not auto-credit settled reservations; an explicit settlement-ledger policy is required before any future dispatch authority.
+Evidence passes 3/3 focused provider-control tests and 244/244 repository tests plus the verified Production build and documentation gate. Sites v533 fails closed on the first compound D1 budget-trigger form before publication. The same atomic policy is split into D1-safe request/spend guards, and Sites v534 succeeds; read-back finds all five `0113` tables with zero rows while environment revision 50 retains no temporary flags. No API dispatch path, provider credential, provider request or spend is opened. Conservative reservation accounting does not auto-credit settled reservations; an explicit settlement-ledger policy is required before any future dispatch authority.
 
 ## Phase 46 — R22 canary
 
