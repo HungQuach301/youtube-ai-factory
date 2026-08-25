@@ -205,6 +205,11 @@ test("migrations 0110-0111 install append-only canary admission and one bounded 
   assert.match(qualification, /FACTORY_LIVE_CANARY_QUALIFICATION_RECEIPTS_APPEND_ONLY/);
   assert.match(route, /FACTORY_NON_R22_CANARY_QUALIFICATION_ENABLED !== "true"/);
   assert.match(route, /RUN_NON_R22_LIVE_CANARY_QUALIFICATION/);
+  assert.match(route, /x-factory-runtime-qualification-token/);
+  assert.match(route, /FACTORY_RUNTIME_QUALIFICATION_TOKEN/);
+  assert.match(route, /action === "RUN_NON_R22_LIVE_CANARY_QUALIFICATION"/);
+  assert.match(route, /await secretMatches/);
+  assert.match(route, /if \(!left \|\| !right\) return false/);
 });
 
 test("controlled FFmpeg executor produces exact-repeat VP9 bytes from one sealed SOURCE/MAKE/HYBRID package", { skip: spawnSync("ffmpeg", ["-version"]).status !== 0 || spawnSync("ffprobe", ["-version"]).status !== 0 }, () => {

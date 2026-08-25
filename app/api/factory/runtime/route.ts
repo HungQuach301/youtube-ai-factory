@@ -42,6 +42,9 @@ type RuntimeEnv = {
   FACTORY_ASSET_ELIGIBILITY_ENABLED?: string;
   FACTORY_PIXEL_COMPOSITOR_ENABLED?: string;
   FACTORY_NON_R22_CANARY_QUALIFICATION_ENABLED?: string;
+  FACTORY_RUNTIME_QUALIFICATION_TOKEN?: string;
+  FACTORY_AUTOMATION_ACTOR_EMAIL?: string;
+  FACTORY_AUTOMATION_ACTOR_NAME?: string;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -67,8 +70,38 @@ function ownerAllowlist(env: RuntimeEnv) {
   return new Set(String(env.FACTORY_EXPERT_EMAILS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
 }
 
-async function authorize(env: RuntimeEnv) {
-  const user = await getChatGPTUser();
+async function secretMatches(left: string, right: string) {
+  if (!left || !right) return false;
+  const encode = (value: string) => new TextEncoder().encode(value);
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encode(left)),
+    crypto.subtle.digest("SHA-256", encode(right)),
+  ]);
+  const av = new Uint8Array(a), bv = new Uint8Array(b);
+  let difference = av.length ^ bv.length;
+  for (let index = 0; index < Math.min(av.length, bv.length); index += 1) difference |= av[index] ^ bv[index];
+  return difference === 0;
+}
+
+async function authorize(env: RuntimeEnv, request?: Request, action = "") {
+  let user = await getChatGPTUser();
+  const qualificationCredential =
+    action === "RUN_NON_R22_LIVE_CANARY_QUALIFICATION" &&
+    request &&
+    await secretMatches(
+      request.headers.get("x-factory-runtime-qualification-token") || "",
+      env.FACTORY_RUNTIME_QUALIFICATION_TOKEN || "",
+    );
+  if (!user && qualificationCredential) {
+    const email = String(env.FACTORY_AUTOMATION_ACTOR_EMAIL || "").trim();
+    if (email) {
+      user = {
+        email,
+        displayName: String(env.FACTORY_AUTOMATION_ACTOR_NAME || email),
+        fullName: null,
+      };
+    }
+  }
   if (!user) throw new FactoryRuntimeError("SIWC_AUTHENTICATION_REQUIRED", 401, "Sign in with ChatGPT before using the Factory runtime");
   const allowlist = ownerAllowlist(env);
   if (!allowlist.size) throw new FactoryRuntimeError("EXPERT_ALLOWLIST_UNCONFIGURED", 503, "The server-side owner/expert allowlist is not configured");
@@ -138,7 +171,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const env = await runtime(), user = await authorize(env);
+    const env = await runtime();
     if (!env.DB) return failure("CANONICAL_DATABASE_UNAVAILABLE", "Canonical database binding is unavailable", 503);
     if (env.FACTORY_RUNTIME_WRITER_ENABLED !== "true") return failure("FACTORY_RUNTIME_WRITER_DISABLED", "The canonical runtime writer is disabled until an explicit deployment authorization is configured", 503);
     if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) return failure("JSON_CONTENT_TYPE_REQUIRED", "Content-Type must be application/json", 415);
@@ -148,6 +181,7 @@ export async function POST(request: Request) {
     const body = record(decoded), action = string(body.action).toUpperCase();
     assertZeroSpend(body);
     assertR22Blocked(env, body);
+    const user = await authorize(env, request, action);
     const actor = { actorType: "OWNER" as const, actorId: user.email };
 
     if (action === "RESERVE_WORK") return Response.json(await reserveFactoryRuntimeWork(env.DB, {
