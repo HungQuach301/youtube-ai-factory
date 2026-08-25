@@ -163,21 +163,22 @@ export async function persistHiddenSystemsTreatmentQualification(db: FactoryRunt
     if (clean(existing.evidence_hash) !== plan.evidenceHash) throw new FactoryRuntimeError("TREATMENT_QUALIFICATION_IDEMPOTENCY_CONFLICT", 409, "The exact qualification key is bound to different evidence");
     return { outcome: "IDEMPOTENT_REPLAY" as const, packageId: plan.packageId, evidenceHash: plan.evidenceHash, providerRequests: 0, spendMicros: 0 };
   }
-  await db.prepare(`INSERT INTO factory_treatment_qualification_packages
+  const statements = [db.prepare(`INSERT INTO factory_treatment_qualification_packages
     (id,qualification_key,channel_id,visual_profile_policy,standard_version,corpus_version,corpus_hash,settings_hash,encoder_build_hash,compositor_version,encoder_version,width,height,frame_rate_numerator,frame_rate_denominator,case_count,required_routes_json,required_treatments_json,output_hash,readback_hash,deterministic_replay_hash,verification_state,authority_boundary,r22_authority,master_authority,release_authority,publication_authority,zero_dispatch,provider_requests,spend_micros,evidence_hash)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'PASS',?,0,0,0,0,1,0,0,?)`).bind(
       plan.packageId, plan.qualificationKey, corpus.channelId, corpus.visualProfilePolicy, corpus.standardVersion, corpus.contractVersion, plan.corpusHash, plan.settingsHash,
       execution.encoderBuildHash, corpus.compositor.version, corpus.compositor.encoderVersion, corpus.output.width, corpus.output.height, corpus.output.frameRateNumerator,
       corpus.output.frameRateDenominator, plan.caseReceipts.length, canonicalStringify([...routes].sort()), canonicalStringify([...requiredTreatments].sort()),
-      execution.output.sha256, execution.output.readbackHash, execution.output.deterministicReplayHash, HIDDEN_SYSTEMS_TREATMENT_AUTHORITY, plan.evidenceHash).run();
+      execution.output.sha256, execution.output.readbackHash, execution.output.deterministicReplayHash, HIDDEN_SYSTEMS_TREATMENT_AUTHORITY, plan.evidenceHash)];
   for (const receipt of plan.caseReceipts) {
     const caseId = deterministicId("factory-treatment-case", await canonicalHash({ packageId: plan.packageId, receipt }));
-    await db.prepare(`INSERT INTO factory_treatment_qualification_case_receipts
+    statements.push(db.prepare(`INSERT INTO factory_treatment_qualification_case_receipts
       (id,package_id,case_key,treatment_family,route,topology_hash,state_sample_hashes_json,state_count,minimum_font_px,maximum_simultaneous_labels,contrast_ratio,safe_margin_px,color_redundancy_state,future_state_suppression_state,anti_slide_state,asset_preparation_state,dataset_hash,parent_asset_hash,transform_manifest_hash,derivative_hash,verification_state,evidence_hash)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'PASS',?)`).bind(
         caseId, plan.packageId, receipt.caseKey, receipt.treatmentFamily, receipt.route, receipt.topologyHash, canonicalStringify(receipt.stateSampleHashes), receipt.stateCount,
         receipt.minimumFontPx, receipt.maximumSimultaneousLabels, receipt.contrastRatio, receipt.safeMarginPx, receipt.colorRedundancyState, receipt.futureStateSuppressionState,
-        receipt.antiSlideState, receipt.assetPreparationState, receipt.datasetHash, receipt.parentAssetHash, receipt.transformManifestHash, receipt.derivativeHash, receipt.evidenceHash).run();
+        receipt.antiSlideState, receipt.assetPreparationState, receipt.datasetHash, receipt.parentAssetHash, receipt.transformManifestHash, receipt.derivativeHash, receipt.evidenceHash));
   }
+  await db.batch(statements);
   return { outcome: "QUALIFIED" as const, packageId: plan.packageId, evidenceHash: plan.evidenceHash, caseCount: plan.caseReceipts.length, providerRequests: 0, spendMicros: 0, authorityBoundary: HIDDEN_SYSTEMS_TREATMENT_AUTHORITY };
 }

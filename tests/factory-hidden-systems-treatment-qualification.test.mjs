@@ -5,11 +5,12 @@ import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { canonicalHash } from "../lib/canonical-json.ts";
+import { canonicalHash, sha256Hex } from "../lib/canonical-json.ts";
 import {
   evaluateHiddenSystemsTreatmentQualification,
   persistHiddenSystemsTreatmentQualification,
 } from "../lib/factory-hidden-systems-treatment-qualification.ts";
+import { runHiddenSystemsTreatmentLiveQualification } from "../lib/factory-hidden-systems-treatment-live-runner.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -27,13 +28,26 @@ function d1(database) {
         async run() { const result = statement.run(...values); return { success: true, meta: { changes: result.changes } }; },
       };
     },
-    async batch(statements) { const output = []; for (const statement of statements) output.push(await statement.run()); return output; },
+    async batch(statements) {
+      database.exec("BEGIN IMMEDIATE");
+      try { const output = []; for (const statement of statements) output.push(await statement.run()); database.exec("COMMIT"); return output; }
+      catch (error) { database.exec("ROLLBACK"); throw error; }
+    },
   };
 }
 
-async function syntheticExecution(input) {
+function bucket() {
+  const objects = new Map();
+  return {
+    objects,
+    async put(key, value) { objects.set(key, new Uint8Array(value)); },
+    async get(key) { const value = objects.get(key); return value ? { async arrayBuffer() { return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength); } } : null; },
+  };
+}
+
+async function syntheticExecution(input, outputBytes = null) {
   const corpusHash = await canonicalHash(input), settingsHash = await canonicalHash(input.compositor.settings);
-  const outputHash = await canonicalHash({ corpusHash, settingsHash, output: input.output });
+  const outputHash = outputBytes ? await sha256Hex(outputBytes) : await canonicalHash({ corpusHash, settingsHash, output: input.output });
   return {
     contractVersion: "HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION_V1",
     corpusHash,
@@ -60,6 +74,33 @@ test("migration 0112 installs append-only production-scale treatment qualificati
   assert.match(migration, /INTERNAL_TREATMENT_QUALIFICATION_ONLY/);
   assert.match(migration, /FACTORY_TREATMENT_QUALIFICATION_PACKAGES_APPEND_ONLY/);
   assert.doesNotMatch(migration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2/);
+  const route = read("app/api/factory/treatment-qualification/route.ts");
+  assert.match(route, /FACTORY_HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION_ENABLED/);
+  assert.match(route, /FACTORY_RUNTIME_WRITER_ENABLED/);
+  assert.match(route, /x-factory-runtime-qualification-token/);
+  assert.match(route, /QUALIFY_HIDDEN_SYSTEMS_TREATMENTS/);
+  assert.match(route, /includes\("R22"\)/);
+  assert.doesNotMatch(route, /getChatGPTUser|api\.openai\.com|elevenlabs\.io/);
+});
+
+test("bounded live runner writes exact WebM to R2 and atomically reads back one package plus ten cases", async () => {
+  const input = corpus(), outputBytes = new TextEncoder().encode("bounded-production-scale-treatment-output-v1"), execution = await syntheticExecution(input, outputBytes);
+  const database = new DatabaseSync(":memory:"); database.exec("PRAGMA foreign_keys=ON");
+  for (const migration of migrations) database.exec(read(`drizzle/${migration}`));
+  const storage = bucket(), env = { DB: d1(database), BUCKET: storage };
+  const result = await runHiddenSystemsTreatmentLiveQualification(env, input, execution, outputBytes);
+  assert.equal(result.outcome, "QUALIFIED");
+  assert.equal(result.caseCount, 10);
+  assert.equal(result.r22Authority, false);
+  assert.equal(result.providerRequests, 0);
+  assert.equal(result.spendMicros, 0);
+  assert.equal(storage.objects.size, 1);
+  const replay = await runHiddenSystemsTreatmentLiveQualification(env, input, execution, outputBytes);
+  assert.equal(replay.outcome, "IDEMPOTENT_REPLAY");
+  assert.equal(database.prepare("SELECT COUNT(*) total FROM factory_treatment_qualification_packages").get().total, 1);
+  assert.equal(database.prepare("SELECT COUNT(*) total FROM factory_treatment_qualification_case_receipts").get().total, 10);
+  const tampered = new TextEncoder().encode("tampered");
+  await assert.rejects(() => runHiddenSystemsTreatmentLiveQualification(env, input, execution, tampered), /does not match the exact execution receipt/);
 });
 
 test("Hidden Systems corpus qualifies exact geometry, ten distinct treatments, three routes and asset preparation lineage", async () => {
