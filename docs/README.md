@@ -13,7 +13,7 @@ policy: GIT_REPOSITORY_SSOT_V1 + DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
 excluded: HungQuach301/youtube-ai-factory-v2
 ```
 
-The private personal GitHub repository is connected and contains the complete Sites history. Exact dual-remote equality was restored at `3d752ad907989d8ad16f9ecce092975e66767657`; the bounded temporary workflow and bundle self-removed and trigger issue `#4` was closed. Migration `0108` and the zero-dispatch Gateway/compiler deployed in Sites version 516. Synchronized checkpoints must preserve `HEAD = origin/main = github/main`; all later changes use the forward-only exact-object protocol and must not reuse the completed force authority. Every material checkpoint must re-prove equality.
+The private personal GitHub repository is connected and contains the complete Sites history. Exact dual-remote equality was restored at `3d752ad907989d8ad16f9ecce092975e66767657`; the bounded temporary workflow and bundle self-removed and trigger issue `#4` was closed. Migrations `0108`-`0109` implement the zero-dispatch Gateway/compiler plus deterministic exact-byte render-tape worker. Synchronized checkpoints must preserve `HEAD = origin/main = github/main`; all later changes use the forward-only exact-object protocol and must not reuse the completed force authority. Every material checkpoint must re-prove equality.
 
 ## Required reading order
 

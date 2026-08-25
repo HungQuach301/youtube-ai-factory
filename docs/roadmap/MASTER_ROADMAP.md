@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__ZERO_DISPATCH_GATEWAY_AND_COMPILER_DEPLOYED`
+**Status:** `IN_PROGRESS__DETERMINISTIC_RENDER_TAPE_WORKER_DEPLOYED`
 
 Implement:
 
@@ -66,6 +66,17 @@ Completed in the third bounded Phase 45 slice:
 - the authenticated API adds a separately disabled compiler action while retaining zero-spend and R22 blocks.
 
 Evidence passes 228/228 repository tests, 10/10 targeted Gateway/compiler/writer tests, the verified Production build and documentation SSOT gate. Sites version 516 deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded and live D1 exposes all twenty-eight `factory_*` tables. Exact dual-remote synchronization completed at `3d752ad907989d8ad16f9ecce092975e66767657`; the temporary workflow and bundle self-removed, trigger issue `#4` closed, and the bounded force authority expired. Sites version 520 records the completion and the forward-only exact-object protocol for later checkpoints. Actual provider dispatch/reconciliation, renderer workers, L0-L7 assurance and all R22 authority remain incomplete.
+
+Completed in the fourth bounded Phase 45 slice:
+
+- migration `0109_factory_scene_renderer_and_workers.sql` adds append-only qualified worker bindings, fenced render jobs and exact-byte render receipts;
+- `factory-scene-graph-renderer` independently reproduces canonical per-frame semantic operation tapes from the exact Scene Graph/timebase and rejects mismatched graph/input snapshots;
+- content-addressed render-tape bytes are written to R2, read back and hash/size verified before the canonical writer records artifact and `RENDERED_FROM` lineage;
+- inactive, expired, settings-stale or unqualified workers fail closed; expired fences fail before storage mutation and a writer race cannot create an authoritative receipt;
+- SOURCE/HYBRID nodes require exact asset-version bindings, so missing real-media inputs cannot be replaced by generic visuals;
+- the authenticated action has a separately disabled renderer flag and retains zero provider requests, zero spend and the R22 block.
+
+Evidence passes 231/231 repository tests, 13/13 focused Gateway/compiler/writer/renderer tests, the verified Production build and documentation SSOT gate. Sites version 521 deploys migration `0109` and live D1 exposes thirty-one `factory_*` tables. The output is a deterministic render tape, not a pixel/video master; asset-qualified composition, integrated canary, provider dispatch/reconciliation, L0-L7 assurance and all R22 authority remain incomplete.
 
 ## Phase 46 — R22 canary
 

@@ -2685,3 +2685,36 @@ export const factoryProductionCompilationReceipts = sqliteTable("factory_product
   uniqueIndex("factory_production_compilation_idempotency_uq").on(table.idempotencyKey),
   uniqueIndex("factory_production_compilation_video_output_uq").on(table.videoId, table.outputHash),
 ]);
+
+export const factoryRenderWorkerBindings = sqliteTable("factory_render_worker_bindings", {
+  id: text("id").primaryKey(), providerBindingId: text("provider_binding_id").notNull().references(() => factoryProviderBindings.id), qualificationId: text("qualification_id").notNull().references(() => factoryCapabilityQualifications.id),
+  workerKey: text("worker_key").notNull(), workerVersion: text("worker_version").notNull(), rendererVersion: text("renderer_version").notNull(), inputSchemaHash: text("input_schema_hash").notNull(),
+  outputSchemaHash: text("output_schema_hash").notNull(), settingsHash: text("settings_hash").notNull(), maxFramesPerJob: integer("max_frames_per_job").notNull(), lifecycleState: text("lifecycle_state").notNull(),
+  evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_render_worker_version_uq").on(table.workerKey, table.workerVersion, table.settingsHash),
+  index("factory_render_worker_route_idx").on(table.lifecycleState, table.rendererVersion),
+]);
+
+export const factorySceneRenderJobs = sqliteTable("factory_scene_render_jobs", {
+  id: text("id").primaryKey(), videoId: text("video_id").notNull(), sceneGraphId: text("scene_graph_id").notNull().references(() => factorySceneGraphs.id),
+  workerBindingId: text("worker_binding_id").notNull().references(() => factoryRenderWorkerBindings.id), leaseId: text("lease_id").notNull().references(() => factoryRuntimeLeases.id),
+  fencingToken: integer("fencing_token").notNull(), frameStart: integer("frame_start").notNull(), frameEndExclusive: integer("frame_end_exclusive").notNull(), inputHash: text("input_hash").notNull(),
+  renderProgramHash: text("render_program_hash").notNull(), outputHash: text("output_hash").notNull(), idempotencyKey: text("idempotency_key").notNull(), lifecycleState: text("lifecycle_state").notNull(),
+  providerRequests: integer("provider_requests").notNull(), spendMicros: integer("spend_micros").notNull(), commandId: text("command_id").notNull().references(() => factoryRuntimeCommands.id),
+  eventId: text("event_id").notNull().references(() => factoryRuntimeEvents.id), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_scene_render_job_idempotency_uq").on(table.idempotencyKey),
+  uniqueIndex("factory_scene_render_job_output_uq").on(table.sceneGraphId, table.workerBindingId, table.frameStart, table.frameEndExclusive, table.outputHash),
+]);
+
+export const factorySceneRenderReceipts = sqliteTable("factory_scene_render_receipts", {
+  id: text("id").primaryKey(), renderJobId: text("render_job_id").notNull().references(() => factorySceneRenderJobs.id), artifactVersionId: text("artifact_version_id").notNull().references(() => factoryArtifactVersions.id),
+  rendererVersion: text("renderer_version").notNull(), storageKey: text("storage_key").notNull(), mimeType: text("mime_type").notNull(), byteSize: integer("byte_size").notNull(),
+  outputHash: text("output_hash").notNull(), readbackHash: text("readback_hash").notNull(), deterministicReplayHash: text("deterministic_replay_hash").notNull(), verificationState: text("verification_state").notNull(),
+  zeroDispatch: integer("zero_dispatch", { mode: "boolean" }).notNull(), providerRequests: integer("provider_requests").notNull(), spendMicros: integer("spend_micros").notNull(),
+  evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_scene_render_receipt_job_uq").on(table.renderJobId),
+  uniqueIndex("factory_scene_render_receipt_artifact_uq").on(table.artifactVersionId),
+]);

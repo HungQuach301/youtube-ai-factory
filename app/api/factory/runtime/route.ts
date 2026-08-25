@@ -12,6 +12,11 @@ import {
   type FactoryRuntimeDB,
 } from "@/lib/factory-runtime-writer";
 import { persistFactoryProductionCompilation, type FactoryProductionCompilationInput } from "@/lib/factory-production-compiler";
+import {
+  materializeFactorySceneGraphRender,
+  type FactoryRenderBucket,
+  type FactorySceneRenderInput,
+} from "@/lib/factory-scene-graph-renderer";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +25,12 @@ const MAX_BODY_BYTES = 48_000;
 
 type RuntimeEnv = {
   DB?: FactoryRuntimeDB;
+  BUCKET?: FactoryRenderBucket;
   FACTORY_EXPERT_EMAILS?: string;
   FACTORY_RUNTIME_WRITER_ENABLED?: string;
   FACTORY_RUNTIME_R22_AUTHORIZED?: string;
   FACTORY_PRODUCTION_COMPILER_ENABLED?: string;
+  FACTORY_SCENE_RENDERER_ENABLED?: string;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -150,6 +157,13 @@ export async function POST(request: Request) {
       if (env.FACTORY_PRODUCTION_COMPILER_ENABLED !== "true") return failure("FACTORY_PRODUCTION_COMPILER_DISABLED", "The production compiler is disabled until an explicit deployment authorization is configured", 503);
       const compilation = recordOrEmpty(body.compilation) as unknown as FactoryProductionCompilationInput;
       return Response.json(await persistFactoryProductionCompilation(env.DB, { ...compilation, createdBy: user.email }, runtimeCommand(body.command, actor)), { status: 201, headers: NO_STORE });
+    }
+
+    if (action === "RENDER_SCENE_GRAPH") {
+      if (env.FACTORY_SCENE_RENDERER_ENABLED !== "true") return failure("FACTORY_SCENE_RENDERER_DISABLED", "The deterministic Scene Graph Renderer is disabled until an explicit deployment authorization is configured", 503);
+      if (!env.BUCKET) return failure("ACTIVE_MEDIA_STORAGE_UNAVAILABLE", "The active media storage binding is unavailable", 503);
+      const render = recordOrEmpty(body.render) as unknown as FactorySceneRenderInput;
+      return Response.json(await materializeFactorySceneGraphRender({ DB: env.DB, BUCKET: env.BUCKET }, render, runtimeCommand(body.command, actor)), { status: 201, headers: NO_STORE });
     }
 
     if (action === "RECONCILE_ORPHAN") return Response.json(await reconcileFactoryRuntimeOrphan(env.DB, {

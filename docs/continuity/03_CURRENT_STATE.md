@@ -16,15 +16,16 @@ PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
-PHASE_45 = IN_PROGRESS__ZERO_DISPATCH_PROVIDER_GATEWAY_AND_COMPILER_DEPLOYED
-SOURCE_MIGRATION = 0108_FACTORY_PROVIDER_GATEWAY_AND_COMPILERS
-SOURCE_MIGRATION_LIVE_D1 = VERIFIED__28_FACTORY_TABLES
+PHASE_45 = IN_PROGRESS__DETERMINISTIC_RENDER_TAPE_WORKER_DEPLOYED
+SOURCE_MIGRATION = 0109_FACTORY_SCENE_RENDERER_AND_WORKERS
+SOURCE_MIGRATION_LIVE_D1 = VERIFIED__31_FACTORY_TABLES
 DEPLOYMENT_RECEIPT = VERSION_516__APPGDEP_6A8D334895008191A77BF70256460F01__SUCCEEDED
-CURRENT_SITE_VERSION = 520__DUAL_REMOTE_SYNC_COMPLETION_RECEIPT
+RENDERER_DEPLOYMENT_RECEIPT = VERSION_521__SUCCEEDED
+CURRENT_SITE_VERSION = 521__DETERMINISTIC_RENDER_TAPE_WORKER
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
 ```
 
-The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. Migration `0108`, the zero-dispatch Provider Gateway and deterministic production compiler deployed successfully in Sites version 516; deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded and all twenty-eight `factory_*` tables were verified in live D1. The owner-approved lease-bound replacement completed on 2026-08-25: local `HEAD`, Sites `origin/main` and private GitHub `main` resolved to exact commit `3d752ad907989d8ad16f9ecce092975e66767657`; the temporary workflow and bundle were absent from final `main`, and trigger issue `#4` was closed. The completed approval grants no continuing force or workflow authority. Concurrent GitHub merge `03434774…` remains preserved in ancestry for audit but has no current source authority because V2 is explicitly excluded. Sites version 520 records this completion and establishes the forward-only exact-object protocol for later checkpoints.
+The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. Migration `0108`, the zero-dispatch Provider Gateway and deterministic production compiler deployed successfully in Sites version 516; migration `0109` and the qualified deterministic render-tape worker deployed in Sites version 521, bringing live D1 to thirty-one `factory_*` tables. The renderer creates independently reproducible canonical frame-operation bytes, performs exact R2 read-back verification, records artifact/dependency/job receipts through the canonical writer and rejects expired fences before storage mutation. It cannot render SOURCE/HYBRID without exact asset bindings and does not create a pixel/video master. The owner-approved lease-bound repository replacement completed on 2026-08-25 at `3d752ad…`; the completed approval grants no continuing force or workflow authority. All later checkpoints, including this one, use the forward-only exact-object protocol. Concurrent GitHub merge `03434774…` remains preserved in ancestry for audit but has no current source authority because V2 is explicitly excluded.
 
 ## Production truth
 
@@ -51,12 +52,12 @@ R22 may be append-only only from the exact R21 visual FAIL/audio PASS pair. It m
 
 The Business, Technical Runtime, Visual Production, E2E Gate, Visual/Motion, AI Assurance, Data/Provider, Multi-Channel Learning and Cross-Cutting architectures are normative. Hidden Systems Visual DNA V1 and Video Quality Standard V3 govern new work.
 
-Phase 45 migrations `0106`-`0108` define immutable Factory-wide contracts, the fenced single writer and append-only Provider/Capability/Qualification/Rights/Cost/route/compilation receipts. `factory-provider-gateway` resolves only exact healthy, rights-eligible, non-expired qualified bindings and refuses dispatch or automatic fallback. `factory-production-compiler` deterministically compiles frozen Visual Profile/Format plus one canonical timebase into Blueprint, full-coverage Shot Contracts and Scene Graph; it rejects slide grammar, missing proof data, treatment-policy violations and unqualified routes. Compilation effects and lineage commit atomically through the canonical writer. The runtime route requires both writer and compiler deployment flags, remains zero-dispatch and rejects R22 unless separately authorized. This creates no provider dispatch, render, assurance, release or publication authority.
+Phase 45 migrations `0106`-`0109` define immutable Factory-wide contracts, the fenced single writer and append-only Provider/Capability/Qualification/Rights/Cost/route/compilation/render receipts. `factory-provider-gateway` resolves only exact healthy, rights-eligible, non-expired qualified bindings and refuses dispatch or automatic fallback. `factory-production-compiler` deterministically compiles frozen Visual Profile/Format plus one canonical timebase into Blueprint, full-coverage Shot Contracts and Scene Graph; it rejects slide grammar, missing proof data, treatment-policy violations and unqualified routes. `factory-scene-graph-renderer` materializes exact canonical render-tape bytes only for a qualified worker with a live lease/fence, verifies R2 read-back and commits lineage atomically. The runtime route requires separate writer/compiler/renderer deployment flags, remains zero-dispatch and rejects R22 unless separately authorized. This creates no provider dispatch, pixel/video master, assurance, release or publication authority.
 
 Still required before R22:
 
-- qualified worker integration using the canonical writer and deployment exercises for orphan/replay recovery;
-- production worker integration and the actual Scene Graph Renderer;
+- asset-qualified SOURCE/HYBRID materialization and the pixel/video compositor that consumes the deterministic render tape;
+- integrated-canary execution through the exact final compositor path, including orphan/replay recovery exercises;
 - provider dispatch, cost reservation/native-response reconciliation, controlled fallback and drift invalidation;
 - L0-L7 Assurance Orchestrator, judge calibration and QA Cockpit;
 - retention, recovery and incident-control enforcement exercises;
@@ -65,11 +66,11 @@ Still required before R22:
 ## Next protected action
 
 ```text
-1. Implement the actual deterministic Scene Graph Renderer and qualified worker integration with lease/fence recovery.
-2. Implement paid-request reservation, native-request reconciliation, drift staleness and explicit fallback without enabling R22.
-3. Implement Evidence Lineage and the L0-L7 Assurance Orchestrator without granting AI PASS authority before qualification.
-4. Qualify exact R22 visual, audio, provider and assurance dependencies; pass zero-spend preflight and integrated-canary admission.
+1. Implement asset-qualified SOURCE/HYBRID inputs and the deterministic pixel/video compositor over the render tape.
+2. Execute a bounded internal canary plus orphan/replay recovery without enabling R22.
+3. Implement paid-request reservation, native-request reconciliation, drift staleness and explicit fallback without enabling R22.
+4. Implement Evidence Lineage and the L0-L7 Assurance Orchestrator, then qualify exact R22 dependencies and canary admission.
 5. Compile and run R22 only after those controls create explicit Production authority.
 ```
 
-Migrations `0106`-`0108`, the zero-spend writer, route planner and compiler create runtime/control evidence only. This state creates no paid request, R22, rendered Production bytes, Browser, release or publication authority.
+Migrations `0106`-`0109`, the zero-spend writer, route planner, compiler and render-tape worker create runtime/control evidence only. This state creates no paid request, R22, pixel/video Production master, Browser, release or publication authority.

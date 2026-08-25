@@ -116,6 +116,8 @@ There is no universal shot-count or 3.5-second gate. Duration is compiled from n
 
 `factory-production-compiler` now implements the deterministic planning path for generic videos. It requires frozen Channel Visual Profile and Series/Format versions, one exact canonical timebase and typed narration segments; resolves only explicit SOURCE/MAKE/HYBRID candidates through the zero-dispatch Provider Gateway; enforces complete non-overlapping frame coverage, job/route compatibility, anti-slide patterns, data hashes for chart/map proof and treatment-duration policy; then materializes Blueprint, Shot Contracts, Scene Graph and lineage atomically through the canonical writer. It does not render pixels, dispatch providers, create R22 or qualify a channel/format by itself.
 
+`factory-scene-graph-renderer` implements the next deterministic boundary: a qualified internal worker converts eligible Scene Graph nodes into a canonical per-frame semantic render tape, stores the exact content-addressed bytes in R2, verifies the read-back hash and records lineage through the fenced writer. Independent repeat passes must yield identical bytes. This is executable render-kernel evidence, not a finished video: SOURCE/HYBRID nodes require exact asset-version bindings, and pixel/video composition plus integrated-canary proof remain blocked.
+
 ## Candidate tournament
 
 Eligible candidates compete on:

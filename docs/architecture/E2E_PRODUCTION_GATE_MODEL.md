@@ -1,6 +1,6 @@
 # End-to-End Production Gate Model
 
-**State:** `ACTIVE_NORMATIVE__IMPLEMENTATION_REQUIRED`  
+**State:** `ACTIVE_NORMATIVE__PARTIAL_IMPLEMENTATION`
 **Policy:** `E2E_PRODUCTION_GATE_MODEL_V1`  
 **Effective:** 2026-08-24
 
@@ -53,4 +53,4 @@ UI labels are projections only. A transition is authoritative only when the type
 
 ## Current boundary
 
-R21 remains immutable evidence. R22 is the first intended canary for this model but remains undispatched until its contracts, capabilities and gates are implemented and qualified. Legacy Production V2 is outside this change.
+R21 remains immutable evidence. Migrations `0106`-`0109` now cover the canonical planning contracts, fenced writer, zero-dispatch provider routing/compiler and exact-byte render-tape worker; they do not complete the upstream asset, animatic, pixel compositor, integrated canary, exact master or assurance gates. R22 is the first intended canary for this model but remains undispatched until the remaining contracts, capabilities and gates are implemented and qualified. Legacy Production V2 is outside this change.

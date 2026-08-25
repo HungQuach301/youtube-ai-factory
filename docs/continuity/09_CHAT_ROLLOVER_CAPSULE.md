@@ -21,6 +21,7 @@
 - Phase 45 foundation `4c45e5bd…` is canonicalized and deployed: migration `0106` and its twelve `factory_*` tables are verified in live D1.
 - Migration `0107`, the single command/event writer, leases/fencing, persisted stale projections and exact replay deployed in Sites version 514; all nineteen `factory_*` tables are verified in live D1. The SIWC/allowlist-protected route remains disabled by default, zero-spend and R22-blocked.
 - Migration `0108`, the zero-dispatch Provider Gateway and deterministic Visual Profile -> Blueprint -> Shot Contract -> Scene Graph compiler deployed in Sites version 516; all twenty-eight `factory_*` tables are verified in live D1. Exact local/Sites/GitHub equality completed at `3d752ad907989d8ad16f9ecce092975e66767657`; the temporary workflow and bundle self-removed, issue `#4` closed and the bounded force authority expired. Sites version 520 records this completion. Automatic fallback, provider dispatch, R22 and Production rendering remain blocked.
+- Migration `0109` and the qualified deterministic render-tape worker deployed in Sites version 521; live D1 exposes thirty-one `factory_*` tables. Exact render bytes are independently reproducible, R2 read-back verified and fenced through the canonical writer. SOURCE/HYBRID asset binding, pixel/video composition, integrated canary and R22 remain blocked.
 - Local, Sites and private GitHub `main` are synchronized on one exact commit after the Phase 45 synchronization checkpoint.
 - `HungQuach301/youtube-ai-factory` contains the complete Sites Git history; the verified common baseline is `2431a800d2d540bcfea141c98c9977cd46667950`.
 - `HungQuach301/youtube-ai-factory-v2` is never an upstream, mirror, fallback or recovery source.
@@ -34,7 +35,7 @@ Before the next mutation, re-prove:
 HEAD = origin/main = github/main
 ```
 
-Then implement the deterministic Scene Graph Renderer plus qualified worker/recovery path, followed by paid-request reconciliation and L0-L7 Assurance foundations. Publish each checkpoint through the forward-only exact-object protocol and re-prove three-way equality. Do not reconstruct from chat, reuse the completed force authority, re-run R21, dispatch R22, weaken a gate or publish.
+Then implement asset-qualified SOURCE/HYBRID inputs and the deterministic pixel/video compositor over the render tape, followed by a bounded internal canary/recovery exercise, paid-request reconciliation and L0-L7 Assurance foundations. Publish each checkpoint through the forward-only exact-object protocol and re-prove three-way equality. Do not reconstruct from chat, reuse the completed force authority, re-run R21, dispatch R22, weaken a gate or publish.
 
 ## Rollover completion
 

@@ -43,6 +43,7 @@ export type FactoryProductionSegment = {
   evidenceHashes: string[];
   datasetHash?: string | null;
   objectContinuityKey?: string | null;
+  assetArtifactVersionIds?: string[];
 };
 
 export type FactoryProductionCompilationInput = {
@@ -183,6 +184,7 @@ export async function planFactoryProductionCompilation(db: FactoryRuntimeDB, inp
     if (prohibitedPatterns.has(candidate.treatmentFamily.toUpperCase()) || candidate.treatmentFamily.toUpperCase().includes("SLIDE")) reasons.push(`PROHIBITED_SLIDE_GRAMMAR:${segment.id}`);
     if ((segment.visualJob === "QUANTITATIVE_PROOF" || segment.visualJob === "GEOGRAPHIC_PROOF") && !hashPattern.test(clean(segment.datasetHash))) reasons.push(`VERIFIED_DATASET_HASH_REQUIRED:${segment.id}`);
     if (!segment.evidenceHashes.length || segment.evidenceHashes.some((hash) => !hashPattern.test(hash))) reasons.push(`SHOT_EVIDENCE_HASH_INVALID:${segment.id}`);
+    if ((segment.assetArtifactVersionIds ?? []).some((id) => !identityPattern.test(clean(id)))) reasons.push(`SHOT_ASSET_ARTIFACT_ID_INVALID:${segment.id}`);
 
     const shotSeed = await canonicalHash({ videoId: input.videoId, version: input.version, sequence, segment });
     const shotId = deterministicId("factory-shot", shotSeed, sequence);
@@ -228,6 +230,8 @@ export async function planFactoryProductionCompilation(db: FactoryRuntimeDB, inp
     contractVersion: FACTORY_SCENE_GRAPH_RENDERER_CONTRACT_VERSION, videoId: input.videoId, blueprintId, canonicalTimebaseId: input.canonicalTimebaseId,
     timebase, nodes: plannedShots.map((shot) => ({ id: `node:${shot.id}`, shotContractId: shot.id, startFrame: shot.segment.startFrame, endFrameExclusive: shot.segment.endFrameExclusive,
       visualJob: shot.segment.visualJob, route: shot.route, treatmentFamily: shot.treatmentFamily, continuityKey: shot.segment.objectContinuityKey ?? null,
+      evidenceHashes: [...shot.segment.evidenceHashes].sort(), datasetHash: shot.segment.datasetHash ?? null,
+      assetArtifactVersionIds: [...(shot.segment.assetArtifactVersionIds ?? [])].sort(),
       cues: [{ type: "ENTER", frame: shot.segment.startFrame }, { type: "EXIT", frame: shot.segment.endFrameExclusive }] })),
     providerRequests: 0, spendMicros: 0,
   };
