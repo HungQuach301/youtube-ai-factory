@@ -30,7 +30,7 @@ This matrix records where each approved concern is canonical. It prevents a chat
 | Risks and open implementation work | `docs/governance/MASTER_ISSUE_REGISTRY.md` | Current open issues only; closed history archived |
 | Implementation sequence | `docs/roadmap/MASTER_ROADMAP.md` | Active Phases 44-48 only; prior roadmap archived |
 | Repository SSOT | `docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md` | Active |
-| Sites/GitHub SSOT, initial migration, divergence and recovery | `docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md` | Complete; exact-SHA synchronization verified |
+| Sites/GitHub SSOT, initial migration, divergence and recovery | `docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md` | Complete; Phase 45 exact-tree canonicalization and dual-remote synchronization verified |
 | New-chat handoff | `docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md` | Updated |
 | Historical plans, execution evidence, diagnostics and snapshots | `docs/archive/README.md` | Read-only; no current authority |
 

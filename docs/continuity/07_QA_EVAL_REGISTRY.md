@@ -51,4 +51,4 @@ R21 visual FAIL 67 and audio PASS 95 remain exact-byte historical Production evi
 
 | Work package | Stored evidence | Result | Authority |
 |---|---|---|---|
-| Contract foundation (`0106`) | Full migration replay; immutable triggers; rational frame/sample conversion; full Shot coverage; typed command/event fail-closed validation; deterministic replay; transitive dependency invalidation | `npm test`: 218/218 PASS; Production build PASS; documentation SSOT PASS | No provider dispatch, R22, AI PASS, Browser, release or publication authority |
+| Contract foundation (`0106`) | Full migration replay; immutable triggers; rational frame/sample conversion; full Shot coverage; typed command/event fail-closed validation; deterministic replay; transitive dependency invalidation; live D1 table overview | `npm test`: 218/218 PASS; Production build PASS; documentation SSOT PASS; Production deployment PASS; all twelve `factory_*` tables visible in live D1; dual-remote synchronization PASS | No provider dispatch, R22, AI PASS, Browser, release or publication authority |

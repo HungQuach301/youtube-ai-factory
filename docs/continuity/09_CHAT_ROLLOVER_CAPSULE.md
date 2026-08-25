@@ -18,19 +18,20 @@
 - R21 exact master `3f968794…` is immutable: en-US audio PASS 95, visual FAIL 67.
 - R22 is design-only and may not dispatch until Phase 45 implementation, dependency qualification, zero-spend preflight and integrated canary admission pass.
 - Browser, owner freeze, release and publication are blocked.
-- Phase 45 is in progress: migration `0106` and the deterministic contract/timebase/dependency library are implemented and tested; event persistence, replay, compilers, Provider Gateway, renderer and assurance remain open.
+- Phase 45 implementation `4c45e5bd…` is canonicalized and deployed: migration `0106` and all twelve `factory_*` tables are verified in live D1; event writer/projection, leases/fencing, compilers, Provider Gateway, renderer and assurance remain open.
+- Local, Sites and private GitHub `main` are synchronized on one exact commit after the Phase 45 synchronization checkpoint.
 - `HungQuach301/youtube-ai-factory` contains the complete Sites Git history; the verified common baseline is `2431a800d2d540bcfea141c98c9977cd46667950`.
 - `HungQuach301/youtube-ai-factory-v2` is never an upstream, mirror, fallback or recovery source.
 
 ## Exact next action
 
-Continue Phase 45 from the immutable contract foundation only after proving:
+Before the next mutation, re-prove:
 
 ```text
 HEAD = origin/main = github/main
 ```
 
-Next implement durable command receipts, the single event writer, lease/fencing runtime, persisted dependency-stale projection and exact replay controls. Do not reconstruct from chat, re-run R21, dispatch R22, weaken a gate or publish.
+Then implement the single command/event writer, lease/fencing runtime, persisted dependency-stale projection and exact replay controls. Do not reconstruct from chat, re-run R21, dispatch R22, weaken a gate or publish.
 
 ## Rollover completion
 

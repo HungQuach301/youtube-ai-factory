@@ -13,7 +13,7 @@ policy: GIT_REPOSITORY_SSOT_V1 + DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
 excluded: HungQuach301/youtube-ai-factory-v2
 ```
 
-The private personal GitHub repository is connected and synchronized with the complete Sites Git history. Repository state is `SYNCHRONIZED`; every later material checkpoint must restore and prove exact SHA equality across local `HEAD`, `origin/main` and `github/main`.
+The private personal GitHub repository is connected and synchronized with the complete Sites Git history. Phase 45 was canonicalized on GitHub as `4c45e5bd…` from the exact source tree deployed by Sites, and the synchronization checkpoint restored the invariant `HEAD = origin/main = github/main`. Repository state is `SYNCHRONIZED`; every later material checkpoint must preserve and prove that invariant.
 
 ## Required reading order
 
