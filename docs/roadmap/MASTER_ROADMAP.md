@@ -125,7 +125,7 @@ Completed in source in the ninth bounded Phase 45 Evidence/Assurance foundation 
 - the aggregate may record `AI_ACCEPTED` only as a candidate; the persisted outcome remains `HUMAN_ESCALATION_REQUIRED` under `ADVISORY_ONLY` until separate calibration opens acceptance authority;
 - every provider dispatch, spend, automatic repair beyond one root revision, AI acceptance, R22, master, release and publication authority remains structurally zero.
 
-Evidence passes 4/4 focused Assurance tests and 248/248 repository tests plus the verified Production build. Live D1 deployment and zero-row read-back of the seven `0114` tables remain the immediate checkpoint; no judge/provider call or Browser session is part of this slice.
+Evidence passes 4/4 focused Assurance tests and 248/248 repository tests plus the verified Production build. Sites v536 deploys migration `0114`; all seven live D1 tables read back with zero rows and environment revision 50 contains no temporary writer/Assurance/R22 flags. No judge/provider call or Browser session is part of this slice.
 
 ## Phase 46 — R22 canary
 
