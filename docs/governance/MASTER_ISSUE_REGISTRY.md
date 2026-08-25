@@ -1,7 +1,7 @@
 # Master Issue Registry
 
 **State:** `ACTIVE_CURRENT_ISSUES`  
-**Reconciled:** 2026-08-25
+**Reconciled:** 2026-08-26
 
 Closed and superseded issue history is preserved in [`../archive/snapshots/MASTER_ISSUE_REGISTRY.md`](../archive/snapshots/MASTER_ISSUE_REGISTRY.md). Only the items below may drive current work.
 
@@ -9,11 +9,11 @@ Closed and superseded issue history is preserved in [`../archive/snapshots/MASTE
 |---|---:|---|---|
 | X28 | P0 | R21 is technically playable but visually fails the US YouTube audience standard | Preserve exact R21; R22 repairs the owning visual system only after Phase 45 and canary gates |
 | X30 | P0 | Revision-specific rendering can recreate slide grammar | Generic compiler/render/compositor and ten-case production-scale Hidden Systems corpus pass without revision branching; close only after live package and exact R22 dependency admission prove the path |
-| X31 | P0 | One judge/static atlas can miss temporal, audio, Browser and payoff defects | L0-L7 design locked; implement and calibrate before AI PASS authority |
+| X31 | P0 | One judge/static atlas can miss temporal, audio, Browser and payoff defects | Append-only L0-L7 exact-artifact shadow orchestration is source-qualified with zero PASS authority; deploy/read back, calibrate independent judges/samplers and implement QA Cockpit before AI acceptance |
 | X32 | P0 | Stage-owned provider calls fragment secrets, rights, cost and lineage | Zero-dispatch Gateway plus plan-only reservation/native reconciliation and bounded explicit fallback are source-qualified; add secret-scoped dispatch and bounded live qualification without widening R22 authority |
 | X33 | P1 | Runtime still contains legacy quality/storage terminology and behavior | Migrate runtime/UI to V3 and `USER_CONTROLLED_RECOVERY_ARCHIVE`; design docs already corrected |
 | X34 | P1 | Hidden Systems Visual DNA is not executable independently of a renderer revision | Frozen Visual Profile/Format plus the live-qualified ten-case 1920×1080 treatment/asset-preparation corpus execute generically; exact R22 dependency admission and canary proof remain required |
-| X35 | P1 | Provider/model/prompt/rubric/sampler drift may leave stale qualifications active | Provider binding/model/settings/schema/rights/qualification drift now appends a blocking stale receipt; extend the same invalidation graph to prompt/rubric/sampler assurance dependencies and requalification |
+| X35 | P1 | Provider/model/prompt/rubric/sampler drift may leave stale qualifications active | Provider drift and Assurance judge/model/prompt/rubric/schema/sampler drift now append blocking stale receipts; close only after live read-back and requalification workflow evidence |
 | X38 | P0 | Business authority/economics are not yet executable controls | Atomic exact-envelope reservation and immutable actual-cost reconciliation are source-qualified; add explicit settlement-credit policy, portfolio arbitration, exception ownership and accepted-output economics |
 | X40 | P0 | Upstream production gates are documented but not executable end to end | Implement each DoR/self-check/independent gate/handoff contract |
 | X41 | P1 | Visual/motion techniques are not capability-qualified | Live package `factory-treatment-qualification-35941cd62fb0364063a1f98d` covers ten Hidden Systems techniques with D1/R2 read-back and replay PASS; bind exact R22 dependencies without widening its internal-only authority |

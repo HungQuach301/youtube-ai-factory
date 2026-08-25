@@ -2853,3 +2853,79 @@ export const factoryTreatmentQualificationCaseReceipts = sqliteTable("factory_tr
   parentAssetHash: text("parent_asset_hash"), transformManifestHash: text("transform_manifest_hash"), derivativeHash: text("derivative_hash"), verificationState: text("verification_state").notNull(), evidenceHash: text("evidence_hash").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("factory_treatment_qualification_case_uq").on(table.packageId, table.caseKey)]);
+
+export const factoryEvidenceBundles = sqliteTable("factory_evidence_bundles", {
+  id: text("id").primaryKey(), bundleKey: text("bundle_key").notNull(), videoId: text("video_id").notNull(), artifactVersionId: text("artifact_version_id").notNull().references(() => factoryArtifactVersions.id),
+  canonicalTimebaseId: text("canonical_timebase_id").notNull().references(() => factoryCanonicalTimebases.id), exactArtifactHash: text("exact_artifact_hash").notNull(), sourceCommit: text("source_commit").notNull(),
+  deploymentVersion: text("deployment_version").notNull(), runtimeVersion: text("runtime_version").notNull(), manifestJson: text("manifest_json").notNull(), manifestHash: text("manifest_hash").notNull(),
+  coverageState: text("coverage_state").notNull(), lineageState: text("lineage_state").notNull(), r22Authority: integer("r22_authority", { mode: "boolean" }).notNull(), masterAuthority: integer("master_authority", { mode: "boolean" }).notNull(),
+  releaseAuthority: integer("release_authority", { mode: "boolean" }).notNull(), publicationAuthority: integer("publication_authority", { mode: "boolean" }).notNull(), evidenceHash: text("evidence_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_evidence_bundle_key_uq").on(table.bundleKey),
+  uniqueIndex("factory_evidence_bundle_exact_manifest_uq").on(table.artifactVersionId, table.exactArtifactHash, table.manifestHash),
+]);
+
+export const factoryEvidenceItems = sqliteTable("factory_evidence_items", {
+  id: text("id").primaryKey(), bundleId: text("bundle_id").notNull().references(() => factoryEvidenceBundles.id), evidenceKey: text("evidence_key").notNull(), evidenceType: text("evidence_type").notNull(), assuranceLayer: text("assurance_layer").notNull(),
+  contentHash: text("content_hash").notNull(), storageKey: text("storage_key"), startFrame: integer("start_frame"), endFrameExclusive: integer("end_frame_exclusive"), startAudioSample: integer("start_audio_sample"),
+  endAudioSampleExclusive: integer("end_audio_sample_exclusive"), observationState: text("observation_state").notNull(), provenanceJson: text("provenance_json").notNull(), evidenceHash: text("evidence_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_evidence_item_key_uq").on(table.bundleId, table.evidenceKey),
+  index("factory_evidence_item_layer_time_idx").on(table.bundleId, table.assuranceLayer, table.startFrame, table.startAudioSample),
+]);
+
+export const factoryAssuranceJudgeQualifications = sqliteTable("factory_assurance_judge_qualifications", {
+  id: text("id").primaryKey(), qualificationKey: text("qualification_key").notNull(), assuranceLayer: text("assurance_layer").notNull(), channelId: text("channel_id").notNull(), formatKey: text("format_key").notNull(),
+  decisionRole: text("decision_role").notNull(), providerBindingId: text("provider_binding_id").references(() => factoryProviderBindings.id), providerQualificationId: text("provider_qualification_id").references(() => factoryCapabilityQualifications.id),
+  judgeVersion: text("judge_version").notNull(), modelVersion: text("model_version").notNull(), promptHash: text("prompt_hash").notNull(), rubricHash: text("rubric_hash").notNull(), schemaHash: text("schema_hash").notNull(),
+  samplerHash: text("sampler_hash").notNull(), sampleSize: integer("sample_size").notNull(), p0Recall: real("p0_recall").notNull(), p1Recall: real("p1_recall").notNull(), cleanPrecision: real("clean_precision").notNull(),
+  criticalFalseCleanCount: integer("critical_false_clean_count").notNull(), exactByteRepeatability: real("exact_byte_repeatability").notNull(), p0P1DecisionFlipCount: integer("p0_p1_decision_flip_count").notNull(),
+  evidenceTimecodeValidity: real("evidence_timecode_validity").notNull(), structuredOutputValidity: real("structured_output_validity").notNull(), lifecycleState: text("lifecycle_state").notNull(), passAuthority: integer("pass_authority", { mode: "boolean" }).notNull(),
+  qualificationHash: text("qualification_hash").notNull(), evidenceHash: text("evidence_hash").notNull(), qualifiedAt: text("qualified_at").notNull(), expiresAt: text("expires_at").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_assurance_judge_qualification_key_uq").on(table.qualificationKey),
+  index("factory_assurance_judge_qualification_scope_idx").on(table.channelId, table.formatKey, table.assuranceLayer, table.lifecycleState, table.qualifiedAt),
+]);
+
+export const factoryAssuranceRuns = sqliteTable("factory_assurance_runs", {
+  id: text("id").primaryKey(), runKey: text("run_key").notNull(), videoId: text("video_id").notNull(), channelId: text("channel_id").notNull(), formatKey: text("format_key").notNull(),
+  evidenceBundleId: text("evidence_bundle_id").notNull().references(() => factoryEvidenceBundles.id), exactArtifactHash: text("exact_artifact_hash").notNull(), policyVersion: text("policy_version").notNull(), standardVersion: text("standard_version").notNull(),
+  automationMode: text("automation_mode").notNull(), requiredLayersJson: text("required_layers_json").notNull(), producerId: text("producer_id").notNull(), rightsState: text("rights_state").notNull(), costReconciliationState: text("cost_reconciliation_state").notNull(),
+  activeProviderRequests: integer("active_provider_requests").notNull(), lifecycleState: text("lifecycle_state").notNull(), acceptanceAuthority: integer("acceptance_authority", { mode: "boolean" }).notNull(), r22Authority: integer("r22_authority", { mode: "boolean" }).notNull(),
+  masterAuthority: integer("master_authority", { mode: "boolean" }).notNull(), releaseAuthority: integer("release_authority", { mode: "boolean" }).notNull(), publicationAuthority: integer("publication_authority", { mode: "boolean" }).notNull(),
+  intentHash: text("intent_hash").notNull(), evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_assurance_run_key_uq").on(table.runKey),
+  uniqueIndex("factory_assurance_run_exact_policy_uq").on(table.evidenceBundleId, table.exactArtifactHash, table.policyVersion, table.standardVersion),
+]);
+
+export const factoryAssuranceLayerReceipts = sqliteTable("factory_assurance_layer_receipts", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => factoryAssuranceRuns.id), assuranceLayer: text("assurance_layer").notNull(), qualificationId: text("qualification_id").notNull().references(() => factoryAssuranceJudgeQualifications.id),
+  observerId: text("observer_id").notNull(), exactArtifactHash: text("exact_artifact_hash").notNull(), outcome: text("outcome").notNull(), score: real("score"), p0Count: integer("p0_count").notNull(), p1Count: integer("p1_count").notNull(),
+  p2Count: integer("p2_count").notNull(), p3Count: integer("p3_count").notNull(), confidence: real("confidence"), findingsJson: text("findings_json").notNull(), evidenceRefsJson: text("evidence_refs_json").notNull(),
+  unobservedDimensionsJson: text("unobserved_dimensions_json").notNull(), providerResponseId: text("provider_response_id"), rawResponseHash: text("raw_response_hash"), usageJson: text("usage_json").notNull(), actualSpendMicros: integer("actual_spend_micros").notNull(),
+  passAuthority: integer("pass_authority", { mode: "boolean" }).notNull(), receiptHash: text("receipt_hash").notNull(), evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_assurance_layer_receipt_uq").on(table.runId, table.assuranceLayer)]);
+
+export const factoryAssuranceDecisionReceipts = sqliteTable("factory_assurance_decision_receipts", {
+  id: text("id").primaryKey(), runId: text("run_id").notNull().references(() => factoryAssuranceRuns.id), decisionKey: text("decision_key").notNull(), exactArtifactHash: text("exact_artifact_hash").notNull(), candidateOutcome: text("candidate_outcome").notNull(),
+  outcome: text("outcome").notNull(), overallScore: real("overall_score"), adjudicatorConfidence: real("adjudicator_confidence"), criticalDimensionScoresJson: text("critical_dimension_scores_json").notNull(), missingLayersJson: text("missing_layers_json").notNull(),
+  disagreementJson: text("disagreement_json").notNull(), reasonsJson: text("reasons_json").notNull(), rootOwner: text("root_owner").notNull(), maximumRootRevisions: integer("maximum_root_revisions").notNull(), acceptanceAuthority: text("acceptance_authority").notNull(),
+  releaseReadyAuthority: integer("release_ready_authority", { mode: "boolean" }).notNull(), publicationAuthority: integer("publication_authority", { mode: "boolean" }).notNull(), decisionHash: text("decision_hash").notNull(), evidenceHash: text("evidence_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_assurance_decision_run_uq").on(table.runId),
+  uniqueIndex("factory_assurance_decision_key_uq").on(table.decisionKey),
+]);
+
+export const factoryAssuranceDriftReceipts = sqliteTable("factory_assurance_drift_receipts", {
+  id: text("id").primaryKey(), qualificationId: text("qualification_id").notNull().references(() => factoryAssuranceJudgeQualifications.id), observationKey: text("observation_key").notNull(), baselineJson: text("baseline_json").notNull(),
+  observedJson: text("observed_json").notNull(), driftDimensionsJson: text("drift_dimensions_json").notNull(), driftState: text("drift_state").notNull(), invalidatesQualification: integer("invalidates_qualification", { mode: "boolean" }).notNull(),
+  passAuthority: integer("pass_authority", { mode: "boolean" }).notNull(), observationHash: text("observation_hash").notNull(), evidenceHash: text("evidence_hash").notNull(), observedAt: text("observed_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_assurance_drift_observation_key_uq").on(table.observationKey),
+  index("factory_assurance_drift_qualification_latest_idx").on(table.qualificationId, table.observedAt, table.createdAt),
+]);

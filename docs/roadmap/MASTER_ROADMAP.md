@@ -116,9 +116,20 @@ Completed in source in the eighth bounded Phase 45 provider-control slice:
 
 Evidence passes 3/3 focused provider-control tests and 244/244 repository tests plus the verified Production build and documentation gate. Sites v533 fails closed on the first compound D1 budget-trigger form before publication. The same atomic policy is split into D1-safe request/spend guards, and Sites v534 succeeds; read-back finds all five `0113` tables with zero rows while environment revision 50 retains no temporary flags. No API dispatch path, provider credential, provider request or spend is opened. Conservative reservation accounting does not auto-credit settled reservations; an explicit settlement-ledger policy is required before any future dispatch authority.
 
+Completed in source in the ninth bounded Phase 45 Evidence/Assurance foundation slice:
+
+- migration `0114_factory_evidence_lineage_and_assurance_foundation.sql` adds immutable exact-artifact evidence bundles/items, L0-L7 judge qualifications, shadow runs, layer receipts, decision receipts and assurance-dependency drift receipts;
+- `factory-evidence-assurance` binds every observation to one frozen artifact hash, canonical frame/audio timebase, source commit, deployment/runtime version and typed provenance;
+- production workers cannot PASS their own output; missing observation/runtime evidence becomes `ASSURANCE_INCOMPLETE`, while proved P0/P1 or hard-gate failure becomes `CONTENT_REJECTED`;
+- model, judge, prompt, rubric, schema or sampler drift makes the exact qualification stale and blocks a later PASS receipt;
+- the aggregate may record `AI_ACCEPTED` only as a candidate; the persisted outcome remains `HUMAN_ESCALATION_REQUIRED` under `ADVISORY_ONLY` until separate calibration opens acceptance authority;
+- every provider dispatch, spend, automatic repair beyond one root revision, AI acceptance, R22, master, release and publication authority remains structurally zero.
+
+Evidence passes 4/4 focused Assurance tests and 248/248 repository tests plus the verified Production build. Live D1 deployment and zero-row read-back of the seven `0114` tables remain the immediate checkpoint; no judge/provider call or Browser session is part of this slice.
+
 ## Phase 46 — R22 canary
 
-**Status:** `GATED__LIVE_RUNTIME_AND_TREATMENTS_PASS__ASSURANCE_AND_EXACT_DEPENDENCY_ADMISSION_PENDING`
+**Status:** `GATED__LIVE_RUNTIME_AND_TREATMENTS_PASS__ASSURANCE_SOURCE_FOUNDATION_READY__LIVE_D1_CALIBRATION_AND_EXACT_DEPENDENCY_ADMISSION_PENDING`
 
 Compile R22 only from the exact R21 visual FAIL/audio PASS pair after Phase 45. Pass zero-spend preflight, render the hardest 60-90 seconds through the final Production path, then run full master and L0-L7 assurance. Current owner playback remains until AI qualification separately opens exception-only authority. Publication remains separate and blocked.
 

@@ -1,7 +1,7 @@
 # Active Decision Log
 
 **State:** `ACTIVE_NORMATIVE_DECISIONS`  
-**Effective:** 2026-08-25
+**Effective:** 2026-08-26
 
 Only decisions that govern current and next work remain here. ADR-001 through ADR-122 are preserved in [`../archive/snapshots/04_DECISION_LOG.md`](../archive/snapshots/04_DECISION_LOG.md) and have no authority where they conflict with this log, current state or runtime evidence.
 
@@ -32,6 +32,7 @@ Only decisions that govern current and next work remain here. ADR-001 through AD
 | ADR-145 | `HIDDEN_SYSTEMS_PRODUCTION_SCALE_TREATMENT_QUALIFICATION_V1`: a frozen ten-case corpus qualifies exact 1920×1080/30fps compositor settings and distinct SOURCE/MAKE/HYBRID treatment/asset-preparation contracts through entry/mutation/exit decoded evidence, mobile/accessibility floors, anti-slide rules and deterministic replay. The append-only package has `INTERNAL_TREATMENT_QUALIFICATION_ONLY` authority; every R22, master, release and publication authority bit is structurally zero. |
 | ADR-146 | `BOUNDED_LIVE_HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION_V1`: exactly one owner-authorized v531 live request may store the frozen package and ten case receipts, verify exact R2/D1 read-back and reconcile the same payload as `IDEMPOTENT_REPLAY`. Its writer/qualification flags and credential must be removed immediately and the same source redeployed; the completed receipt grants no reusable runtime, provider, R22, master, release or publication authority. |
 | ADR-147 | `PLAN_ONLY_PROVIDER_COST_RECONCILIATION_DRIFT_AND_FALLBACK_V1`: every future paid request must first obtain one atomic exact-envelope reservation; timeout/unknown state preserves spend reservation and cannot grant retry until the provider-native identity, response hash, usage and actual cost reconcile. Any binding/model/settings/schema/rights/qualification drift appends a stale receipt that blocks routing. Fallback is one explicit owner-approved, same-capability, current-qualified plan and never silent. Migration `0113` grants zero dispatch, retry, R22, master, release or publication authority. |
+| ADR-148 | `EXACT_ARTIFACT_EVIDENCE_LINEAGE_AND_L0_L7_SHADOW_FOUNDATION_V1`: every Assurance observation binds to one frozen artifact hash, canonical frame/audio timebase, source commit, deployment/runtime version and immutable evidence item. L0-L7 qualifications are exact to judge/model/prompt/rubric/schema/sampler identity; drift appends a stale receipt and blocks PASS. Producer self-PASS is forbidden, infrastructure gaps remain `ASSURANCE_INCOMPLETE`, and a candidate `AI_ACCEPTED` persists as `HUMAN_ESCALATION_REQUIRED` while the foundation is `AI_SHADOW`/`ADVISORY_ONLY`. Migration `0114` grants zero provider, AI-accept, R22, master, release or publication authority. |
 
 ## Shared decision constraints
 

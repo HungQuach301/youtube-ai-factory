@@ -117,3 +117,9 @@ The operator surface must show the exact master, each judge's progress and autho
 ## R22 canary
 
 R22 is the first canary for L0-L7. Because the capability is not yet qualified, a first apparent AI PASS still requires the current owner gate or an explicit calibration decision. R22 must not inherit a PASS from R21 audio or from source-atlas inspection; every verdict binds only to R22 exact bytes.
+
+## Current implementation boundary
+
+Migration `0114` and `factory-evidence-assurance` implement the source-level Evidence Lineage and L0-L7 `AI_SHADOW` foundation. Evidence bundles bind a frozen artifact hash to the canonical frame/audio timebase, Git source commit, deployment/runtime versions and typed provenance. Qualification records bind the exact judge, model, prompt, rubric, schema and sampler; append-only drift observations invalidate later PASS receipts. Layer receipts enforce independent observers and preserve unobserved dimensions, while aggregate decisions keep infrastructure gaps as `ASSURANCE_INCOMPLETE` and proved hard failures as `CONTENT_REJECTED`.
+
+This foundation deliberately has no Production acceptance authority. A fully passing run may compute candidate `AI_ACCEPTED`, but the persisted outcome remains `HUMAN_ESCALATION_REQUIRED` with `ADVISORY_ONLY` authority until live schema read-back, judge calibration and a separately governed maturity transition succeed. No provider dispatch, Browser session, R22, master, release or publication action is implemented by this slice.
