@@ -16,15 +16,12 @@ test("continuity endpoint has zero provider-dispatch authority", async () => {
   assert.match(source, /provider_response_id/);
 });
 
-test("checkpoint preserves the current R21 and R22 protected scope", async () => {
+test("checkpoint preserves Stage 09 protected scope", async () => {
   const state = await readFile(statePath, "utf8");
-  assert.match(state, /R21_AUDIO = PASS 95/);
-  assert.match(state, /R21_VISUAL = FAIL 67/);
-  assert.match(state, /R21_DISPOSITION = IMMUTABLE_REJECTED_EVIDENCE/);
-  assert.match(state, /R22 = DESIGN_ONLY__NOT_DISPATCHED/);
-  assert.match(state, /BROWSER = BLOCKED/);
-  assert.match(state, /RELEASE = FALSE/);
-  assert.match(state, /No document alone authorizes provider dispatch or Production mutation/);
+  assert.match(state, /STAGE_09 = MOTION_PROOF_REQUIRED/);
+  assert.match(state, /CHAMPION = C/);
+  assert.match(state, /STAGE_09_FROZEN = FALSE/);
+  assert.match(state, /Do not rerun source discovery/);
 });
 
 test("continuity snapshots have a durable migration", async () => {
