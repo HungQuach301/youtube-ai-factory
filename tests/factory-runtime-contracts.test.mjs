@@ -97,7 +97,7 @@ test("runtime event replay is deterministic and rejects missing versions or mixe
 
 test("Phase 45 contract migration replays and enforces immutable exact-lineage records", () => {
   const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
-  assert.equal(migrations.at(-1), "0106_factory_runtime_contract_foundation.sql");
+  assert.equal(migrations.at(-1), "0107_factory_runtime_writer_and_replay.sql");
   const migration = read("drizzle/0106_factory_runtime_contract_foundation.sql");
   for (const table of [
     "factory_contract_registry", "factory_canonical_timebases", "factory_runtime_commands", "factory_runtime_events", "factory_channel_visual_profile_versions",
@@ -115,15 +115,18 @@ test("Phase 45 contract migration replays and enforces immutable exact-lineage r
   db.prepare(`INSERT INTO factory_runtime_commands
     (id,stream_type,stream_id,command_type,expected_state,expected_version,actor_type,actor_id,lease_id,fencing_token,idempotency_key,intent_hash,policy_versions_json,cost_scope_json,rights_scope_json,received_at)
     VALUES ('command-1','VIDEO','video-1','START_STAGE','READY',0,'SYSTEM','test','lease:video:stage:01',1,'runtime:command:test:0001',?,'{"runtime":"V1"}','{"budget":"plan-1"}','{"policy":"RIGHTS_V1"}','2026-08-25T00:00:00.000Z')`).run(hash);
+  db.prepare(`INSERT INTO factory_runtime_streams
+    (stream_type,stream_id,current_version,current_state,updated_at)
+    VALUES ('VIDEO','video-1',0,'READY','2026-08-25T00:00:00.000Z')`).run();
   db.prepare(`INSERT INTO factory_runtime_events
     (id,stream_type,stream_id,stream_version,event_type,actor_type,actor_id,command_id,correlation_id,fencing_token,idempotency_key,intent_hash,payload_json,evidence_hash,occurred_at)
-    VALUES ('event-1','VIDEO','video-1',1,'CommandAccepted','SYSTEM','test','command-1','correlation-1',1,'runtime:event:test:0001',?,'{}',?,'2026-08-25T00:00:00.000Z')`).run(hash, hash);
+    VALUES ('event-1','VIDEO','video-1',1,'CommandRejected','SYSTEM','test','command-1','correlation-1',1,'runtime:event:test:0001',?,'{}',?,'2026-08-25T00:00:00.000Z')`).run(hash, hash);
   assert.throws(() => db.prepare("UPDATE factory_runtime_commands SET expected_state='RUNNING' WHERE id='command-1'").run(), /FACTORY_RUNTIME_COMMAND_IMMUTABLE/);
   assert.throws(() => db.prepare("UPDATE factory_runtime_events SET event_type='StageFrozen' WHERE id='event-1'").run(), /FACTORY_RUNTIME_EVENT_IMMUTABLE/);
   assert.throws(() => db.prepare("DELETE FROM factory_canonical_timebases WHERE id='timebase-1'").run(), /FACTORY_TIMEBASE_IMMUTABLE/);
   assert.throws(() => db.prepare(`INSERT INTO factory_runtime_events
     (id,stream_type,stream_id,stream_version,event_type,actor_type,actor_id,correlation_id,idempotency_key,intent_hash,payload_json,evidence_hash,occurred_at)
-    VALUES ('event-2','VIDEO','video-1',1,'CommandRejected','SYSTEM','test','correlation-1','runtime:event:test:0002',?,'{}',?,'2026-08-25T00:00:01.000Z')`).run(hash, hash), /UNIQUE constraint failed/);
+    VALUES ('event-2','VIDEO','video-1',1,'CommandRejected','SYSTEM','test','correlation-1','runtime:event:test:0002',?,'{}',?,'2026-08-25T00:00:01.000Z')`).run(hash, hash), /FACTORY_RUNTIME_EVENT_VERSION_CONFLICT/);
   assert.throws(() => db.prepare(`INSERT INTO factory_contract_registry
     (id,contract_key,contract_version,scope,schema_json,schema_hash,lifecycle_state)
     VALUES ('contract-1','VIDEO_BLUEPRINT','V1','VIDEO','not-json',?,'ACTIVE')`).run(hash), /CHECK constraint failed/);

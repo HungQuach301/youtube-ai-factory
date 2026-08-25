@@ -12,16 +12,16 @@ SITES_REMOTE = origin/main
 GITHUB_TARGET = HungQuach301/youtube-ai-factory
 GITHUB_SYNC = SYNCHRONIZED
 INITIAL_MIRROR_BASELINE_SHA = 2431a800d2d540bcfea141c98c9977cd46667950
-PHASE_45_IMPLEMENTATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
+PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
-PHASE_45 = IN_PROGRESS__CONTRACT_FOUNDATION_IMPLEMENTED
-SOURCE_MIGRATION = 0106_FACTORY_RUNTIME_CONTRACT_FOUNDATION
-SOURCE_MIGRATION_LIVE_D1 = VERIFIED
+PHASE_45 = IN_PROGRESS__CANONICAL_RUNTIME_WRITER_IMPLEMENTED
+SOURCE_MIGRATION = 0107_FACTORY_RUNTIME_WRITER_AND_REPLAY
+SOURCE_MIGRATION_LIVE_D1 = CHECKPOINT_GATED
 ```
 
-The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. Phase 45 deployed successfully, all twelve new `factory_*` tables are visible in live D1, and the exact source tree was canonicalized on GitHub as `4c45e5bd…`. Local, Sites and personal GitHub are synchronized before the next implementation slice.
+The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. The Phase 45 foundation deployed successfully and all twelve foundation `factory_*` tables were verified in live D1. The second bounded slice adds the canonical writer, lease/fencing, projections and replay schema; live status is established only by the matching deployment checkpoint receipt. Local, Sites and personal GitHub must resolve to that one exact source commit before another implementation slice begins.
 
 ## Production truth
 
@@ -48,12 +48,11 @@ R22 may be append-only only from the exact R21 visual FAIL/audio PASS pair. It m
 
 The Business, Technical Runtime, Visual Production, E2E Gate, Visual/Motion, AI Assurance, Data/Provider, Multi-Channel Learning and Cross-Cutting architectures are normative. Hidden Systems Visual DNA V1 and Video Quality Standard V3 govern new work.
 
-Phase 45 migration `0106_factory_runtime_contract_foundation.sql` now defines immutable Factory-wide contract registry, canonical timebase, runtime event, Channel Visual Profile, Series/Format, Video Blueprint, Shot Contract, Scene Graph, artifact-version and dependency-invalidation records. The shared runtime library implements integer frame/sample conversion, exact Shot coverage validation, typed command/event validation, deterministic event replay and transitive stale-dependency resolution. Durable command receipts and lease/fencing mutation remain in the next slice. This is a schema and deterministic-contract foundation only; it creates no provider, render, assurance, release or publication authority.
+Phase 45 migrations `0106_factory_runtime_contract_foundation.sql` and `0107_factory_runtime_writer_and_replay.sql` now define immutable Factory-wide contracts plus the single-writer stream, monotonic fence counter, exclusive lease, projection checkpoint, dependency-stale projection and exact replay receipt. `factory-runtime-writer` persists work reservation, command acceptance/rejection, heartbeat, orphan recovery, transitive staleness and replay verification. The authenticated runtime API is disabled unless `FACTORY_RUNTIME_WRITER_ENABLED=true`, rejects R22 unless separately authorized and enforces zero provider requests/zero spend. This implementation creates no provider, render, assurance, release or publication authority.
 
 Still required before R22:
 
-- D1 command/event writers, projections and service integration on top of the append-only foundation;
-- fenced workers, persisted dependency-stale orchestration and exact replay controls;
+- qualified worker integration using the canonical writer and deployment exercises for orphan/replay recovery;
 - Visual Grammar Resolver, Blueprint/Shot compilers and Scene Graph Renderer;
 - Provider Gateway, rights/cost/idempotency reconciliation and qualified bindings;
 - L0-L7 Assurance Orchestrator, judge calibration and QA Cockpit;
@@ -63,11 +62,11 @@ Still required before R22:
 ## Next protected action
 
 ```text
-1. Implement the Phase 45 command/event writer, lease/fencing runtime, dependency invalidation service and exact replay projection from migration `0106`.
+1. Verify the `0107` deployment receipt and exact dual-remote commit equality; keep the writer disabled until its first bounded integration exercise.
 2. Implement the Provider Gateway and compile Visual DNA -> Blueprint -> Shot Contract -> Scene Graph without revision branching.
 3. Qualify exact R22 provider, visual, audio and assurance dependencies.
 4. Pass zero-spend preflight and the integrated canary admission gate.
 5. Compile and run R22 only after those controls create explicit Production authority.
 ```
 
-Migration `0106` adds immutable schema only. This state creates no paid request, R22, Browser, release or publication authority.
+Migrations `0106`/`0107` and the zero-spend writer create runtime control evidence only. This state creates no paid request, R22, Browser, release or publication authority.

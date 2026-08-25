@@ -192,7 +192,7 @@ export function assertFactoryRuntimeCommand(input: {
 }) {
   const reasons: string[] = [];
   if (!FACTORY_RUNTIME_COMMAND_TYPES.includes(input.commandType as FactoryRuntimeCommandType)) reasons.push("COMMAND_TYPE_UNSUPPORTED");
-  if (!/^[A-Z][A-Z0-9_]{1,127}$/.test(input.expectedState)) reasons.push("EXPECTED_STATE_INVALID");
+  if (!/^[A-Za-z][A-Za-z0-9_]{1,127}$/.test(input.expectedState)) reasons.push("EXPECTED_STATE_INVALID");
   if (!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 0) reasons.push("EXPECTED_VERSION_INVALID");
   if (!new Set(["OWNER", "OPERATOR", "SYSTEM", "ASSURANCE"]).has(input.actorType)) reasons.push("ACTOR_TYPE_INVALID");
   if (!/^[A-Za-z0-9._:@/-]{3,200}$/.test(input.actorId)) reasons.push("ACTOR_ID_INVALID");
@@ -225,6 +225,7 @@ export function replayFactoryRuntimeEvents(events: ReplayableFactoryRuntimeEvent
   const streamType = ordered[0].streamType;
   const streamId = ordered[0].streamId;
   let expectedVersion = 1;
+  let state = "EMPTY";
   const eventIds = new Set<string>();
   for (const event of ordered) {
     if (eventIds.has(event.id)) throw new Error("RUNTIME_EVENT_ID_DUPLICATE");
@@ -233,8 +234,9 @@ export function replayFactoryRuntimeEvents(events: ReplayableFactoryRuntimeEvent
     if (event.streamVersion !== expectedVersion) throw new Error(`RUNTIME_EVENT_VERSION_GAP:${expectedVersion}-${event.streamVersion}`);
     const contract = assertFactoryRuntimeEvent(event);
     if (!contract.valid) throw new Error(`RUNTIME_EVENT_CONTRACT_INVALID:${contract.reasons.join(",")}`);
+    if (event.eventType !== "CommandAccepted" && event.eventType !== "CommandRejected") state = event.eventType;
     expectedVersion += 1;
   }
   const head = ordered.at(-1)!;
-  return { state: head.eventType, streamVersion: head.streamVersion, eventCount: ordered.length, headEventId: head.id, headEvidenceHash: head.evidenceHash };
+  return { state, streamVersion: head.streamVersion, eventCount: ordered.length, headEventId: head.id, headEvidenceHash: head.evidenceHash };
 }

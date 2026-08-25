@@ -9,7 +9,7 @@ This matrix records where each approved concern is canonical. It prevents a chat
 |---|---|---|
 | Product boundary and operating planes | `docs/architecture/TARGET_OPERATING_ARCHITECTURE.md` | Complete for design |
 | Business capabilities, decision rights, AI/owner/provider operating model, exceptions, economics and portfolio arbitration | `docs/architecture/BUSINESS_OPERATING_MODEL.md` | Complete for design; operational implementation pending |
-| Runtime planes, services, state/events, timebase, fencing, observability/replay and UI architecture | `docs/architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md` | Contract/timebase foundation implemented; service integration pending |
+| Runtime planes, services, state/events, timebase, fencing, observability/replay and UI architecture | `docs/architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md` | Canonical writer, lease/fencing, stale projection and replay implemented; qualified worker/UI integration pending |
 | Factory/Channel/Format/Video/Sequence/Shot hierarchy | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Complete for design |
 | Visual taxonomy, SOURCE/MAKE/HYBRID and `Reality -> Mechanism -> Proof` | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Complete for design |
 | Blueprint, Shot Contract, Scene Graph and canonical timebase | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Schema and deterministic timebase foundation implemented; compilers/render pending |
@@ -26,7 +26,7 @@ This matrix records where each approved concern is canonical. It prevents a chat
 | Multi-channel isolation, experiment validity, learning promotion, scaling and rollback | `docs/architecture/MULTI_CHANNEL_SCALE_AND_LEARNING.md` | Complete for design; implementation/calibration pending |
 | Privacy/secrets, Content ID, drift, retention/deletion, SLA/capacity, DR, accessibility/localization and incident containment | `docs/governance/CROSS_CUTTING_CONTROL_STANDARD.md` | Complete for design; enforcement/exercises pending |
 | Current R21/R22 runtime truth | `docs/continuity/03_CURRENT_STATE.md` | Reconciled; detailed execution evidence archived |
-| Decisions and supersession | `docs/continuity/04_DECISION_LOG.md` | Active ADR-123 through ADR-134 recorded; prior decisions archived |
+| Decisions and supersession | `docs/continuity/04_DECISION_LOG.md` | Active ADR-123 through ADR-138 recorded; prior decisions archived |
 | Risks and open implementation work | `docs/governance/MASTER_ISSUE_REGISTRY.md` | Current open issues only; closed history archived |
 | Implementation sequence | `docs/roadmap/MASTER_ROADMAP.md` | Active Phases 44-48 only; prior roadmap archived |
 | Repository SSOT | `docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md` | Active |
@@ -36,7 +36,7 @@ This matrix records where each approved concern is canonical. It prevents a chat
 
 ## Not completed by documentation alone
 
-- Phase 45 command/event writers, projections, compilers and runtime integration beyond migration `0106`.
+- Phase 45 compilers, Provider Gateway, qualified worker integration and bounded runtime recovery exercises beyond migrations `0106`/`0107`.
 - Visual Grammar Resolver, Provider Gateway, Evidence Lineage and AI Assurance Orchestrator.
 - Factory QA Cockpit and UI integration.
 - Judge/provider capability qualification.

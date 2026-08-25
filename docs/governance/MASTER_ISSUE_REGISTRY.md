@@ -15,7 +15,7 @@ Closed and superseded issue history is preserved in [`../archive/snapshots/MASTE
 | X34 | P1 | Hidden Systems Visual DNA is not executable independently of a renderer revision | Versioned Visual Profile/Format contracts implemented; compiler and R22 canary proof remain required |
 | X35 | P1 | Provider/model/prompt/rubric/sampler drift may leave stale qualifications active | Implement automatic staleness and requalification |
 | X38 | P0 | Business authority/economics are not yet executable controls | Implement envelopes, exception ownership, portfolio reservation and accepted-output economics |
-| X39 | P0 | Typed runtime/event/timebase/fencing architecture is not fully implemented | Migration `0106` plus deterministic timebase, typed command/event validation, replay and stale-dependency foundation pass; durable command receipts, persisted writer, lease/fencing, projections and stale-worker integration remain required |
+| X39 | P0 | Typed runtime/event/timebase/fencing architecture requires integration proof | Migrations `0106`/`0107`, single command/event writer, persisted decisions, lease heartbeat/orphan recovery, monotonic fencing, stale projections and exact replay pass; integrate qualified workers and run bounded deployment/recovery exercises before closure |
 | X40 | P0 | Upstream production gates are documented but not executable end to end | Implement each DoR/self-check/independent gate/handoff contract |
 | X41 | P1 | Visual/motion techniques are not capability-qualified | Build test corpora and qualify each required R22 technique |
 | X42 | P1 | Multi-channel learning/promotion is not implemented or calibrated | Implement prediction, experiment validity, minimum evidence, promotion and rollback |

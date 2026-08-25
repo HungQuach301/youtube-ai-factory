@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__CONTRACT_FOUNDATION_DEPLOYED__SYNCHRONIZED`
+**Status:** `IN_PROGRESS__CANONICAL_RUNTIME_WRITER_IMPLEMENTED`
 
 Implement:
 
@@ -43,7 +43,18 @@ Completed in the first bounded Phase 45 slice:
 - `factory-runtime-contracts` provides deterministic integer frame/sample conversion, full-timeline Shot coverage, command/event validation, deterministic replay and transitive dependency-stale resolution;
 - migration replay, append-only triggers, JSON/hash constraints, stream-version/idempotency uniqueness and deterministic runtime tests pass with zero provider requests and zero Production content mutation.
 
-The Phase 45 foundation deployed successfully, the new tables are visible in live D1, and the exact source tree is synchronized across Sites and private GitHub. Next persist typed commands/events through one writer, implement lease acquisition/heartbeat/orphan recovery with monotonic fencing, materialize the dependency-stale projection, prove exact replay and stale-writer rejection, and connect the Blueprint/Shot compilers. Provider Gateway, render, L0-L7 assurance and all R22 authority remain incomplete.
+The Phase 45 foundation deployed successfully, the foundation tables are visible in live D1, and its exact source tree is synchronized across Sites and private GitHub.
+
+Completed in the second bounded Phase 45 slice:
+
+- migration `0107_factory_runtime_writer_and_replay.sql` adds guarded streams, monotonic fence counters, exclusive expiring leases, append-only projection checkpoints, materialized stale projections and exact replay receipts;
+- `factory-runtime-writer` is the single command/event mutation path and persists both accepted and rejected decisions;
+- work reservation, heartbeat, bounded orphan recovery and stale-writer rejection use lease identity plus fencing token;
+- dependency invalidation materializes the full transitive stale set exactly once, while replay verifies event bytes against stored projection state;
+- `/api/factory/runtime` requires SIWC plus the owner/expert allowlist, is disabled by default, refuses R22 without separate authorization and has no provider client or spend authority;
+- full repository tests pass 224/224 with zero provider requests and no Production content mutation.
+
+Next connect the Blueprint/Shot compilers and Provider Gateway to the canonical writer, then exercise the disabled-by-default route under a bounded deployment authorization. Renderer, L0-L7 assurance and all R22 authority remain incomplete.
 
 ## Phase 46 — R22 canary
 

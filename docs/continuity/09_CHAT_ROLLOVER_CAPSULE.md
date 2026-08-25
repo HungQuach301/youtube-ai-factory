@@ -18,7 +18,8 @@
 - R21 exact master `3f968794…` is immutable: en-US audio PASS 95, visual FAIL 67.
 - R22 is design-only and may not dispatch until Phase 45 implementation, dependency qualification, zero-spend preflight and integrated canary admission pass.
 - Browser, owner freeze, release and publication are blocked.
-- Phase 45 implementation `4c45e5bd…` is canonicalized and deployed: migration `0106` and all twelve `factory_*` tables are verified in live D1; event writer/projection, leases/fencing, compilers, Provider Gateway, renderer and assurance remain open.
+- Phase 45 foundation `4c45e5bd…` is canonicalized and deployed: migration `0106` and its twelve `factory_*` tables are verified in live D1.
+- The next bounded slice adds migration `0107`, the single command/event writer, leases/fencing, persisted stale projections, exact replay and a SIWC/allowlist-protected runtime route that is disabled by default, zero-spend and R22-blocked.
 - Local, Sites and private GitHub `main` are synchronized on one exact commit after the Phase 45 synchronization checkpoint.
 - `HungQuach301/youtube-ai-factory` contains the complete Sites Git history; the verified common baseline is `2431a800d2d540bcfea141c98c9977cd46667950`.
 - `HungQuach301/youtube-ai-factory-v2` is never an upstream, mirror, fallback or recovery source.
@@ -31,7 +32,7 @@ Before the next mutation, re-prove:
 HEAD = origin/main = github/main
 ```
 
-Then implement the single command/event writer, lease/fencing runtime, persisted dependency-stale projection and exact replay controls. Do not reconstruct from chat, re-run R21, dispatch R22, weaken a gate or publish.
+Then verify the `0107` deployment receipt and implement Provider Gateway plus Visual DNA -> Blueprint -> Shot Contract -> Scene Graph compilers through the canonical writer. Do not reconstruct from chat, re-run R21, dispatch R22, weaken a gate or publish.
 
 ## Rollover completion
 

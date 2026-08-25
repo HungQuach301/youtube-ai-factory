@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, text, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text, uniqueIndex, index, primaryKey } from "drizzle-orm/sqlite-core";
 
 export const channels = sqliteTable("channels", {
   id: text("id").primaryKey(),
@@ -2568,3 +2568,48 @@ export const factoryDependencyInvalidations = sqliteTable("factory_dependency_in
   id: text("id").primaryKey(), dependencyBindingId: text("dependency_binding_id").notNull().references(() => factoryDependencyBindings.id), staleEventId: text("stale_event_id").notNull().references(() => factoryRuntimeEvents.id),
   reason: text("reason").notNull(), evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("factory_dependency_invalidation_uq").on(table.dependencyBindingId, table.staleEventId)]);
+
+export const factoryRuntimeStreams = sqliteTable("factory_runtime_streams", {
+  streamType: text("stream_type").notNull(), streamId: text("stream_id").notNull(), currentVersion: integer("current_version").notNull().default(0), currentState: text("current_state").notNull(),
+  headEventId: text("head_event_id").references(() => factoryRuntimeEvents.id), headEvidenceHash: text("head_evidence_hash"), activeStageKey: text("active_stage_key"), activeLeaseId: text("active_lease_id"),
+  activeFencingToken: integer("active_fencing_token"), updatedAt: text("updated_at").notNull(),
+}, (table) => [primaryKey({ columns: [table.streamType, table.streamId], name: "factory_runtime_streams_pk" })]);
+
+export const factoryRuntimeFenceCounters = sqliteTable("factory_runtime_fence_counters", {
+  scopeId: text("scope_id").primaryKey(), nextToken: integer("next_token").notNull(), updatedAt: text("updated_at").notNull(),
+});
+
+export const factoryRuntimeLeases = sqliteTable("factory_runtime_leases", {
+  id: text("id").primaryKey(), streamType: text("stream_type").notNull(), streamId: text("stream_id").notNull(), stageKey: text("stage_key").notNull(), lifecycleState: text("lifecycle_state").notNull(),
+  ownerType: text("owner_type").notNull(), ownerId: text("owner_id").notNull(), fencingToken: integer("fencing_token").notNull(), acquiredAt: text("acquired_at").notNull(), heartbeatAt: text("heartbeat_at").notNull(),
+  expiresAt: text("expires_at").notNull(), releasedAt: text("released_at"), orphanedAt: text("orphaned_at"), revokedAt: text("revoked_at"), idempotencyKey: text("idempotency_key").notNull(),
+  intentHash: text("intent_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_runtime_lease_idempotency_uq").on(table.idempotencyKey),
+  uniqueIndex("factory_runtime_fencing_token_uq").on(table.streamType, table.streamId, table.fencingToken),
+  index("factory_runtime_lease_expiry_idx").on(table.lifecycleState, table.expiresAt),
+]);
+
+export const factoryRuntimeProjectionCheckpoints = sqliteTable("factory_runtime_projection_checkpoints", {
+  id: text("id").primaryKey(), streamType: text("stream_type").notNull(), streamId: text("stream_id").notNull(), streamVersion: integer("stream_version").notNull(), state: text("state").notNull(),
+  headEventId: text("head_event_id").notNull().references(() => factoryRuntimeEvents.id), headEvidenceHash: text("head_evidence_hash").notNull(), projectionJson: text("projection_json").notNull(),
+  projectionHash: text("projection_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_runtime_projection_checkpoint_uq").on(table.streamType, table.streamId, table.streamVersion)]);
+
+export const factoryArtifactStaleProjections = sqliteTable("factory_artifact_stale_projections", {
+  artifactVersionId: text("artifact_version_id").primaryKey().references(() => factoryArtifactVersions.id), lifecycleState: text("lifecycle_state").notNull(), projectionVersion: integer("projection_version").notNull(),
+  staleEventId: text("stale_event_id").references(() => factoryRuntimeEvents.id), reason: text("reason"), evidenceHash: text("evidence_hash").notNull(), updatedAt: text("updated_at").notNull(),
+});
+
+export const factoryDependencyProjectionReceipts = sqliteTable("factory_dependency_projection_receipts", {
+  id: text("id").primaryKey(), staleEventId: text("stale_event_id").notNull().references(() => factoryRuntimeEvents.id), inputArtifactIdsJson: text("input_artifact_ids_json").notNull(),
+  staleBindingIdsJson: text("stale_binding_ids_json").notNull(), staleArtifactVersionIdsJson: text("stale_artifact_version_ids_json").notNull(), inputHash: text("input_hash").notNull(),
+  projectionHash: text("projection_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_dependency_projection_event_uq").on(table.staleEventId)]);
+
+export const factoryRuntimeReplayReceipts = sqliteTable("factory_runtime_replay_receipts", {
+  id: text("id").primaryKey(), streamType: text("stream_type").notNull(), streamId: text("stream_id").notNull(), throughStreamVersion: integer("through_stream_version").notNull(),
+  eventCount: integer("event_count").notNull(), eventStreamHash: text("event_stream_hash").notNull(), derivedProjectionHash: text("derived_projection_hash").notNull(),
+  storedProjectionHash: text("stored_projection_hash").notNull(), verificationState: text("verification_state").notNull(), failureReasonsJson: text("failure_reasons_json").notNull(),
+  executorVersion: text("executor_version").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_runtime_replay_stream_hash_uq").on(table.streamType, table.streamId, table.eventStreamHash)]);
