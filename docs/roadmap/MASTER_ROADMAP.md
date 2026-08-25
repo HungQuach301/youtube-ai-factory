@@ -95,7 +95,7 @@ Completed in source for the sixth bounded Phase 45 qualification slice:
 - canary replay, orphan reconciliation replay and both event-stream replays are idempotent; rerunning the whole qualification returns the original receipt;
 - the action is separately disabled and preserves provider requests/spend at zero, while the route-level R22 block remains active.
 
-Evidence passes 236/236 repository tests. Deployment of migration `0111`, live execution, D1/R2 read-back and subsequent flag disablement are the next bounded action; source evidence alone does not qualify the live path.
+Evidence passes 236/236 repository tests. Sites version 524 deploys migration `0111`; the live qualification table is present with zero rows and the runner remains disabled. A prepared two-flag environment revision was not deployed because the platform requires explicit approval for the production writer/canary side effect, and both pending keys were removed immediately. Live execution, D1/R2 read-back and subsequent flag disablement remain the next bounded action; deployed source alone does not qualify the live path.
 
 ## Phase 46 — R22 canary
 
