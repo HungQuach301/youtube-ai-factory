@@ -123,7 +123,7 @@ Exact durations and shot counts are compiled from narration and the canonical ti
 
 Migration `0112` and `HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION_CORPUS_V1` make the Channel treatment palette executable without a renderer revision branch. The corpus covers ten distinct treatment/topology/motion cases, all SOURCE/MAKE/HYBRID routes, exact asset-preparation lineage for SOURCE/HYBRID, data hashes for quantitative/geographic/temporal cases, thirty decoded entry/mutation/exit states and exact-repeat 1920×1080/30fps VP9 settings. Minimum critical type is 48px, contrast is at least 4.5:1 and safe margin is at least 96px.
 
-This package cannot claim documentary authenticity for a future selected asset, waive a per-asset rights receipt or authorize R22. Its only authority is the frozen internal treatment/compositor implementation tuple; a live append-only package and exact dependency admission remain required before the R22 canary.
+Live package `factory-treatment-qualification-35941cd62fb0364063a1f98d` now proves this frozen internal treatment/compositor tuple through ten PASS case receipts, exact D1/R2 read-back and idempotent replay. It cannot claim documentary authenticity for a future selected asset, waive a per-asset rights receipt or authorize R22. Exact dependency admission remains required before the R22 canary.
 
 ## Protected scope
 

@@ -104,11 +104,11 @@ Completed in source in the seventh bounded Phase 45 treatment-qualification slic
 - each case requires three distinct decoded semantic states, mobile/accessibility floors, future-state suppression, anti-slide proof and dataset or SOURCE/HYBRID preparation lineage;
 - the deterministic qualifier binds the exact corpus, compositor settings and FFmpeg build, emits VP9 twice to the same bytes and refuses incomplete treatment, route, topology, temporal, asset-lineage or replay evidence.
 
-Targeted qualification tests pass 4/4 with exact-repeat output SHA-256 `e6423727c7f18b59d6538fc9a097d744d59ac15e7d8011835920e91e07866d7b`, thirty distinct decoded state samples, zero provider requests and zero spend. Deployment, live D1 package/read-back and exact R22 dependency admission remain pending; this source evidence creates no R22, master, assurance, release or publication authority.
+Targeted qualification tests pass 5/5 and the full repository passes 241/241 with exact-repeat output SHA-256 `e6423727c7f18b59d6538fc9a097d744d59ac15e7d8011835920e91e07866d7b`, thirty distinct decoded state samples, zero provider requests and zero spend. Sites version 531 stores live package `factory-treatment-qualification-35941cd62fb0364063a1f98d` plus ten PASS case receipts. D1/R2 read back the exact 274,621-byte output and the same request returns `IDEMPOTENT_REPLAY`. The temporary writer, qualifier and credential are absent after the same-source environment-revision-50 redeployment. Exact R22 dependency admission remains pending; this evidence creates no R22, master, assurance, release or publication authority.
 
 ## Phase 46 — R22 canary
 
-**Status:** `GATED__LIVE_NON_R22_CANARY_PASS__PRODUCTION_SCALE_TREATMENT_AND_ASSURANCE_PENDING`
+**Status:** `GATED__LIVE_RUNTIME_AND_PRODUCTION_SCALE_TREATMENTS_PASS__PROVIDER_AND_ASSURANCE_CONTROLS_PENDING`
 
 Compile R22 only from the exact R21 visual FAIL/audio PASS pair after Phase 45. Pass zero-spend preflight, render the hardest 60-90 seconds through the final Production path, then run full master and L0-L7 assurance. Current owner playback remains until AI qualification separately opens exception-only authority. Publication remains separate and blocked.
 
