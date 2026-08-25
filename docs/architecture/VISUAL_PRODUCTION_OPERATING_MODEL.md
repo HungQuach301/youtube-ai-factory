@@ -112,6 +112,10 @@ acceptance_assertions
 
 There is no universal shot-count or 3.5-second gate. Duration is compiled from narration, semantic density, motion events and the Channel/Format policy. Long holds need meaningful internal state change; fast cuts must remain comprehensible.
 
+## Current executable compiler boundary
+
+`factory-production-compiler` now implements the deterministic planning path for generic videos. It requires frozen Channel Visual Profile and Series/Format versions, one exact canonical timebase and typed narration segments; resolves only explicit SOURCE/MAKE/HYBRID candidates through the zero-dispatch Provider Gateway; enforces complete non-overlapping frame coverage, job/route compatibility, anti-slide patterns, data hashes for chart/map proof and treatment-duration policy; then materializes Blueprint, Shot Contracts, Scene Graph and lineage atomically through the canonical writer. It does not render pixels, dispatch providers, create R22 or qualify a channel/format by itself.
+
 ## Candidate tournament
 
 Eligible candidates compete on:

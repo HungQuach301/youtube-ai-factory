@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__CANONICAL_RUNTIME_WRITER_DEPLOYED__SYNCHRONIZED`
+**Status:** `IN_PROGRESS__ZERO_DISPATCH_GATEWAY_AND_COMPILER_SOURCE_COMPLETE`
 
 Implement:
 
@@ -56,7 +56,16 @@ Completed in the second bounded Phase 45 slice:
 
 Deployment evidence: Sites version 514 succeeded, migration `0107` is live and the D1 overview exposes all nineteen `factory_*` tables.
 
-Next connect the Blueprint/Shot compilers and Provider Gateway to the canonical writer, then exercise the disabled-by-default route under a bounded deployment authorization. Renderer, L0-L7 assurance and all R22 authority remain incomplete.
+Completed in the third bounded Phase 45 slice:
+
+- migration `0108_factory_provider_gateway_and_compilers.sql` adds append-only provider, capability, binding, qualification, rights, cost-envelope, typed work-request, route-decision and compilation receipts;
+- `factory-provider-gateway` accepts typed requests only, selects an exact active/healthy/schema/settings/standard/archetype/rights-qualified binding, refuses automatic fallback and returns zero dispatch/spend;
+- `factory-production-compiler` deterministically resolves explicit SOURCE/MAKE/HYBRID routes and compiles frozen Visual Profile/Format plus canonical timebase into full-coverage Blueprint, Shot Contracts and Scene Graph without revision branching;
+- anti-slide grammar, data-proof, treatment-duration, exact coverage, qualification and rights gates fail closed;
+- compiler records, artifact lineage and route decisions commit atomically with `ArtifactMaterialized` through the fenced canonical writer;
+- the authenticated API adds a separately disabled compiler action while retaining zero-spend and R22 blocks.
+
+Local source evidence passes 228/228 repository tests, 10/10 targeted Gateway/compiler/writer tests, the verified Production build and documentation SSOT gate. Deployment of migration `0108` and exact dual-remote synchronization remain the next checkpoint. Actual provider dispatch/reconciliation, renderer workers, L0-L7 assurance and all R22 authority remain incomplete.
 
 ## Phase 46 — R22 canary
 

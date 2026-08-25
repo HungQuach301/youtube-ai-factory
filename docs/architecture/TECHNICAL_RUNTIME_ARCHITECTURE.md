@@ -1,6 +1,6 @@
 # Technical Runtime Architecture
 
-**State:** `ACTIVE_NORMATIVE__IMPLEMENTATION_REQUIRED`
+**State:** `ACTIVE_NORMATIVE__PARTIAL_IMPLEMENTATION`
 **Policy:** `FACTORY_TECHNICAL_RUNTIME_ARCHITECTURE_V1`
 **Effective:** 2026-08-24
 
@@ -92,8 +92,8 @@ Secrets are connection-scoped and server-only. Least privilege separates Product
 
 1. Contracts/schema and event types.
 2. Canonical timebase and dependency-stale resolver.
-3. Provider Gateway and qualification/rights/cost integration.
-4. Blueprint/Shot compilers and Visual Grammar Resolver.
+3. Provider Gateway and qualification/rights/cost integration. `PARTIAL: ZERO_DISPATCH_ROUTING_IMPLEMENTED`
+4. Blueprint/Shot compilers and Visual Grammar Resolver. `IMPLEMENTED_FOR_DETERMINISTIC_ZERO_DISPATCH_PLANS`
 5. Scene Graph Renderer, worker fencing and canary path.
 6. Evidence/Assurance orchestration and QA Cockpit.
 7. Learning, scale and rollback services.
@@ -102,4 +102,4 @@ R22 may compile only after its exact Phase 1-6 dependencies are implemented and 
 
 ## Current implementation evidence
 
-Migrations `0106` and `0107` implement the contract/timebase foundation and canonical stream writer. The active implementation persists commands and events through optimistic expected state/version, exclusive leases and monotonic fencing; records rejected conflicts; materializes transitive dependency staleness; and verifies exact event replay against the stored projection hash. The authenticated runtime route is fail-closed, disabled by default, zero-spend and R22-blocked. Qualified worker integration, Provider Gateway, compilers, renderer, assurance and UI projections remain later work and gain no authority from this implementation evidence.
+Migrations `0106`-`0108` implement the contract/timebase foundation, fenced canonical writer and append-only Provider Gateway/compiler records. The Gateway routes only exact active/healthy/schema/settings/standard/archetype/rights-qualified bindings in `ZERO_DISPATCH`; automatic fallback and paid dispatch are blocked. The compiler creates deterministic Blueprint, full-duration Shot Contracts and Scene Graph from frozen profile/format/timebase inputs, enforces anti-slide/data-proof/treatment gates, and commits route decisions plus lineage atomically with the writer event. The authenticated route is separately disabled for writer and compiler use, zero-spend and R22-blocked. Actual provider dispatch/reconciliation, render workers, assurance and UI projections remain later work and gain no authority from this evidence.

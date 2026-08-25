@@ -2613,3 +2613,75 @@ export const factoryRuntimeReplayReceipts = sqliteTable("factory_runtime_replay_
   storedProjectionHash: text("stored_projection_hash").notNull(), verificationState: text("verification_state").notNull(), failureReasonsJson: text("failure_reasons_json").notNull(),
   executorVersion: text("executor_version").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("factory_runtime_replay_stream_hash_uq").on(table.streamType, table.streamId, table.eventStreamHash)]);
+
+export const factoryProviders = sqliteTable("factory_providers", {
+  id: text("id").primaryKey(), providerKey: text("provider_key").notNull(), providerVersion: text("provider_version").notNull(), connectionRef: text("connection_ref"),
+  lifecycleState: text("lifecycle_state").notNull(), healthState: text("health_state").notNull(), metadataJson: text("metadata_json").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_provider_key_version_uq").on(table.providerKey, table.providerVersion)]);
+
+export const factoryCapabilities = sqliteTable("factory_capabilities", {
+  id: text("id").primaryKey(), capabilityKey: text("capability_key").notNull(), capabilityVersion: text("capability_version").notNull(), plane: text("plane").notNull(),
+  inputSchemaHash: text("input_schema_hash").notNull(), outputSchemaHash: text("output_schema_hash").notNull(), lifecycleState: text("lifecycle_state").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_capability_key_version_uq").on(table.capabilityKey, table.capabilityVersion)]);
+
+export const factoryProviderBindings = sqliteTable("factory_provider_bindings", {
+  id: text("id").primaryKey(), providerId: text("provider_id").notNull().references(() => factoryProviders.id), capabilityId: text("capability_id").notNull().references(() => factoryCapabilities.id),
+  bindingVersion: text("binding_version").notNull(), endpointOrModel: text("endpoint_or_model").notNull(), modelVersion: text("model_version").notNull(), inputSchemaHash: text("input_schema_hash").notNull(),
+  outputSchemaHash: text("output_schema_hash").notNull(), settingsHash: text("settings_hash").notNull(), rightsPolicyVersion: text("rights_policy_version").notNull(), retentionPolicyVersion: text("retention_policy_version").notNull(),
+  rateCardVersion: text("rate_card_version").notNull(), maxPayloadBytes: integer("max_payload_bytes").notNull(), timeoutMs: integer("timeout_ms").notNull(), retryCeiling: integer("retry_ceiling").notNull(),
+  fallbackBindingId: text("fallback_binding_id"), priority: integer("priority").notNull().default(100), lifecycleState: text("lifecycle_state").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_provider_binding_version_uq").on(table.providerId, table.capabilityId, table.bindingVersion),
+  index("factory_provider_binding_route_idx").on(table.capabilityId, table.lifecycleState, table.priority),
+]);
+
+export const factoryCapabilityQualifications = sqliteTable("factory_capability_qualifications", {
+  id: text("id").primaryKey(), bindingId: text("binding_id").notNull().references(() => factoryProviderBindings.id), qualificationVersion: integer("qualification_version").notNull(), standardVersion: text("standard_version").notNull(),
+  qualifiedArchetypesJson: text("qualified_archetypes_json").notNull(), settingsHash: text("settings_hash").notNull(), sampleSize: integer("sample_size").notNull(), firstPassYield: real("first_pass_yield").notNull(),
+  p0EscapeCount: integer("p0_escape_count").notNull(), evidenceHash: text("evidence_hash").notNull(), lifecycleState: text("lifecycle_state").notNull(), qualifiedAt: text("qualified_at"), expiresAt: text("expires_at"),
+  revokedAt: text("revoked_at"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_capability_qualification_version_uq").on(table.bindingId, table.qualificationVersion),
+  index("factory_capability_qualification_route_idx").on(table.bindingId, table.lifecycleState, table.standardVersion, table.qualificationVersion),
+]);
+
+export const factoryRightsEligibilityReceipts = sqliteTable("factory_rights_eligibility_receipts", {
+  id: text("id").primaryKey(), bindingId: text("binding_id").notNull().references(() => factoryProviderBindings.id), rightsPolicyVersion: text("rights_policy_version").notNull(),
+  retentionPolicyVersion: text("retention_policy_version").notNull(), commercialUseState: text("commercial_use_state").notNull(), evidenceHash: text("evidence_hash").notNull(), validFrom: text("valid_from").notNull(),
+  expiresAt: text("expires_at"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_rights_eligibility_binding_policy_uq").on(table.bindingId, table.rightsPolicyVersion, table.retentionPolicyVersion, table.evidenceHash)]);
+
+export const factoryCostEnvelopes = sqliteTable("factory_cost_envelopes", {
+  id: text("id").primaryKey(), scopeType: text("scope_type").notNull(), scopeId: text("scope_id").notNull(), currency: text("currency").notNull(), maxSpendMicros: integer("max_spend_micros").notNull(),
+  maxProviderRequests: integer("max_provider_requests").notNull(), policyVersion: text("policy_version").notNull(), lifecycleState: text("lifecycle_state").notNull(), evidenceHash: text("evidence_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_cost_envelope_scope_policy_uq").on(table.scopeType, table.scopeId, table.policyVersion)]);
+
+export const factoryProviderWorkRequests = sqliteTable("factory_provider_work_requests", {
+  id: text("id").primaryKey(), videoId: text("video_id").notNull(), shotContractId: text("shot_contract_id"), capabilityKey: text("capability_key").notNull(), capabilityVersion: text("capability_version").notNull(),
+  archetype: text("archetype").notNull(), inputHash: text("input_hash").notNull(), payloadBytes: integer("payload_bytes").notNull(), expectedOutputSchemaHash: text("expected_output_schema_hash").notNull(),
+  requiredSettingsHash: text("required_settings_hash").notNull(), rightsPolicyVersion: text("rights_policy_version").notNull(), retentionPolicyVersion: text("retention_policy_version").notNull(),
+  dispatchMode: text("dispatch_mode").notNull(), maxProviderRequests: integer("max_provider_requests").notNull(), maxSpendMicros: integer("max_spend_micros").notNull(), fallbackAllowed: integer("fallback_allowed", { mode: "boolean" }).notNull(),
+  idempotencyKey: text("idempotency_key").notNull(), intentHash: text("intent_hash").notNull(), createdByCommandId: text("created_by_command_id").notNull().references(() => factoryRuntimeCommands.id),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_provider_work_request_idempotency_uq").on(table.idempotencyKey)]);
+
+export const factoryProviderRouteDecisions = sqliteTable("factory_provider_route_decisions", {
+  id: text("id").primaryKey(), workRequestId: text("work_request_id").notNull().references(() => factoryProviderWorkRequests.id), bindingId: text("binding_id").references(() => factoryProviderBindings.id),
+  qualificationId: text("qualification_id").references(() => factoryCapabilityQualifications.id), decision: text("decision").notNull(), reasonsJson: text("reasons_json").notNull(), providerRequests: integer("provider_requests").notNull(),
+  spendMicros: integer("spend_micros").notNull(), fallbackUsed: integer("fallback_used", { mode: "boolean" }).notNull(), decisionHash: text("decision_hash").notNull(), createdByEventId: text("created_by_event_id").notNull().references(() => factoryRuntimeEvents.id),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_provider_route_decision_request_uq").on(table.workRequestId)]);
+
+export const factoryProductionCompilationReceipts = sqliteTable("factory_production_compilation_receipts", {
+  id: text("id").primaryKey(), videoId: text("video_id").notNull(), compilerVersion: text("compiler_version").notNull(), visualProfileVersionId: text("visual_profile_version_id").notNull().references(() => factoryChannelVisualProfileVersions.id),
+  seriesFormatVersionId: text("series_format_version_id").notNull().references(() => factorySeriesFormatVersions.id), canonicalTimebaseId: text("canonical_timebase_id").notNull().references(() => factoryCanonicalTimebases.id),
+  videoBlueprintId: text("video_blueprint_id").notNull().references(() => factoryVideoBlueprints.id), sceneGraphId: text("scene_graph_id").notNull().references(() => factorySceneGraphs.id), shotCount: integer("shot_count").notNull(),
+  providerRouteDecisionIdsJson: text("provider_route_decision_ids_json").notNull(), inputHash: text("input_hash").notNull(), outputHash: text("output_hash").notNull(), verificationState: text("verification_state").notNull(),
+  zeroDispatch: integer("zero_dispatch", { mode: "boolean" }).notNull(), providerRequests: integer("provider_requests").notNull(), spendMicros: integer("spend_micros").notNull(),
+  commandId: text("command_id").notNull().references(() => factoryRuntimeCommands.id), eventId: text("event_id").notNull().references(() => factoryRuntimeEvents.id), idempotencyKey: text("idempotency_key").notNull(),
+  evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_production_compilation_idempotency_uq").on(table.idempotencyKey),
+  uniqueIndex("factory_production_compilation_video_output_uq").on(table.videoId, table.outputHash),
+]);

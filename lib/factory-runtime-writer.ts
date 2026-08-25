@@ -13,16 +13,16 @@ export const FACTORY_RUNTIME_REPLAY_VERSION = "FACTORY_RUNTIME_REPLAY_V1" as con
 
 type Row = Record<string, unknown>;
 type RunResult = { success?: boolean; meta?: { changes?: number } };
-type Statement = {
-  bind(...values: unknown[]): Statement;
+export type FactoryRuntimeStatement = {
+  bind(...values: unknown[]): FactoryRuntimeStatement;
   all<T = Row>(): Promise<{ results?: T[] }>;
   first<T = Row>(): Promise<T | null>;
   run(): Promise<RunResult>;
 };
 
 export type FactoryRuntimeDB = {
-  prepare(query: string): Statement;
-  batch(statements: Statement[]): Promise<RunResult[]>;
+  prepare(query: string): FactoryRuntimeStatement;
+  batch(statements: FactoryRuntimeStatement[]): Promise<RunResult[]>;
 };
 
 export type FactoryRuntimeExecution = {
@@ -52,6 +52,17 @@ export type FactoryRuntimeCommandInput = {
   correlationId?: string;
   causationId?: string | null;
 };
+
+export type FactoryRuntimeEffectContext = {
+  commandId: string;
+  acceptedEventId: string;
+  effectEventId: string;
+  occurredAt: string;
+  finalVersion: number;
+  evidenceHash: string;
+};
+
+export type FactoryRuntimeEffectBuilder = (context: FactoryRuntimeEffectContext) => FactoryRuntimeStatement[];
 
 export class FactoryRuntimeError extends Error {
   constructor(public readonly code: string, public readonly status: number, message: string, public readonly reasons: string[] = []) {
@@ -261,7 +272,7 @@ async function persistedRejectedCommand(db: FactoryRuntimeDB, input: FactoryRunt
   throw new FactoryRuntimeError("COMMAND_REJECTION_WRITE_CONFLICT", 409, "Command rejection could not be persisted", reasons);
 }
 
-export async function submitFactoryRuntimeCommand(db: FactoryRuntimeDB, command: FactoryRuntimeCommandInput, execution?: FactoryRuntimeExecution) {
+async function submitFactoryRuntimeCommandInternal(db: FactoryRuntimeDB, command: FactoryRuntimeCommandInput, execution?: FactoryRuntimeExecution, effectBuilder?: FactoryRuntimeEffectBuilder) {
   const validation = assertFactoryRuntimeCommand(command);
   const evidenceHash = requireHash(command.evidenceHash, "EVIDENCE_HASH");
   requireIdentity(command.streamType, "STREAM_TYPE"); requireIdentity(command.streamId, "STREAM_ID"); requireIdentity(command.actorId, "ACTOR_ID");
@@ -284,7 +295,7 @@ export async function submitFactoryRuntimeCommand(db: FactoryRuntimeDB, command:
   if (reasons.length) return persistedRejectedCommand(db, { ...command, evidenceHash }, reasons, execution);
   const commandId = identifier("factory-command", execution), acceptedEventId = identifier("factory-event", execution), effect = effectEvent(command.commandType), effectEventId = effect ? identifier("factory-event", execution) : null;
   const acceptedVersion = command.expectedVersion + 1, finalVersion = acceptedVersion + (effect ? 1 : 0), finalState = effect ?? clean(stream.current_state), finalHeadId = effectEventId || acceptedEventId;
-  const statements: Statement[] = [
+  const statements: FactoryRuntimeStatement[] = [
     commandStatement(db, commandId, command, now),
     eventStatement(db, { id: acceptedEventId, streamType: command.streamType, streamId: command.streamId, streamVersion: acceptedVersion, eventType: "CommandAccepted", actorType: eventActorType(command.actorType), actorId: command.actorId,
       commandId, causationId: command.causationId, correlationId: command.correlationId || commandId, leaseId: command.leaseId, fencingToken: command.fencingToken,
@@ -293,6 +304,10 @@ export async function submitFactoryRuntimeCommand(db: FactoryRuntimeDB, command:
   if (effect && effectEventId) statements.push(eventStatement(db, { id: effectEventId, streamType: command.streamType, streamId: command.streamId, streamVersion: finalVersion, eventType: effect, actorType: eventActorType(command.actorType), actorId: command.actorId,
     commandId, causationId: acceptedEventId, correlationId: command.correlationId || commandId, leaseId: command.leaseId, fencingToken: command.fencingToken,
     idempotencyKey: `runtime:event:${effectEventId}`, intentHash: command.intentHash, payload: { ...command.payload, commandType: command.commandType, writerVersion: FACTORY_RUNTIME_WRITER_VERSION }, evidenceHash, occurredAt: now }));
+  if (effectBuilder) {
+    if (!effect || !effectEventId) throw new FactoryRuntimeError("RUNTIME_EFFECT_EVENT_REQUIRED", 400, "Atomic command effects require a command that emits an effect event");
+    statements.push(...effectBuilder({ commandId, acceptedEventId, effectEventId, occurredAt: now, finalVersion, evidenceHash }));
+  }
   if (command.commandType === "FREEZE_STAGE" || command.commandType === "REOPEN_ROOT_STAGE") {
     statements.push(
       db.prepare("UPDATE factory_runtime_leases SET lifecycle_state='RELEASED',released_at=? WHERE id=? AND fencing_token=? AND lifecycle_state='ACTIVE'").bind(now, command.leaseId, command.fencingToken),
@@ -308,6 +323,14 @@ export async function submitFactoryRuntimeCommand(db: FactoryRuntimeDB, command:
   }
   return { outcome: "RECORDED" as const, decision: "ACCEPTED" as const, commandId, streamType: command.streamType, streamId: command.streamId, streamVersion: finalVersion,
     eventIds: effectEventId ? [acceptedEventId, effectEventId] : [acceptedEventId], reasons: [], providerRequests: 0, spendUsd: 0 };
+}
+
+export async function submitFactoryRuntimeCommand(db: FactoryRuntimeDB, command: FactoryRuntimeCommandInput, execution?: FactoryRuntimeExecution) {
+  return submitFactoryRuntimeCommandInternal(db, command, execution);
+}
+
+export async function submitFactoryRuntimeCommandWithEffects(db: FactoryRuntimeDB, command: FactoryRuntimeCommandInput, buildEffects: FactoryRuntimeEffectBuilder, execution?: FactoryRuntimeExecution) {
+  return submitFactoryRuntimeCommandInternal(db, command, execution, buildEffects);
 }
 
 export async function reconcileFactoryRuntimeOrphan(db: FactoryRuntimeDB, input: {
@@ -351,7 +374,7 @@ export async function materializeFactoryDependencyStaleProjection(db: FactoryRun
   const inputHash = await canonicalHash({ staleEventId, changedArtifactVersionIds: changed, reason }), projectionHash = await canonicalHash(resolution), now = timestamp(execution), receiptId = identifier("factory-dependency-projection", execution);
   const evidenceHash = clean(event.evidence_hash);
   const bindingById = new Map(bindings.map((binding) => [clean(binding.id), binding]));
-  const statements: Statement[] = resolution.staleBindingIds.map((bindingId) => db.prepare(`INSERT INTO factory_dependency_invalidations
+  const statements: FactoryRuntimeStatement[] = resolution.staleBindingIds.map((bindingId) => db.prepare(`INSERT INTO factory_dependency_invalidations
     (id,dependency_binding_id,stale_event_id,reason,evidence_hash) VALUES (?,?,?,?,?)`).bind(identifier("factory-invalidation", execution), bindingId, staleEventId, reason, evidenceHash));
   for (const artifactVersionId of resolution.staleArtifactVersionIds) statements.push(db.prepare(`INSERT INTO factory_artifact_stale_projections
     (artifact_version_id,lifecycle_state,projection_version,stale_event_id,reason,evidence_hash,updated_at) VALUES (?,'STALE',1,?,?,?,?)

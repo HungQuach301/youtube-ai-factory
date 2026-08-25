@@ -77,6 +77,10 @@ fallback_binding, health, last_qualification, revocation_conditions
 
 No qualified binding means no dispatch. Fallback is explicit, separately qualified and recorded; it cannot occur silently.
 
+### Current executable boundary
+
+Migration `0108` and `factory-provider-gateway` implement the pre-dispatch half of this contract. Provider, capability, binding, qualification, rights, cost-envelope, typed work-request and route-decision identities are append-only. Routing verifies active/healthy state, exact schema/settings/standard/archetype, qualification sample/yield/P0 floors, expiry, payload limit and commercial rights. The only permitted result in this slice is `PLANNED_ZERO_DISPATCH` with `provider_requests=0` and `spend_micros=0`; stale/unqualified/ineligible input is `BLOCKED`. Automatic fallback and all provider dispatch remain disabled until reservation, native-response capture and reconciliation are implemented and qualified.
+
 ## Approved capability plan
 
 | Capability | Preferred route | Control boundary |

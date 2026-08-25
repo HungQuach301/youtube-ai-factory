@@ -11,6 +11,7 @@ import {
   type FactoryRuntimeCommandInput,
   type FactoryRuntimeDB,
 } from "@/lib/factory-runtime-writer";
+import { persistFactoryProductionCompilation, type FactoryProductionCompilationInput } from "@/lib/factory-production-compiler";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ type RuntimeEnv = {
   FACTORY_EXPERT_EMAILS?: string;
   FACTORY_RUNTIME_WRITER_ENABLED?: string;
   FACTORY_RUNTIME_R22_AUTHORIZED?: string;
+  FACTORY_PRODUCTION_COMPILER_ENABLED?: string;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -73,6 +75,17 @@ function assertR22Blocked(env: RuntimeEnv, body: JsonRecord) {
 
 function recordOrEmpty(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : {};
+}
+
+function runtimeCommand(value: unknown, actor: { actorType: "OWNER"; actorId: string }) {
+  const input = recordOrEmpty(value);
+  return {
+    ...input as unknown as FactoryRuntimeCommandInput, ...actor, streamType: string(input.streamType), streamId: string(input.streamId),
+    commandType: string(input.commandType) as FactoryRuntimeCommandInput["commandType"], expectedState: string(input.expectedState), expectedVersion: integer(input.expectedVersion),
+    leaseId: string(input.leaseId), fencingToken: integer(input.fencingToken), idempotencyKey: string(input.idempotencyKey), intentHash: string(input.intentHash),
+    policyVersions: recordOrEmpty(input.policyVersions), costScope: recordOrEmpty(input.costScope), rightsScope: recordOrEmpty(input.rightsScope), payload: recordOrEmpty(input.payload),
+    evidenceHash: string(input.evidenceHash), correlationId: string(input.correlationId) || undefined, causationId: string(input.causationId) || null,
+  } satisfies FactoryRuntimeCommandInput;
 }
 
 async function readBoundedBody(request: Request) {
@@ -130,15 +143,13 @@ export async function POST(request: Request) {
     }), { headers: NO_STORE });
 
     if (action === "SUBMIT_COMMAND") {
-      const input = recordOrEmpty(body.command);
-      const command: FactoryRuntimeCommandInput = {
-        ...input as unknown as FactoryRuntimeCommandInput, ...actor, streamType: string(input.streamType), streamId: string(input.streamId),
-        commandType: string(input.commandType) as FactoryRuntimeCommandInput["commandType"], expectedState: string(input.expectedState), expectedVersion: integer(input.expectedVersion),
-        leaseId: string(input.leaseId), fencingToken: integer(input.fencingToken), idempotencyKey: string(input.idempotencyKey), intentHash: string(input.intentHash),
-        policyVersions: recordOrEmpty(input.policyVersions), costScope: recordOrEmpty(input.costScope), rightsScope: recordOrEmpty(input.rightsScope), payload: recordOrEmpty(input.payload),
-        evidenceHash: string(input.evidenceHash), correlationId: string(input.correlationId) || undefined, causationId: string(input.causationId) || null,
-      };
-      return Response.json(await submitFactoryRuntimeCommand(env.DB, command), { headers: NO_STORE });
+      return Response.json(await submitFactoryRuntimeCommand(env.DB, runtimeCommand(body.command, actor)), { headers: NO_STORE });
+    }
+
+    if (action === "COMPILE_PRODUCTION_PLAN") {
+      if (env.FACTORY_PRODUCTION_COMPILER_ENABLED !== "true") return failure("FACTORY_PRODUCTION_COMPILER_DISABLED", "The production compiler is disabled until an explicit deployment authorization is configured", 503);
+      const compilation = recordOrEmpty(body.compilation) as unknown as FactoryProductionCompilationInput;
+      return Response.json(await persistFactoryProductionCompilation(env.DB, { ...compilation, createdBy: user.email }, runtimeCommand(body.command, actor)), { status: 201, headers: NO_STORE });
     }
 
     if (action === "RECONCILE_ORPHAN") return Response.json(await reconcileFactoryRuntimeOrphan(env.DB, {
