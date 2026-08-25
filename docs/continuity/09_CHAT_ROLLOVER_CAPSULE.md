@@ -20,7 +20,7 @@
 - Browser, owner freeze, release and publication are blocked.
 - Phase 45 foundation `4c45e5bd…` is canonicalized and deployed: migration `0106` and its twelve `factory_*` tables are verified in live D1.
 - Migration `0107`, the single command/event writer, leases/fencing, persisted stale projections and exact replay deployed in Sites version 514; all nineteen `factory_*` tables are verified in live D1. The SIWC/allowlist-protected route remains disabled by default, zero-spend and R22-blocked.
-- Migration `0108`, the zero-dispatch Provider Gateway and deterministic Visual Profile -> Blueprint -> Shot Contract -> Scene Graph compiler deployed in Sites version 516; all twenty-eight `factory_*` tables are verified in live D1 and Sites version 517 deployed the receipt. Exact GitHub synchronization is blocked pending explicit approval for one bounded temporary-staging `force-with-lease`; no GitHub ref changed. Automatic fallback, provider dispatch, R22 and Production rendering remain blocked.
+- Migration `0108`, the zero-dispatch Provider Gateway and deterministic Visual Profile -> Blueprint -> Shot Contract -> Scene Graph compiler deployed in Sites version 516; all twenty-eight `factory_*` tables are verified in live D1 and Sites version 519 exposes the current sync state. The bounded `force-with-lease` is approved, but exact GitHub synchronization remains blocked pending explicit approval for its temporary self-removing Actions workflow with `contents: write`; no GitHub ref changed. Automatic fallback, provider dispatch, R22 and Production rendering remain blocked.
 - Local, Sites and private GitHub `main` are synchronized on one exact commit after the Phase 45 synchronization checkpoint.
 - `HungQuach301/youtube-ai-factory` contains the complete Sites Git history; the verified common baseline is `2431a800d2d540bcfea141c98c9977cd46667950`.
 - `HungQuach301/youtube-ai-factory-v2` is never an upstream, mirror, fallback or recovery source.
@@ -34,7 +34,7 @@ Before the next mutation, re-prove:
 HEAD = origin/main = github/main
 ```
 
-Then obtain the named bounded GitHub synchronization approval, verify exact equality, and implement the deterministic Scene Graph Renderer plus qualified worker/recovery path. Do not reconstruct from chat, re-run R21, dispatch R22, weaken a gate or publish.
+Then obtain the named temporary workflow approval, run the already-approved lease-bound synchronization, verify exact equality, and implement the deterministic Scene Graph Renderer plus qualified worker/recovery path. Do not reconstruct from chat, re-run R21, dispatch R22, weaken a gate or publish.
 
 ## Rollover completion
 

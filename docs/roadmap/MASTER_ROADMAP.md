@@ -65,7 +65,7 @@ Completed in the third bounded Phase 45 slice:
 - compiler records, artifact lineage and route decisions commit atomically with `ArtifactMaterialized` through the fenced canonical writer;
 - the authenticated API adds a separately disabled compiler action while retaining zero-spend and R22 blocks.
 
-Evidence passes 228/228 repository tests, 10/10 targeted Gateway/compiler/writer tests, the verified Production build and documentation SSOT gate. Sites version 516 deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded, live D1 exposes all twenty-eight `factory_*` tables and Sites version 517 deployed the receipt. Exact GitHub synchronization is blocked pending explicit approval for one bounded temporary-staging `force-with-lease`; GitHub `main` was not changed. Actual provider dispatch/reconciliation, renderer workers, L0-L7 assurance and all R22 authority remain incomplete.
+Evidence passes 228/228 repository tests, 10/10 targeted Gateway/compiler/writer tests, the verified Production build and documentation SSOT gate. Sites version 516 deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded, live D1 exposes all twenty-eight `factory_*` tables and Sites version 519 exposes the current sync state. The owner approved the bounded temporary-staging `force-with-lease`; exact GitHub synchronization is still blocked pending separate explicit approval for the temporary self-removing Actions workflow with `contents: write`. GitHub `main` was not changed. Actual provider dispatch/reconciliation, renderer workers, L0-L7 assurance and all R22 authority remain incomplete.
 
 ## Phase 46 — R22 canary
 
