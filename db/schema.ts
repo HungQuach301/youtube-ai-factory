@@ -2780,3 +2780,26 @@ export const factoryLiveCanaryQualificationReceipts = sqliteTable("factory_live_
   uniqueIndex("factory_live_canary_qualification_key_uq").on(table.qualificationKey),
   uniqueIndex("factory_live_canary_qualification_canary_uq").on(table.integratedCanaryReceiptId),
 ]);
+
+export const factoryTreatmentQualificationPackages = sqliteTable("factory_treatment_qualification_packages", {
+  id: text("id").primaryKey(), qualificationKey: text("qualification_key").notNull(), channelId: text("channel_id").notNull(), visualProfilePolicy: text("visual_profile_policy").notNull(),
+  standardVersion: text("standard_version").notNull(), corpusVersion: text("corpus_version").notNull(), corpusHash: text("corpus_hash").notNull(), settingsHash: text("settings_hash").notNull(),
+  encoderBuildHash: text("encoder_build_hash").notNull(), compositorVersion: text("compositor_version").notNull(), encoderVersion: text("encoder_version").notNull(), width: integer("width").notNull(),
+  height: integer("height").notNull(), frameRateNumerator: integer("frame_rate_numerator").notNull(), frameRateDenominator: integer("frame_rate_denominator").notNull(), caseCount: integer("case_count").notNull(),
+  requiredRoutesJson: text("required_routes_json").notNull(), requiredTreatmentsJson: text("required_treatments_json").notNull(), outputHash: text("output_hash").notNull(), readbackHash: text("readback_hash").notNull(),
+  deterministicReplayHash: text("deterministic_replay_hash").notNull(), verificationState: text("verification_state").notNull(), authorityBoundary: text("authority_boundary").notNull(), r22Authority: integer("r22_authority", { mode: "boolean" }).notNull(),
+  masterAuthority: integer("master_authority", { mode: "boolean" }).notNull(), releaseAuthority: integer("release_authority", { mode: "boolean" }).notNull(), publicationAuthority: integer("publication_authority", { mode: "boolean" }).notNull(),
+  zeroDispatch: integer("zero_dispatch", { mode: "boolean" }).notNull(), providerRequests: integer("provider_requests").notNull(), spendMicros: integer("spend_micros").notNull(), evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_treatment_qualification_key_uq").on(table.qualificationKey),
+  uniqueIndex("factory_treatment_qualification_exact_settings_uq").on(table.channelId, table.visualProfilePolicy, table.standardVersion, table.corpusHash, table.settingsHash, table.encoderBuildHash),
+]);
+
+export const factoryTreatmentQualificationCaseReceipts = sqliteTable("factory_treatment_qualification_case_receipts", {
+  id: text("id").primaryKey(), packageId: text("package_id").notNull().references(() => factoryTreatmentQualificationPackages.id), caseKey: text("case_key").notNull(), treatmentFamily: text("treatment_family").notNull(), route: text("route").notNull(),
+  topologyHash: text("topology_hash").notNull(), stateSampleHashesJson: text("state_sample_hashes_json").notNull(), stateCount: integer("state_count").notNull(), minimumFontPx: integer("minimum_font_px").notNull(),
+  maximumSimultaneousLabels: integer("maximum_simultaneous_labels").notNull(), contrastRatio: real("contrast_ratio").notNull(), safeMarginPx: integer("safe_margin_px").notNull(), colorRedundancyState: text("color_redundancy_state").notNull(),
+  futureStateSuppressionState: text("future_state_suppression_state").notNull(), antiSlideState: text("anti_slide_state").notNull(), assetPreparationState: text("asset_preparation_state").notNull(), datasetHash: text("dataset_hash"),
+  parentAssetHash: text("parent_asset_hash"), transformManifestHash: text("transform_manifest_hash"), derivativeHash: text("derivative_hash"), verificationState: text("verification_state").notNull(), evidenceHash: text("evidence_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_treatment_qualification_case_uq").on(table.packageId, table.caseKey)]);

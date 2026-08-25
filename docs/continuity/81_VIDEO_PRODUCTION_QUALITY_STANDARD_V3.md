@@ -100,3 +100,5 @@ Secrets never enter Git, prompts, logs or UI. Provider/model/rubric drift makes 
 ## R22 application
 
 R22 is the first V3 canary. It must pass phase distinction, completed settlement payoff, mobile labels, future-state suppression, hybrid reality/mechanism/proof integration and exact-artifact L0-L7 assurance. R21 remains immutable visual FAIL/audio PASS evidence and cannot be rescored under V3 to gain authority.
+
+For Hidden Systems treatment qualification, the executable corpus floor is exact 1920×1080/30fps geometry, at least three distinct decoded semantic states per treatment, 48px minimum critical type, 4.5:1 minimum contrast, 96px minimum safe margin, no more than five simultaneous critical labels, non-color-only state coding, future-state suppression and distinct topology/motion fingerprints. These are capability floors; a master must still pass the full Standard on its own exact bytes.

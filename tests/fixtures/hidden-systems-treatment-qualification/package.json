@@ -1,0 +1,25 @@
+{
+  "contractVersion": "HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION_CORPUS_V1",
+  "channelId": "channel-hidden-systems",
+  "visualProfilePolicy": "HIDDEN_SYSTEMS_VISUAL_DNA_V1",
+  "standardVersion": "VIDEO_PRODUCTION_QUALITY_STANDARD_V3",
+  "locale": "en-US",
+  "output": { "width": 1920, "height": 1080, "frameRateNumerator": 30, "frameRateDenominator": 1, "framesPerState": 3 },
+  "compositor": {
+    "version": "FACTORY_PIXEL_VIDEO_COMPOSITOR_V1",
+    "encoderVersion": "FFMPEG_LIBVPX_VP9_BITEXACT_PRODUCTION_V1",
+    "settings": { "codec": "vp9", "pixelFormat": "yuv420p", "crf": 32, "cpuUsed": 6, "threads": 1, "rowMt": 0, "tileColumns": 0, "frameParallel": 0, "autoAltRef": 0 }
+  },
+  "cases": [
+    { "key": "DOCUMENTARY_MACRO", "treatmentFamily": "DOCUMENTARY_MACRO", "route": "SOURCE", "topology": "OBJECT_CONSEQUENCE", "motionProfile": "OBJECT_CONTINUITY", "labels": ["CUSTOMER", "TERMINAL"], "minimumFontPx": 64, "contrastRatio": 7.2, "safeMarginPx": 120, "assetPreparation": { "parentAssetHash": "1111111111111111111111111111111111111111111111111111111111111111", "transformManifestHash": "1212121212121212121212121212121212121212121212121212121212121212", "derivativeHash": "1313131313131313131313131313131313131313131313131313131313131313" } },
+    { "key": "SYSTEM_DIAGRAM", "treatmentFamily": "SYSTEM_DIAGRAM", "route": "MAKE", "topology": "REQUEST_RESPONSE_NETWORK", "motionProfile": "CAUSE_THEN_EFFECT", "labels": ["REQUEST", "DECISION", "RETURN"], "minimumFontPx": 58, "contrastRatio": 7.1, "safeMarginPx": 112 },
+    { "key": "ANIMATED_LEDGER", "treatmentFamily": "ANIMATED_LEDGER", "route": "MAKE", "topology": "CURRENT_OBLIGATION_LEDGER", "motionProfile": "CURRENT_STATE_ONLY", "labels": ["DEBIT", "CREDIT", "BALANCE"], "minimumFontPx": 58, "contrastRatio": 6.8, "safeMarginPx": 112, "datasetHash": "2121212121212121212121212121212121212121212121212121212121212121" },
+    { "key": "SANKEY_FLOW", "treatmentFamily": "SANKEY_FLOW", "route": "MAKE", "topology": "CONSERVED_BATCH_FLOW", "motionProfile": "PROGRESSIVE_FLOW", "labels": ["SOURCE", "NET", "SINK"], "minimumFontPx": 58, "contrastRatio": 6.7, "safeMarginPx": 112, "datasetHash": "2222222222222222222222222222222222222222222222222222222222222222" },
+    { "key": "NETWORK_MAP", "treatmentFamily": "NETWORK_MAP", "route": "MAKE", "topology": "COUNTERPARTY_PROPAGATION", "motionProfile": "TRACE_ONE_PATH", "labels": ["BANK", "NETWORK", "MERCHANT"], "minimumFontPx": 58, "contrastRatio": 6.6, "safeMarginPx": 112 },
+    { "key": "GEOGRAPHIC_MAP", "treatmentFamily": "GEOGRAPHIC_MAP", "route": "MAKE", "topology": "JURISDICTION_ROUTE", "motionProfile": "ORIENT_TRACE_PROVE", "labels": ["US", "ROUTE", "DESTINATION"], "minimumFontPx": 58, "contrastRatio": 6.5, "safeMarginPx": 112, "datasetHash": "2323232323232323232323232323232323232323232323232323232323232323" },
+    { "key": "EXCEPTION_TIMELINE", "treatmentFamily": "EXCEPTION_TIMELINE", "route": "MAKE", "topology": "BRANCHING_IRREGULAR_TIME", "motionProfile": "BRANCH_CONSEQUENCE", "labels": ["DELAY", "TIMEOUT", "RESOLUTION"], "minimumFontPx": 58, "contrastRatio": 6.4, "safeMarginPx": 112, "datasetHash": "2424242424242424242424242424242424242424242424242424242424242424" },
+    { "key": "COMPARISON_CHART", "treatmentFamily": "COMPARISON_CHART", "route": "MAKE", "topology": "COMMON_BASELINE_BARS", "motionProfile": "AXES_SERIES_TAKEAWAY", "labels": ["BASELINE", "A", "B"], "minimumFontPx": 58, "contrastRatio": 6.3, "safeMarginPx": 112, "datasetHash": "2525252525252525252525252525252525252525252525252525252525252525" },
+    { "key": "UI_DATA_PROOF", "treatmentFamily": "UI_DATA_PROOF", "route": "HYBRID", "topology": "REDACTED_RECEIPT_STATE", "motionProfile": "FOCUS_EXACT_EVIDENCE", "labels": ["STATUS", "TIME", "RECEIPT"], "minimumFontPx": 58, "contrastRatio": 6.2, "safeMarginPx": 112, "assetPreparation": { "parentAssetHash": "3131313131313131313131313131313131313131313131313131313131313131", "transformManifestHash": "3232323232323232323232323232323232323232323232323232323232323232", "derivativeHash": "3333333333333333333333333333333333333333333333333333333333333333" } },
+    { "key": "HYBRID_HANDOFF", "treatmentFamily": "HYBRID_HANDOFF", "route": "HYBRID", "topology": "OBJECT_SIGNAL_VALUE_MATCH", "motionProfile": "REALITY_MECHANISM_PROOF", "labels": ["OBJECT", "SIGNAL", "VALUE"], "minimumFontPx": 58, "contrastRatio": 6.1, "safeMarginPx": 112, "assetPreparation": { "parentAssetHash": "4141414141414141414141414141414141414141414141414141414141414141", "transformManifestHash": "4242424242424242424242424242424242424242424242424242424242424242", "derivativeHash": "4343434343434343434343434343434343434343434343434343434343434343" } }
+  ]
+}

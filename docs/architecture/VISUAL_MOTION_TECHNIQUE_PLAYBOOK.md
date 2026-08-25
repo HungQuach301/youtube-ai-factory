@@ -58,3 +58,5 @@ Hidden Systems targets US English (`en-US`). Dates, currency, decimals, units, p
 ## Evidence and qualification
 
 Each technique is a capability with implementation/version, allowed archetypes, test corpus, visual/temporal metrics and revocation conditions. The Shot Contract names its acceptance evidence. Generated or code-native visuals cannot impersonate documentary evidence, and AI imagery cannot render exact financial, geographic or evidentiary claims.
+
+The executable Hidden Systems corpus binds `DOCUMENTARY_MACRO`, `SYSTEM_DIAGRAM`, `ANIMATED_LEDGER`, `SANKEY_FLOW`, `NETWORK_MAP`, `GEOGRAPHIC_MAP`, `EXCEPTION_TIMELINE`, `COMPARISON_CHART`, `UI_DATA_PROOF` and `HYBRID_HANDOFF` to distinct topology and motion contracts. Every case has three decoded semantic states at exact 1920×1080/30fps, mobile/accessibility floors and either verified dataset lineage or exact SOURCE/HYBRID preparation hashes. Corpus PASS qualifies only the frozen implementation/settings/build tuple; changing the corpus, settings or encoder build requires a new append-only qualification.

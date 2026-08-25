@@ -119,6 +119,12 @@ Exact durations and shot counts are compiled from narration and the canonical ti
 - Because AI authority is not yet qualified, the current owner gate remains unless a separate calibration decision changes it.
 - Publication remains blocked and separate from release.
 
+## Executable treatment qualification
+
+Migration `0112` and `HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION_CORPUS_V1` make the Channel treatment palette executable without a renderer revision branch. The corpus covers ten distinct treatment/topology/motion cases, all SOURCE/MAKE/HYBRID routes, exact asset-preparation lineage for SOURCE/HYBRID, data hashes for quantitative/geographic/temporal cases, thirty decoded entry/mutation/exit states and exact-repeat 1920×1080/30fps VP9 settings. Minimum critical type is 48px, contrast is at least 4.5:1 and safe margin is at least 96px.
+
+This package cannot claim documentary authenticity for a future selected asset, waive a per-asset rights receipt or authorize R22. Its only authority is the frozen internal treatment/compositor implementation tuple; a live append-only package and exact dependency admission remain required before the R22 canary.
+
 ## Protected scope
 
 Do not rerun or mutate R21, reuse its PASS as R22 acceptance, open Stage 11/full-video expansion, dispatch providers without a typed bounded plan, publish, or touch `youtube-ai-factory-v2`.

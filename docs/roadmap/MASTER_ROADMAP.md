@@ -97,6 +97,15 @@ Completed in the sixth bounded Phase 45 qualification slice:
 
 Evidence passes 236/236 repository tests. Sites version 527 executes exactly one live non-R22 qualification canary and stores append-only receipt `factory-live-canary-qualification-6d527fcba653a020acfba9a6`. D1/R2 read-back proves exact VP9 output/read-back/replay hash `cb7ff0c35a03a21f6dd5ddb6b7c72c6056e35cfbf94e15559b32ceb5150adb21`, two PASS asset receipts, one PASS integrated canary, one released lease, one controlled orphan, two PASS replay receipts, zero provider dispatch and zero spend. The temporary writer, runner and qualification-token values were removed and the same source was redeployed at environment revision 46. No R21/R22, master, release or publication state changed.
 
+Completed in source in the seventh bounded Phase 45 treatment-qualification slice:
+
+- migration `0112_factory_hidden_systems_treatment_qualification.sql` adds append-only package and per-case receipts whose R22/master/release/publication authority fields are structurally zero;
+- a frozen ten-case Hidden Systems corpus covers all Channel treatment families, three routes and distinct topology/motion contracts at exact 1920×1080/30fps;
+- each case requires three distinct decoded semantic states, mobile/accessibility floors, future-state suppression, anti-slide proof and dataset or SOURCE/HYBRID preparation lineage;
+- the deterministic qualifier binds the exact corpus, compositor settings and FFmpeg build, emits VP9 twice to the same bytes and refuses incomplete treatment, route, topology, temporal, asset-lineage or replay evidence.
+
+Targeted qualification tests pass 4/4 with exact-repeat output SHA-256 `e6423727c7f18b59d6538fc9a097d744d59ac15e7d8011835920e91e07866d7b`, thirty distinct decoded state samples, zero provider requests and zero spend. Deployment, live D1 package/read-back and exact R22 dependency admission remain pending; this source evidence creates no R22, master, assurance, release or publication authority.
+
 ## Phase 46 — R22 canary
 
 **Status:** `GATED__LIVE_NON_R22_CANARY_PASS__PRODUCTION_SCALE_TREATMENT_AND_ASSURANCE_PENDING`
