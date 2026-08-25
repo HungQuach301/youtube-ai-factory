@@ -247,6 +247,23 @@ export async function heartbeatFactoryRuntimeLease(db: FactoryRuntimeDB, input: 
   return { outcome: "HEARTBEAT_RECORDED" as const, leaseId, fencingToken: input.fencingToken, heartbeatAt: now, expiresAt };
 }
 
+export async function releaseFactoryRuntimeLease(db: FactoryRuntimeDB, input: { leaseId: string; fencingToken: number }, execution?: FactoryRuntimeExecution) {
+  const leaseId = requireIdentity(input.leaseId, "LEASE_ID"), now = timestamp(execution);
+  if (!Number.isSafeInteger(input.fencingToken) || input.fencingToken <= 0) throw new FactoryRuntimeError("FENCING_TOKEN_INVALID", 400, "A positive fencing token is required");
+  const lease = await first(db, "SELECT * FROM factory_runtime_leases WHERE id=?", leaseId);
+  if (!lease || number(lease.fencing_token) !== input.fencingToken) throw new FactoryRuntimeError("STALE_OR_INVALID_FENCING_LEASE", 409, "The lease release was rejected because the writer is stale");
+  if (clean(lease.lifecycle_state) === "RELEASED") return { outcome: "IDEMPOTENT_REPLAY" as const, leaseId, fencingToken: input.fencingToken, releasedAt: clean(lease.released_at) };
+  if (clean(lease.lifecycle_state) !== "ACTIVE") throw new FactoryRuntimeError("LEASE_NOT_ACTIVE", 409, "Only an active lease can be released cleanly", [clean(lease.lifecycle_state)]);
+  const result = await db.batch([
+    db.prepare(`UPDATE factory_runtime_leases SET lifecycle_state='RELEASED',released_at=?
+      WHERE id=? AND fencing_token=? AND lifecycle_state='ACTIVE'`).bind(now, leaseId, input.fencingToken),
+    db.prepare(`UPDATE factory_runtime_streams SET active_stage_key=NULL,active_lease_id=NULL,active_fencing_token=NULL,updated_at=?
+      WHERE stream_type=? AND stream_id=? AND active_lease_id=? AND active_fencing_token=?`).bind(now, lease.stream_type, lease.stream_id, leaseId, input.fencingToken),
+  ]);
+  if (changes(result[0]) !== 1 || changes(result[1]) !== 1) throw new FactoryRuntimeError("LEASE_RELEASE_WRITE_CONFLICT", 409, "The lease release did not win the current fence");
+  return { outcome: "RELEASED" as const, leaseId, fencingToken: input.fencingToken, releasedAt: now };
+}
+
 async function persistedRejectedCommand(db: FactoryRuntimeDB, input: FactoryRuntimeCommandInput, reasons: string[], execution?: FactoryRuntimeExecution) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const stream = await first(db, "SELECT * FROM factory_runtime_streams WHERE stream_type=? AND stream_id=?", input.streamType, input.streamId);

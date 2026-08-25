@@ -11,6 +11,7 @@ import {
   planFactoryIntegratedCanary,
   verifyFactoryAssetEligibility,
 } from "../lib/factory-pixel-video-compositor.ts";
+import { runFactoryNonR22LiveCanaryQualification } from "../lib/factory-non-r22-canary-qualification.ts";
 import { persistFactoryProductionCompilation } from "../lib/factory-production-compiler.ts";
 import { materializeFactorySceneGraphRender } from "../lib/factory-scene-graph-renderer.ts";
 import { createCanonicalTimebase } from "../lib/factory-runtime-contracts.ts";
@@ -186,8 +187,8 @@ async function stagedCanaryInput(storage, renderTapeArtifactVersionId) {
   };
 }
 
-test("migration 0110 installs append-only asset eligibility, qualified compositor, composition jobs and canary receipts", () => {
-  assert.equal(migrations.at(-1), "0110_factory_asset_eligibility_and_pixel_canary.sql");
+test("migrations 0110-0111 install append-only canary admission and one bounded live qualification receipt", () => {
+  assert.equal(migrations.at(-1), "0111_factory_live_canary_qualification.sql");
   const migration = read("drizzle/0110_factory_asset_eligibility_and_pixel_canary.sql");
   for (const table of ["factory_asset_eligibility_receipts", "factory_pixel_compositor_bindings", "factory_video_composition_jobs", "factory_integrated_canary_receipts"]) assert.ok(migration.includes("CREATE TABLE `" + table + "`"));
   assert.match(migration, /FACTORY_INTEGRATED_CANARY_RECEIPTS_APPEND_ONLY/);
@@ -199,6 +200,11 @@ test("migration 0110 installs append-only asset eligibility, qualified composito
   assert.match(executor, /integrated canary must be 60-90 seconds/);
   assert.match(executor, /exact input hash mismatch/);
   assert.doesNotMatch(`${migration}\n${route}\n${executor}`, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2/);
+  const qualification = read("drizzle/0111_factory_live_canary_qualification.sql");
+  assert.match(qualification, /factory_live_canary_qualification_receipts/);
+  assert.match(qualification, /FACTORY_LIVE_CANARY_QUALIFICATION_RECEIPTS_APPEND_ONLY/);
+  assert.match(route, /FACTORY_NON_R22_CANARY_QUALIFICATION_ENABLED !== "true"/);
+  assert.match(route, /RUN_NON_R22_LIVE_CANARY_QUALIFICATION/);
 });
 
 test("controlled FFmpeg executor produces exact-repeat VP9 bytes from one sealed SOURCE/MAKE/HYBRID package", { skip: spawnSync("ffmpeg", ["-version"]).status !== 0 || spawnSync("ffprobe", ["-version"]).status !== 0 }, () => {
@@ -277,4 +283,24 @@ test("missing asset qualification and stale compositor fences fail closed before
   );
   assert.equal(stale.database.prepare("SELECT COUNT(*) total FROM factory_video_composition_jobs").get().total, 0);
   assert.equal(stale.database.prepare("SELECT COUNT(*) total FROM factory_integrated_canary_receipts").get().total, 0);
+});
+
+test("bounded non-R22 runner seals real WebM, releases success, reconciles one orphan and replays both streams exactly", async () => {
+  const state = setup(), run = execution("2026-08-25T13:30:00.000Z", "live-qualification");
+  const result = await runFactoryNonR22LiveCanaryQualification({ DB: state.db, BUCKET: state.bucket }, "owner:qualification", run);
+  assert.equal(result.outcome, "QUALIFIED");
+  assert.equal(result.verificationState, "PASS");
+  assert.equal(result.outputHash, "cb7ff0c35a03a21f6dd5ddb6b7c72c6056e35cfbf94e15559b32ceb5150adb21");
+  assert.equal(result.providerRequests, 0);
+  assert.equal(result.spendMicros, 0);
+  assert.equal(state.database.prepare("SELECT COUNT(*) total FROM factory_live_canary_qualification_receipts WHERE verification_state='PASS' AND zero_dispatch=1").get().total, 1);
+  assert.equal(state.database.prepare("SELECT COUNT(*) total FROM factory_integrated_canary_receipts WHERE verification_state='PASS'").get().total, 1);
+  assert.equal(state.database.prepare("SELECT COUNT(*) total FROM factory_runtime_leases WHERE lifecycle_state='RELEASED'").get().total, 1);
+  assert.equal(state.database.prepare("SELECT COUNT(*) total FROM factory_runtime_leases WHERE lifecycle_state='ORPHANED'").get().total, 1);
+  assert.equal(state.database.prepare("SELECT COUNT(*) total FROM factory_runtime_replay_receipts WHERE verification_state='PASS'").get().total, 2);
+  const replay = await runFactoryNonR22LiveCanaryQualification({ DB: state.db, BUCKET: state.bucket }, "owner:qualification", run);
+  assert.equal(replay.outcome, "IDEMPOTENT_REPLAY");
+  assert.equal(state.database.prepare("SELECT COUNT(*) total FROM factory_live_canary_qualification_receipts").get().total, 1);
+  assert.equal(state.database.prepare("SELECT COUNT(*) total FROM factory_video_composition_jobs").get().total, 1);
+  assert.throws(() => state.database.prepare("UPDATE factory_live_canary_qualification_receipts SET verification_state='FAIL'").run(), /FACTORY_LIVE_CANARY_QUALIFICATION_RECEIPTS_APPEND_ONLY/);
 });

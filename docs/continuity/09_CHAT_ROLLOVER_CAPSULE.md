@@ -22,6 +22,7 @@
 - Migration `0107`, the single command/event writer, leases/fencing, persisted stale projections and exact replay deployed in Sites version 514; all nineteen `factory_*` tables are verified in live D1. The SIWC/allowlist-protected route remains disabled by default, zero-spend and R22-blocked.
 - Migration `0108`, the zero-dispatch Provider Gateway and deterministic Visual Profile -> Blueprint -> Shot Contract -> Scene Graph compiler deployed in Sites version 516; all twenty-eight `factory_*` tables are verified in live D1. Exact local/Sites/GitHub equality completed at `3d752ad907989d8ad16f9ecce092975e66767657`; the temporary workflow and bundle self-removed, issue `#4` closed and the bounded force authority expired. Sites version 520 records this completion. Automatic fallback, provider dispatch, R22 and Production rendering remain blocked.
 - Migration `0110` and the asset-qualified pixel/video canary admission path deploy in Sites version 523; live D1 exposes 54 user tables in total and thirty-four `factory_*` tables. The tracked SOURCE/MAKE/HYBRID fixture produces exact-repeat VP9 bytes twice at SHA-256 `cb7ff0c3…`; unit/integration gates verify rights, R2 bytes, fencing, idempotent replay and three decoded pixel samples. This is internal qualification evidence only: the live tables remain empty and R22, master, assurance and release remain blocked.
+- Source migration `0111` and the fixed live qualification runner close clean lease release, controlled orphan reconciliation and exact replay under one append-only non-R22 receipt. They pass 236/236 tests and await deployment/live execution; all runner flags remain disabled until that bounded operation.
 - Local, Sites and private GitHub `main` are synchronized on one exact commit after the Phase 45 synchronization checkpoint.
 - `HungQuach301/youtube-ai-factory` contains the complete Sites Git history; the verified common baseline is `2431a800d2d540bcfea141c98c9977cd46667950`.
 - `HungQuach301/youtube-ai-factory-v2` is never an upstream, mirror, fallback or recovery source.
@@ -35,7 +36,7 @@ Before the next mutation, re-prove:
 HEAD = origin/main = github/main
 ```
 
-Next execute one bounded live non-R22 qualification canary and orphan/replay recovery through the deployed `0110` path, then implement paid-request reconciliation and L0-L7 Assurance foundations. Publish each checkpoint through the forward-only exact-object protocol and re-prove three-way equality. Do not reconstruct from chat, reuse the completed force authority, re-run R21, dispatch R22, weaken a gate or publish.
+Next deploy `0111`, enable only the bounded writer/qualification flags, execute and read back one live non-R22 qualification canary plus orphan/replay recovery, disable the flags, then implement paid-request reconciliation and L0-L7 Assurance foundations. Publish each checkpoint through the forward-only exact-object protocol and re-prove three-way equality. Do not reconstruct from chat, reuse the completed force authority, re-run R21, dispatch R22, weaken a gate or publish.
 
 ## Rollover completion
 

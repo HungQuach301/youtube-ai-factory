@@ -5,6 +5,7 @@ import {
   materializeFactoryDependencyStaleProjection,
   readFactoryRuntimeProjection,
   reconcileFactoryRuntimeOrphan,
+  releaseFactoryRuntimeLease,
   reserveFactoryRuntimeWork,
   submitFactoryRuntimeCommand,
   verifyFactoryRuntimeReplay,
@@ -23,6 +24,7 @@ import {
   type FactoryAssetEligibilityInput,
   type FactoryIntegratedCanaryInput,
 } from "@/lib/factory-pixel-video-compositor";
+import { runFactoryNonR22LiveCanaryQualification } from "@/lib/factory-non-r22-canary-qualification";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,7 @@ type RuntimeEnv = {
   FACTORY_SCENE_RENDERER_ENABLED?: string;
   FACTORY_ASSET_ELIGIBILITY_ENABLED?: string;
   FACTORY_PIXEL_COMPOSITOR_ENABLED?: string;
+  FACTORY_NON_R22_CANARY_QUALIFICATION_ENABLED?: string;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -157,6 +160,10 @@ export async function POST(request: Request) {
       leaseId: string(body.leaseId), fencingToken: integer(body.fencingToken), extensionMs: body.extensionMs == null ? undefined : integer(body.extensionMs),
     }), { headers: NO_STORE });
 
+    if (action === "RELEASE_LEASE") return Response.json(await releaseFactoryRuntimeLease(env.DB, {
+      leaseId: string(body.leaseId), fencingToken: integer(body.fencingToken),
+    }), { headers: NO_STORE });
+
     if (action === "SUBMIT_COMMAND") {
       return Response.json(await submitFactoryRuntimeCommand(env.DB, runtimeCommand(body.command, actor)), { headers: NO_STORE });
     }
@@ -186,6 +193,12 @@ export async function POST(request: Request) {
       if (!env.BUCKET) return failure("ACTIVE_MEDIA_STORAGE_UNAVAILABLE", "The active media storage binding is unavailable", 503);
       const canary = recordOrEmpty(body.canary) as unknown as FactoryIntegratedCanaryInput;
       return Response.json(await materializeFactoryIntegratedCanary({ DB: env.DB, BUCKET: env.BUCKET }, canary, runtimeCommand(body.command, actor)), { status: 201, headers: NO_STORE });
+    }
+
+    if (action === "RUN_NON_R22_LIVE_CANARY_QUALIFICATION") {
+      if (env.FACTORY_NON_R22_CANARY_QUALIFICATION_ENABLED !== "true") return failure("FACTORY_NON_R22_CANARY_QUALIFICATION_DISABLED", "The bounded live qualification runner is disabled until an explicit deployment authorization is configured", 503);
+      if (!env.BUCKET) return failure("ACTIVE_MEDIA_STORAGE_UNAVAILABLE", "The active media storage binding is unavailable", 503);
+      return Response.json(await runFactoryNonR22LiveCanaryQualification({ DB: env.DB, BUCKET: env.BUCKET }, user.email), { status: 201, headers: NO_STORE });
     }
 
     if (action === "RECONCILE_ORPHAN") return Response.json(await reconcileFactoryRuntimeOrphan(env.DB, {

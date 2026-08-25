@@ -2767,3 +2767,16 @@ export const factoryIntegratedCanaryReceipts = sqliteTable("factory_integrated_c
   uniqueIndex("factory_integrated_canary_job_uq").on(table.compositionJobId),
   uniqueIndex("factory_integrated_canary_artifact_uq").on(table.artifactVersionId),
 ]);
+
+export const factoryLiveCanaryQualificationReceipts = sqliteTable("factory_live_canary_qualification_receipts", {
+  id: text("id").primaryKey(), qualificationKey: text("qualification_key").notNull(), fixtureVersion: text("fixture_version").notNull(), videoId: text("video_id").notNull(), recoveryStreamId: text("recovery_stream_id").notNull(),
+  integratedCanaryReceiptId: text("integrated_canary_receipt_id").notNull().references(() => factoryIntegratedCanaryReceipts.id), compositionJobId: text("composition_job_id").notNull().references(() => factoryVideoCompositionJobs.id),
+  mainReplayReceiptId: text("main_replay_receipt_id").notNull().references(() => factoryRuntimeReplayReceipts.id), orphanEventId: text("orphan_event_id").notNull().references(() => factoryRuntimeEvents.id),
+  orphanReplayReceiptId: text("orphan_replay_receipt_id").notNull().references(() => factoryRuntimeReplayReceipts.id), outputHash: text("output_hash").notNull(), mainLeaseState: text("main_lease_state").notNull(),
+  orphanLeaseState: text("orphan_lease_state").notNull(), canaryReplayState: text("canary_replay_state").notNull(), orphanReplayState: text("orphan_replay_state").notNull(), verificationState: text("verification_state").notNull(),
+  zeroDispatch: integer("zero_dispatch", { mode: "boolean" }).notNull(), providerRequests: integer("provider_requests").notNull(), spendMicros: integer("spend_micros").notNull(), evidenceHash: text("evidence_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_live_canary_qualification_key_uq").on(table.qualificationKey),
+  uniqueIndex("factory_live_canary_qualification_canary_uq").on(table.integratedCanaryReceiptId),
+]);

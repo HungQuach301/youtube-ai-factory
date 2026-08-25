@@ -88,6 +88,15 @@ Completed in the fifth bounded Phase 45 / Phase 46-admission slice:
 
 Evidence passes 235/235 repository tests, including a tracked executor fixture rendered twice to the same 60.000-second, 1,800-frame, 76,448-byte SHA-256 `cb7ff0c35a03a21f6dd5ddb6b7c72c6056e35cfbf94e15559b32ceb5150adb21`. Sites version 523 deploys migration `0110`; live D1 exposes 54 user tables and thirty-four `factory_*` tables, with zero rows in the four new tables. This proves compositor admission and local exact-repeat execution only. A bounded live non-R22 canary/recovery exercise, production-scale treatment qualification, provider reconciliation, L0-L7 assurance and every R22/release/publication authority remain incomplete.
 
+Completed in source for the sixth bounded Phase 45 qualification slice:
+
+- migration `0111_factory_live_canary_qualification.sql` adds one append-only receipt spanning exact canary output, clean success release, controlled orphan event and two PASS replay receipts;
+- a fixed non-R22 runner stages the frozen WebM/PNG/SVG bytes to R2, seeds only its isolated internal qualification identities, executes compiler/render/rights/compositor through the canonical writer, releases the successful fence and reconciles one deliberately expired 30-second lease;
+- canary replay, orphan reconciliation replay and both event-stream replays are idempotent; rerunning the whole qualification returns the original receipt;
+- the action is separately disabled and preserves provider requests/spend at zero, while the route-level R22 block remains active.
+
+Evidence passes 236/236 repository tests. Deployment of migration `0111`, live execution, D1/R2 read-back and subsequent flag disablement are the next bounded action; source evidence alone does not qualify the live path.
+
 ## Phase 46 — R22 canary
 
 **Status:** `GATED__COMPOSITOR_ADMISSION_IMPLEMENTED__LIVE_NON_R22_CANARY_PENDING`
