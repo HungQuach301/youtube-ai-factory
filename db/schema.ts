@@ -2479,3 +2479,92 @@ export const v7EvaluationOfficialTermsSnapshotReceipts = sqliteTable("v7_evaluat
 export const v7EvaluationCleanAudioRightsDiagnostics = sqliteTable("v7_evaluation_clean_audio_rights_diagnostics", {
   id: text("id").primaryKey(), runId: text("run_id").notNull(), channelId: text("channel_id").notNull(), policyVersion: text("policy_version").notNull(), fixtureArtifactId: text("fixture_artifact_id").notNull(), fixtureSha256: text("fixture_sha256").notNull(), providerBindingReceiptId: text("provider_binding_receipt_id").notNull(), providerNativeRequestIdVerified: integer("provider_native_request_id_verified", { mode: "boolean" }).notNull(), generationSubscriptionTier: text("generation_subscription_tier").notNull(), generationSubscriptionStatus: text("generation_subscription_status").notNull(), generationSubscriptionResponseHash: text("generation_subscription_response_hash").notNull(), generationSubscriptionObservedAt: text("generation_subscription_observed_at").notNull(), jurisdictionScope: text("jurisdiction_scope").notNull(), modelId: text("model_id").notNull(), betaModelState: text("beta_model_state").notNull(), inputOwnershipState: text("input_ownership_state").notNull(), narrationHash: text("narration_hash").notNull(), officialSourcesExpected: integer("official_sources_expected").notNull(), officialSourcesVerified: integer("official_sources_verified").notNull(), officialSourceCoverageState: text("official_source_coverage_state").notNull(), basePlanEvidenceState: text("base_plan_evidence_state").notNull(), adjudicationOutcome: text("adjudication_outcome").notNull(), rightsState: text("rights_state").notNull(), nextEvidenceRequired: text("next_evidence_required").notNull(), rightsPassAuthority: integer("rights_pass_authority", { mode: "boolean" }).notNull().default(false), datasetSealingAuthority: integer("dataset_sealing_authority", { mode: "boolean" }).notNull().default(false), assuranceQualificationAuthority: integer("assurance_qualification_authority", { mode: "boolean" }).notNull().default(false), releaseAuthority: integer("release_authority", { mode: "boolean" }).notNull().default(false), providerGenerationRequests: integer("provider_generation_requests").notNull().default(0), spendUsd: real("spend_usd").notNull().default(0), evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("v7_evaluation_clean_audio_rights_diagnostic_artifact_policy_uq").on(table.fixtureArtifactId, table.policyVersion)]);
+
+export const factoryContractRegistry = sqliteTable("factory_contract_registry", {
+  id: text("id").primaryKey(), contractKey: text("contract_key").notNull(), contractVersion: text("contract_version").notNull(), scope: text("scope").notNull(),
+  schemaJson: text("schema_json").notNull(), schemaHash: text("schema_hash").notNull(), lifecycleState: text("lifecycle_state").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_contract_registry_key_version_uq").on(table.contractKey, table.contractVersion)]);
+
+export const factoryCanonicalTimebases = sqliteTable("factory_canonical_timebases", {
+  id: text("id").primaryKey(), videoId: text("video_id").notNull(), contractVersion: text("contract_version").notNull(), frameRateNumerator: integer("frame_rate_numerator").notNull(),
+  frameRateDenominator: integer("frame_rate_denominator").notNull(), audioSampleRateHz: integer("audio_sample_rate_hz").notNull(), totalFrames: integer("total_frames").notNull(),
+  totalAudioSamples: integer("total_audio_samples").notNull(), roundingPolicy: text("rounding_policy").notNull(), definitionHash: text("definition_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_canonical_timebase_video_hash_uq").on(table.videoId, table.definitionHash)]);
+
+export const factoryRuntimeCommands = sqliteTable("factory_runtime_commands", {
+  id: text("id").primaryKey(), streamType: text("stream_type").notNull(), streamId: text("stream_id").notNull(), commandType: text("command_type").notNull(), expectedState: text("expected_state").notNull(),
+  expectedVersion: integer("expected_version").notNull(), actorType: text("actor_type").notNull(), actorId: text("actor_id").notNull(), leaseId: text("lease_id").notNull(), fencingToken: integer("fencing_token").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(), intentHash: text("intent_hash").notNull(), policyVersionsJson: text("policy_versions_json").notNull(), costScopeJson: text("cost_scope_json").notNull(),
+  rightsScopeJson: text("rights_scope_json").notNull(), receivedAt: text("received_at").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_runtime_command_idempotency_uq").on(table.idempotencyKey),
+  index("factory_runtime_command_stream_idx").on(table.streamType, table.streamId, table.expectedVersion),
+]);
+
+export const factoryRuntimeEvents = sqliteTable("factory_runtime_events", {
+  id: text("id").primaryKey(), streamType: text("stream_type").notNull(), streamId: text("stream_id").notNull(), streamVersion: integer("stream_version").notNull(), eventType: text("event_type").notNull(),
+  actorType: text("actor_type").notNull(), actorId: text("actor_id").notNull(), commandId: text("command_id").references(() => factoryRuntimeCommands.id), causationId: text("causation_id"), correlationId: text("correlation_id").notNull(),
+  leaseId: text("lease_id"), fencingToken: integer("fencing_token"), idempotencyKey: text("idempotency_key").notNull(), intentHash: text("intent_hash").notNull(), payloadJson: text("payload_json").notNull(),
+  evidenceHash: text("evidence_hash").notNull(), occurredAt: text("occurred_at").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_runtime_event_stream_version_uq").on(table.streamType, table.streamId, table.streamVersion),
+  uniqueIndex("factory_runtime_event_idempotency_uq").on(table.idempotencyKey),
+  index("factory_runtime_event_correlation_idx").on(table.correlationId, table.occurredAt),
+]);
+
+export const factoryChannelVisualProfileVersions = sqliteTable("factory_channel_visual_profile_versions", {
+  id: text("id").primaryKey(), channelId: text("channel_id").notNull(), version: integer("version").notNull(), policyVersion: text("policy_version").notNull(), market: text("market").notNull(),
+  language: text("language").notNull(), profileJson: text("profile_json").notNull(), inputHash: text("input_hash").notNull(), contentHash: text("content_hash").notNull(), lifecycleState: text("lifecycle_state").notNull(),
+  createdBy: text("created_by").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_visual_profile_channel_version_uq").on(table.channelId, table.version)]);
+
+export const factorySeriesFormatVersions = sqliteTable("factory_series_format_versions", {
+  id: text("id").primaryKey(), channelId: text("channel_id").notNull(), formatKey: text("format_key").notNull(), version: integer("version").notNull(), formatJson: text("format_json").notNull(),
+  inputHash: text("input_hash").notNull(), contentHash: text("content_hash").notNull(), lifecycleState: text("lifecycle_state").notNull(), createdBy: text("created_by").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_series_format_key_version_uq").on(table.channelId, table.formatKey, table.version)]);
+
+export const factoryVideoBlueprints = sqliteTable("factory_video_blueprints", {
+  id: text("id").primaryKey(), videoId: text("video_id").notNull(), version: integer("version").notNull(), channelVisualProfileVersionId: text("channel_visual_profile_version_id").notNull().references(() => factoryChannelVisualProfileVersions.id),
+  seriesFormatVersionId: text("series_format_version_id").notNull().references(() => factorySeriesFormatVersions.id), canonicalTimebaseId: text("canonical_timebase_id").notNull().references(() => factoryCanonicalTimebases.id),
+  claimGraphHash: text("claim_graph_hash").notNull(), narrationHash: text("narration_hash").notNull(), blueprintJson: text("blueprint_json").notNull(), inputHash: text("input_hash").notNull(), contentHash: text("content_hash").notNull(),
+  lifecycleState: text("lifecycle_state").notNull(), createdBy: text("created_by").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_video_blueprint_video_version_uq").on(table.videoId, table.version)]);
+
+export const factoryShotContracts = sqliteTable("factory_shot_contracts", {
+  id: text("id").primaryKey(), videoBlueprintId: text("video_blueprint_id").notNull().references(() => factoryVideoBlueprints.id), canonicalTimebaseId: text("canonical_timebase_id").notNull().references(() => factoryCanonicalTimebases.id),
+  sequence: integer("sequence").notNull(), claimId: text("claim_id"), narrationSegmentId: text("narration_segment_id").notNull(), startFrame: integer("start_frame").notNull(), endFrameExclusive: integer("end_frame_exclusive").notNull(),
+  visualJob: text("visual_job").notNull(), route: text("route").notNull(), treatmentFamily: text("treatment_family").notNull(), contractJson: text("contract_json").notNull(), inputHash: text("input_hash").notNull(),
+  contentHash: text("content_hash").notNull(), lifecycleState: text("lifecycle_state").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_shot_blueprint_sequence_uq").on(table.videoBlueprintId, table.sequence),
+  index("factory_shot_timebase_range_idx").on(table.canonicalTimebaseId, table.startFrame, table.endFrameExclusive),
+]);
+
+export const factorySceneGraphs = sqliteTable("factory_scene_graphs", {
+  id: text("id").primaryKey(), videoBlueprintId: text("video_blueprint_id").notNull().references(() => factoryVideoBlueprints.id), canonicalTimebaseId: text("canonical_timebase_id").notNull().references(() => factoryCanonicalTimebases.id),
+  version: integer("version").notNull(), rendererContractVersion: text("renderer_contract_version").notNull(), graphJson: text("graph_json").notNull(), inputSnapshotHash: text("input_snapshot_hash").notNull(),
+  graphHash: text("graph_hash").notNull(), lifecycleState: text("lifecycle_state").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_scene_graph_blueprint_version_uq").on(table.videoBlueprintId, table.version)]);
+
+export const factoryArtifactVersions = sqliteTable("factory_artifact_versions", {
+  id: text("id").primaryKey(), artifactId: text("artifact_id").notNull(), version: integer("version").notNull(), artifactKind: text("artifact_kind").notNull(), sourceEntityType: text("source_entity_type").notNull(),
+  sourceEntityId: text("source_entity_id").notNull(), contentHash: text("content_hash").notNull(), storageKey: text("storage_key"), mimeType: text("mime_type"), byteSize: integer("byte_size"),
+  lineageJson: text("lineage_json").notNull(), lifecycleState: text("lifecycle_state").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_artifact_version_uq").on(table.artifactId, table.version),
+  index("factory_artifact_content_hash_idx").on(table.contentHash, table.artifactKind),
+]);
+
+export const factoryDependencyBindings = sqliteTable("factory_dependency_bindings", {
+  id: text("id").primaryKey(), upstreamArtifactVersionId: text("upstream_artifact_version_id").notNull().references(() => factoryArtifactVersions.id),
+  downstreamArtifactVersionId: text("downstream_artifact_version_id").notNull().references(() => factoryArtifactVersions.id), dependencyType: text("dependency_type").notNull(), bindingHash: text("binding_hash").notNull(),
+  createdByEventId: text("created_by_event_id").notNull().references(() => factoryRuntimeEvents.id), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_dependency_binding_uq").on(table.upstreamArtifactVersionId, table.downstreamArtifactVersionId, table.dependencyType),
+  index("factory_dependency_downstream_idx").on(table.downstreamArtifactVersionId),
+]);
+
+export const factoryDependencyInvalidations = sqliteTable("factory_dependency_invalidations", {
+  id: text("id").primaryKey(), dependencyBindingId: text("dependency_binding_id").notNull().references(() => factoryDependencyBindings.id), staleEventId: text("stale_event_id").notNull().references(() => factoryRuntimeEvents.id),
+  reason: text("reason").notNull(), evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_dependency_invalidation_uq").on(table.dependencyBindingId, table.staleEventId)]);

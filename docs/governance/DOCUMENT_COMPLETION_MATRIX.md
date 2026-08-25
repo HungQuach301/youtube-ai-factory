@@ -9,13 +9,13 @@ This matrix records where each approved concern is canonical. It prevents a chat
 |---|---|---|
 | Product boundary and operating planes | `docs/architecture/TARGET_OPERATING_ARCHITECTURE.md` | Complete for design |
 | Business capabilities, decision rights, AI/owner/provider operating model, exceptions, economics and portfolio arbitration | `docs/architecture/BUSINESS_OPERATING_MODEL.md` | Complete for design; operational implementation pending |
-| Runtime planes, services, state/events, timebase, fencing, observability/replay and UI architecture | `docs/architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md` | Complete for design; implementation pending |
+| Runtime planes, services, state/events, timebase, fencing, observability/replay and UI architecture | `docs/architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md` | Contract/timebase foundation implemented; service integration pending |
 | Factory/Channel/Format/Video/Sequence/Shot hierarchy | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Complete for design |
 | Visual taxonomy, SOURCE/MAKE/HYBRID and `Reality -> Mechanism -> Proof` | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Complete for design |
-| Blueprint, Shot Contract, Scene Graph and canonical timebase | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Complete for design; implementation pending |
+| Blueprint, Shot Contract, Scene Graph and canonical timebase | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Schema and deterministic timebase foundation implemented; compilers/render pending |
 | AI-first L0-L7 acceptance and four outcomes | `docs/architecture/AI_FIRST_PRODUCTION_ASSURANCE.md` | Complete for design; calibration pending |
 | Judge qualification, receipts, cost and Factory QA Cockpit | `docs/architecture/AI_FIRST_PRODUCTION_ASSURANCE.md` | Complete for design; implementation pending |
-| Data domains, entities, lineage and D1/R2/Drive authority | `docs/architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md` | Complete for design; implementation pending |
+| Data domains, entities, lineage and D1/R2/Drive authority | `docs/architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md` | Core planning/event/dependency entities implemented; remaining runtime integration pending |
 | Provider Gateway, bindings, lifecycle, retry and drift | `docs/architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md` | Complete for design; implementation pending |
 | Hidden Systems US/en-US Visual DNA | `docs/continuity/80_HIDDEN_SYSTEMS_VISUAL_DNA_AND_R22_BLUEPRINT.md` | Complete for channel design |
 | R22 phase-distinct repair blueprint and canary gate | `docs/continuity/80_HIDDEN_SYSTEMS_VISUAL_DNA_AND_R22_BLUEPRINT.md` | Complete for bounded design; dispatch blocked |
@@ -36,7 +36,7 @@ This matrix records where each approved concern is canonical. It prevents a chat
 
 ## Not completed by documentation alone
 
-- D1 migrations and runtime contracts.
+- Phase 45 command/event writers, projections, compilers and runtime integration beyond migration `0106`.
 - Visual Grammar Resolver, Provider Gateway, Evidence Lineage and AI Assurance Orchestrator.
 - Factory QA Cockpit and UI integration.
 - Judge/provider capability qualification.

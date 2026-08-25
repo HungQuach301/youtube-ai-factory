@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `NEXT__IMPLEMENTATION_REQUIRED`
+**Status:** `IN_PROGRESS__CONTRACT_FOUNDATION_IMPLEMENTED`
 
 Implement:
 
@@ -36,6 +36,14 @@ Implement:
 7. retention, recovery, incident, accessibility and localization enforcement.
 
 Exit evidence includes schema/event/timebase tests, exact replay, stale-worker rejection, provider reconciliation, rights/cost/idempotency checks, recovery exercise, exact-artifact assurance and judge qualification readiness.
+
+Completed in the first bounded Phase 45 slice:
+
+- migration `0106_factory_runtime_contract_foundation.sql` creates immutable Factory-wide contract, timebase, runtime event, Visual Profile, Format, Blueprint, Shot, Scene Graph, artifact-version and dependency-lineage records;
+- `factory-runtime-contracts` provides deterministic integer frame/sample conversion, full-timeline Shot coverage, command/event validation, deterministic replay and transitive dependency-stale resolution;
+- migration replay, append-only triggers, JSON/hash constraints, stream-version/idempotency uniqueness and deterministic runtime tests pass with zero provider requests and zero Production content mutation.
+
+Next slice: persist typed command receipts/events through one writer, implement lease acquisition/heartbeat/orphan recovery with monotonic fencing, materialize the dependency-stale projection, prove exact replay and stale-writer rejection, then connect the Blueprint/Shot compilers. Provider Gateway, render, L0-L7 assurance and all R22 authority remain incomplete.
 
 ## Phase 46 — R22 canary
 

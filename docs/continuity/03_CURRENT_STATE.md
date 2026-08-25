@@ -15,6 +15,8 @@ INITIAL_MIRROR_BASELINE_SHA = 2431a800d2d540bcfea141c98c9977cd46667950
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
+PHASE_45 = IN_PROGRESS__CONTRACT_FOUNDATION_IMPLEMENTED
+SOURCE_MIGRATION = 0106_FACTORY_RUNTIME_CONTRACT_FOUNDATION
 ```
 
 The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority.
@@ -44,10 +46,12 @@ R22 may be append-only only from the exact R21 visual FAIL/audio PASS pair. It m
 
 The Business, Technical Runtime, Visual Production, E2E Gate, Visual/Motion, AI Assurance, Data/Provider, Multi-Channel Learning and Cross-Cutting architectures are normative. Hidden Systems Visual DNA V1 and Video Quality Standard V3 govern new work.
 
+Phase 45 migration `0106_factory_runtime_contract_foundation.sql` now defines immutable Factory-wide contract registry, canonical timebase, runtime event, Channel Visual Profile, Series/Format, Video Blueprint, Shot Contract, Scene Graph, artifact-version and dependency-invalidation records. The shared runtime library implements integer frame/sample conversion, exact Shot coverage validation, typed command/event validation, deterministic event replay and transitive stale-dependency resolution. Durable command receipts and lease/fencing mutation remain in the next slice. This is a schema and deterministic-contract foundation only; it creates no provider, render, assurance, release or publication authority.
+
 Still required before R22:
 
-- append-only D1 contracts and canonical event/timebase implementation;
-- fenced workers, dependency-stale resolution and exact replay controls;
+- D1 command/event writers, projections and service integration on top of the append-only foundation;
+- fenced workers, persisted dependency-stale orchestration and exact replay controls;
 - Visual Grammar Resolver, Blueprint/Shot compilers and Scene Graph Renderer;
 - Provider Gateway, rights/cost/idempotency reconciliation and qualified bindings;
 - L0-L7 Assurance Orchestrator, judge calibration and QA Cockpit;
@@ -57,10 +61,11 @@ Still required before R22:
 ## Next protected action
 
 ```text
-1. Implement Phase 45 contracts/runtime from a clean synchronized `main`.
-2. Qualify exact R22 provider, visual, audio and assurance dependencies.
-3. Pass zero-spend preflight and the integrated canary admission gate.
-4. Compile and run R22 only after those controls create explicit Production authority.
+1. Implement the Phase 45 command-receipt/event writer, lease/fencing runtime, dependency invalidation service and exact replay projection from migration `0106`.
+2. Implement the Provider Gateway and compile Visual DNA -> Blueprint -> Shot Contract -> Scene Graph without revision branching.
+3. Qualify exact R22 provider, visual, audio and assurance dependencies.
+4. Pass zero-spend preflight and the integrated canary admission gate.
+5. Compile and run R22 only after those controls create explicit Production authority.
 ```
 
-This state creates no migration, paid request, R22, Browser, release or publication authority.
+Migration `0106` adds immutable schema only. This state creates no paid request, R22, Browser, release or publication authority.
