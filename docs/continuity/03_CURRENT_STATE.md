@@ -10,7 +10,7 @@ REPOSITORY_POLICY = GIT_REPOSITORY_SSOT_V1
 REPLICATION_POLICY = DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
 SITES_REMOTE = origin/main
 GITHUB_TARGET = HungQuach301/youtube-ai-factory
-GITHUB_SYNC = SYNCHRONIZED
+GITHUB_SYNC = SYNC_BLOCKED__EXPLICIT_FORCE_WITH_LEASE_APPROVAL_REQUIRED
 INITIAL_MIRROR_BASELINE_SHA = 2431a800d2d540bcfea141c98c9977cd46667950
 PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
@@ -20,10 +20,11 @@ PHASE_45 = IN_PROGRESS__ZERO_DISPATCH_PROVIDER_GATEWAY_AND_COMPILER_DEPLOYED
 SOURCE_MIGRATION = 0108_FACTORY_PROVIDER_GATEWAY_AND_COMPILERS
 SOURCE_MIGRATION_LIVE_D1 = VERIFIED__28_FACTORY_TABLES
 DEPLOYMENT_RECEIPT = VERSION_516__APPGDEP_6A8D334895008191A77BF70256460F01__SUCCEEDED
+CURRENT_SITE_VERSION = 517__DEPLOYMENT_RECEIPT_DOCS_SUCCEEDED
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
 ```
 
-The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. Migration `0108`, the zero-dispatch Provider Gateway and deterministic production compiler deployed successfully in Sites version 516; deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded and all twenty-eight `factory_*` tables were verified in live D1. Concurrent GitHub merge `03434774…` is preserved in ancestry for audit but has no current source authority because V2 is explicitly excluded. The deployment-receipt checkpoint is synchronized by exact Git object to the personal GitHub mirror.
+The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. Migration `0108`, the zero-dispatch Provider Gateway and deterministic production compiler deployed successfully in Sites version 516; deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded and all twenty-eight `factory_*` tables were verified in live D1. Sites version 517 successfully deployed this receipt. Concurrent GitHub merge `03434774…` is preserved in ancestry for audit but has no current source authority because V2 is explicitly excluded. GitHub `main` remains on the prior exact common commit because the temporary bounded `force-with-lease` required to preserve Git object identity was not explicitly approved; no GitHub ref was changed.
 
 ## Production truth
 
@@ -64,10 +65,11 @@ Still required before R22:
 ## Next protected action
 
 ```text
-1. Implement the actual deterministic Scene Graph Renderer and qualified worker integration with lease/fence recovery.
-2. Implement paid-request reservation, native-request reconciliation, drift staleness and explicit fallback without enabling R22.
-3. Qualify exact R22 visual, audio, provider and assurance dependencies; pass zero-spend preflight and integrated-canary admission.
-4. Compile and run R22 only after those controls create explicit Production authority.
+1. Obtain explicit approval for one bounded GitHub `main` force-with-lease that replaces only a temporary staging commit with the exact Sites Git object, then verify exact equality.
+2. Implement the actual deterministic Scene Graph Renderer and qualified worker integration with lease/fence recovery.
+3. Implement paid-request reservation, native-request reconciliation, drift staleness and explicit fallback without enabling R22.
+4. Qualify exact R22 visual, audio, provider and assurance dependencies; pass zero-spend preflight and integrated-canary admission.
+5. Compile and run R22 only after those controls create explicit Production authority.
 ```
 
 Migrations `0106`-`0108`, the zero-spend writer, route planner and compiler create runtime/control evidence only. This state creates no paid request, R22, rendered Production bytes, Browser, release or publication authority.
