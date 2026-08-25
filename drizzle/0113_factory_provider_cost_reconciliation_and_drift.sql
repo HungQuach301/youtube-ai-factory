@@ -28,16 +28,15 @@ CREATE UNIQUE INDEX `factory_provider_cost_reservation_idempotency_uq` ON `facto
 --> statement-breakpoint
 CREATE INDEX `factory_provider_cost_reservation_envelope_idx` ON `factory_provider_cost_reservations` (`cost_envelope_id`,`created_at`);
 --> statement-breakpoint
-CREATE TRIGGER `factory_provider_cost_reservation_budget_guard` BEFORE INSERT ON `factory_provider_cost_reservations`
-BEGIN
-  SELECT CASE WHEN
-    COALESCE((SELECT SUM(`reserved_provider_requests`) FROM `factory_provider_cost_reservations` WHERE `cost_envelope_id` = NEW.`cost_envelope_id`),0) + NEW.`reserved_provider_requests`
-      > (SELECT `max_provider_requests` FROM `factory_cost_envelopes` WHERE `id` = NEW.`cost_envelope_id` AND `lifecycle_state` = 'ACTIVE')
-    OR
-    COALESCE((SELECT SUM(`reserved_spend_micros`) FROM `factory_provider_cost_reservations` WHERE `cost_envelope_id` = NEW.`cost_envelope_id`),0) + NEW.`reserved_spend_micros`
-      > (SELECT `max_spend_micros` FROM `factory_cost_envelopes` WHERE `id` = NEW.`cost_envelope_id` AND `lifecycle_state` = 'ACTIVE')
-  THEN RAISE(ABORT,'FACTORY_PROVIDER_COST_ENVELOPE_EXCEEDED') END;
-END;
+CREATE TRIGGER `factory_provider_cost_reservation_request_budget_guard` BEFORE INSERT ON `factory_provider_cost_reservations`
+WHEN COALESCE((SELECT SUM(`reserved_provider_requests`) FROM `factory_provider_cost_reservations` WHERE `cost_envelope_id` = NEW.`cost_envelope_id`),0) + NEW.`reserved_provider_requests`
+  > (SELECT `max_provider_requests` FROM `factory_cost_envelopes` WHERE `id` = NEW.`cost_envelope_id` AND `lifecycle_state` = 'ACTIVE')
+BEGIN SELECT RAISE(ABORT,'FACTORY_PROVIDER_COST_ENVELOPE_EXCEEDED'); END;
+--> statement-breakpoint
+CREATE TRIGGER `factory_provider_cost_reservation_spend_budget_guard` BEFORE INSERT ON `factory_provider_cost_reservations`
+WHEN COALESCE((SELECT SUM(`reserved_spend_micros`) FROM `factory_provider_cost_reservations` WHERE `cost_envelope_id` = NEW.`cost_envelope_id`),0) + NEW.`reserved_spend_micros`
+  > (SELECT `max_spend_micros` FROM `factory_cost_envelopes` WHERE `id` = NEW.`cost_envelope_id` AND `lifecycle_state` = 'ACTIVE')
+BEGIN SELECT RAISE(ABORT,'FACTORY_PROVIDER_COST_ENVELOPE_EXCEEDED'); END;
 --> statement-breakpoint
 CREATE TABLE `factory_provider_native_request_receipts` (
   `id` text PRIMARY KEY NOT NULL,
