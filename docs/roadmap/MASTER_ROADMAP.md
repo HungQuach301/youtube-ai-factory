@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__LIVE_NON_R22_RUNTIME_QUALIFIED__PROVIDER_AND_ASSURANCE_CONTROLS_PENDING`
+**Status:** `IN_PROGRESS__PROVIDER_CONTROL_SOURCE_QUALIFIED__ASSURANCE_AND_R22_ADMISSION_PENDING`
 
 Implement:
 
@@ -106,9 +106,19 @@ Completed in source in the seventh bounded Phase 45 treatment-qualification slic
 
 Targeted qualification tests pass 5/5 and the full repository passes 241/241 with exact-repeat output SHA-256 `e6423727c7f18b59d6538fc9a097d744d59ac15e7d8011835920e91e07866d7b`, thirty distinct decoded state samples, zero provider requests and zero spend. Sites version 531 stores live package `factory-treatment-qualification-35941cd62fb0364063a1f98d` plus ten PASS case receipts. D1/R2 read back the exact 274,621-byte output and the same request returns `IDEMPOTENT_REPLAY`. The temporary writer, qualifier and credential are absent after the same-source environment-revision-50 redeployment. Exact R22 dependency admission remains pending; this evidence creates no R22, master, assurance, release or publication authority.
 
+Completed in source in the eighth bounded Phase 45 provider-control slice:
+
+- migration `0113_factory_provider_cost_reconciliation_and_drift.sql` adds immutable cost-reservation, provider-native request, reconciliation, drift and explicit fallback-authorization receipts;
+- `factory-provider-control-plane` atomically reserves one exact route/envelope plan, preserves `UNKNOWN_SPEND_RESERVED` until the provider-native identity resolves and stores raw-response hash, usage and actual cost without granting retry;
+- binding/model/settings/schema/rights/qualification drift appends a `STALE` receipt that blocks routing;
+- fallback requires a separate one-time owner-approved plan pointing to the declared same-capability, active and currently qualified binding; automatic fallback remains blocked;
+- all reservation, reconciliation and fallback records structurally retain zero dispatch, retry, R22, master, release and publication authority.
+
+Evidence passes 3/3 focused provider-control tests and 244/244 repository tests plus the verified Production build. This is source qualification only: no API dispatch path, provider credential, provider request, spend or live D1 mutation is opened. Conservative reservation accounting does not auto-credit settled reservations; an explicit settlement-ledger policy is required before any future dispatch authority.
+
 ## Phase 46 — R22 canary
 
-**Status:** `GATED__LIVE_RUNTIME_AND_PRODUCTION_SCALE_TREATMENTS_PASS__PROVIDER_AND_ASSURANCE_CONTROLS_PENDING`
+**Status:** `GATED__LIVE_RUNTIME_AND_TREATMENTS_PASS__ASSURANCE_AND_EXACT_DEPENDENCY_ADMISSION_PENDING`
 
 Compile R22 only from the exact R21 visual FAIL/audio PASS pair after Phase 45. Pass zero-spend preflight, render the hardest 60-90 seconds through the final Production path, then run full master and L0-L7 assurance. Current owner playback remains until AI qualification separately opens exception-only authority. Publication remains separate and blocked.
 

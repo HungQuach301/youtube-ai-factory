@@ -84,17 +84,19 @@ async function blocked(input: FactoryProviderWorkRequest, reasons: string[]): Pr
 export async function resolveFactoryProviderRoute(db: FactoryRuntimeDB, input: FactoryProviderWorkRequest): Promise<FactoryProviderRouteDecision> {
   const invalid = validate(input);
   if (invalid.length) throw new FactoryRuntimeError("PROVIDER_WORK_REQUEST_INVALID", 400, "The typed provider work request is invalid", invalid);
-  if (input.dispatchMode !== "ZERO_DISPATCH") return blocked(input, ["FACTORY_PROVIDER_DISPATCH_DISABLED"]);
+  if (input.dispatchMode === "DISPATCH_ALLOWED") return blocked(input, ["FACTORY_PROVIDER_DISPATCH_DISABLED"]);
   if (input.fallbackAllowed) return blocked(input, ["AUTOMATIC_PROVIDER_FALLBACK_DISABLED"]);
 
   const statement = db.prepare(`SELECT
       b.id binding_id,b.provider_id,b.output_schema_hash binding_output_schema_hash,b.settings_hash binding_settings_hash,
       b.rights_policy_version,b.retention_policy_version,b.max_payload_bytes,b.lifecycle_state binding_state,b.fallback_binding_id,
+      EXISTS(SELECT 1 FROM factory_provider_bindings parent WHERE parent.fallback_binding_id=b.id) is_declared_fallback,
       p.lifecycle_state provider_state,p.health_state,
       c.id capability_id,c.lifecycle_state capability_state,c.output_schema_hash capability_output_schema_hash,
       q.id qualification_id,q.standard_version,q.qualified_archetypes_json,q.settings_hash qualification_settings_hash,
       q.sample_size,q.first_pass_yield,q.p0_escape_count,q.lifecycle_state qualification_state,q.expires_at,
-      r.commercial_use_state,r.valid_from rights_valid_from,r.expires_at rights_expires_at
+      r.commercial_use_state,r.valid_from rights_valid_from,r.expires_at rights_expires_at,
+      (SELECT drift_state FROM factory_provider_drift_receipts d WHERE d.binding_id=b.id ORDER BY d.observed_at DESC,d.created_at DESC,d.id DESC LIMIT 1) latest_drift_state
     FROM factory_provider_bindings b
     JOIN factory_providers p ON p.id=b.provider_id
     JOIN factory_capabilities c ON c.id=b.capability_id
@@ -114,13 +116,14 @@ export async function resolveFactoryProviderRoute(db: FactoryRuntimeDB, input: F
     if (clean(row.health_state) !== "HEALTHY") reasons.push("PROVIDER_NOT_HEALTHY");
     if (clean(row.capability_state) !== "ACTIVE") reasons.push("CAPABILITY_NOT_ACTIVE");
     if (clean(row.binding_state) !== "ACTIVE") reasons.push("BINDING_NOT_ACTIVE");
-    if (clean(row.fallback_binding_id)) reasons.push("FALLBACK_BINDING_NOT_PRIMARY");
+    if (numeric(row.is_declared_fallback) === 1) reasons.push("FALLBACK_BINDING_REQUIRES_EXPLICIT_AUTHORIZATION");
     if (clean(row.binding_output_schema_hash) !== input.expectedOutputSchemaHash || clean(row.capability_output_schema_hash) !== input.expectedOutputSchemaHash) reasons.push("OUTPUT_SCHEMA_MISMATCH");
     if (clean(row.binding_settings_hash) !== input.requiredSettingsHash || clean(row.qualification_settings_hash) !== input.requiredSettingsHash) reasons.push("SETTINGS_HASH_MISMATCH");
     if (clean(row.rights_policy_version) !== input.rightsPolicyVersion) reasons.push("RIGHTS_POLICY_MISMATCH");
     if (clean(row.retention_policy_version) !== input.retentionPolicyVersion) reasons.push("RETENTION_POLICY_MISMATCH");
     if (numeric(row.max_payload_bytes) < input.payloadBytes) reasons.push("PAYLOAD_LIMIT_EXCEEDED");
     if (clean(row.qualification_state) !== "QUALIFIED") reasons.push("QUALIFICATION_NOT_ACTIVE");
+    if (clean(row.latest_drift_state) === "STALE") reasons.push("PROVIDER_BINDING_DRIFT_STALE");
     if (clean(row.standard_version) !== input.standardVersion) reasons.push("QUALIFICATION_STANDARD_MISMATCH");
     if (!parseList(row.qualified_archetypes_json).includes(input.archetype)) reasons.push("ARCHETYPE_NOT_QUALIFIED");
     if (numeric(row.sample_size) < input.minimumSampleSize) reasons.push("QUALIFICATION_SAMPLE_TOO_SMALL");

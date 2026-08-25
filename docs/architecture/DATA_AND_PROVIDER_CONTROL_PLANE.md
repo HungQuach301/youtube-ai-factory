@@ -79,7 +79,9 @@ No qualified binding means no dispatch. Fallback is explicit, separately qualifi
 
 ### Current executable boundary
 
-Migration `0108` and `factory-provider-gateway` implement the pre-dispatch half of this contract. Provider, capability, binding, qualification, rights, cost-envelope, typed work-request and route-decision identities are append-only. Routing verifies active/healthy state, exact schema/settings/standard/archetype, qualification sample/yield/P0 floors, expiry, payload limit and commercial rights. The only permitted result in this slice is `PLANNED_ZERO_DISPATCH` with `provider_requests=0` and `spend_micros=0`; stale/unqualified/ineligible input is `BLOCKED`. Automatic fallback and all provider dispatch remain disabled until reservation, native-response capture and reconciliation are implemented and qualified.
+Migration `0108` and `factory-provider-gateway` implement the zero-dispatch routing boundary. Provider, capability, binding, qualification, rights, cost-envelope, typed work-request and route-decision identities are append-only. Routing verifies active/healthy state, exact schema/settings/standard/archetype, qualification sample/yield/P0 floors, expiry, payload limit and commercial rights. `PLAN_ONLY` may return `PLANNED_ZERO_DISPATCH`; stale, unqualified or ineligible input is `BLOCKED`. `DISPATCH_ALLOWED` and automatic fallback remain blocked.
+
+Migration `0113` and `factory-provider-control-plane` make the next paid-request controls executable without enabling a provider call. An atomic positive cost reservation must fit one exact active envelope and route decision; every reservation is structurally plan-only with zero dispatch, R22, master, release and publication authority. Provider-native observations are captured as append-only receipts with the exact native ID, response ID, raw-response hash, usage and actual cost. An unresolved observation becomes `UNKNOWN_SPEND_RESERVED`, never retry authority; only a later exact native reconciliation may settle the request. Binding/model/settings/schema/rights/qualification drift appends a `STALE` receipt that blocks the route. A fallback requires one explicit owner-approved, capability-matched, current-qualified authorization and still grants plan authority only. Conservative reservation accounting never credits budget back automatically; a later settlement-ledger policy must explicitly define release/credit semantics before dispatch can open.
 
 Migration `0110` makes asset eligibility executable independently of provider dispatch. A SOURCE/HYBRID artifact is usable only when its materialized R2 key, MIME, size and SHA-256 read back exactly, its dependency is not stale, and the referenced rights receipt is commercially eligible and current for the declared territory/modification scope. The resulting immutable receipt is then required by the pixel/video canary planner. A provider-level rights receipt alone cannot authorize unknown or changed asset bytes.
 
@@ -110,6 +112,8 @@ PLAN -> RESERVE_COST -> CHECK_QUALIFICATION -> CHECK_RIGHTS_SAFETY
 ```
 
 On timeout, reconcile provider status before retry. A known active request waits; pre-dispatch failure may retry within ceiling; unknown state becomes `UNKNOWN_SPEND_RESERVED`. Never create a second request merely because the caller timed out.
+
+The current `0113` implementation intentionally stops before `DISPATCH`: no provider client, credential, paid request or retry path is exposed. Secret-scoped dispatch, retention enforcement, live rate-card reconciliation and accepted-output unit economics require separate implementation and qualification.
 
 ## Data-quality gates
 
