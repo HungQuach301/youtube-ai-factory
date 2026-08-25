@@ -9,10 +9,10 @@ This matrix records where each approved concern is canonical. It prevents a chat
 |---|---|---|
 | Product boundary and operating planes | `docs/architecture/TARGET_OPERATING_ARCHITECTURE.md` | Complete for design |
 | Business capabilities, decision rights, AI/owner/provider operating model, exceptions, economics and portfolio arbitration | `docs/architecture/BUSINESS_OPERATING_MODEL.md` | Complete for design; operational implementation pending |
-| Runtime planes, services, state/events, timebase, fencing, observability/replay and UI architecture | `docs/architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md` | Canonical writer, lease/fencing, stale projection, replay and qualified render-tape worker implemented; pixel compositor/recovery exercise/UI integration pending |
+| Runtime planes, services, state/events, timebase, fencing, observability/replay and UI architecture | `docs/architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md` | Writer, lease/fencing, stale projection, replay, render tape, asset eligibility and fenced compositor admission implemented; live recovery exercise/UI integration pending |
 | Factory/Channel/Format/Video/Sequence/Shot hierarchy | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Complete for design |
 | Visual taxonomy, SOURCE/MAKE/HYBRID and `Reality -> Mechanism -> Proof` | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Complete for design |
-| Blueprint, Shot Contract, Scene Graph and canonical timebase | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Deterministic zero-dispatch compiler and exact-byte render tape implemented; asset/pixel compositor and canary pending |
+| Blueprint, Shot Contract, Scene Graph and canonical timebase | `docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md` | Deterministic compiler, exact-byte render tape and internal pixel/video canary fixture implemented; live non-R22 canary pending |
 | AI-first L0-L7 acceptance and four outcomes | `docs/architecture/AI_FIRST_PRODUCTION_ASSURANCE.md` | Complete for design; calibration pending |
 | Judge qualification, receipts, cost and Factory QA Cockpit | `docs/architecture/AI_FIRST_PRODUCTION_ASSURANCE.md` | Complete for design; implementation pending |
 | Data domains, entities, lineage and D1/R2/Drive authority | `docs/architecture/DATA_AND_PROVIDER_CONTROL_PLANE.md` | Core planning/event/dependency entities implemented; remaining runtime integration pending |
@@ -26,7 +26,7 @@ This matrix records where each approved concern is canonical. It prevents a chat
 | Multi-channel isolation, experiment validity, learning promotion, scaling and rollback | `docs/architecture/MULTI_CHANNEL_SCALE_AND_LEARNING.md` | Complete for design; implementation/calibration pending |
 | Privacy/secrets, Content ID, drift, retention/deletion, SLA/capacity, DR, accessibility/localization and incident containment | `docs/governance/CROSS_CUTTING_CONTROL_STANDARD.md` | Complete for design; enforcement/exercises pending |
 | Current R21/R22 runtime truth | `docs/continuity/03_CURRENT_STATE.md` | Reconciled; detailed execution evidence archived |
-| Decisions and supersession | `docs/continuity/04_DECISION_LOG.md` | Active ADR-123 through ADR-142 recorded; prior decisions archived |
+| Decisions and supersession | `docs/continuity/04_DECISION_LOG.md` | Active ADR-123 through ADR-143 recorded; prior decisions archived |
 | Risks and open implementation work | `docs/governance/MASTER_ISSUE_REGISTRY.md` | Current open issues only; closed history archived |
 | Implementation sequence | `docs/roadmap/MASTER_ROADMAP.md` | Active Phases 44-48 only; prior roadmap archived |
 | Repository SSOT | `docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md` | Active |
@@ -36,8 +36,8 @@ This matrix records where each approved concern is canonical. It prevents a chat
 
 ## Not completed by documentation alone
 
-- Phase 45 actual provider dispatch/reconciliation, asset-qualified pixel/video compositor and bounded runtime recovery exercises beyond migrations `0106`-`0109`.
-- Integrated canary, Evidence Lineage expansion and AI Assurance Orchestrator.
+- Phase 45 actual provider dispatch/reconciliation and bounded live recovery exercises beyond migrations `0106`-`0110`.
+- Live non-R22 integrated canary, production-scale treatment qualification, Evidence Lineage expansion and AI Assurance Orchestrator.
 - Factory QA Cockpit and UI integration.
 - Judge/provider capability qualification.
 - R22 provider dispatch, master, QA, Browser, owner freeze, release or publication.

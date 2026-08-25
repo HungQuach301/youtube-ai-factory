@@ -78,9 +78,19 @@ Completed in the fourth bounded Phase 45 slice:
 
 Evidence passes 231/231 repository tests, 13/13 focused Gateway/compiler/writer/renderer tests, the verified Production build and documentation SSOT gate. Sites version 521 deploys migration `0109`; live D1 exposes 50 user tables in total and thirty `factory_*` tables, including all three renderer tables. The output is a deterministic render tape, not a pixel/video master; asset-qualified composition, integrated canary, provider dispatch/reconciliation, L0-L7 assurance and all R22 authority remain incomplete.
 
+Completed in the fifth bounded Phase 45 / Phase 46-admission slice:
+
+- migration `0110_factory_asset_eligibility_and_pixel_canary.sql` adds append-only exact asset-eligibility receipts, qualified compositor bindings, composition jobs and integrated-canary receipts;
+- SOURCE/HYBRID assets require materialized exact bytes, R2 read-back, current commercial rights, modification/territory scope and no stale dependency;
+- the generic FFmpeg compositor consumes one exact render tape plus contiguous sealed SOURCE/MAKE/HYBRID inputs, rejects adjacent repeated motion profiles and emits deterministic VP9 WebM plus entry/midpoint/exit decoded pixels;
+- canary finalization requires a qualified active worker/settings version, 60-90 second exact timebase/frame coverage, output read-back, deterministic replay hash, decoded sample hashes and an active lease/fence before atomically writing `COMPOSED_FROM` lineage;
+- all new runtime actions are independently disabled by default, zero-spend and R22-blocked.
+
+Evidence passes 235/235 repository tests, including a tracked executor fixture rendered twice to the same 60.000-second, 1,800-frame, 76,448-byte SHA-256 `cb7ff0c35a03a21f6dd5ddb6b7c72c6056e35cfbf94e15559b32ceb5150adb21`. Sites version 523 deploys migration `0110`; live D1 exposes 54 user tables and thirty-four `factory_*` tables, with zero rows in the four new tables. This proves compositor admission and local exact-repeat execution only. A bounded live non-R22 canary/recovery exercise, production-scale treatment qualification, provider reconciliation, L0-L7 assurance and every R22/release/publication authority remain incomplete.
+
 ## Phase 46 — R22 canary
 
-**Status:** `GATED`
+**Status:** `GATED__COMPOSITOR_ADMISSION_IMPLEMENTED__LIVE_NON_R22_CANARY_PENDING`
 
 Compile R22 only from the exact R21 visual FAIL/audio PASS pair after Phase 45. Pass zero-spend preflight, render the hardest 60-90 seconds through the final Production path, then run full master and L0-L7 assurance. Current owner playback remains until AI qualification separately opens exception-only authority. Publication remains separate and blocked.
 

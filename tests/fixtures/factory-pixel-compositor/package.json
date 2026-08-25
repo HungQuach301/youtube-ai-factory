@@ -1,0 +1,14 @@
+{
+  "contractVersion": "FACTORY_PIXEL_VIDEO_COMPOSITOR_PACKAGE_V1",
+  "renderTape": {
+    "path": "tape.json",
+    "sha256": "c6d357796ae5f58c84c53b0cdbc405a8b9289a5f148387eeebd471c889683b09"
+  },
+  "frameRange": { "frameStart": 0, "frameEndExclusive": 1800 },
+  "output": { "width": 320, "height": 180, "frameRateNumerator": 30, "frameRateDenominator": 1 },
+  "segments": [
+    { "startFrame": 0, "endFrameExclusive": 600, "route": "SOURCE", "motionProfile": "PUSH_IN", "sourceFrame": { "path": "reality.svg", "sha256": "1897dbfb39850827bad5391c9ea4c53b02ee813c9289487e34ba739d15761fc4" } },
+    { "startFrame": 600, "endFrameExclusive": 1200, "route": "MAKE", "motionProfile": "PAN_LEFT", "sourceFrame": { "path": "mechanism.svg", "sha256": "71688cf0651941b478cd1c4da57e0b027a4704f2c80df7939b58248ac7d766f1" } },
+    { "startFrame": 1200, "endFrameExclusive": 1800, "route": "HYBRID", "motionProfile": "PULL_OUT", "sourceFrame": { "path": "proof.svg", "sha256": "23cc7b62ac10e571b8ef0521866222c1eb1b3be95bc65e7f949e1065f52e76a6" } }
+  ]
+}

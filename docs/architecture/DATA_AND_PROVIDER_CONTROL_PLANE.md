@@ -81,6 +81,8 @@ No qualified binding means no dispatch. Fallback is explicit, separately qualifi
 
 Migration `0108` and `factory-provider-gateway` implement the pre-dispatch half of this contract. Provider, capability, binding, qualification, rights, cost-envelope, typed work-request and route-decision identities are append-only. Routing verifies active/healthy state, exact schema/settings/standard/archetype, qualification sample/yield/P0 floors, expiry, payload limit and commercial rights. The only permitted result in this slice is `PLANNED_ZERO_DISPATCH` with `provider_requests=0` and `spend_micros=0`; stale/unqualified/ineligible input is `BLOCKED`. Automatic fallback and all provider dispatch remain disabled until reservation, native-response capture and reconciliation are implemented and qualified.
 
+Migration `0110` makes asset eligibility executable independently of provider dispatch. A SOURCE/HYBRID artifact is usable only when its materialized R2 key, MIME, size and SHA-256 read back exactly, its dependency is not stale, and the referenced rights receipt is commercially eligible and current for the declared territory/modification scope. The resulting immutable receipt is then required by the pixel/video canary planner. A provider-level rights receipt alone cannot authorize unknown or changed asset bytes.
+
 ## Approved capability plan
 
 | Capability | Preferred route | Control boundary |

@@ -2718,3 +2718,52 @@ export const factorySceneRenderReceipts = sqliteTable("factory_scene_render_rece
   uniqueIndex("factory_scene_render_receipt_job_uq").on(table.renderJobId),
   uniqueIndex("factory_scene_render_receipt_artifact_uq").on(table.artifactVersionId),
 ]);
+
+export const factoryAssetEligibilityReceipts = sqliteTable("factory_asset_eligibility_receipts", {
+  id: text("id").primaryKey(), videoId: text("video_id").notNull(), artifactVersionId: text("artifact_version_id").notNull().references(() => factoryArtifactVersions.id),
+  rightsReceiptId: text("rights_receipt_id").notNull().references(() => factoryRightsEligibilityReceipts.id), sourceAssetId: text("source_asset_id").notNull(), storageKey: text("storage_key").notNull(),
+  mimeType: text("mime_type").notNull(), byteSize: integer("byte_size").notNull(), sourceHash: text("source_hash").notNull(), readbackHash: text("readback_hash").notNull(),
+  width: integer("width"), height: integer("height"), durationMs: integer("duration_ms"), commercialUseState: text("commercial_use_state").notNull(), modificationState: text("modification_state").notNull(),
+  territoryScope: text("territory_scope").notNull(), verificationState: text("verification_state").notNull(), idempotencyKey: text("idempotency_key").notNull(),
+  commandId: text("command_id").notNull().references(() => factoryRuntimeCommands.id), eventId: text("event_id").notNull().references(() => factoryRuntimeEvents.id), evidenceHash: text("evidence_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_asset_eligibility_artifact_uq").on(table.artifactVersionId),
+  uniqueIndex("factory_asset_eligibility_idempotency_uq").on(table.idempotencyKey),
+]);
+
+export const factoryPixelCompositorBindings = sqliteTable("factory_pixel_compositor_bindings", {
+  id: text("id").primaryKey(), providerBindingId: text("provider_binding_id").notNull().references(() => factoryProviderBindings.id), qualificationId: text("qualification_id").notNull().references(() => factoryCapabilityQualifications.id),
+  workerKey: text("worker_key").notNull(), workerVersion: text("worker_version").notNull(), compositorVersion: text("compositor_version").notNull(), encoderVersion: text("encoder_version").notNull(),
+  inputSchemaHash: text("input_schema_hash").notNull(), outputSchemaHash: text("output_schema_hash").notNull(), settingsHash: text("settings_hash").notNull(), outputMimeType: text("output_mime_type").notNull(),
+  outputCodec: text("output_codec").notNull(), maxFramesPerJob: integer("max_frames_per_job").notNull(), lifecycleState: text("lifecycle_state").notNull(), evidenceHash: text("evidence_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_pixel_compositor_version_uq").on(table.workerKey, table.workerVersion, table.settingsHash),
+  index("factory_pixel_compositor_route_idx").on(table.lifecycleState, table.compositorVersion),
+]);
+
+export const factoryVideoCompositionJobs = sqliteTable("factory_video_composition_jobs", {
+  id: text("id").primaryKey(), videoId: text("video_id").notNull(), renderTapeArtifactVersionId: text("render_tape_artifact_version_id").notNull().references(() => factoryArtifactVersions.id),
+  compositorBindingId: text("compositor_binding_id").notNull().references(() => factoryPixelCompositorBindings.id), leaseId: text("lease_id").notNull().references(() => factoryRuntimeLeases.id), fencingToken: integer("fencing_token").notNull(),
+  frameStart: integer("frame_start").notNull(), frameEndExclusive: integer("frame_end_exclusive").notNull(), assetReceiptIdsJson: text("asset_receipt_ids_json").notNull(), inputHash: text("input_hash").notNull(),
+  compositionProgramHash: text("composition_program_hash").notNull(), dependencySnapshotHash: text("dependency_snapshot_hash").notNull(), outputHash: text("output_hash").notNull(), storageKey: text("storage_key").notNull(),
+  mimeType: text("mime_type").notNull(), byteSize: integer("byte_size").notNull(), durationMs: integer("duration_ms").notNull(), width: integer("width").notNull(), height: integer("height").notNull(),
+  frameRateNumerator: integer("frame_rate_numerator").notNull(), frameRateDenominator: integer("frame_rate_denominator").notNull(), frameCount: integer("frame_count").notNull(), idempotencyKey: text("idempotency_key").notNull(),
+  lifecycleState: text("lifecycle_state").notNull(), providerRequests: integer("provider_requests").notNull(), spendMicros: integer("spend_micros").notNull(), commandId: text("command_id").notNull().references(() => factoryRuntimeCommands.id),
+  eventId: text("event_id").notNull().references(() => factoryRuntimeEvents.id), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_video_composition_idempotency_uq").on(table.idempotencyKey),
+  uniqueIndex("factory_video_composition_output_uq").on(table.videoId, table.renderTapeArtifactVersionId, table.compositorBindingId, table.frameStart, table.frameEndExclusive, table.outputHash),
+]);
+
+export const factoryIntegratedCanaryReceipts = sqliteTable("factory_integrated_canary_receipts", {
+  id: text("id").primaryKey(), compositionJobId: text("composition_job_id").notNull().references(() => factoryVideoCompositionJobs.id), artifactVersionId: text("artifact_version_id").notNull().references(() => factoryArtifactVersions.id),
+  canaryKind: text("canary_kind").notNull(), compositorVersion: text("compositor_version").notNull(), encoderVersion: text("encoder_version").notNull(), dependencySnapshotHash: text("dependency_snapshot_hash").notNull(),
+  sampleEvidenceJson: text("sample_evidence_json").notNull(), outputHash: text("output_hash").notNull(), readbackHash: text("readback_hash").notNull(), deterministicReplayHash: text("deterministic_replay_hash").notNull(),
+  verificationState: text("verification_state").notNull(), zeroDispatch: integer("zero_dispatch", { mode: "boolean" }).notNull(), providerRequests: integer("provider_requests").notNull(), spendMicros: integer("spend_micros").notNull(),
+  evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("factory_integrated_canary_job_uq").on(table.compositionJobId),
+  uniqueIndex("factory_integrated_canary_artifact_uq").on(table.artifactVersionId),
+]);

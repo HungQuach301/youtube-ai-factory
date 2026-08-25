@@ -17,6 +17,12 @@ import {
   type FactoryRenderBucket,
   type FactorySceneRenderInput,
 } from "@/lib/factory-scene-graph-renderer";
+import {
+  materializeFactoryIntegratedCanary,
+  verifyFactoryAssetEligibility,
+  type FactoryAssetEligibilityInput,
+  type FactoryIntegratedCanaryInput,
+} from "@/lib/factory-pixel-video-compositor";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +37,8 @@ type RuntimeEnv = {
   FACTORY_RUNTIME_R22_AUTHORIZED?: string;
   FACTORY_PRODUCTION_COMPILER_ENABLED?: string;
   FACTORY_SCENE_RENDERER_ENABLED?: string;
+  FACTORY_ASSET_ELIGIBILITY_ENABLED?: string;
+  FACTORY_PIXEL_COMPOSITOR_ENABLED?: string;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -164,6 +172,20 @@ export async function POST(request: Request) {
       if (!env.BUCKET) return failure("ACTIVE_MEDIA_STORAGE_UNAVAILABLE", "The active media storage binding is unavailable", 503);
       const render = recordOrEmpty(body.render) as unknown as FactorySceneRenderInput;
       return Response.json(await materializeFactorySceneGraphRender({ DB: env.DB, BUCKET: env.BUCKET }, render, runtimeCommand(body.command, actor)), { status: 201, headers: NO_STORE });
+    }
+
+    if (action === "VERIFY_ASSET_ELIGIBILITY") {
+      if (env.FACTORY_ASSET_ELIGIBILITY_ENABLED !== "true") return failure("FACTORY_ASSET_ELIGIBILITY_DISABLED", "Asset eligibility verification is disabled until an explicit deployment authorization is configured", 503);
+      if (!env.BUCKET) return failure("ACTIVE_MEDIA_STORAGE_UNAVAILABLE", "The active media storage binding is unavailable", 503);
+      const asset = recordOrEmpty(body.asset) as unknown as FactoryAssetEligibilityInput;
+      return Response.json(await verifyFactoryAssetEligibility({ DB: env.DB, BUCKET: env.BUCKET }, asset, runtimeCommand(body.command, actor)), { status: 201, headers: NO_STORE });
+    }
+
+    if (action === "FINALIZE_INTEGRATED_CANARY") {
+      if (env.FACTORY_PIXEL_COMPOSITOR_ENABLED !== "true") return failure("FACTORY_PIXEL_COMPOSITOR_DISABLED", "The qualified pixel/video compositor is disabled until an explicit deployment authorization is configured", 503);
+      if (!env.BUCKET) return failure("ACTIVE_MEDIA_STORAGE_UNAVAILABLE", "The active media storage binding is unavailable", 503);
+      const canary = recordOrEmpty(body.canary) as unknown as FactoryIntegratedCanaryInput;
+      return Response.json(await materializeFactoryIntegratedCanary({ DB: env.DB, BUCKET: env.BUCKET }, canary, runtimeCommand(body.command, actor)), { status: 201, headers: NO_STORE });
     }
 
     if (action === "RECONCILE_ORPHAN") return Response.json(await reconcileFactoryRuntimeOrphan(env.DB, {
