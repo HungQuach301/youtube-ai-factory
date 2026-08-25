@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__CANONICAL_RUNTIME_WRITER_IMPLEMENTED`
+**Status:** `IN_PROGRESS__CANONICAL_RUNTIME_WRITER_DEPLOYED__SYNCHRONIZED`
 
 Implement:
 
@@ -53,6 +53,8 @@ Completed in the second bounded Phase 45 slice:
 - dependency invalidation materializes the full transitive stale set exactly once, while replay verifies event bytes against stored projection state;
 - `/api/factory/runtime` requires SIWC plus the owner/expert allowlist, is disabled by default, refuses R22 without separate authorization and has no provider client or spend authority;
 - full repository tests pass 224/224 with zero provider requests and no Production content mutation.
+
+Deployment evidence: Sites version 514 succeeded, migration `0107` is live and the D1 overview exposes all nineteen `factory_*` tables.
 
 Next connect the Blueprint/Shot compilers and Provider Gateway to the canonical writer, then exercise the disabled-by-default route under a bounded deployment authorization. Renderer, L0-L7 assurance and all R22 authority remain incomplete.
 

@@ -18,11 +18,12 @@ DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
 PHASE_45 = IN_PROGRESS__CANONICAL_RUNTIME_WRITER_IMPLEMENTED
 SOURCE_MIGRATION = 0107_FACTORY_RUNTIME_WRITER_AND_REPLAY
-SOURCE_MIGRATION_LIVE_D1 = CHECKPOINT_GATED
+SOURCE_MIGRATION_LIVE_D1 = VERIFIED__19_FACTORY_TABLES
+DEPLOYMENT_RECEIPT = VERSION_514__APPGDEP_6A8CF594C1C08191A846EC8365522B8C__SUCCEEDED
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
 ```
 
-The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. The Phase 45 foundation deployed successfully and all twelve foundation `factory_*` tables were verified in live D1. The second bounded slice adds the canonical writer, lease/fencing, projections and replay schema; live status is established only by the matching deployment checkpoint receipt. Concurrent GitHub merge `03434774…` incorrectly classified this approved work as V2 and restored an older tree; it is preserved in ancestry for audit but has no current source authority because V2 is explicitly excluded. Local, Sites and personal GitHub must resolve to one exact reconciled source commit before another implementation slice begins.
+The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. Phase 45 migrations `0106`/`0107` deployed successfully in Sites version 514; all nineteen `factory_*` tables were verified in live D1 and deployment `appgdep_6a8cf594c1c08191a846ec8365522b8c` succeeded. Concurrent GitHub merge `03434774…` incorrectly classified this approved work as V2 and restored an older tree; it is preserved in ancestry for audit but has no current source authority because V2 is explicitly excluded. Local, Sites and personal GitHub must resolve to one exact reconciled source commit before another implementation slice begins.
 
 ## Production truth
 
@@ -63,7 +64,7 @@ Still required before R22:
 ## Next protected action
 
 ```text
-1. Verify the `0107` deployment receipt and exact dual-remote commit equality; keep the writer disabled until its first bounded integration exercise.
+1. Keep the deployed writer disabled until its first bounded integration exercise; re-prove exact dual-remote commit equality before mutation.
 2. Implement the Provider Gateway and compile Visual DNA -> Blueprint -> Shot Contract -> Scene Graph without revision branching.
 3. Qualify exact R22 provider, visual, audio and assurance dependencies.
 4. Pass zero-spend preflight and the integrated canary admission gate.

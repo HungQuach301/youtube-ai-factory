@@ -22,6 +22,8 @@ Phase 45 synchronization receipt: the exact source tree first deployed by Sites 
 
 Concurrent-tip receipt: while the canonical runtime writer checkpoint was being published, GitHub `main` advanced from common base `b6583a23…` to merge `03434774…`, whose tree restored an older baseline and whose message incorrectly assigned Phase 45 to V2. Publication stopped without force. The resolution preserves `03434774…` in ancestry, records its source/V2 claim as non-normative under ADR-139, and creates a forward merge using the reviewed canonical tree. This is a divergence reconciliation, not permission to import V2 or discard concurrent history.
 
+Runtime-writer deployment receipt: the reconciled source tree built and deployed as Sites version 514; deployment `appgdep_6a8cf594c1c08191a846ec8365522b8c` succeeded and the live D1 overview verified nineteen `factory_*` tables including the seven `0107` writer/replay tables. The checkpoint made no provider request and changed no R21/R22 Production bytes.
+
 ## Initial mirror migration receipt
 
 | Evidence | Verified result |
