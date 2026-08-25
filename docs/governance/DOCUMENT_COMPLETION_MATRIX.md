@@ -26,7 +26,7 @@ This matrix records where each approved concern is canonical. It prevents a chat
 | Multi-channel isolation, experiment validity, learning promotion, scaling and rollback | `docs/architecture/MULTI_CHANNEL_SCALE_AND_LEARNING.md` | Complete for design; implementation/calibration pending |
 | Privacy/secrets, Content ID, drift, retention/deletion, SLA/capacity, DR, accessibility/localization and incident containment | `docs/governance/CROSS_CUTTING_CONTROL_STANDARD.md` | Complete for design; enforcement/exercises pending |
 | Current R21/R22 runtime truth | `docs/continuity/03_CURRENT_STATE.md` | Reconciled; detailed execution evidence archived |
-| Decisions and supersession | `docs/continuity/04_DECISION_LOG.md` | Active ADR-123 through ADR-139 recorded; prior decisions archived |
+| Decisions and supersession | `docs/continuity/04_DECISION_LOG.md` | Active ADR-123 through ADR-141 recorded; prior decisions archived |
 | Risks and open implementation work | `docs/governance/MASTER_ISSUE_REGISTRY.md` | Current open issues only; closed history archived |
 | Implementation sequence | `docs/roadmap/MASTER_ROADMAP.md` | Active Phases 44-48 only; prior roadmap archived |
 | Repository SSOT | `docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md` | Active |

@@ -26,6 +26,8 @@ Runtime-writer deployment receipt: the reconciled source tree built and deployed
 
 Gateway/compiler deployment receipt: migration `0108` and its zero-dispatch runtime source built and deployed as Sites version 516; deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded and the live D1 overview verified twenty-eight `factory_*` tables. Writer/compiler feature flags remain disabled, no provider request or spend occurred, and no R21/R22 Production bytes changed.
 
+Exact-history completion receipt: the owner approved one lease-bound replacement to exact Sites commit `3d752ad907989d8ad16f9ecce092975e66767657` and one temporary self-removing GitHub Actions workflow with `contents: write`. The workflow verified the immutable staging parent, incremental bundle prerequisites, exact target and target parent before using `force-with-lease`. After completion, GitHub `main`, Sites `origin/main` and local `HEAD` resolved to the approved SHA; `.github/workflows/one-time-exact-sites-sync.yml` and `.canonical-sync/youtube-ai-factory.bundle` were absent from final `main`, and trigger issue `#4` was closed. This receipt exhausts both approvals and grants no continuing force, workflow or staging authority.
+
 ## Initial mirror migration receipt
 
 | Evidence | Verified result |
@@ -55,10 +57,10 @@ Runtime D1/R2 state and immutable Production receipts remain authoritative for r
 2. Reconcile runtime/source truth before editing status documents.
 3. Make a bounded change; run required documentation, tests and build gates.
 4. Review the full diff and secret scan.
-5. Commit once on `main` under the standing repository policy.
-6. Push the exact commit to `origin/main` through the Sites checkpoint flow when deployment is part of the change.
-7. Push the same exact commit to `github/main` without merge, rebase or content rewrite.
-8. Fetch both and prove the three SHAs are identical; require a clean worktree.
+5. Construct the reviewed tree once and create one forward commit on private GitHub `main` with the verified current common SHA as its only parent.
+6. Recreate that exact Git commit object in the Sites checkout from the same parent, tree, message and GitHub-issued author/committer identity and timestamp; require the computed SHA to equal GitHub before moving local `main`.
+7. Push the already-identical commit to `origin/main` through the Sites checkpoint flow when deployment is part of the change. Never merge, rebase, amend or content-rewrite either mirror.
+8. Fetch both and prove local `HEAD`, `origin/main` and GitHub `main` are identical; require a clean worktree. Any object mismatch is `SYNC_BLOCKED`, not permission to force.
 
 ## Divergence protocol
 

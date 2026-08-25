@@ -13,7 +13,7 @@ policy: GIT_REPOSITORY_SSOT_V1 + DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
 excluded: HungQuach301/youtube-ai-factory-v2
 ```
 
-The private personal GitHub repository is connected and contains the complete Sites history through the prior common checkpoint. Phase 45 was canonicalized on GitHub as `4c45e5bd…`; synchronized checkpoints must preserve `HEAD = origin/main = github/main`. Migration `0108` and the zero-dispatch Gateway/compiler deployed in Sites version 516. The bounded `force-with-lease` is approved, but the new checkpoint is `SYNC_BLOCKED` pending explicit approval for one temporary self-removing Actions workflow with `contents: write`; no GitHub ref changed. Every material checkpoint must re-prove equality.
+The private personal GitHub repository is connected and contains the complete Sites history. Exact dual-remote equality was restored at `3d752ad907989d8ad16f9ecce092975e66767657`; the bounded temporary workflow and bundle self-removed and trigger issue `#4` was closed. Migration `0108` and the zero-dispatch Gateway/compiler deployed in Sites version 516. Synchronized checkpoints must preserve `HEAD = origin/main = github/main`; all later changes use the forward-only exact-object protocol and must not reuse the completed force authority. Every material checkpoint must re-prove equality.
 
 ## Required reading order
 

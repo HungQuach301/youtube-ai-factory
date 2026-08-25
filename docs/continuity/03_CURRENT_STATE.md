@@ -10,7 +10,7 @@ REPOSITORY_POLICY = GIT_REPOSITORY_SSOT_V1
 REPLICATION_POLICY = DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
 SITES_REMOTE = origin/main
 GITHUB_TARGET = HungQuach301/youtube-ai-factory
-GITHUB_SYNC = SYNC_BLOCKED__TEMPORARY_CONTENTS_WRITE_WORKFLOW_APPROVAL_REQUIRED
+GITHUB_SYNC = SYNCHRONIZED__EXACT_SHA_3D752AD907989D8AD16F9ECCE092975E66767657
 INITIAL_MIRROR_BASELINE_SHA = 2431a800d2d540bcfea141c98c9977cd46667950
 PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
@@ -20,11 +20,11 @@ PHASE_45 = IN_PROGRESS__ZERO_DISPATCH_PROVIDER_GATEWAY_AND_COMPILER_DEPLOYED
 SOURCE_MIGRATION = 0108_FACTORY_PROVIDER_GATEWAY_AND_COMPILERS
 SOURCE_MIGRATION_LIVE_D1 = VERIFIED__28_FACTORY_TABLES
 DEPLOYMENT_RECEIPT = VERSION_516__APPGDEP_6A8D334895008191A77BF70256460F01__SUCCEEDED
-CURRENT_SITE_VERSION = 519__TEMPORARY_WORKFLOW_APPROVAL_BLOCKER_RECEIPT
+CURRENT_SITE_VERSION = 520__DUAL_REMOTE_SYNC_COMPLETION_RECEIPT
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
 ```
 
-The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. Migration `0108`, the zero-dispatch Provider Gateway and deterministic production compiler deployed successfully in Sites version 516; deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded and all twenty-eight `factory_*` tables were verified in live D1. Sites version 519 exposes the current truthful sync state. Concurrent GitHub merge `03434774…` is preserved in ancestry for audit but has no current source authority because V2 is explicitly excluded. The owner approved one bounded `force-with-lease`, but GitHub `main` remains on the prior common commit because the required temporary self-removing Actions workflow also needs explicit `contents: write` approval; no GitHub ref was changed.
+The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. Migration `0108`, the zero-dispatch Provider Gateway and deterministic production compiler deployed successfully in Sites version 516; deployment `appgdep_6a8d334895008191a77bf70256460f01` succeeded and all twenty-eight `factory_*` tables were verified in live D1. The owner-approved lease-bound replacement completed on 2026-08-25: local `HEAD`, Sites `origin/main` and private GitHub `main` resolved to exact commit `3d752ad907989d8ad16f9ecce092975e66767657`; the temporary workflow and bundle were absent from final `main`, and trigger issue `#4` was closed. The completed approval grants no continuing force or workflow authority. Concurrent GitHub merge `03434774…` remains preserved in ancestry for audit but has no current source authority because V2 is explicitly excluded. Sites version 520 records this completion and establishes the forward-only exact-object protocol for later checkpoints.
 
 ## Production truth
 
@@ -65,9 +65,9 @@ Still required before R22:
 ## Next protected action
 
 ```text
-1. Obtain explicit approval to create one temporary self-removing GitHub Actions workflow with `contents: write`; it may perform only the already-approved lease-bound exact-history replacement, then verify equality.
-2. Implement the actual deterministic Scene Graph Renderer and qualified worker integration with lease/fence recovery.
-3. Implement paid-request reservation, native-request reconciliation, drift staleness and explicit fallback without enabling R22.
+1. Implement the actual deterministic Scene Graph Renderer and qualified worker integration with lease/fence recovery.
+2. Implement paid-request reservation, native-request reconciliation, drift staleness and explicit fallback without enabling R22.
+3. Implement Evidence Lineage and the L0-L7 Assurance Orchestrator without granting AI PASS authority before qualification.
 4. Qualify exact R22 visual, audio, provider and assurance dependencies; pass zero-spend preflight and integrated-canary admission.
 5. Compile and run R22 only after those controls create explicit Production authority.
 ```
