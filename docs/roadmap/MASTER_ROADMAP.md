@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__DETERMINISTIC_RENDER_TAPE_WORKER_DEPLOYED`
+**Status:** `IN_PROGRESS__LIVE_NON_R22_RUNTIME_QUALIFIED__PROVIDER_AND_ASSURANCE_CONTROLS_PENDING`
 
 Implement:
 
@@ -88,18 +88,18 @@ Completed in the fifth bounded Phase 45 / Phase 46-admission slice:
 
 Evidence passes 235/235 repository tests, including a tracked executor fixture rendered twice to the same 60.000-second, 1,800-frame, 76,448-byte SHA-256 `cb7ff0c35a03a21f6dd5ddb6b7c72c6056e35cfbf94e15559b32ceb5150adb21`. Sites version 523 deploys migration `0110`; live D1 exposes 54 user tables and thirty-four `factory_*` tables, with zero rows in the four new tables. This proves compositor admission and local exact-repeat execution only. A bounded live non-R22 canary/recovery exercise, production-scale treatment qualification, provider reconciliation, L0-L7 assurance and every R22/release/publication authority remain incomplete.
 
-Completed in source for the sixth bounded Phase 45 qualification slice:
+Completed in the sixth bounded Phase 45 qualification slice:
 
 - migration `0111_factory_live_canary_qualification.sql` adds one append-only receipt spanning exact canary output, clean success release, controlled orphan event and two PASS replay receipts;
 - a fixed non-R22 runner stages the frozen WebM/PNG/SVG bytes to R2, seeds only its isolated internal qualification identities, executes compiler/render/rights/compositor through the canonical writer, releases the successful fence and reconciles one deliberately expired 30-second lease;
 - canary replay, orphan reconciliation replay and both event-stream replays are idempotent; rerunning the whole qualification returns the original receipt;
 - the action is separately disabled and preserves provider requests/spend at zero, while the route-level R22 block remains active.
 
-Evidence passes 236/236 repository tests. Sites version 524 deploys migration `0111`; the live qualification table is present with zero rows and the runner remains disabled. A prepared two-flag environment revision was not deployed because the platform requires explicit approval for the production writer/canary side effect, and both pending keys were removed immediately. Live execution, D1/R2 read-back and subsequent flag disablement remain the next bounded action; deployed source alone does not qualify the live path.
+Evidence passes 236/236 repository tests. Sites version 527 executes exactly one live non-R22 qualification canary and stores append-only receipt `factory-live-canary-qualification-6d527fcba653a020acfba9a6`. D1/R2 read-back proves exact VP9 output/read-back/replay hash `cb7ff0c35a03a21f6dd5ddb6b7c72c6056e35cfbf94e15559b32ceb5150adb21`, two PASS asset receipts, one PASS integrated canary, one released lease, one controlled orphan, two PASS replay receipts, zero provider dispatch and zero spend. The temporary writer, runner and qualification-token values were removed and the same source was redeployed at environment revision 46. No R21/R22, master, release or publication state changed.
 
 ## Phase 46 — R22 canary
 
-**Status:** `GATED__COMPOSITOR_ADMISSION_IMPLEMENTED__LIVE_NON_R22_CANARY_PENDING`
+**Status:** `GATED__LIVE_NON_R22_CANARY_PASS__PRODUCTION_SCALE_TREATMENT_AND_ASSURANCE_PENDING`
 
 Compile R22 only from the exact R21 visual FAIL/audio PASS pair after Phase 45. Pass zero-spend preflight, render the hardest 60-90 seconds through the final Production path, then run full master and L0-L7 assurance. Current owner playback remains until AI qualification separately opens exception-only authority. Publication remains separate and blocked.
 

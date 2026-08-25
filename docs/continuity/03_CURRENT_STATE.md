@@ -16,20 +16,20 @@ PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
-PHASE_45 = IN_PROGRESS__LIVE_CANARY_QUALIFICATION_RUNNER_DEPLOYED_DISABLED
-PHASE_46 = GATED__EXPLICIT_FLAG_DEPLOY_APPROVAL_REQUIRED__R22_BLOCKED
+PHASE_45 = IN_PROGRESS__LIVE_NON_R22_RUNTIME_QUALIFIED__REMAINING_PROVIDER_AND_ASSURANCE_CONTROLS
+PHASE_46 = GATED__PRODUCTION_SCALE_TREATMENT_AND_ASSURANCE_QUALIFICATION_REQUIRED__R22_BLOCKED
 SOURCE_MIGRATION = 0111_FACTORY_LIVE_CANARY_QUALIFICATION
 SOURCE_MIGRATION_LIVE_D1 = VERIFIED__55_USER_TABLES__35_FACTORY_TABLES
 DEPLOYMENT_RECEIPT = VERSION_516__APPGDEP_6A8D334895008191A77BF70256460F01__SUCCEEDED
 RENDERER_DEPLOYMENT_RECEIPT = VERSION_521__SUCCEEDED
 COMPOSITOR_DEPLOYMENT_RECEIPT = VERSION_523__SUCCEEDED
-LIVE_CANARY_RUNNER_DEPLOYMENT_RECEIPT = VERSION_524__APPGDEP_6A8D9C7E7CC08191AF6ECAD37FDB49AA__SUCCEEDED
-CURRENT_SITE_VERSION = 524__LIVE_CANARY_QUALIFICATION_RUNNER_DISABLED
-LIVE_CANARY_QUALIFICATION = DEPLOYED_DISABLED__TABLE_ZERO__EXPLICIT_FLAG_DEPLOY_APPROVAL_REQUIRED
+LIVE_CANARY_RUNNER_DEPLOYMENT_RECEIPT = VERSION_527__COMMIT_163832638FC51E090F103B336E1A75734008B112__SUCCEEDED
+CURRENT_SITE_VERSION = 527__QUALIFICATION_COMPLETE__TEMPORARY_FLAGS_ABSENT
+LIVE_CANARY_QUALIFICATION = PASS__FACTORY_LIVE_CANARY_QUALIFICATION_6D527FCBA653A020ACFBA9A6__ZERO_DISPATCH__ZERO_SPEND
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
 ```
 
-The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. Migration `0108`, the zero-dispatch Provider Gateway and deterministic production compiler deployed successfully in Sites version 516; migration `0109` and the qualified deterministic render-tape worker deployed in Sites version 521. Migration `0110` deploys in Sites version 523. Migration `0111` and the fixed non-R22 qualification runner deploy successfully in Sites version 524, bringing live D1 to 55 user tables and thirty-five `factory_*` tables; the new qualification table is present with zero rows. The runner stages the exact 60-second VP9 fixture and three decoded PNG samples into R2, uses two separately eligible SOURCE/HYBRID assets, runs compiler/render/eligibility/compositor through the canonical writer, releases the successful lease, reconciles one expired lease, proves idempotent replay on both streams and records zero dispatch/spend. The complete source path passes 236/236 tests. The attempted environment revision enabling only writer/runner flags was not deployed because Sites requires an explicit approval for that production side effect; both pending keys were immediately removed, so the active version remains disabled and no canary/R2/runtime row was created. The owner-approved lease-bound repository replacement completed on 2026-08-25 at `3d752ad…`; the completed approval grants no continuing force or workflow authority. All later checkpoints use the forward-only exact-object protocol. V2 remains excluded.
+The active knowledge base is indexed by `docs/README.md`. Superseded execution records, prior roadmaps, detailed diagnostics and old snapshots are isolated under `docs/archive`; they retain audit value but have no current mutation or acceptance authority. Migration `0108`, the zero-dispatch Provider Gateway and deterministic production compiler deployed successfully in Sites version 516; migration `0109` and the qualified deterministic render-tape worker deployed in Sites version 521. Migration `0110` deploys in Sites version 523, and migration `0111` plus the fixed non-R22 qualification runner deploy in version 524. The bounded live run completed on version 527 after adding a constant-time, qualification-action-only temporary credential and correcting the literal `NON_R22` admission path. Exact D1/R2 read-back records one PASS qualification receipt, one PASS integrated canary, two PASS event-stream replay receipts, two PASS asset receipts, one released success lease and one reconciled orphan lease. The 60-second VP9 output/read-back/replay hash is `cb7ff0c35a03a21f6dd5ddb6b7c72c6056e35cfbf94e15559b32ceb5150adb21`; the qualification evidence hash is `6d527fcba653a020acfba9a6d81371b3476144a30b00a35e85aa2c9076917293`. All three temporary environment values were removed and the same source was redeployed at environment revision 46. The run created zero provider dispatch, zero spend and no R21/R22, master, release or publication mutation. The complete source path passes 236/236 tests. The owner-approved lease-bound repository replacement completed on 2026-08-25 at `3d752ad…`; that completed approval grants no continuing force or workflow authority. All later checkpoints use the forward-only exact-object protocol. V2 remains excluded.
 
 ## Production truth
 
@@ -60,8 +60,8 @@ Phase 45 migrations `0106`-`0111` define immutable Factory-wide contracts, the f
 
 Still required before R22:
 
-- a bounded live non-R22 qualification canary through the deployed compositor path, including orphan recovery and replay receipts in canonical D1/R2;
 - provider dispatch, cost reservation/native-response reconciliation, controlled fallback and drift invalidation;
+- production-scale Hidden Systems treatment/asset/compositor qualification and exact R22 dependency admission;
 - L0-L7 Assurance Orchestrator, judge calibration and QA Cockpit;
 - retention, recovery and incident-control enforcement exercises;
 - exact dual-remote verification after every material checkpoint.
@@ -69,11 +69,10 @@ Still required before R22:
 ## Next protected action
 
 ```text
-1. Obtain explicit approval to deploy version 524 with only `FACTORY_RUNTIME_WRITER_ENABLED=true` and `FACTORY_NON_R22_CANARY_QUALIFICATION_ENABLED=true`; execute one live non-R22 canary plus orphan/replay recovery, read back exact D1/R2 receipts, then remove both flags and redeploy the same source without enabling R22.
-2. Qualify the exact production-scale compositor settings and asset preparation treatments required by Hidden Systems.
-3. Implement paid-request reservation, native-request reconciliation, drift staleness and explicit fallback without enabling R22.
-4. Implement Evidence Lineage and the L0-L7 Assurance Orchestrator, then qualify exact R22 dependencies and canary admission.
-5. Compile and run R22 only after those controls create explicit Production authority.
+1. Qualify the exact production-scale compositor settings and asset preparation treatments required by Hidden Systems.
+2. Implement paid-request reservation, native-request reconciliation, drift staleness and explicit fallback without enabling R22.
+3. Implement Evidence Lineage and the L0-L7 Assurance Orchestrator, then qualify exact R22 dependencies and canary admission.
+4. Compile and run R22 only after those controls create explicit Production authority.
 ```
 
 Migrations `0106`-`0111`, the zero-spend writer, route planner, compiler, render-tape worker and compositor/recovery qualification path create runtime/control evidence only. This state creates no paid request, R22, Production master, Browser, release or publication authority.

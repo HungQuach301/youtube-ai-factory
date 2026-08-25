@@ -8,14 +8,13 @@ Closed and superseded issue history is preserved in [`../archive/snapshots/MASTE
 | ID | Priority | Current issue | Disposition / exit |
 |---|---:|---|---|
 | X28 | P0 | R21 is technically playable but visually fails the US YouTube audience standard | Preserve exact R21; R22 repairs the owning visual system only after Phase 45 and canary gates |
-| X30 | P0 | Revision-specific rendering can recreate slide grammar | Generic compiler, render tape and pixel/video executor implemented without revision branching; qualify production-scale treatment diversity and pass a live non-R22 canary before closure |
+| X30 | P0 | Revision-specific rendering can recreate slide grammar | Generic compiler, render tape and pixel/video executor plus live non-R22 canary pass without revision branching; production-scale Hidden Systems treatment diversity remains before closure |
 | X31 | P0 | One judge/static atlas can miss temporal, audio, Browser and payoff defects | L0-L7 design locked; implement and calibrate before AI PASS authority |
 | X32 | P0 | Stage-owned provider calls fragment secrets, rights, cost and lineage | Zero-dispatch centralized Gateway and typed route receipts implemented; add secret-scoped dispatch, reservation/native-response/cost reconciliation and bounded explicit fallback |
 | X33 | P1 | Runtime still contains legacy quality/storage terminology and behavior | Migrate runtime/UI to V3 and `USER_CONTROLLED_RECOVERY_ARCHIVE`; design docs already corrected |
 | X34 | P1 | Hidden Systems Visual DNA is not executable independently of a renderer revision | Frozen Visual Profile/Format compiles generically and the revision-independent compositor fixture is executable; Hidden Systems-specific asset/pixel treatment qualification and R22 canary proof remain required |
 | X35 | P1 | Provider/model/prompt/rubric/sampler drift may leave stale qualifications active | Exact standard/settings/schema/expiry mismatches now block routing; implement automatic dependency staleness, revocation and requalification |
 | X38 | P0 | Business authority/economics are not yet executable controls | Cost-envelope schema and zero-spend enforcement implemented; add portfolio reservation, settlement, exception ownership and accepted-output economics |
-| X39 | P0 | Typed runtime/event/timebase/fencing architecture requires integration proof | Migrations `0106`-`0111`, atomic compiler/renderer/compositor effects, clean release, controlled orphan reconciliation, exact replay and immutable qualification receipt pass and deploy disabled; explicit approval plus live non-R22 execution/read-back remains before closure |
 | X40 | P0 | Upstream production gates are documented but not executable end to end | Implement each DoR/self-check/independent gate/handoff contract |
 | X41 | P1 | Visual/motion techniques are not capability-qualified | Build test corpora and qualify each required R22 technique |
 | X42 | P1 | Multi-channel learning/promotion is not implemented or calibrated | Implement prediction, experiment validity, minimum evidence, promotion and rollback |
