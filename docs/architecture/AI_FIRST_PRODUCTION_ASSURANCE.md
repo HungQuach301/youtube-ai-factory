@@ -65,6 +65,8 @@ Automated repair is limited to one append-only root revision under the active pl
 
 Each judge is qualified per capability, channel, format, evidence sampler and decision role. Calibration uses immutable rejected masters, known clean controls, owner labels, controlled isolated defects and production holdouts.
 
+Each L0-L7 calibration result must contain at least twenty independently labeled cases, five blind controls, three Production holdouts, ten independent correlation groups and two observations of unchanged exact bytes per case under one judge/model/prompt/rubric/schema/sampler identity. These are anti-correlation and repeatability admission floors, not substitutes for the quality metrics below.
+
 | Metric | Requirement |
 |---|---:|
 | P0 defect recall | 100% |
@@ -114,6 +116,8 @@ Cache by exact hash; do not QA unchanged bytes. Reconcile provider history befor
 
 The operator surface must show the exact master, each judge's progress and authority, evidence coverage, timecoded findings with seek, frame/audio evidence, confidence, disagreement, root owner, estimated/actual cost, escalation reason and exact next action. Summary counts must distinguish accepted, automatically rejected, escalated and assurance-incomplete videos.
 
+The canonical `/qa-cockpit` projection reads immutable Factory calibration and Assurance receipts. It must show a truthful empty or blocked state when evidence is absent, distinguish measured `QUALIFIED_CANDIDATE` from a registered current qualification, expose dependency mismatch/drift and keep PASS authority closed. It cannot substitute legacy QA, demo rows or inferred completion.
+
 ## R22 canary
 
 R22 is the first canary for L0-L7. Because the capability is not yet qualified, a first apparent AI PASS still requires the current owner gate or an explicit calibration decision. R22 must not inherit a PASS from R21 audio or from source-atlas inspection; every verdict binds only to R22 exact bytes.
@@ -122,4 +126,4 @@ R22 is the first canary for L0-L7. Because the capability is not yet qualified, 
 
 Migration `0114` and `factory-evidence-assurance` implement the source-level Evidence Lineage and L0-L7 `AI_SHADOW` foundation. Evidence bundles bind a frozen artifact hash to the canonical frame/audio timebase, Git source commit, deployment/runtime versions and typed provenance. Qualification records bind the exact judge, model, prompt, rubric, schema and sampler; append-only drift observations invalidate later PASS receipts. Layer receipts enforce independent observers and preserve unobserved dimensions, while aggregate decisions keep infrastructure gaps as `ASSURANCE_INCOMPLETE` and proved hard failures as `CONTENT_REJECTED`.
 
-This foundation deliberately has no Production acceptance authority. A fully passing run may compute candidate `AI_ACCEPTED`, but the persisted outcome remains `HUMAN_ESCALATION_REQUIRED` with `ADVISORY_ONLY` authority until judge calibration and a separately governed maturity transition succeed. Sites v536 verifies all seven migration `0114` tables live and empty with no temporary writer/Assurance/R22 flags. No provider dispatch, Browser session, R22, master, release or publication action is implemented by this slice.
+This foundation deliberately has no Production acceptance authority. A fully passing run may compute candidate `AI_ACCEPTED`, but the persisted outcome remains `HUMAN_ESCALATION_REQUIRED` with `ADVISORY_ONLY` authority until judge calibration and a separately governed maturity transition succeed. Sites v536 verifies all seven migration `0114` tables live and empty with no temporary writer/Assurance/R22 flags. Migration `0115` source-qualifies immutable calibration packages and the canonical QA Cockpit projection while preserving `QUALIFIED_CANDIDATE` as a non-authoritative measured result. Live `0115` schema/read-back, dataset materialization and exact qualification registration remain pending. No provider dispatch, Browser session, R22, master, release or publication action is implemented by this slice.

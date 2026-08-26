@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__PROVIDER_CONTROL_SOURCE_QUALIFIED__ASSURANCE_AND_R22_ADMISSION_PENDING`
+**Status:** `IN_PROGRESS__ASSURANCE_CALIBRATION_AND_QA_COCKPIT_SOURCE_QUALIFIED__LIVE_SCHEMA_AND_R22_ADMISSION_PENDING`
 
 Implement:
 
@@ -126,6 +126,16 @@ Completed in source in the ninth bounded Phase 45 Evidence/Assurance foundation 
 - every provider dispatch, spend, automatic repair beyond one root revision, AI acceptance, R22, master, release and publication authority remains structurally zero.
 
 Evidence passes 4/4 focused Assurance tests and 248/248 repository tests plus the verified Production build. Sites v536 deploys migration `0114`; all seven live D1 tables read back with zero rows and environment revision 50 contains no temporary writer/Assurance/R22 flags. No judge/provider call or Browser session is part of this slice.
+
+Completed in source in the tenth bounded Phase 45 calibration/Cockpit slice:
+
+- migration `0115_factory_assurance_calibration_and_qa_cockpit.sql` adds append-only calibration campaigns, independently labeled per-layer cases, exact dependency observations and measured results;
+- a candidate requires at least twenty cases per L0-L7 layer, five blind controls, three Production holdouts, ten correlation groups, two unchanged-byte observations per case, P0 recall 100%, P1 recall at least 95%, clean precision at least 98%, zero critical false-clean, repeatability at least 95%, zero P0/P1 decision flip, timecode validity at least 95% and structured-output validity 100%;
+- dependency identity is exact across judge/model/prompt/rubric/schema/sampler, and a mismatch or repeat gap remains `ADVISORY`;
+- `/qa-cockpit` is a canonical fail-closed read-only projection of calibration, registered qualification, dependency drift, exact evidence, layer receipts, outcomes, cost and root routing; it substitutes no demo state;
+- `QUALIFIED_CANDIDATE` is deliberately separate from registered qualification and every PASS, dispatch, R22, master, release and publication authority remains zero.
+
+Evidence passes 4/4 focused calibration/Cockpit tests and 252/252 repository tests plus the verified application build. Live migration/read-back and the first immutable calibration dataset remain pending.
 
 ## Phase 46 — R22 canary
 
