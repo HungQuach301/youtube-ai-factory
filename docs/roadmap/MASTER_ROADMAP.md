@@ -1,7 +1,7 @@
 # AI Factory Master Roadmap
 
 **State:** `ACTIVE`  
-**Reconciled:** 2026-08-25
+**Reconciled:** 2026-08-26
 
 ## Current position
 
@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__ASSURANCE_CALIBRATION_AND_QA_COCKPIT_SOURCE_QUALIFIED__LIVE_SCHEMA_AND_R22_ADMISSION_PENDING`
+**Status:** `IN_PROGRESS__ASSURANCE_CALIBRATION_SCHEMA_AND_QA_COCKPIT_LIVE__INTEGRITY_V2_SOURCE_QUALIFIED__DATASET_AND_R22_ADMISSION_PENDING`
 
 Implement:
 
@@ -135,7 +135,9 @@ Completed in source in the tenth bounded Phase 45 calibration/Cockpit slice:
 - `/qa-cockpit` is a canonical fail-closed read-only projection of calibration, registered qualification, dependency drift, exact evidence, layer receipts, outcomes, cost and root routing; it substitutes no demo state;
 - `QUALIFIED_CANDIDATE` is deliberately separate from registered qualification and every PASS, dispatch, R22, master, release and publication authority remains zero.
 
-Evidence passes 4/4 focused calibration/Cockpit tests and 252/252 repository tests plus the verified application build. Live migration/read-back and the first immutable calibration dataset remain pending.
+Evidence passes 4/4 focused calibration/Cockpit tests and 252/252 repository tests plus the verified application build. Sites v539 deploys migration `0115`; all four live calibration tables read back with zero rows, `/qa-cockpit` is owner-only, and environment revision 50 retains no temporary qualification/R22 flags.
+
+Calibration integrity threshold V2 is source-qualified. It closes a false-qualification path in which correlation-group labels could mask reused artifact/evidence bytes and observations could omit execution lineage. Candidate admission now requires distinct exact bytes and evidence, distinct blind and Production holdout artifacts, owner-confirmed holdouts, no conflicting label on the same bytes, unique per-repeat receipts, raw-response hashes, reconciled cost and zero active requests. The new negative control passes inside 5/5 focused calibration/Cockpit tests and 253/253 full repository tests. The first immutable dataset and actual judge execution remain pending; no provider, qualification/PASS, R22, master, release or publication authority is created.
 
 ## Phase 46 — R22 canary
 

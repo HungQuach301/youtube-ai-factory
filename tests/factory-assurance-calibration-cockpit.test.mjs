@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
@@ -14,6 +15,7 @@ const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
 const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
 const hashes = ["a", "b", "c", "d", "e", "f", "1", "2"].map((value) => value.repeat(64));
+const hash = (value) => createHash("sha256").update(value).digest("hex");
 
 function d1(database) {
   return {
@@ -57,16 +59,20 @@ function calibrationCases() {
     return {
       caseKey: `factory:calibration:${layer.toLowerCase()}:case:${String(index).padStart(3, "0")}`,
       assuranceLayer: layer,
-      exactArtifactHash: hashes[4], evidenceBundleHash: hashes[5],
-      labelSource: expectedSeverity === "NONE" ? "SEALED_CLEAN_CONTROL" : "SEALED_DEFECT_CONTROL",
+      exactArtifactHash: hash(`artifact:${layer}:${index}`), evidenceBundleHash: hash(`bundle:${layer}:${index}`),
+      labelSource: index >= 5 && index < 8 ? "OWNER_CONFIRMED" : expectedSeverity === "NONE" ? "SEALED_CLEAN_CONTROL" : "SEALED_DEFECT_CONTROL",
       expectedOutcome, expectedSeverity,
       defectFamily: expectedSeverity === "NONE" ? "clean-control" : `controlled-${expectedSeverity.toLowerCase()}-defect`,
       correlationGroup: `correlation:${layer.toLowerCase()}:${String(index).padStart(3, "0")}`,
-      ownerLabelHash: hashes[6], blindControl: index < 5, productionHoldout: index >= 5 && index < 8, evidenceHash: hashes[7],
+      ownerLabelHash: hash(`owner-label:${layer}:${index}`), blindControl: index < 5, productionHoldout: index >= 5 && index < 8, evidenceHash: hash(`case-evidence:${layer}:${index}`),
       observations: [1, 2].map((repeatIndex) => ({
         observationKey: `factory:calibration:${layer.toLowerCase()}:case:${String(index).padStart(3, "0")}:repeat:${repeatIndex}`,
         ...dependency(layerIndex), repeatIndex, observedOutcome, observedSeverity,
-        evidenceTimecodeValid: true, structuredOutputValid: true, confidence: 0.99, usage: {}, actualSpendMicros: 0, evidenceHash: hashes[7],
+        evidenceTimecodeValid: true, structuredOutputValid: true, confidence: 0.99,
+        providerResponseId: `receipt:${layer.toLowerCase()}:${String(index).padStart(3, "0")}:${repeatIndex}`,
+        rawResponseHash: hash(`raw-response:${layer}:${index}:${observedOutcome}:${observedSeverity}`),
+        usage: { costReconciliationState: "RECONCILED", activeProviderRequests: 0 }, actualSpendMicros: 0,
+        evidenceHash: hash(`observation-evidence:${layer}:${index}:${repeatIndex}`),
       })),
     };
   }));
@@ -115,6 +121,21 @@ test("critical false-clean or repeat decision flip keeps a layer advisory", () =
   assert.equal(result.p0P1DecisionFlipCount, 1);
   assert.ok(result.reasons.includes("CALIBRATION_METRICS_BELOW_ACTIVE_THRESHOLD"));
   assert.equal(result.passAuthority, false);
+});
+
+test("duplicate bytes, unowned holdouts or missing execution receipts cannot become qualified candidates", () => {
+  const cases = calibrationCases().filter((item) => item.assuranceLayer === "L3");
+  for (const item of cases) {
+    item.exactArtifactHash = hashes[4];
+    item.evidenceBundleHash = hashes[5];
+  }
+  cases[5].labelSource = "SEALED_DEFECT_CONTROL";
+  delete cases[0].observations[0].providerResponseId;
+  delete cases[0].observations[0].rawResponseHash;
+  cases[0].observations[0].usage = {};
+  const result = evaluateFactoryAssuranceCalibrationLayer("L3", cases);
+  assert.equal(result.lifecycleState, "ADVISORY");
+  for (const reason of ["DISTINCT_EXACT_ARTIFACTS_BELOW_MINIMUM", "DISTINCT_EVIDENCE_BUNDLES_BELOW_MINIMUM", "DISTINCT_BLIND_CONTROL_ARTIFACTS_BELOW_MINIMUM", "DISTINCT_PRODUCTION_HOLDOUT_ARTIFACTS_BELOW_MINIMUM", `PRODUCTION_HOLDOUT_OWNER_LABEL_REQUIRED:${cases[5].caseKey}`, `OBSERVATION_RECEIPT_ID_REQUIRED:${cases[0].caseKey}`, `RAW_RESPONSE_HASH_REQUIRED:${cases[0].caseKey}`, `OBSERVATION_COST_OR_REQUEST_RECONCILIATION_REQUIRED:${cases[0].caseKey}`]) assert.ok(result.reasons.includes(reason));
 });
 
 test("QA Cockpit projects immutable calibration truth without inventing qualification or PASS", async () => {

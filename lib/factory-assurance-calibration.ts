@@ -3,7 +3,7 @@ import { FACTORY_ASSURANCE_LAYERS } from "@/lib/factory-evidence-assurance";
 import { FactoryRuntimeError, type FactoryRuntimeDB } from "@/lib/factory-runtime-writer";
 
 export const FACTORY_ASSURANCE_CALIBRATION_VERSION = "FACTORY_ASSURANCE_CALIBRATION_V1" as const;
-export const FACTORY_ASSURANCE_CALIBRATION_THRESHOLD_VERSION = "AI_FIRST_ASSURANCE_CALIBRATION_THRESHOLDS_V1" as const;
+export const FACTORY_ASSURANCE_CALIBRATION_THRESHOLD_VERSION = "AI_FIRST_ASSURANCE_CALIBRATION_THRESHOLDS_V2" as const;
 
 type AssuranceLayer = typeof FACTORY_ASSURANCE_LAYERS[number];
 type Outcome = "PASS" | "FAIL" | "INCOMPLETE" | "HUMAN_ESCALATION_REQUIRED";
@@ -140,16 +140,39 @@ export function evaluateFactoryAssuranceCalibrationLayer(layer: AssuranceLayer, 
   let repeatableCases = 0;
   let p0P1DecisionFlipCount = 0;
 
+  const artifactHashes = new Set(cases.map((item) => item.exactArtifactHash));
+  const evidenceBundleHashes = new Set(cases.map((item) => item.evidenceBundleHash));
+  const blindArtifactHashes = new Set(cases.filter((item) => item.blindControl).map((item) => item.exactArtifactHash));
+  const holdoutArtifactHashes = new Set(cases.filter((item) => item.productionHoldout).map((item) => item.exactArtifactHash));
+  const labelsByArtifact = new Map<string, Set<string>>();
+  for (const item of cases) {
+    const labels = labelsByArtifact.get(item.exactArtifactHash) ?? new Set<string>();
+    labels.add(`${item.expectedOutcome}:${item.expectedSeverity}`);
+    labelsByArtifact.set(item.exactArtifactHash, labels);
+    if (item.productionHoldout && item.labelSource !== "OWNER_CONFIRMED") reasons.push(`PRODUCTION_HOLDOUT_OWNER_LABEL_REQUIRED:${item.caseKey}`);
+  }
+  if (artifactHashes.size < 10) reasons.push("DISTINCT_EXACT_ARTIFACTS_BELOW_MINIMUM");
+  if (evidenceBundleHashes.size < 10) reasons.push("DISTINCT_EVIDENCE_BUNDLES_BELOW_MINIMUM");
+  if (blindArtifactHashes.size < 5) reasons.push("DISTINCT_BLIND_CONTROL_ARTIFACTS_BELOW_MINIMUM");
+  if (holdoutArtifactHashes.size < 3) reasons.push("DISTINCT_PRODUCTION_HOLDOUT_ARTIFACTS_BELOW_MINIMUM");
+  if ([...labelsByArtifact.values()].some((labels) => labels.size > 1)) reasons.push("EXACT_ARTIFACT_LABEL_CONFLICT");
+
   for (const item of cases) {
     if (item.observations.length < 2) reasons.push(`REPEAT_OBSERVATION_REQUIRED:${item.caseKey}`);
     const repeats = [...item.observations].sort((left, right) => left.repeatIndex - right.repeatIndex);
     const repeatIndexes = new Set<number>();
+    const observationReceiptIds = new Set<string>();
     for (const observation of repeats) {
       assertDependency(observation);
       if (dependencySignature(observation) !== expectedDependency) reasons.push(`DEPENDENCY_IDENTITY_MIXED:${item.caseKey}`);
       if (!Number.isSafeInteger(observation.repeatIndex) || observation.repeatIndex < 1 || repeatIndexes.has(observation.repeatIndex)) reasons.push(`REPEAT_INDEX_INVALID:${item.caseKey}`);
       repeatIndexes.add(observation.repeatIndex);
       if (!Number.isFinite(observation.confidence) || observation.confidence < 0 || observation.confidence > 1) reasons.push(`CONFIDENCE_INVALID:${item.caseKey}`);
+      if (!observation.providerResponseId || !identityPattern.test(observation.providerResponseId)) reasons.push(`OBSERVATION_RECEIPT_ID_REQUIRED:${item.caseKey}`);
+      else if (observationReceiptIds.has(observation.providerResponseId)) reasons.push(`OBSERVATION_RECEIPT_ID_REUSED:${item.caseKey}`);
+      else observationReceiptIds.add(observation.providerResponseId);
+      if (!observation.rawResponseHash || !hashPattern.test(observation.rawResponseHash)) reasons.push(`RAW_RESPONSE_HASH_REQUIRED:${item.caseKey}`);
+      if (observation.usage?.costReconciliationState !== "RECONCILED" || observation.usage?.activeProviderRequests !== 0) reasons.push(`OBSERVATION_COST_OR_REQUEST_RECONCILIATION_REQUIRED:${item.caseKey}`);
     }
     if (repeats[0]) primaryObservations.push(repeats[0]);
     const distinct = new Set(repeats.map(signature));
@@ -198,7 +221,7 @@ export function evaluateFactoryAssuranceCalibrationLayer(layer: AssuranceLayer, 
     passAuthority: false,
     acceptanceAuthority: "ADVISORY_ONLY",
   };
-  const structuralPass = result.sampleSize >= 20 && result.independentLabelCount === result.sampleSize && result.blindControlCount >= 5 && result.productionHoldoutCount >= 3 && result.correlationGroupCount >= 10 && reasons.length === 0;
+  const structuralPass = result.sampleSize >= 20 && result.independentLabelCount === result.sampleSize && result.blindControlCount >= 5 && result.productionHoldoutCount >= 3 && result.correlationGroupCount >= 10 && artifactHashes.size >= 10 && evidenceBundleHashes.size >= 10 && blindArtifactHashes.size >= 5 && holdoutArtifactHashes.size >= 3 && reasons.length === 0;
   const metricPass = result.p0Recall === 1 && result.p1Recall >= 0.95 && result.cleanPrecision >= 0.98 && result.criticalFalseCleanCount === 0 && result.exactByteRepeatability >= 0.95 && result.p0P1DecisionFlipCount === 0 && result.evidenceTimecodeValidity >= 0.95 && result.structuredOutputValidity === 1;
   if (!structuralPass) result.reasons.push("CALIBRATION_DATASET_OR_REPEAT_COVERAGE_BELOW_POLICY");
   if (!metricPass) result.reasons.push("CALIBRATION_METRICS_BELOW_ACTIVE_THRESHOLD");
