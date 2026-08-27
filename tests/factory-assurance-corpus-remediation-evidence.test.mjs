@@ -6,6 +6,7 @@ import test from "node:test";
 import { recordFactoryAssuranceCorpusSnapshot } from "../lib/factory-assurance-calibration-corpus.ts";
 import { materializeFactoryAssuranceCorpusRemediationInventory } from "../lib/factory-assurance-corpus-remediation.ts";
 import { verifyFactoryAssuranceCorpusRemediationEvidenceBatch } from "../lib/factory-assurance-corpus-remediation-evidence.ts";
+import { classifyFactoryAssuranceCorpusRemediationIncidents } from "../lib/factory-assurance-corpus-remediation-incidents.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -49,8 +50,8 @@ async function seedCorpus(db) {
   });
 }
 
-function seedSource(database, { id, bytes, rights = false, metadataValid = true }) {
-  const artifactId = `artifact-${id}`, packageId = `package-${id}`, storageKey = `remediation/${id}.bin`, exactHash = hash(bytes);
+function seedSource(database, { id, bytes, rights = false, metadataValid = true, storageKey: suppliedStorageKey = "" }) {
+  const artifactId = `artifact-${id}`, packageId = `package-${id}`, storageKey = suppliedStorageKey || `remediation/${id}.bin`, exactHash = hash(bytes);
   database.exec("PRAGMA foreign_keys=OFF");
   database.prepare(`INSERT INTO production_v2_packages
     (id,channel_id,policy_id,source_brief_id,episode_concept_id,title,lifecycle_state,target_duration_seconds,shot_count,content_hash)
@@ -84,12 +85,16 @@ function bucket(items) {
   };
 }
 
-test("migration 0118 installs append-only zero-authority remediation evidence receipts", () => {
-  assert.equal(migrations.at(-1), "0118_factory_assurance_corpus_remediation_evidence.sql");
+test("migrations 0118 and 0119 install append-only zero-authority remediation evidence and incident receipts", () => {
+  assert.equal(migrations.at(-1), "0119_factory_assurance_corpus_remediation_incident_disposition.sql");
   const migration = read("drizzle/0118_factory_assurance_corpus_remediation_evidence.sql");
   for (const table of ["factory_assurance_corpus_remediation_evidence_runs", "factory_assurance_corpus_remediation_evidence_receipts"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
   assert.doesNotMatch(migration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2/);
+  const incidentMigration = read("drizzle/0119_factory_assurance_corpus_remediation_incident_disposition.sql");
+  for (const table of ["factory_assurance_corpus_remediation_incident_runs", "factory_assurance_corpus_remediation_incident_receipts"]) assert.ok(incidentMigration.includes(`CREATE TABLE \`${table}\``));
+  for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(incidentMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.doesNotMatch(incidentMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2/);
 });
 
 test("evidence runner verifies exact R2 bytes but keeps missing current rights fail-closed and count-ineligible", async () => {
@@ -109,6 +114,7 @@ test("evidence runner verifies exact R2 bytes but keeps missing current rights f
     { source_candidate_id: "evidence-blocked-audio", rights_state: "RECEIPT_REQUIRED", provenance_state: "FAIL", exact_evidence_state: "BLOCKED", count_eligible: 0, provider_requests: 0, spend_micros: 0 },
     { source_candidate_id: "evidence-ready-audio", rights_state: "PASS", provenance_state: "PASS", exact_evidence_state: "READY", count_eligible: 0, provider_requests: 0, spend_micros: 0 },
   ]);
+  await assert.rejects(() => classifyFactoryAssuranceCorpusRemediationIncidents(db, { actor: "owner@example.com", idempotencyKey: "assurance-incident-unproven-0001" }), /does not prove a mutable R2 key overwrite/i);
   assert.equal(database.prepare("SELECT COUNT(*) count FROM v7_evaluation_candidates WHERE qualification_eligible=1 OR release_eligible=1").get().count, 0);
   assert.throws(() => database.prepare("UPDATE factory_assurance_corpus_remediation_evidence_receipts SET count_eligible=1").run(), /APPEND_ONLY/);
 });
@@ -123,4 +129,28 @@ test("evidence runner replays the same intent and rejects an idempotency-key int
   await assert.rejects(() => verifyFactoryAssuranceCorpusRemediationEvidenceBatch({ DB: db, BUCKET: bucket([ready]) }, { ...input, batchLimit: 2 }), /idempotency key is bound/i);
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_corpus_remediation_evidence_runs").get().count, 1);
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_corpus_remediation_evidence_receipts").get().count, 1);
+});
+
+test("incident classifier quarantines overwritten-key history and references the exact surviving candidate without rewriting evidence", async () => {
+  const { database, db } = setup(); await seedCorpus(db);
+  const collisionKey = "remediation/collision.bin";
+  const overwritten = seedSource(database, { id: "overwritten-history", bytes: "old-unrecoverable-bytes", storageKey: collisionKey });
+  const surviving = seedSource(database, { id: "surviving-current", bytes: "current-exact-bytes", storageKey: collisionKey });
+  await materializeFactoryAssuranceCorpusRemediationInventory(db, "owner@example.com");
+  const evidence = await verifyFactoryAssuranceCorpusRemediationEvidenceBatch({ DB: db, BUCKET: bucket([surviving]) }, {
+    actor: "owner@example.com", idempotencyKey: "assurance-evidence-collision-0001", batchLimit: 2,
+  });
+  assert.deepEqual({ checked: evidence.checkedItems, checksumPass: evidence.checksumPassItems, provenancePass: evidence.provenancePassItems }, { checked: 2, checksumPass: 1, provenancePass: 1 });
+  const classified = await classifyFactoryAssuranceCorpusRemediationIncidents(db, { actor: "owner@example.com", idempotencyKey: "assurance-incident-collision-0001" });
+  assert.deepEqual({ outcome: classified.outcome, inspected: classified.inspectedItems, quarantined: classified.quarantinedItems, replacements: classified.replacementReferenceItems, rightsEligible: classified.rightsEligibleItems, rightsPending: classified.rightsPendingItems },
+    { outcome: "RECORDED", inspected: 1, quarantined: 1, replacements: 1, rightsEligible: 1, rightsPending: 1 });
+  const receipt = database.prepare(`SELECT source_artifact_id,observed_artifact_id,incident_kind,byte_recovery_state,disposition,replacement_binding_state,replacement_candidate_id,rights_action_state,count_eligible,provider_requests,spend_micros FROM factory_assurance_corpus_remediation_incident_receipts`).get();
+  assert.deepEqual({ ...receipt }, {
+    source_artifact_id: `artifact-${overwritten.id}`, observed_artifact_id: `artifact-${surviving.id}`, incident_kind: "MUTABLE_R2_KEY_OVERWRITE",
+    byte_recovery_state: "UNRECOVERABLE_ORIGINAL_BYTES", disposition: "QUARANTINED_NOT_RIGHTS_ELIGIBLE", replacement_binding_state: "EXISTING_EXACT_CANDIDATE_REFERENCED",
+    replacement_candidate_id: surviving.id, rights_action_state: "NOT_APPLICABLE_QUARANTINED", count_eligible: 0, provider_requests: 0, spend_micros: 0,
+  });
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_corpus_remediation_evidence_receipts WHERE checksum_state='FAIL'").get().count, 1);
+  assert.equal((await classifyFactoryAssuranceCorpusRemediationIncidents(db, { actor: "owner@example.com", idempotencyKey: "assurance-incident-collision-0001" })).outcome, "IDEMPOTENT_REPLAY");
+  assert.throws(() => database.prepare("UPDATE factory_assurance_corpus_remediation_incident_receipts SET count_eligible=1").run(), /APPEND_ONLY/);
 });

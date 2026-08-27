@@ -16,15 +16,16 @@ PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
-PHASE_45 = IN_PROGRESS__REMEDIATION_EVIDENCE_V1_LIVE__66_READ_BACK__4_BYTE_OR_METADATA_FAILURES__66_CURRENT_RIGHTS_GAPS
+PHASE_45 = IN_PROGRESS__REMEDIATION_INCIDENT_V1_SOURCE_QUALIFIED__4_OVERWRITTEN_KEYS__LIVE_CLASSIFICATION_PENDING
 PHASE_46 = GATED__ASSURANCE_CALIBRATION_AND_EXACT_DEPENDENCY_ADMISSION_REQUIRED__R22_BLOCKED
 SOURCE_MIGRATION = 0118_FACTORY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE__LIVE_VERIFIED
 SOURCE_MIGRATION_LIVE_D1 = VERIFIED__0118_22_RUNS__66_RECEIPTS__62_EXACT_BYTE_AND_PROVENANCE_PASS__4_FAIL__0_CURRENT_RIGHTS
+NEXT_SOURCE_MIGRATION = 0119_FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENT_DISPOSITION__SOURCE_QUALIFIED__LIVE_PENDING
 DEPLOYMENT_RECEIPT = VERSION_516__APPGDEP_6A8D334895008191A77BF70256460F01__SUCCEEDED
 RENDERER_DEPLOYMENT_RECEIPT = VERSION_521__SUCCEEDED
 COMPOSITOR_DEPLOYMENT_RECEIPT = VERSION_523__SUCCEEDED
 LIVE_CANARY_RUNNER_DEPLOYMENT_RECEIPT = VERSION_527__COMMIT_163832638FC51E090F103B336E1A75734008B112__SUCCEEDED
-LAST_RECONCILED_SITE_VERSION = 545__REMEDIATION_EVIDENCE_V1__COMMIT_CA41B0AFCE1BC6698EF610E5F9758682DECADC50__ENV_REVISION_57__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
+LAST_RECONCILED_SITE_VERSION = 546__REMEDIATION_EVIDENCE_LIVE_RECEIPT__COMMIT_EF300B1F8CB859DF6EAD6C6E76D12CB1689EC4CB__ENV_REVISION_57__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
 LIVE_CANARY_QUALIFICATION = PASS__FACTORY_LIVE_CANARY_QUALIFICATION_6D527FCBA653A020ACFBA9A6__ZERO_DISPATCH__ZERO_SPEND
 HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION = PASS__FACTORY_TREATMENT_QUALIFICATION_35941CD62FB0364063A1F98D__10_CASES__D1_R2_READBACK__IDEMPOTENT_REPLAY__ZERO_DISPATCH__ZERO_SPEND
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
@@ -35,6 +36,8 @@ The active knowledge base is indexed by `docs/README.md`. Superseded execution r
 Migration `0117` is live in Sites v543 at commit `54086a923f55c967a99c06df9930548578b1ae95`. One bounded zero-provider materialization records snapshot `d94f6bebc995f80bfb06646d0790881b6048235bc31a08f2aa1614427777e11b` plus 66 count-ineligible work items: 48 AUDIO and 18 MASTER; no unadmitted PACKAGING candidate exists in the current source set. All 66 remain `EXACT_EVIDENCE_REQUIRED`, with zero exact-evidence-ready, owner-label-ready, independent or review-ready items. The identical request returns `IDEMPOTENT_REPLAY`; every qualification/PASS/provider/R22/master/release/publication authority, provider request and spend field remains zero. QA Cockpit V3 exposes this truthful queue without auto-admission. The temporary writer, remediation flag and token are absent after read-back at environment revision 55.
 
 Migration `0118` is live in Sites v545 at commit `ca41b0afce1bc6698ef610e5f9758682decadc50`. Twenty-two bounded batches read back all 66 current remediation objects, totaling 846,257,129 bytes. All 66 byte reads completed; 62 pass exact checksum and provenance binding, while four fail exact byte/checksum/R2 metadata binding. No item has a current immutable rights receipt, so rights-ready and exact-evidence-ready remain zero and every item remains count-ineligible. The final batch returns `IDEMPOTENT_REPLAY` with the same 66/62/4/0 totals. Live D1 contains 22 immutable run rows and 66 receipt rows; every provider request, spend and qualification/PASS/R22/master/release/publication authority field is zero. The temporary writer, evidence flag and token are absent after the same-source redeployment at environment revision 57; the Site remains owner-only.
+
+Migration `0119` is source-qualified but not yet live. The four failed `0118` receipts prove mutable historical R2-key overwrite rather than a recoverable checksum defect: each current object has different bytes/hash and metadata that binds a different artifact ID. The bounded classifier requires all three proofs, writes only append-only incident/disposition receipts, quarantines the unrecoverable historical candidate as not rights-eligible and may reference—but never duplicate or promote—an already exact-evidence-verified surviving candidate. QA Cockpit V4 separates quarantined items from the current-rights collection scope. Full regression passes 263/263 with zero provider and downstream authority.
 
 The owner authorizes continuing roadmap-bounded source, migration, test, private-mirror, Sites checkpoint/deployment and zero-provider verification work for this repository without asking for a new approval at each bounded slice. This standing authority excludes YouTube AI Factory V2 and does not grant provider dispatch, spend, R22, master, release or publication authority. Connector or platform controls may still require an exact payload-specific confirmation and cannot be bypassed.
 
@@ -76,8 +79,8 @@ Still required before R22:
 ## Next protected action
 
 ```text
-1. Append corrected immutable byte/metadata evidence for the four failed items; never overwrite the failed receipts.
-2. Attach current immutable rights receipts to eligible items; declarations alone remain insufficient. Resolve correlation and owner-label work only after exact evidence passes.
+1. Deploy migration `0119`, classify the four strictly proved overwritten-key incidents once and replay the same request idempotently; never overwrite the failed `0118` receipts.
+2. Attach current immutable rights receipts only to byte/provenance-eligible items; quarantined originals are not rights-eligible and declarations alone remain insufficient. Resolve correlation and owner-label work only after exact evidence passes.
 3. Review eligible independent inputs into a new immutable threshold-V2 corpus snapshot.
 4. Calibrate exact L0-L7 judge/sampler dependencies in `AI_SHADOW`; keep every result advisory until exact qualification registration passes.
 5. Bind and qualify exact R22 dependencies plus canary admission, then exercise recovery/incident controls; compile R22 only after explicit Production authority exists.

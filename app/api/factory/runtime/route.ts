@@ -28,6 +28,7 @@ import { runFactoryNonR22LiveCanaryQualification } from "@/lib/factory-non-r22-c
 import { materializeFactoryAssuranceCorpusAdmissionInventory } from "@/lib/factory-assurance-calibration-corpus";
 import { materializeFactoryAssuranceCorpusRemediationInventory } from "@/lib/factory-assurance-corpus-remediation";
 import { verifyFactoryAssuranceCorpusRemediationEvidenceBatch } from "@/lib/factory-assurance-corpus-remediation-evidence";
+import { classifyFactoryAssuranceCorpusRemediationIncidents } from "@/lib/factory-assurance-corpus-remediation-incidents";
 
 export const dynamic = "force-dynamic";
 
@@ -48,10 +49,12 @@ type RuntimeEnv = {
   FACTORY_ASSURANCE_CORPUS_ADMISSION_ENABLED?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_ENABLED?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE_ENABLED?: string;
+  FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS_ENABLED?: string;
   FACTORY_RUNTIME_QUALIFICATION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE_TOKEN?: string;
+  FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS_TOKEN?: string;
   FACTORY_AUTOMATION_ACTOR_EMAIL?: string;
   FACTORY_AUTOMATION_ACTOR_NAME?: string;
 };
@@ -95,11 +98,11 @@ async function secretMatches(left: string, right: string) {
 async function authorize(env: RuntimeEnv, request?: Request, action = "") {
   let user = await getChatGPTUser();
   const qualificationCredential =
-    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION", "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION", "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE"].includes(action) &&
+    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION", "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION", "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE", "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS"].includes(action) &&
     request &&
     await secretMatches(
-      action === "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE" ? request.headers.get("x-factory-assurance-remediation-evidence-token") || "" : action === "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION" ? request.headers.get("x-factory-assurance-remediation-token") || "" : action === "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION" ? request.headers.get("x-factory-assurance-corpus-token") || "" : request.headers.get("x-factory-runtime-qualification-token") || "",
-      action === "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE" ? env.FACTORY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE_TOKEN || "" : action === "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION" ? env.FACTORY_ASSURANCE_CORPUS_REMEDIATION_TOKEN || "" : action === "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION" ? env.FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN || "" : env.FACTORY_RUNTIME_QUALIFICATION_TOKEN || "",
+      action === "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS" ? request.headers.get("x-factory-assurance-remediation-incidents-token") || "" : action === "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE" ? request.headers.get("x-factory-assurance-remediation-evidence-token") || "" : action === "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION" ? request.headers.get("x-factory-assurance-remediation-token") || "" : action === "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION" ? request.headers.get("x-factory-assurance-corpus-token") || "" : request.headers.get("x-factory-runtime-qualification-token") || "",
+      action === "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS" ? env.FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS_TOKEN || "" : action === "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE" ? env.FACTORY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE_TOKEN || "" : action === "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION" ? env.FACTORY_ASSURANCE_CORPUS_REMEDIATION_TOKEN || "" : action === "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION" ? env.FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN || "" : env.FACTORY_RUNTIME_QUALIFICATION_TOKEN || "",
     );
   if (!user && qualificationCredential) {
     const email = String(env.FACTORY_AUTOMATION_ACTOR_EMAIL || "").trim();
@@ -260,6 +263,13 @@ export async function POST(request: Request) {
       if (!env.BUCKET) return failure("ACTIVE_MEDIA_STORAGE_UNAVAILABLE", "The active media storage binding is unavailable", 503);
       return Response.json(await verifyFactoryAssuranceCorpusRemediationEvidenceBatch({ DB: env.DB, BUCKET: env.BUCKET }, {
         actor: user.email, idempotencyKey: string(body.idempotencyKey), batchLimit: body.batchLimit == null ? undefined : integer(body.batchLimit),
+      }), { status: 201, headers: NO_STORE });
+    }
+
+    if (action === "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS") {
+      if (env.FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS_ENABLED !== "true") return failure("FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS_DISABLED", "The bounded remediation incident classifier is disabled until an explicit deployment authorization is configured", 503);
+      return Response.json(await classifyFactoryAssuranceCorpusRemediationIncidents(env.DB, {
+        actor: user.email, idempotencyKey: string(body.idempotencyKey),
       }), { status: 201, headers: NO_STORE });
     }
 

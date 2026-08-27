@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__REMEDIATION_EVIDENCE_LIVE__62_EXACT_BINDINGS_PASS__4_CORRECTIONS_AND_66_CURRENT_RIGHTS_RECEIPTS_PENDING`
+**Status:** `IN_PROGRESS__REMEDIATION_INCIDENT_SOURCE_QUALIFIED__4_OVERWRITTEN_KEYS__LIVE_CLASSIFICATION_AND_ELIGIBLE_CURRENT_RIGHTS_PENDING`
 
 Implement:
 
@@ -144,6 +144,8 @@ Migration `0116` and `FACTORY_ASSURANCE_CORPUS_ADMISSION_V1` are live in Sites v
 Migration `0117` and `FACTORY_ASSURANCE_CORPUS_REMEDIATION_V1` are live in Sites v543. One bounded zero-provider inventory records 66 count-ineligible candidates—48 AUDIO and 18 MASTER—with no current PACKAGING candidate. All 66 remain `EXACT_EVIDENCE_REQUIRED`; zero items are exact-evidence-ready, owner-label-ready, independent or ready for corpus review. The identical request returns `IDEMPOTENT_REPLAY` on snapshot `d94f6bebc995f80bfb06646d0790881b6048235bc31a08f2aa1614427777e11b`. D1 read-back verifies zero provider requests/spend and zero downstream authority on the snapshot and every item; temporary flags/token are absent at environment revision 55. The next coherent unit is exact R2 byte/checksum/provenance/rights remediation before correlation, owner labels or a new immutable threshold-V2 corpus review.
 
 Migration `0118` and `FACTORY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE_V1` are live in Sites v545. Twenty-two zero-provider batches read all 66 R2 objects (846,257,129 bytes) and persist one immutable receipt per item. Sixty-two pass exact checksum/provenance binding; four fail byte/checksum/R2 metadata binding. Current immutable rights receipts are absent for all 66, so exact-evidence-ready and count-eligible remain zero. The final batch returns `IDEMPOTENT_REPLAY` with the same aggregate. D1 read-back confirms 22 run rows and 66 receipt rows with provider requests, spend and every downstream authority at zero. Temporary writer/evidence values are absent at environment revision 57. The next coherent unit is append-only correction of the four failed bindings and collection of current immutable rights evidence before correlation, owner labels or corpus review.
+
+Migration `0119` and `FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENT_V1` are source-qualified. The four failures are mutable historical-key overwrite incidents: current object hash/size differ and R2 metadata binds a different artifact ID, so the original bytes cannot truthfully be reconstructed or relabeled PASS. The bounded zero-provider classifier requires every proof simultaneously, preserves `0118`, appends a quarantine disposition, marks original rights work not applicable and only references an existing exact-evidence survivor when one already exists. QA Cockpit V4 projects quarantine separately from the eligible rights scope. Regression passes 263/263; live classification and replay remain pending before current-rights collection.
 
 ## Phase 46 — R22 canary
 
