@@ -1,6 +1,6 @@
 import { FACTORY_ASSURANCE_LAYERS } from "@/lib/factory-evidence-assurance";
 
-export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V1" as const;
+export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V2" as const;
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }> };
@@ -28,7 +28,7 @@ const layerDefinition: Record<AssuranceLayer, { name: string; role: string; evid
 export type FactoryQaCockpitProjection = Awaited<ReturnType<typeof factoryQaCockpitProjection>>;
 
 export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
-  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows] = await Promise.all([
+  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows] = await Promise.all([
     rows(db, `SELECT r.*,c.dataset_version,c.dataset_manifest_hash,c.lifecycle_state campaign_state,c.created_at campaign_created_at
       FROM factory_assurance_calibration_results r JOIN factory_assurance_calibration_campaigns c ON c.id=r.campaign_id
       ORDER BY c.created_at DESC,r.created_at DESC,r.id DESC`),
@@ -61,6 +61,10 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       (SELECT COUNT(*) FROM factory_assurance_calibration_cases) calibration_case_count,
       (SELECT COUNT(*) FROM factory_assurance_calibration_observations) calibration_observation_count,
       (SELECT COUNT(*) FROM factory_assurance_decision_receipts) decision_count`),
+    rows(db, `SELECT * FROM factory_assurance_calibration_corpus_snapshots ORDER BY created_at DESC,id DESC LIMIT 1`),
+    rows(db, `SELECT assurance_layer,gap_key,required_count,observed_count FROM factory_assurance_calibration_corpus_gaps
+      WHERE snapshot_id=(SELECT id FROM factory_assurance_calibration_corpus_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
+      ORDER BY assurance_layer,gap_key`),
   ]);
 
   const latestCalibration = new Map<AssuranceLayer, Row>();
@@ -165,6 +169,8 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
     acceptanceAuthority: "ADVISORY_ONLY" as const,
   }));
   const evidence = evidenceRows[0] ?? {};
+  const corpus = corpusRows[0];
+  const corpusLayerReadiness = json<Array<Record<string, unknown>>>(corpus?.layer_readiness_json, []);
   const outcomeCounts = recentRuns.reduce<Record<string, number>>((accumulator, run) => {
     accumulator[run.outcome] = (accumulator[run.outcome] ?? 0) + 1;
     return accumulator;
@@ -175,6 +181,8 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   const currentQualifiedLayers = layers.filter((layer) => layer.qualificationState === "QUALIFIED" && layer.driftState !== "STALE" && layer.dependencyCurrent).length;
   if (activeProviderRequests > 0) blockers.push("ACTIVE_PROVIDER_REQUESTS_MUST_RECONCILE");
   if (recentRuns.some((run) => run.costReconciliationState !== "RECONCILED")) blockers.push("ASSURANCE_COST_RECONCILIATION_INCOMPLETE");
+  if (!corpus) blockers.push("CORPUS_ADMISSION_SNAPSHOT_REQUIRED");
+  else if (text(corpus.lifecycle_state) !== "ADMISSION_READY") blockers.push("CORPUS_ADMISSION_INSUFFICIENT");
 
   return {
     version: FACTORY_QA_COCKPIT_VERSION,
@@ -202,11 +210,27 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       activeProviderRequests,
       actualSpendMicros,
       outcomeCounts,
+      corpusAdmissionState: corpus ? text(corpus.lifecycle_state) : "NOT_MATERIALIZED",
+      corpusCandidates: number(corpus?.candidate_count),
+      corpusOwnerConfirmed: number(corpus?.owner_confirmed_count),
+      corpusDistinctArtifacts: number(corpus?.distinct_artifact_count),
+      corpusDistinctCorrelationGroups: number(corpus?.distinct_correlation_group_count),
+    },
+    corpus: {
+      snapshotHash: corpus ? text(corpus.snapshot_hash) : null,
+      sourceSnapshotHash: corpus ? text(corpus.source_snapshot_hash) : null,
+      partitionCounts: json<Record<string, number>>(corpus?.partition_counts_json, {}),
+      layerReadiness: corpusLayerReadiness,
+      gaps: corpusGapRows.map((row) => ({ layer: text(row.assurance_layer), key: text(row.gap_key), required: number(row.required_count), observed: number(row.observed_count) })),
+      qualificationAuthority: false as const,
+      passAuthority: false as const,
     },
     layers,
     recentRuns,
     blockers: [...new Set(blockers)].sort(),
-    nextAction: qualifiedCandidateLayers < 8
+    nextAction: !corpus || text(corpus.lifecycle_state) !== "ADMISSION_READY"
+      ? "Close the exact corpus-admission gaps before any L0-L7 judge execution; preserve every result as AI_SHADOW advisory evidence."
+      : qualifiedCandidateLayers < 8
       ? "Run blind-control and production-holdout calibration for every missing L0-L7 dependency identity; keep results advisory."
       : currentQualifiedLayers < 8
         ? "Register the exact current judge, model, prompt, rubric, schema and sampler qualifications; keep PASS authority closed."

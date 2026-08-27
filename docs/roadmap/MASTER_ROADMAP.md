@@ -139,6 +139,8 @@ Evidence passes 4/4 focused calibration/Cockpit tests and 252/252 repository tes
 
 Calibration integrity threshold V2 is source-qualified. It closes a false-qualification path in which correlation-group labels could mask reused artifact/evidence bytes and observations could omit execution lineage. Candidate admission now requires distinct exact bytes and evidence, distinct blind and Production holdout artifacts, owner-confirmed holdouts, no conflicting label on the same bytes, unique per-repeat receipts, raw-response hashes, reconciled cost and zero active requests. The new negative control passes inside 5/5 focused calibration/Cockpit tests and 253/253 full repository tests. The first immutable dataset and actual judge execution remain pending; no provider, qualification/PASS, R22, master, release or publication authority is created.
 
+The next bounded source slice adds migration `0116` and `FACTORY_ASSURANCE_CORPUS_ADMISSION_V1`. It inventories only exact legacy evidence with explicit source receipt, artifact hash, byte/checksum/rights state, label authority and correlation identity; separates reference, calibration, blind qualification and Production holdout hints; and emits immutable L0-L7 admission gaps. A Production holdout without owner-confirmed truth is rejected before storage. The source remains zero-dispatch and zero-spend; live schema activation and one bounded admission inventory read-back remain pending.
+
 ## Phase 46 — R22 canary
 
 **Status:** `GATED__LIVE_RUNTIME_AND_TREATMENTS_PASS__ASSURANCE_SOURCE_FOUNDATION_READY__LIVE_D1_CALIBRATION_AND_EXACT_DEPENDENCY_ADMISSION_PENDING`

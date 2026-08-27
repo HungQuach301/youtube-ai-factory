@@ -89,7 +89,7 @@ function packageInput(overrides = {}) {
 }
 
 test("migration 0115 installs append-only L0-L7 calibration receipts with every downstream authority closed", () => {
-  assert.equal(migrations.at(-1), "0115_factory_assurance_calibration_and_qa_cockpit.sql");
+  assert.equal(migrations.at(-1), "0116_factory_assurance_calibration_corpus_admission.sql");
   const migration = read("drizzle/0115_factory_assurance_calibration_and_qa_cockpit.sql");
   for (const table of ["factory_assurance_calibration_campaigns", "factory_assurance_calibration_cases", "factory_assurance_calibration_observations", "factory_assurance_calibration_results"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
@@ -151,5 +151,7 @@ test("QA Cockpit projects immutable calibration truth without inventing qualific
   assert.ok(cockpit.layers.every((layer) => layer.calibrationState === "QUALIFIED_CANDIDATE" && layer.qualificationState === "NOT_REGISTERED" && layer.passAuthority === false));
   assert.equal(cockpit.authority.acceptance, "ADVISORY_ONLY");
   assert.equal(cockpit.authority.pass, false); assert.equal(cockpit.authority.r22, false); assert.equal(cockpit.authority.release, false); assert.equal(cockpit.authority.publication, false);
-  assert.match(cockpit.nextAction, /Register the exact current judge/);
+  assert.equal(cockpit.summary.corpusAdmissionState, "NOT_MATERIALIZED");
+  assert.ok(cockpit.blockers.includes("CORPUS_ADMISSION_SNAPSHOT_REQUIRED"));
+  assert.match(cockpit.nextAction, /Close the exact corpus-admission gaps/);
 });

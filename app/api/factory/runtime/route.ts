@@ -25,6 +25,7 @@ import {
   type FactoryIntegratedCanaryInput,
 } from "@/lib/factory-pixel-video-compositor";
 import { runFactoryNonR22LiveCanaryQualification } from "@/lib/factory-non-r22-canary-qualification";
+import { materializeFactoryAssuranceCorpusAdmissionInventory } from "@/lib/factory-assurance-calibration-corpus";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,9 @@ type RuntimeEnv = {
   FACTORY_ASSET_ELIGIBILITY_ENABLED?: string;
   FACTORY_PIXEL_COMPOSITOR_ENABLED?: string;
   FACTORY_NON_R22_CANARY_QUALIFICATION_ENABLED?: string;
+  FACTORY_ASSURANCE_CORPUS_ADMISSION_ENABLED?: string;
   FACTORY_RUNTIME_QUALIFICATION_TOKEN?: string;
+  FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN?: string;
   FACTORY_AUTOMATION_ACTOR_EMAIL?: string;
   FACTORY_AUTOMATION_ACTOR_NAME?: string;
 };
@@ -86,11 +89,11 @@ async function secretMatches(left: string, right: string) {
 async function authorize(env: RuntimeEnv, request?: Request, action = "") {
   let user = await getChatGPTUser();
   const qualificationCredential =
-    action === "RUN_NON_R22_LIVE_CANARY_QUALIFICATION" &&
+    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION"].includes(action) &&
     request &&
     await secretMatches(
-      request.headers.get("x-factory-runtime-qualification-token") || "",
-      env.FACTORY_RUNTIME_QUALIFICATION_TOKEN || "",
+      action === "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION" ? request.headers.get("x-factory-assurance-corpus-token") || "" : request.headers.get("x-factory-runtime-qualification-token") || "",
+      action === "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION" ? env.FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN || "" : env.FACTORY_RUNTIME_QUALIFICATION_TOKEN || "",
     );
   if (!user && qualificationCredential) {
     const email = String(env.FACTORY_AUTOMATION_ACTOR_EMAIL || "").trim();
@@ -234,6 +237,11 @@ export async function POST(request: Request) {
       if (env.FACTORY_NON_R22_CANARY_QUALIFICATION_ENABLED !== "true") return failure("FACTORY_NON_R22_CANARY_QUALIFICATION_DISABLED", "The bounded live qualification runner is disabled until an explicit deployment authorization is configured", 503);
       if (!env.BUCKET) return failure("ACTIVE_MEDIA_STORAGE_UNAVAILABLE", "The active media storage binding is unavailable", 503);
       return Response.json(await runFactoryNonR22LiveCanaryQualification({ DB: env.DB, BUCKET: env.BUCKET }, user.email), { status: 201, headers: NO_STORE });
+    }
+
+    if (action === "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION") {
+      if (env.FACTORY_ASSURANCE_CORPUS_ADMISSION_ENABLED !== "true") return failure("FACTORY_ASSURANCE_CORPUS_ADMISSION_DISABLED", "The bounded Assurance corpus admission inventory is disabled until an explicit deployment authorization is configured", 503);
+      return Response.json(await materializeFactoryAssuranceCorpusAdmissionInventory(env.DB, user.email), { status: 201, headers: NO_STORE });
     }
 
     if (action === "RECONCILE_ORPHAN") return Response.json(await reconcileFactoryRuntimeOrphan(env.DB, {
