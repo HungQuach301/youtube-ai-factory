@@ -84,7 +84,7 @@ function seedUnverifiedPackaging(database) {
 }
 
 test("migration 0117 installs an append-only, zero-authority remediation inventory", () => {
-  assert.equal(migrations.at(-1), "0117_factory_assurance_corpus_remediation_inventory.sql");
+  assert.ok(migrations.includes("0117_factory_assurance_corpus_remediation_inventory.sql"));
   const migration = read("drizzle/0117_factory_assurance_corpus_remediation_inventory.sql");
   for (const table of ["factory_assurance_corpus_remediation_snapshots", "factory_assurance_corpus_remediation_items"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "release_authority", "publication_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));

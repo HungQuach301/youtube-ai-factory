@@ -28,7 +28,7 @@ const layerDefinition: Record<AssuranceLayer, { name: string; role: string; evid
 export type FactoryQaCockpitProjection = Awaited<ReturnType<typeof factoryQaCockpitProjection>>;
 
 export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
-  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows] = await Promise.all([
+  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows] = await Promise.all([
     rows(db, `SELECT r.*,c.dataset_version,c.dataset_manifest_hash,c.lifecycle_state campaign_state,c.created_at campaign_created_at
       FROM factory_assurance_calibration_results r JOIN factory_assurance_calibration_campaigns c ON c.id=r.campaign_id
       ORDER BY c.created_at DESC,r.created_at DESC,r.id DESC`),
@@ -69,6 +69,15 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
     rows(db, `SELECT readiness_state,candidate_kind,COUNT(*) item_count FROM factory_assurance_corpus_remediation_items
       WHERE snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
       GROUP BY readiness_state,candidate_kind ORDER BY readiness_state,candidate_kind`),
+    rows(db, `SELECT COUNT(*) checked_items,
+      COALESCE(SUM(CASE WHEN bytes_state='READBACK_VERIFIED' THEN 1 ELSE 0 END),0) byte_verified_items,
+      COALESCE(SUM(CASE WHEN checksum_state='PASS' THEN 1 ELSE 0 END),0) checksum_pass_items,
+      COALESCE(SUM(CASE WHEN provenance_state='PASS' THEN 1 ELSE 0 END),0) provenance_pass_items,
+      COALESCE(SUM(CASE WHEN rights_state='PASS' THEN 1 ELSE 0 END),0) rights_pass_items,
+      COALESCE(SUM(CASE WHEN exact_evidence_state='READY' THEN 1 ELSE 0 END),0) exact_evidence_ready_items,
+      COALESCE(SUM(actual_bytes),0) bytes_read
+      FROM factory_assurance_corpus_remediation_evidence_receipts
+      WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)`),
   ]);
 
   const latestCalibration = new Map<AssuranceLayer, Row>();
@@ -175,6 +184,7 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   const evidence = evidenceRows[0] ?? {};
   const corpus = corpusRows[0];
   const remediation = remediationRows[0];
+  const remediationEvidence = remediationEvidenceRows[0] ?? {};
   const corpusLayerReadiness = json<Array<Record<string, unknown>>>(corpus?.layer_readiness_json, []);
   const outcomeCounts = recentRuns.reduce<Record<string, number>>((accumulator, run) => {
     accumulator[run.outcome] = (accumulator[run.outcome] ?? 0) + 1;
@@ -229,6 +239,13 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       remediationOwnerLabelReady: number(remediation?.owner_label_ready_count),
       remediationIndependent: number(remediation?.independent_count),
       remediationReadyForReview: number(remediation?.ready_for_corpus_review_count),
+      remediationEvidenceChecked: number(remediationEvidence.checked_items),
+      remediationEvidenceRemaining: Math.max(0, number(remediation?.candidate_count) - number(remediationEvidence.checked_items)),
+      remediationByteVerified: number(remediationEvidence.byte_verified_items),
+      remediationChecksumPass: number(remediationEvidence.checksum_pass_items),
+      remediationProvenancePass: number(remediationEvidence.provenance_pass_items),
+      remediationRightsPass: number(remediationEvidence.rights_pass_items),
+      remediationEvidenceReady: number(remediationEvidence.exact_evidence_ready_items),
     },
     corpus: {
       snapshotHash: corpus ? text(corpus.snapshot_hash) : null,
@@ -243,6 +260,16 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       snapshotHash: remediation ? text(remediation.snapshot_hash) : null,
       state: remediation ? text(remediation.lifecycle_state) : "NOT_MATERIALIZED",
       queue: remediationQueueRows.map((row) => ({ readiness: text(row.readiness_state), candidateKind: text(row.candidate_kind), count: number(row.item_count) })),
+      evidence: {
+        checked: number(remediationEvidence.checked_items),
+        remaining: Math.max(0, number(remediation?.candidate_count) - number(remediationEvidence.checked_items)),
+        byteVerified: number(remediationEvidence.byte_verified_items),
+        checksumPass: number(remediationEvidence.checksum_pass_items),
+        provenancePass: number(remediationEvidence.provenance_pass_items),
+        rightsPass: number(remediationEvidence.rights_pass_items),
+        exactReady: number(remediationEvidence.exact_evidence_ready_items),
+        bytesRead: number(remediationEvidence.bytes_read),
+      },
       countEligible: false as const,
       qualificationAuthority: false as const,
       passAuthority: false as const,
@@ -252,7 +279,9 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
     blockers: [...new Set(blockers)].sort(),
     nextAction: !corpus || text(corpus.lifecycle_state) !== "ADMISSION_READY"
       ? remediation
-        ? "Resolve the exact-evidence, correlation and owner-label work queue; then review eligible inputs into a new immutable corpus snapshot. No work item counts as calibration evidence by itself."
+        ? number(remediationEvidence.checked_items) < number(remediation.candidate_count)
+          ? "Complete exact R2 byte, checksum, provenance and current-rights evidence receipts for the bounded remediation inventory. No work item counts as calibration evidence by itself."
+          : "Resolve correlation and owner-label work for exact-evidence-ready items; then review eligible inputs into a new immutable corpus snapshot. No work item counts as calibration evidence by itself."
         : "Close the exact corpus-admission gaps by first materializing the zero-provider remediation inventory; do not execute any L0-L7 judge yet."
       : qualifiedCandidateLayers < 8
       ? "Run blind-control and production-holdout calibration for every missing L0-L7 dependency identity; keep results advisory."
