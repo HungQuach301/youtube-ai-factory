@@ -34,6 +34,8 @@ Live-canary qualification receipt: migration `0111`, clean lease release and the
 
 Exact-history completion receipt: the owner approved one lease-bound replacement to exact Sites commit `3d752ad907989d8ad16f9ecce092975e66767657` and one temporary self-removing GitHub Actions workflow with `contents: write`. The workflow verified the immutable staging parent, incremental bundle prerequisites, exact target and target parent before using `force-with-lease`. After completion, GitHub `main`, Sites `origin/main` and local `HEAD` resolved to the approved SHA; `.github/workflows/one-time-exact-sites-sync.yml` and `.canonical-sync/youtube-ai-factory.bundle` were absent from final `main`, and trigger issue `#4` was closed. This receipt exhausts both approvals and grants no continuing force, workflow or staging authority.
 
+Corpus-admission deployment receipt: the reviewed 24-file source tree `efddde0176ccd621181eec4e0c1927cd8291d7be` was written to the owner-approved private GitHub mirror and recreated byte-for-byte as commit `d17a58fd4fb66317ac8cabb87b0d1e1a77b9bfbb` from parent `2110968c6369a11ee5436546fbd264dfdf251092`. Sites checkpoint preserved that exact commit and deployed owner-only version 541. Migration `0116` read back one immutable snapshot, 37 items and 31 gaps; idempotent replay passed with zero provider request/spend. Temporary writer/admission flags and token were removed at environment revision 53. No R22, master, release, publication or V2 mutation occurred.
+
 ## Initial mirror migration receipt
 
 | Evidence | Verified result |
