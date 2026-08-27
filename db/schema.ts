@@ -2947,3 +2947,25 @@ export const factoryAssuranceCalibrationCorpusItems = sqliteTable("factory_assur
 export const factoryAssuranceCalibrationCorpusGaps = sqliteTable("factory_assurance_calibration_corpus_gaps", {
   id: text("id").primaryKey(), snapshotId: text("snapshot_id").notNull().references(() => factoryAssuranceCalibrationCorpusSnapshots.id), assuranceLayer: text("assurance_layer").notNull(), gapKey: text("gap_key").notNull(), requiredCount: integer("required_count").notNull(), observedCount: integer("observed_count").notNull(), blocking: integer("blocking", { mode: "boolean" }).notNull(), evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("factory_assurance_calibration_corpus_gap_uq").on(table.snapshotId, table.assuranceLayer, table.gapKey)]);
+
+export const factoryAssuranceCorpusRemediationSnapshots = sqliteTable("factory_assurance_corpus_remediation_snapshots", {
+  id: text("id").primaryKey(), snapshotKey: text("snapshot_key").notNull(), sourceCorpusSnapshotId: text("source_corpus_snapshot_id").notNull().references(() => factoryAssuranceCalibrationCorpusSnapshots.id),
+  channelId: text("channel_id").notNull(), formatKey: text("format_key").notNull(), policyVersion: text("policy_version").notNull(), candidateCount: integer("candidate_count").notNull(),
+  l1CandidateCount: integer("l1_candidate_count").notNull(), l4CandidateCount: integer("l4_candidate_count").notNull(), exactEvidenceReadyCount: integer("exact_evidence_ready_count").notNull(),
+  ownerLabelReadyCount: integer("owner_label_ready_count").notNull(), independentCount: integer("independent_count").notNull(), readyForCorpusReviewCount: integer("ready_for_corpus_review_count").notNull(),
+  lifecycleState: text("lifecycle_state").notNull(), qualificationAuthority: integer("qualification_authority", { mode: "boolean" }).notNull(), passAuthority: integer("pass_authority", { mode: "boolean" }).notNull(),
+  providerDispatchAuthority: integer("provider_dispatch_authority", { mode: "boolean" }).notNull(), r22Authority: integer("r22_authority", { mode: "boolean" }).notNull(), masterAuthority: integer("master_authority", { mode: "boolean" }).notNull(),
+  releaseAuthority: integer("release_authority", { mode: "boolean" }).notNull(), publicationAuthority: integer("publication_authority", { mode: "boolean" }).notNull(), providerRequests: integer("provider_requests").notNull(),
+  spendMicros: integer("spend_micros").notNull(), snapshotHash: text("snapshot_hash").notNull(), evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_assurance_corpus_remediation_snapshot_key_uq").on(table.snapshotKey), index("factory_assurance_corpus_remediation_scope_idx").on(table.channelId, table.formatKey, table.lifecycleState, table.createdAt)]);
+
+export const factoryAssuranceCorpusRemediationItems = sqliteTable("factory_assurance_corpus_remediation_items", {
+  id: text("id").primaryKey(), snapshotId: text("snapshot_id").notNull().references(() => factoryAssuranceCorpusRemediationSnapshots.id), workKey: text("work_key").notNull(), sourceCandidateId: text("source_candidate_id").notNull(),
+  sourceFamily: text("source_family").notNull(), candidateKind: text("candidate_kind").notNull(), mimeType: text("mime_type").notNull(), storageKey: text("storage_key"), byteSize: integer("byte_size"), exactArtifactHash: text("exact_artifact_hash").notNull(),
+  targetLayersJson: text("target_layers_json").notNull(), correlationGroup: text("correlation_group").notNull(), sourceOwnerReceiptId: text("source_owner_receipt_id"), sourceLabelsJson: text("source_labels_json").notNull(),
+  exactEvidenceState: text("exact_evidence_state").notNull(), ownerLabelState: text("owner_label_state").notNull(), correlationState: text("correlation_state").notNull(), rightsState: text("rights_state").notNull(),
+  readinessState: text("readiness_state").notNull(), nextAction: text("next_action").notNull(), countEligible: integer("count_eligible", { mode: "boolean" }).notNull(), qualificationAuthority: integer("qualification_authority", { mode: "boolean" }).notNull(),
+  passAuthority: integer("pass_authority", { mode: "boolean" }).notNull(), providerDispatchAuthority: integer("provider_dispatch_authority", { mode: "boolean" }).notNull(), r22Authority: integer("r22_authority", { mode: "boolean" }).notNull(),
+  releaseAuthority: integer("release_authority", { mode: "boolean" }).notNull(), publicationAuthority: integer("publication_authority", { mode: "boolean" }).notNull(), providerRequests: integer("provider_requests").notNull(), spendMicros: integer("spend_micros").notNull(),
+  evidenceHash: text("evidence_hash").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("factory_assurance_corpus_remediation_item_key_uq").on(table.snapshotId, table.workKey), index("factory_assurance_corpus_remediation_queue_idx").on(table.snapshotId, table.readinessState, table.candidateKind)]);

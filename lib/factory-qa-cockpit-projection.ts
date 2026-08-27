@@ -1,6 +1,6 @@
 import { FACTORY_ASSURANCE_LAYERS } from "@/lib/factory-evidence-assurance";
 
-export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V2" as const;
+export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V3" as const;
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }> };
@@ -28,7 +28,7 @@ const layerDefinition: Record<AssuranceLayer, { name: string; role: string; evid
 export type FactoryQaCockpitProjection = Awaited<ReturnType<typeof factoryQaCockpitProjection>>;
 
 export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
-  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows] = await Promise.all([
+  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows] = await Promise.all([
     rows(db, `SELECT r.*,c.dataset_version,c.dataset_manifest_hash,c.lifecycle_state campaign_state,c.created_at campaign_created_at
       FROM factory_assurance_calibration_results r JOIN factory_assurance_calibration_campaigns c ON c.id=r.campaign_id
       ORDER BY c.created_at DESC,r.created_at DESC,r.id DESC`),
@@ -65,6 +65,10 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
     rows(db, `SELECT assurance_layer,gap_key,required_count,observed_count FROM factory_assurance_calibration_corpus_gaps
       WHERE snapshot_id=(SELECT id FROM factory_assurance_calibration_corpus_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
       ORDER BY assurance_layer,gap_key`),
+    rows(db, `SELECT * FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1`),
+    rows(db, `SELECT readiness_state,candidate_kind,COUNT(*) item_count FROM factory_assurance_corpus_remediation_items
+      WHERE snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
+      GROUP BY readiness_state,candidate_kind ORDER BY readiness_state,candidate_kind`),
   ]);
 
   const latestCalibration = new Map<AssuranceLayer, Row>();
@@ -170,6 +174,7 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   }));
   const evidence = evidenceRows[0] ?? {};
   const corpus = corpusRows[0];
+  const remediation = remediationRows[0];
   const corpusLayerReadiness = json<Array<Record<string, unknown>>>(corpus?.layer_readiness_json, []);
   const outcomeCounts = recentRuns.reduce<Record<string, number>>((accumulator, run) => {
     accumulator[run.outcome] = (accumulator[run.outcome] ?? 0) + 1;
@@ -183,6 +188,7 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   if (recentRuns.some((run) => run.costReconciliationState !== "RECONCILED")) blockers.push("ASSURANCE_COST_RECONCILIATION_INCOMPLETE");
   if (!corpus) blockers.push("CORPUS_ADMISSION_SNAPSHOT_REQUIRED");
   else if (text(corpus.lifecycle_state) !== "ADMISSION_READY") blockers.push("CORPUS_ADMISSION_INSUFFICIENT");
+  if (corpus && text(corpus.lifecycle_state) !== "ADMISSION_READY" && !remediation) blockers.push("CORPUS_REMEDIATION_INVENTORY_REQUIRED");
 
   return {
     version: FACTORY_QA_COCKPIT_VERSION,
@@ -215,6 +221,14 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       corpusOwnerConfirmed: number(corpus?.owner_confirmed_count),
       corpusDistinctArtifacts: number(corpus?.distinct_artifact_count),
       corpusDistinctCorrelationGroups: number(corpus?.distinct_correlation_group_count),
+      remediationState: remediation ? text(remediation.lifecycle_state) : "NOT_MATERIALIZED",
+      remediationCandidates: number(remediation?.candidate_count),
+      remediationL1Candidates: number(remediation?.l1_candidate_count),
+      remediationL4Candidates: number(remediation?.l4_candidate_count),
+      remediationExactReady: number(remediation?.exact_evidence_ready_count),
+      remediationOwnerLabelReady: number(remediation?.owner_label_ready_count),
+      remediationIndependent: number(remediation?.independent_count),
+      remediationReadyForReview: number(remediation?.ready_for_corpus_review_count),
     },
     corpus: {
       snapshotHash: corpus ? text(corpus.snapshot_hash) : null,
@@ -225,11 +239,21 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       qualificationAuthority: false as const,
       passAuthority: false as const,
     },
+    remediation: {
+      snapshotHash: remediation ? text(remediation.snapshot_hash) : null,
+      state: remediation ? text(remediation.lifecycle_state) : "NOT_MATERIALIZED",
+      queue: remediationQueueRows.map((row) => ({ readiness: text(row.readiness_state), candidateKind: text(row.candidate_kind), count: number(row.item_count) })),
+      countEligible: false as const,
+      qualificationAuthority: false as const,
+      passAuthority: false as const,
+    },
     layers,
     recentRuns,
     blockers: [...new Set(blockers)].sort(),
     nextAction: !corpus || text(corpus.lifecycle_state) !== "ADMISSION_READY"
-      ? "Close the exact corpus-admission gaps before any L0-L7 judge execution; preserve every result as AI_SHADOW advisory evidence."
+      ? remediation
+        ? "Resolve the exact-evidence, correlation and owner-label work queue; then review eligible inputs into a new immutable corpus snapshot. No work item counts as calibration evidence by itself."
+        : "Close the exact corpus-admission gaps by first materializing the zero-provider remediation inventory; do not execute any L0-L7 judge yet."
       : qualifiedCandidateLayers < 8
       ? "Run blind-control and production-holdout calibration for every missing L0-L7 dependency identity; keep results advisory."
       : currentQualifiedLayers < 8

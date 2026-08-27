@@ -141,6 +141,8 @@ Calibration integrity threshold V2 is source-qualified. It closes a false-qualif
 
 Migration `0116` and `FACTORY_ASSURANCE_CORPUS_ADMISSION_V1` are live in Sites v541. The first bounded inventory stores 37 exact artifacts/correlation groups across 29 calibration, five blind and three owner-confirmed holdout items. It remains truthfully `ADMISSION_INSUFFICIENT` with 31 gaps: L1 has no admitted coverage, L4 has only one admitted case, and clean/P0/holdout coverage remains below threshold in multiple layers. The same payload returns `IDEMPOTENT_REPLAY`; zero provider requests/spend and every downstream authority remain locked. The next coherent unit is to materialize the missing independent L1/L4 and clean/P0 controls before any judge execution.
 
+Source-qualified migration `0117` and `FACTORY_ASSURANCE_CORPUS_REMEDIATION_V1` add a zero-provider, append-only remediation inventory before any new corpus admission. It discovers only unadmitted AUDIO, MASTER and PACKAGING candidates, preserves exact-byte/read-back, rights, owner-label and correlation blockers separately, and marks every work item `count_eligible=0`. The QA Cockpit V3 exposes L1/L4 targets and the blocker queue without converting historical evidence into calibration truth. Focused corpus/remediation/Cockpit tests pass; live deployment, one bounded inventory, idempotent replay and D1 read-back remain required before this slice is complete.
+
 ## Phase 46 — R22 canary
 
 **Status:** `GATED__LIVE_RUNTIME_AND_TREATMENTS_PASS__ASSURANCE_SOURCE_FOUNDATION_READY__LIVE_D1_CALIBRATION_AND_EXACT_DEPENDENCY_ADMISSION_PENDING`

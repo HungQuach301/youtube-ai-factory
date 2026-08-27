@@ -89,7 +89,7 @@ function packageInput(overrides = {}) {
 }
 
 test("migration 0115 installs append-only L0-L7 calibration receipts with every downstream authority closed", () => {
-  assert.equal(migrations.at(-1), "0116_factory_assurance_calibration_corpus_admission.sql");
+  assert.ok(migrations.includes("0116_factory_assurance_calibration_corpus_admission.sql"));
   const migration = read("drizzle/0115_factory_assurance_calibration_and_qa_cockpit.sql");
   for (const table of ["factory_assurance_calibration_campaigns", "factory_assurance_calibration_cases", "factory_assurance_calibration_observations", "factory_assurance_calibration_results"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));

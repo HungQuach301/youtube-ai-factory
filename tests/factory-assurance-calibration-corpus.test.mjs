@@ -80,7 +80,7 @@ function input(items) {
 }
 
 test("migration 0116 installs append-only corpus admission with every downstream authority closed", () => {
-  assert.equal(migrations.at(-1), "0116_factory_assurance_calibration_corpus_admission.sql");
+  assert.ok(migrations.includes("0116_factory_assurance_calibration_corpus_admission.sql"));
   const migration = read("drizzle/0116_factory_assurance_calibration_corpus_admission.sql");
   for (const table of ["factory_assurance_calibration_corpus_snapshots", "factory_assurance_calibration_corpus_items", "factory_assurance_calibration_corpus_gaps"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
