@@ -1,7 +1,7 @@
 # Master Issue Registry
 
 **State:** `ACTIVE_CURRENT_ISSUES`  
-**Reconciled:** 2026-08-26
+**Reconciled:** 2026-08-27
 
 Closed and superseded issue history is preserved in [`../archive/snapshots/MASTER_ISSUE_REGISTRY.md`](../archive/snapshots/MASTER_ISSUE_REGISTRY.md). Only the items below may drive current work.
 
@@ -9,7 +9,7 @@ Closed and superseded issue history is preserved in [`../archive/snapshots/MASTE
 |---|---:|---|---|
 | X28 | P0 | R21 is technically playable but visually fails the US YouTube audience standard | Preserve exact R21; R22 repairs the owning visual system only after Phase 45 and canary gates |
 | X30 | P0 | Revision-specific rendering can recreate slide grammar | Generic compiler/render/compositor and ten-case production-scale Hidden Systems corpus pass without revision branching; close only after live package and exact R22 dependency admission prove the path |
-| X31 | P0 | One judge/static atlas can miss temporal, audio, Browser and payoff defects | Append-only L0-L7 exact-artifact shadow orchestration, `0115` calibration schema and canonical QA Cockpit are live owner-only with zero PASS authority. Threshold V2 blocks repeated-byte pseudo-diversity, non-owner holdouts, missing receipts and unreconciled requests. Live `0116` inventory stores 37 exact artifacts and 31 explicit gaps rather than promoting 595 historical artifacts by volume. Live `0117` records 66 count-ineligible remediation items—48 AUDIO and 18 MASTER—and truthfully leaves all 66 at `EXACT_EVIDENCE_REQUIRED` with zero authority/cost. Complete exact-byte, rights, independent-correlation and owner-label remediation, then close the missing L1/L4, clean/P0 and holdout controls before calibration or AI acceptance |
+| X31 | P0 | One judge/static atlas can miss temporal, audio, Browser and payoff defects | Append-only L0-L7 exact-artifact shadow orchestration, `0115` calibration schema and canonical QA Cockpit are live owner-only with zero PASS authority. Threshold V2 blocks repeated-byte pseudo-diversity, non-owner holdouts, missing receipts and unreconciled requests. Live `0116` inventory stores 37 exact artifacts and 31 explicit gaps rather than promoting 595 historical artifacts by volume. Live `0118` evidence verification reads all 66 remediation objects: 62 pass exact checksum/provenance, four fail byte/metadata binding, all 66 lack a current immutable rights receipt and zero are count-eligible. Append corrections for the four failures, attach current rights evidence, then complete independent-correlation/owner-label review and close missing L1/L4, clean/P0 and holdout controls before calibration or AI acceptance |
 | X32 | P0 | Stage-owned provider calls fragment secrets, rights, cost and lineage | Zero-dispatch Gateway plus plan-only reservation/native reconciliation and bounded explicit fallback are source-qualified; add secret-scoped dispatch and bounded live qualification without widening R22 authority |
 | X33 | P1 | Runtime still contains legacy quality/storage terminology and behavior | Migrate runtime/UI to V3 and `USER_CONTROLLED_RECOVERY_ARCHIVE`; design docs already corrected |
 | X34 | P1 | Hidden Systems Visual DNA is not executable independently of a renderer revision | Frozen Visual Profile/Format plus the live-qualified ten-case 1920×1080 treatment/asset-preparation corpus execute generically; exact R22 dependency admission and canary proof remain required |
