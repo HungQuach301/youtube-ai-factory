@@ -11,6 +11,7 @@ import { inventoryFactoryAssuranceCurrentRightsEvidence } from "../lib/factory-a
 import { materializeFactoryAssuranceCurrentRightsCollection } from "../lib/factory-assurance-current-rights-collection.ts";
 import { classifyFactoryAssuranceCurrentRightsTerminalDisposition } from "../lib/factory-assurance-current-rights-terminal-disposition.ts";
 import { planFactoryAssuranceControlledFixtureReplacements } from "../lib/factory-assurance-controlled-fixture-replacement-plan.ts";
+import { admitFactoryAssuranceControlledFixtureMaterializationBatch } from "../lib/factory-assurance-controlled-fixture-materialization-admission.ts";
 import { factoryQaCockpitProjection } from "../lib/factory-qa-cockpit-projection.ts";
 
 const root = new URL("../", import.meta.url);
@@ -120,8 +121,8 @@ function seedTerminalRecoveryEvidence(database, provider, master) {
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run("terminal-lineage-diagnostic", "channel-hidden-systems", "terminal-master-rights-task", master.id, "COMPOSITE_PARENT_RIGHTS_MANIFEST", "EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1", `artifact-${master.id}`, master.exactHash, 0, 0, 0, "SOURCE_LINEAGE_BINDING_MISSING", "[\"SOURCE_ARTIFACT_HAS_NO_EXACT_MANIFEST_BINDING\"]");
 }
 
-test("migrations 0118 through 0123 install append-only zero-authority remediation and replacement-plan receipts", () => {
-  assert.equal(migrations.at(-1), "0123_factory_assurance_controlled_fixture_replacement_plan.sql");
+test("migrations 0118 through 0124 install append-only zero-authority remediation, replacement-plan and materialization-admission receipts", () => {
+  assert.equal(migrations.at(-1), "0124_factory_assurance_controlled_fixture_materialization_admission.sql");
   const migration = read("drizzle/0118_factory_assurance_corpus_remediation_evidence.sql");
   for (const table of ["factory_assurance_corpus_remediation_evidence_runs", "factory_assurance_corpus_remediation_evidence_receipts"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
@@ -146,6 +147,10 @@ test("migrations 0118 through 0123 install append-only zero-authority remediatio
   for (const table of ["factory_assurance_controlled_fixture_replacement_plan_runs", "factory_assurance_controlled_fixture_replacement_work_orders"]) assert.ok(replacementMigration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(replacementMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
   assert.doesNotMatch(replacementMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
+  const admissionMigration = read("drizzle/0124_factory_assurance_controlled_fixture_materialization_admission.sql");
+  for (const table of ["factory_assurance_controlled_fixture_materialization_admission_runs", "factory_assurance_controlled_fixture_materialization_admission_items"]) assert.ok(admissionMigration.includes(`CREATE TABLE \`${table}\``));
+  for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "cost_reservation_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(admissionMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.doesNotMatch(admissionMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
 });
 
 test("evidence runner verifies exact R2 bytes but keeps missing current rights fail-closed and count-ineligible", async () => {
@@ -264,7 +269,7 @@ test("current-rights collection materializes one fail-closed task per pending in
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_current_rights_collection_runs").get().count, 1);
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_current_rights_collection_tasks").get().count, 1);
   const projection = await factoryQaCockpitProjection(db);
-  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V8");
+  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V9");
   assert.equal(projection.summary.currentRightsCollectionOpen, 1);
   assert.deepEqual(projection.remediation.evidence.rightsCollectionQueue, [{ receiptType: "PROVIDER_TERMS_AND_PLAN_RECEIPT", state: "RECEIPT_REQUIRED", count: 1 }]);
   assert.match(projection.nextAction, /Classify the 1 collection tasks/);
@@ -309,7 +314,7 @@ test("terminal rights disposition quarantines exhausted provider and lineage tas
   ]);
   assert.equal((await classifyFactoryAssuranceCurrentRightsTerminalDisposition(db, input)).outcome, "IDEMPOTENT_REPLAY");
   const projection = await factoryQaCockpitProjection(db);
-  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V8");
+  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V9");
   assert.equal(projection.summary.currentRightsTerminalQuarantined, 2);
   assert.equal(projection.summary.currentRightsRemainingCollection, 0);
   assert.match(projection.nextAction, /Plan the 2 terminal quarantines/);
@@ -343,7 +348,38 @@ test("terminal rights disposition quarantines exhausted provider and lineage tas
     { route: "NEW_COMPOSITE_MASTER_WITH_EXACT_PARENT_MANIFEST", count: 1 },
     { route: "NEW_PROVIDER_AUDIO_WITH_NATIVE_BINDING", count: 1 },
   ]);
-  assert.match(plannedProjection.nextAction, /Materialize the 2 planned controlled fixtures/);
+  assert.match(plannedProjection.nextAction, /Admit the 2 planned controlled fixtures/);
+  const admitted = await admitFactoryAssuranceControlledFixtureMaterializationBatch(db, {
+    actor: "owner@example.com", idempotencyKey: "assurance-fixture-materialization-admission-0001", evaluatedAt: "2026-08-28T12:00:00.000Z",
+  });
+  assert.deepEqual({ outcome: admitted.outcome, scope: admitted.scopeItems, selected: admitted.selectedBatchItems, provider: admitted.providerAudioPendingItems, composite: admitted.compositeMasterPendingItems, ready: admitted.dispatchReadyItems, blocked: admitted.blockedItems, maxRequests: admitted.plannedMaxProviderRequests, maxSpend: admitted.plannedMaxSpendMicros, requests: admitted.providerRequests, spend: admitted.spendMicros },
+    { outcome: "RECORDED", scope: 2, selected: 1, provider: 1, composite: 1, ready: 0, blocked: 2, maxRequests: 2, maxSpend: 80000, requests: 0, spend: 0 });
+  assert.ok(admitted.blockers.includes("EXPLICIT_PAID_DISPATCH_APPROVAL_REQUIRED"));
+  assert.ok(admitted.blockers.includes("NO_ACTIVE_PROVIDER_BINDING_OBSERVED"));
+  const admissionItems = database.prepare(`SELECT replacement_route,queue_position,admission_lane,admission_state,blockers_json,planned_max_provider_requests,planned_max_spend_micros,materialization_state,count_eligible,pass_authority,provider_dispatch_authority,cost_reservation_authority,r22_authority,master_authority,release_authority,publication_authority,provider_requests,spend_micros
+    FROM factory_assurance_controlled_fixture_materialization_admission_items ORDER BY queue_position`).all().map((row) => ({ ...row }));
+  assert.equal(admissionItems.length, 2);
+  assert.deepEqual(admissionItems.map((item) => item.admission_lane), ["SELECTED_PROVIDER_AUDIO_BATCH", "WAITING_EXACT_NEW_PARENT_SET"]);
+  assert.deepEqual(admissionItems.map((item) => [item.planned_max_provider_requests, item.planned_max_spend_micros]), [[2, 80000], [0, 0]]);
+  assert.ok(JSON.parse(admissionItems[0].blockers_json).includes("EXPLICIT_PAID_DISPATCH_APPROVAL_REQUIRED"));
+  for (const item of admissionItems) {
+    assert.equal(item.admission_state, "BLOCKED");
+    assert.equal(item.materialization_state, "NOT_MATERIALIZED");
+    for (const key of ["count_eligible", "pass_authority", "provider_dispatch_authority", "cost_reservation_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.equal(item[key], 0);
+  }
+  assert.equal((await admitFactoryAssuranceControlledFixtureMaterializationBatch(db, { actor: "owner@example.com", idempotencyKey: "assurance-fixture-materialization-admission-0001", evaluatedAt: "2026-08-28T12:00:00.000Z" })).outcome, "IDEMPOTENT_REPLAY");
+  const admittedProjection = await factoryQaCockpitProjection(db);
+  assert.equal(admittedProjection.version, "FACTORY_QA_COCKPIT_PROJECTION_V9");
+  assert.equal(admittedProjection.summary.controlledFixtureMaterializationAdmissionState, "BLOCKED");
+  assert.equal(admittedProjection.summary.controlledFixtureSelectedBatchItems, 1);
+  assert.equal(admittedProjection.summary.controlledFixtureDispatchReadyItems, 0);
+  assert.equal(admittedProjection.summary.controlledFixtureBlockedItems, 2);
+  assert.deepEqual(admittedProjection.remediation.evidence.controlledFixtureMaterializationAdmissionQueue.map((item) => ({ lane: item.lane, count: item.count })), [
+    { lane: "SELECTED_PROVIDER_AUDIO_BATCH", count: 1 },
+    { lane: "WAITING_EXACT_NEW_PARENT_SET", count: 1 },
+  ]);
+  assert.match(admittedProjection.nextAction, /Resolve the blocked one-audio materialization batch gates/);
+  assert.throws(() => database.prepare("UPDATE factory_assurance_controlled_fixture_materialization_admission_items SET admission_state='BLOCKED'").run(), /APPEND_ONLY/);
   assert.throws(() => database.prepare("UPDATE factory_assurance_controlled_fixture_replacement_work_orders SET materialization_state='NOT_MATERIALIZED'").run(), /APPEND_ONLY/);
   assert.throws(() => database.prepare("UPDATE factory_assurance_current_rights_terminal_disposition_receipts SET rights_eligible=1").run(), /APPEND_ONLY/);
   assert.equal(database.prepare("SELECT COUNT(*) count FROM v7_evaluation_candidates WHERE qualification_eligible=1 OR release_eligible=1").get().count, 0);

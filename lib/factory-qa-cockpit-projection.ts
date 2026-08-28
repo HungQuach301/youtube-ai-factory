@@ -1,6 +1,6 @@
 import { FACTORY_ASSURANCE_LAYERS } from "@/lib/factory-evidence-assurance";
 
-export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V8" as const;
+export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V9" as const;
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }> };
@@ -28,7 +28,7 @@ const layerDefinition: Record<AssuranceLayer, { name: string; role: string; evid
 export type FactoryQaCockpitProjection = Awaited<ReturnType<typeof factoryQaCockpitProjection>>;
 
 export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
-  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows, remediationIncidentRows, rightsInventoryRows, rightsCollectionRows, rightsCollectionTaskRows, rightsTerminalRows, rightsTerminalReceiptRows, replacementPlanRows, replacementWorkOrderRows] = await Promise.all([
+  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows, remediationIncidentRows, rightsInventoryRows, rightsCollectionRows, rightsCollectionTaskRows, rightsTerminalRows, rightsTerminalReceiptRows, replacementPlanRows, replacementWorkOrderRows, materializationAdmissionRows, materializationAdmissionItemRows] = await Promise.all([
     rows(db, `SELECT r.*,c.dataset_version,c.dataset_manifest_hash,c.lifecycle_state campaign_state,c.created_at campaign_created_at
       FROM factory_assurance_calibration_results r JOIN factory_assurance_calibration_campaigns c ON c.id=r.campaign_id
       ORDER BY c.created_at DESC,r.created_at DESC,r.id DESC`),
@@ -108,6 +108,14 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
         WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
         ORDER BY created_at DESC,id DESC LIMIT 1)
       GROUP BY replacement_route,work_order_state,materialization_state ORDER BY replacement_route`),
+    rows(db, `SELECT * FROM factory_assurance_controlled_fixture_materialization_admission_runs
+      WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
+      ORDER BY created_at DESC,id DESC LIMIT 1`),
+    rows(db, `SELECT admission_lane,admission_state,COUNT(*) item_count FROM factory_assurance_controlled_fixture_materialization_admission_items
+      WHERE run_id=(SELECT id FROM factory_assurance_controlled_fixture_materialization_admission_runs
+        WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
+        ORDER BY created_at DESC,id DESC LIMIT 1)
+      GROUP BY admission_lane,admission_state ORDER BY admission_lane`),
   ]);
 
   const latestCalibration = new Map<AssuranceLayer, Row>();
@@ -220,6 +228,7 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   const rightsCollection = rightsCollectionRows[0] ?? {};
   const rightsTerminal = rightsTerminalRows[0] ?? {};
   const replacementPlan = replacementPlanRows[0] ?? {};
+  const materializationAdmission = materializationAdmissionRows[0] ?? {};
   const corpusLayerReadiness = json<Array<Record<string, unknown>>>(corpus?.layer_readiness_json, []);
   const outcomeCounts = recentRuns.reduce<Record<string, number>>((accumulator, run) => {
     accumulator[run.outcome] = (accumulator[run.outcome] ?? 0) + 1;
@@ -240,7 +249,8 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   if (number(rightsInventory.pending_receipt_items) > 0 && !text(rightsCollection.id)) blockers.push("CURRENT_RIGHTS_COLLECTION_QUEUE_REQUIRED");
   if (number(rightsCollection.open_tasks) > 0 && !text(rightsTerminal.id)) blockers.push("CURRENT_RIGHTS_TERMINAL_DISPOSITION_REQUIRED");
   if (text(rightsTerminal.id) && number(rightsTerminal.remaining_receipt_collection_items) === 0 && !text(replacementPlan.id)) blockers.push("CONTROLLED_FIXTURE_REPLACEMENT_PLAN_REQUIRED");
-  if (text(replacementPlan.id) && number(replacementPlan.pending_materialization_items) > 0) blockers.push("CONTROLLED_FIXTURE_MATERIALIZATION_REQUIRED");
+  if (text(replacementPlan.id) && number(replacementPlan.pending_materialization_items) > 0 && !text(materializationAdmission.id)) blockers.push("CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_REQUIRED");
+  if (text(materializationAdmission.id) && number(materializationAdmission.dispatch_ready_items) === 0) blockers.push("CONTROLLED_FIXTURE_MATERIALIZATION_BLOCKED");
 
   return {
     version: FACTORY_QA_COCKPIT_VERSION,
@@ -314,6 +324,12 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       controlledFixtureAuthorshipOrders: number(replacementPlan.authorship_orders),
       controlledFixtureMaterialized: number(replacementPlan.materialized_items),
       controlledFixturePending: number(replacementPlan.pending_materialization_items),
+      controlledFixtureMaterializationAdmissionState: text(materializationAdmission.admission_state) || "NOT_ADMITTED",
+      controlledFixtureSelectedBatchItems: number(materializationAdmission.selected_batch_items),
+      controlledFixtureDispatchReadyItems: number(materializationAdmission.dispatch_ready_items),
+      controlledFixtureBlockedItems: number(materializationAdmission.blocked_items),
+      controlledFixturePlannedMaxProviderRequests: number(materializationAdmission.planned_max_provider_requests),
+      controlledFixturePlannedMaxSpendMicros: number(materializationAdmission.planned_max_spend_micros),
     },
     corpus: {
       snapshotHash: corpus ? text(corpus.snapshot_hash) : null,
@@ -358,6 +374,11 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
         controlledFixtureMaterialized: number(replacementPlan.materialized_items),
         controlledFixturePending: number(replacementPlan.pending_materialization_items),
         controlledFixtureReplacementQueue: replacementWorkOrderRows.map((row) => ({ route: text(row.replacement_route), state: text(row.work_order_state), materializationState: text(row.materialization_state), count: number(row.order_count) })),
+        controlledFixtureMaterializationAdmissionState: text(materializationAdmission.admission_state) || "NOT_ADMITTED",
+        controlledFixtureSelectedBatchItems: number(materializationAdmission.selected_batch_items),
+        controlledFixtureDispatchReadyItems: number(materializationAdmission.dispatch_ready_items),
+        controlledFixtureBlockedItems: number(materializationAdmission.blocked_items),
+        controlledFixtureMaterializationAdmissionQueue: materializationAdmissionItemRows.map((row) => ({ lane: text(row.admission_lane), state: text(row.admission_state), count: number(row.item_count) })),
       },
       countEligible: false as const,
       qualificationAuthority: false as const,
@@ -378,7 +399,9 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
                 ? text(rightsCollection.id)
                   ? text(rightsTerminal.id)
                     ? text(replacementPlan.id)
-                      ? `Materialize the ${number(replacementPlan.pending_materialization_items)} planned controlled fixtures in separately authorized bounded batches with exact cost reservation, native rights binding and exact parent lineage. The quarantined bytes remain failure evidence only.`
+                      ? text(materializationAdmission.id)
+                        ? `Resolve the blocked one-audio materialization batch gates: typed provider request, exact current binding/qualification/rights/drift, active cost envelope, exact reservation and explicit paid-dispatch approval. Keep the other audio and composite work orders queued.`
+                        : `Admit the ${number(replacementPlan.pending_materialization_items)} planned controlled fixtures into a zero-provider bounded materialization queue before any cost reservation or dispatch.`
                       : `Plan the ${number(rightsTerminal.replacement_required_items)} terminal quarantines as immutable zero-dispatch controlled-fixture work orders before any provider or composition request.`
                     : `Classify the ${number(rightsCollection.open_tasks)} collection tasks against immutable terminal recovery and lineage evidence before seeking new receipts. Do not retry exhausted historical recovery or infer rights from package correlation.`
                   : `Materialize a zero-provider collection queue for the ${number(rightsInventory.pending_receipt_items)} pending exact current rights receipts; do not infer PASS or fetch external evidence in the inventory step.`
