@@ -10,21 +10,21 @@ REPOSITORY_POLICY = GIT_REPOSITORY_SSOT_V1
 REPLICATION_POLICY = DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
 SITES_REMOTE = origin/main
 GITHUB_TARGET = HungQuach301/youtube-ai-factory
-GITHUB_SYNC = SYNCHRONIZED__FORWARD_ONLY_EXACT_OBJECT_PROTOCOL
+GITHUB_SYNC = CONTENT_SYNCHRONIZED__TREE_MATCH__EXACT_SHA_RECONCILIATION_BLOCKED
 INITIAL_MIRROR_BASELINE_SHA = 2431a800d2d540bcfea141c98c9977cd46667950
 PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
-PHASE_45 = IN_PROGRESS__CURRENT_RIGHTS_INVENTORY_V1_SOURCE_READY__LIVE_ZERO_PROVIDER_RUN_PENDING
+PHASE_45 = IN_PROGRESS__CURRENT_RIGHTS_INVENTORY_V1_LIVE__0_ATTACHED__62_PENDING
 PHASE_46 = GATED__ASSURANCE_CALIBRATION_AND_EXACT_DEPENDENCY_ADMISSION_REQUIRED__R22_BLOCKED
-SOURCE_MIGRATION = 0120_FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY__SOURCE_VERIFIED__PRODUCTION_PENDING
-SOURCE_MIGRATION_LIVE_D1 = VERIFIED__0119_ONE_RUN__4_QUARANTINE_RECEIPTS__4_REPLACEMENT_REFERENCES__62_RIGHTS_ELIGIBLE__62_RIGHTS_PENDING
+SOURCE_MIGRATION = 0120_FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY__LIVE_VERIFIED
+SOURCE_MIGRATION_LIVE_D1 = VERIFIED__0120_ONE_RUN__62_ITEM_RECEIPTS__0_ATTACHED__62_REQUIRED__4_QUARANTINES_EXCLUDED__IDEMPOTENT_REPLAY
 DEPLOYMENT_RECEIPT = VERSION_516__APPGDEP_6A8D334895008191A77BF70256460F01__SUCCEEDED
 RENDERER_DEPLOYMENT_RECEIPT = VERSION_521__SUCCEEDED
 COMPOSITOR_DEPLOYMENT_RECEIPT = VERSION_523__SUCCEEDED
 LIVE_CANARY_RUNNER_DEPLOYMENT_RECEIPT = VERSION_527__COMMIT_163832638FC51E090F103B336E1A75734008B112__SUCCEEDED
-LAST_RECONCILED_SITE_VERSION = 548__REMEDIATION_INCIDENT_RECEIPT_DOCS__COMMIT_A5952E637F1FF73829C04E5F91553A5FA09BC03F__ENV_REVISION_59__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
+LAST_RECONCILED_SITE_VERSION = 550__CURRENT_RIGHTS_INVENTORY_LIVE_RECEIPT_DOCS__COMMIT_4767CDBF928BBBFF6904CD9D4201068A942A77F0__ENV_REVISION_61__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
 LIVE_CANARY_QUALIFICATION = PASS__FACTORY_LIVE_CANARY_QUALIFICATION_6D527FCBA653A020ACFBA9A6__ZERO_DISPATCH__ZERO_SPEND
 HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION = PASS__FACTORY_TREATMENT_QUALIFICATION_35941CD62FB0364063A1F98D__10_CASES__D1_R2_READBACK__IDEMPOTENT_REPLAY__ZERO_DISPATCH__ZERO_SPEND
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
@@ -38,9 +38,11 @@ Migration `0118` is live in Sites v545 at commit `ca41b0afce1bc6698ef610e5f97586
 
 Migration `0119` is live in Sites v547 at commit `2838998bc1a8bb05bfdc476d4aaa4e14d989db05`. One bounded zero-provider classification stores one COMPLETE run plus four append-only `MUTABLE_R2_KEY_OVERWRITE` receipts. All four unrecoverable historical candidates are `QUARANTINED_NOT_RIGHTS_ELIGIBLE`; each references an already exact-evidence-verified surviving candidate without duplication or promotion. The eligible current-rights scope is therefore 62, all still receipt-pending. The identical request returns `IDEMPOTENT_REPLAY`. D1 read-back verifies one run/four receipts and zero count/qualification/PASS/provider/R22/master/release/publication authority, provider requests and spend. QA Cockpit V4 projects quarantine separately from rights work. Temporary writer/classifier flags and token are absent after same-source redeployment at environment revision 59; the Site remains owner-only. Full regression passes 263/263.
 
-Migration `0120` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_V1` are source-ready but not yet Production evidence. The bounded append-only inventory can examine only the 62 exact byte/checksum/provenance-eligible items and excludes every `0119` quarantine. It attaches a source receipt only when the exact artifact hash, receipt type, commercial scope, coverage and current validity all pass fail-closed checks; otherwise it records `SOURCE_RECEIPT_REQUIRED`. Provider terms additionally require exact request/response/artifact binding and a paid-plan interval that covers both generation and inventory time; composite evidence requires a complete exact parent set; authorship evidence requires current territory/commercial terms. The inventory cannot update historical candidates, create rights PASS, count a corpus item, dispatch a provider or grant qualification/R22/master/release/publication authority. QA Cockpit V5 projects attached versus pending receipts. Targeted rights/Cockpit verification passes 10/10; the live zero-provider run, replay and cleanup remain pending.
+Migration `0120` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_V1` are live in Sites v549 at commit `e3b695b3494bf0ee57add2ac65be1b677aa4c0f9`. The bounded append-only inventory examines only the 62 exact byte/checksum/provenance-eligible items and excludes all four `0119` quarantines. It attaches a source receipt only when exact artifact hash, receipt type, commercial scope, coverage and current validity all pass fail-closed checks; otherwise it records `SOURCE_RECEIPT_REQUIRED`. The first Production run stores 62 item receipts: 46 provider terms/plan tasks and 16 composite parent-manifest tasks. Zero source receipts satisfy the current exact contract, so attached remains 0 and pending remains 62. The identical request returns `IDEMPOTENT_REPLAY`. Every item and run retains zero count/qualification/PASS/provider/R22/master/release/publication authority, provider requests and spend. QA Cockpit V5 projects the truthful 0/62 result. Full regression passes 264/264; temporary writer/inventory flags and token are absent after same-source redeployment at environment revision 61, and the Site remains owner-only.
 
 The owner authorizes continuing roadmap-bounded source, migration, test, private-mirror, Sites checkpoint/deployment and zero-provider verification work for this repository without asking for a new approval at each bounded slice. This standing authority excludes YouTube AI Factory V2 and does not grant provider dispatch, spend, R22, master, release or publication authority. Connector or platform controls may still require an exact payload-specific confirmation and cannot be bypassed.
+
+The current source tree is synchronized byte-for-byte to the private GitHub mirror, but the commit IDs are not equal: this turn's Sites lifecycle checkpoint created its commit before the GitHub object protocol ran, while GitHub creates its own authenticated commit identity. No branch was force-rewritten and no forward-only history was discarded. Exact-SHA convergence is therefore explicitly blocked pending separate approval for a non-fast-forward Sites source-ref replacement; until then, tree equality is evidence and commit equality must not be claimed.
 
 ## Production truth
 

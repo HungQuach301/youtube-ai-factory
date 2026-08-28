@@ -9,7 +9,7 @@ Architecture and documentation are complete for the approved design scope. Histo
 
 ## Phase 44 — SSOT closure and repository synchronization
 
-**Status:** `COMPLETE__SYNCHRONIZED`
+**Status:** `COMPLETE_BASELINE__CURRENT_TREE_SYNCED__EXACT_SHA_RECONCILIATION_OPEN`
 
 Exit evidence:
 
@@ -21,9 +21,11 @@ Exit evidence:
 
 Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a800d2d540bcfea141c98c9977cd46667950`; later checkpoints must repeat the equality proof.
 
+The current Rights Inventory tree is mirrored byte-for-byte, but this turn's Sites-first checkpoint and GitHub-authenticated commit have different commit IDs. No force rewrite was attempted. Exact-SHA closure remains open and requires separate approval before replacing the Sites source ref non-fast-forward; Production content and D1 receipts are unaffected.
+
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__CURRENT_RIGHTS_INVENTORY_V1_SOURCE_READY__LIVE_ZERO_PROVIDER_RUN_PENDING`
+**Status:** `IN_PROGRESS__CURRENT_RIGHTS_INVENTORY_V1_LIVE__0_ATTACHED__62_PENDING`
 
 Implement:
 
@@ -147,7 +149,7 @@ Migration `0118` and `FACTORY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE_V1` are live
 
 Migration `0119` and `FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENT_V1` are live in Sites v547. The bounded zero-provider classifier stores one COMPLETE run and four append-only overwrite receipts, preserving every `0118` failure. All four originals are quarantined and not rights-eligible; all four reference an already exact-evidence-verified surviving candidate without duplication or promotion. The eligible current-rights scope is 62 and all 62 remain receipt-pending. The identical request returns `IDEMPOTENT_REPLAY`; D1 read-back and QA Cockpit V4 confirm zero count/downstream authority, provider requests and spend. Temporary runtime values are absent at environment revision 59. The next coherent unit is current immutable rights evidence for the 62 eligible items before correlation, owner labels or corpus review.
 
-Migration `0120` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_V1` are source-ready for the next bounded Production unit. They add one append-only inventory run and one receipt per exact byte/checksum/provenance-eligible item, exclude `0119` quarantines, and attach only exact/current provider, composite or authorship evidence. Missing, mismatched, expired or incomplete evidence remains `SOURCE_RECEIPT_REQUIRED`; no candidate rights state or downstream authority is mutated. QA Cockpit V5 exposes attached/pending counts. The live zero-provider inventory, idempotent replay and temporary-flag cleanup are the next protected action; correlation and owner labels remain later.
+Migration `0120` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_V1` are live in Sites v549. One zero-provider COMPLETE run inventories the 62 exact byte/checksum/provenance-eligible items while excluding all four `0119` quarantines. D1 stores 62 immutable receipts: 46 require provider terms/plan evidence and 16 require complete composite parent manifests. No source receipt satisfies the exact current contract, so attached is 0 and pending is 62. Replay is idempotent; every count/downstream authority, provider-request and spend field is zero. QA Cockpit V5 exposes the truthful queue, and temporary runtime values are absent at environment revision 61. The next coherent unit is to collect and attach the 62 exact current rights receipts before correlation, owner labels or corpus review.
 
 ## Phase 46 — R22 canary
 
