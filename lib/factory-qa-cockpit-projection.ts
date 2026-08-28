@@ -1,6 +1,6 @@
 import { FACTORY_ASSURANCE_LAYERS } from "@/lib/factory-evidence-assurance";
 
-export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V7" as const;
+export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V8" as const;
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }> };
@@ -28,7 +28,7 @@ const layerDefinition: Record<AssuranceLayer, { name: string; role: string; evid
 export type FactoryQaCockpitProjection = Awaited<ReturnType<typeof factoryQaCockpitProjection>>;
 
 export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
-  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows, remediationIncidentRows, rightsInventoryRows, rightsCollectionRows, rightsCollectionTaskRows, rightsTerminalRows, rightsTerminalReceiptRows] = await Promise.all([
+  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows, remediationIncidentRows, rightsInventoryRows, rightsCollectionRows, rightsCollectionTaskRows, rightsTerminalRows, rightsTerminalReceiptRows, replacementPlanRows, replacementWorkOrderRows] = await Promise.all([
     rows(db, `SELECT r.*,c.dataset_version,c.dataset_manifest_hash,c.lifecycle_state campaign_state,c.created_at campaign_created_at
       FROM factory_assurance_calibration_results r JOIN factory_assurance_calibration_campaigns c ON c.id=r.campaign_id
       ORDER BY c.created_at DESC,r.created_at DESC,r.id DESC`),
@@ -100,6 +100,14 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
         WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
         ORDER BY created_at DESC,id DESC LIMIT 1)
       GROUP BY terminal_reason,disposition,replacement_action ORDER BY terminal_reason`),
+    rows(db, `SELECT * FROM factory_assurance_controlled_fixture_replacement_plan_runs
+      WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
+      ORDER BY created_at DESC,id DESC LIMIT 1`),
+    rows(db, `SELECT replacement_route,work_order_state,materialization_state,COUNT(*) order_count FROM factory_assurance_controlled_fixture_replacement_work_orders
+      WHERE run_id=(SELECT id FROM factory_assurance_controlled_fixture_replacement_plan_runs
+        WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
+        ORDER BY created_at DESC,id DESC LIMIT 1)
+      GROUP BY replacement_route,work_order_state,materialization_state ORDER BY replacement_route`),
   ]);
 
   const latestCalibration = new Map<AssuranceLayer, Row>();
@@ -211,6 +219,7 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   const rightsInventory = rightsInventoryRows[0] ?? {};
   const rightsCollection = rightsCollectionRows[0] ?? {};
   const rightsTerminal = rightsTerminalRows[0] ?? {};
+  const replacementPlan = replacementPlanRows[0] ?? {};
   const corpusLayerReadiness = json<Array<Record<string, unknown>>>(corpus?.layer_readiness_json, []);
   const outcomeCounts = recentRuns.reduce<Record<string, number>>((accumulator, run) => {
     accumulator[run.outcome] = (accumulator[run.outcome] ?? 0) + 1;
@@ -230,7 +239,8 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   if (number(remediationIncident.rights_eligible_items) > 0 && !text(rightsInventory.id)) blockers.push("CURRENT_RIGHTS_INVENTORY_REQUIRED");
   if (number(rightsInventory.pending_receipt_items) > 0 && !text(rightsCollection.id)) blockers.push("CURRENT_RIGHTS_COLLECTION_QUEUE_REQUIRED");
   if (number(rightsCollection.open_tasks) > 0 && !text(rightsTerminal.id)) blockers.push("CURRENT_RIGHTS_TERMINAL_DISPOSITION_REQUIRED");
-  if (text(rightsTerminal.id) && number(rightsTerminal.remaining_receipt_collection_items) === 0) blockers.push("CONTROLLED_RIGHTS_QUALIFIED_FIXTURES_REQUIRED");
+  if (text(rightsTerminal.id) && number(rightsTerminal.remaining_receipt_collection_items) === 0 && !text(replacementPlan.id)) blockers.push("CONTROLLED_FIXTURE_REPLACEMENT_PLAN_REQUIRED");
+  if (text(replacementPlan.id) && number(replacementPlan.pending_materialization_items) > 0) blockers.push("CONTROLLED_FIXTURE_MATERIALIZATION_REQUIRED");
 
   return {
     version: FACTORY_QA_COCKPIT_VERSION,
@@ -297,6 +307,13 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       currentRightsLineageUnrecoverable: number(rightsTerminal.lineage_unrecoverable_items),
       currentRightsReplacementRequired: number(rightsTerminal.replacement_required_items),
       currentRightsRemainingCollection: number(rightsTerminal.remaining_receipt_collection_items),
+      controlledFixtureReplacementPlanState: text(replacementPlan.lifecycle_state) || "NOT_PLANNED",
+      controlledFixtureReplacementPlanned: number(replacementPlan.planned_work_orders),
+      controlledFixtureProviderAudioOrders: number(replacementPlan.provider_audio_orders),
+      controlledFixtureCompositeMasterOrders: number(replacementPlan.composite_master_orders),
+      controlledFixtureAuthorshipOrders: number(replacementPlan.authorship_orders),
+      controlledFixtureMaterialized: number(replacementPlan.materialized_items),
+      controlledFixturePending: number(replacementPlan.pending_materialization_items),
     },
     corpus: {
       snapshotHash: corpus ? text(corpus.snapshot_hash) : null,
@@ -336,6 +353,11 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
         rightsReplacementRequired: number(rightsTerminal.replacement_required_items),
         rightsRemainingCollection: number(rightsTerminal.remaining_receipt_collection_items),
         rightsTerminalQueue: rightsTerminalReceiptRows.map((row) => ({ reason: text(row.terminal_reason), disposition: text(row.disposition), replacementAction: text(row.replacement_action), count: number(row.receipt_count) })),
+        controlledFixtureReplacementPlanState: text(replacementPlan.lifecycle_state) || "NOT_PLANNED",
+        controlledFixtureReplacementPlanned: number(replacementPlan.planned_work_orders),
+        controlledFixtureMaterialized: number(replacementPlan.materialized_items),
+        controlledFixturePending: number(replacementPlan.pending_materialization_items),
+        controlledFixtureReplacementQueue: replacementWorkOrderRows.map((row) => ({ route: text(row.replacement_route), state: text(row.work_order_state), materializationState: text(row.materialization_state), count: number(row.order_count) })),
       },
       countEligible: false as const,
       qualificationAuthority: false as const,
@@ -355,7 +377,9 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
               : number(rightsInventory.pending_receipt_items) > 0
                 ? text(rightsCollection.id)
                   ? text(rightsTerminal.id)
-                    ? `Replace the ${number(rightsTerminal.replacement_required_items)} terminal historical artifacts with new controlled fixtures carrying generation-time rights and exact parent lineage. The quarantined bytes remain failure evidence only.`
+                    ? text(replacementPlan.id)
+                      ? `Materialize the ${number(replacementPlan.pending_materialization_items)} planned controlled fixtures in separately authorized bounded batches with exact cost reservation, native rights binding and exact parent lineage. The quarantined bytes remain failure evidence only.`
+                      : `Plan the ${number(rightsTerminal.replacement_required_items)} terminal quarantines as immutable zero-dispatch controlled-fixture work orders before any provider or composition request.`
                     : `Classify the ${number(rightsCollection.open_tasks)} collection tasks against immutable terminal recovery and lineage evidence before seeking new receipts. Do not retry exhausted historical recovery or infer rights from package correlation.`
                   : `Materialize a zero-provider collection queue for the ${number(rightsInventory.pending_receipt_items)} pending exact current rights receipts; do not infer PASS or fetch external evidence in the inventory step.`
               : "Resolve correlation and owner-label work for exact-evidence-ready items; then review eligible inputs into a new immutable corpus snapshot. No work item counts as calibration evidence by itself."

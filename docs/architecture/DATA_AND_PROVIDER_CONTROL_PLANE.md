@@ -87,6 +87,8 @@ Migration `0110` makes asset eligibility executable independently of provider di
 
 Migration `0122` makes terminal historical-rights disposition executable without provider access and is live in owner-only Sites v554. A terms or plan document cannot repair an unavailable exact provider response, and same-package correlation cannot reconstruct an absent exact parent manifest. The classifier accepts only candidate-specific terminal provider no-match evidence or missing-lineage evidence; Production read-back verifies 46 provider failures plus 16 lineage failures, 62 failure-only quarantines and 62 controlled-fixture replacement requirements. It never converts a collection task into a rights receipt or mutates an old candidate.
 
+Migration `0123` makes the zero-dispatch replacement-plan boundary live in owner-only Sites v557. Every `0122` terminal receipt produces one immutable work order with a fresh replacement identity, a unique correlation group and an explicit prohibition on using the historical bytes as a replacement or parent. Production D1 verifies 62 planned orders—46 provider audio and 16 composite master—with 62 unique groups, zero materialization and idempotent replay. Provider audio routes require new native request/response/artifact binding plus generation-time terms and paid-plan evidence. Composite routes require a new immutable exact-parent manifest with current rights coverage for every parent. Planning stores no output bytes, makes no provider request, reserves no spend and grants no downstream authority; materialization requires a separate typed, cost-reserved bounded batch. Temporary runtime values are absent at environment revision 68.
+
 ## Approved capability plan
 
 | Capability | Preferred route | Control boundary |

@@ -10,6 +10,7 @@ import { classifyFactoryAssuranceCorpusRemediationIncidents } from "../lib/facto
 import { inventoryFactoryAssuranceCurrentRightsEvidence } from "../lib/factory-assurance-current-rights-inventory.ts";
 import { materializeFactoryAssuranceCurrentRightsCollection } from "../lib/factory-assurance-current-rights-collection.ts";
 import { classifyFactoryAssuranceCurrentRightsTerminalDisposition } from "../lib/factory-assurance-current-rights-terminal-disposition.ts";
+import { planFactoryAssuranceControlledFixtureReplacements } from "../lib/factory-assurance-controlled-fixture-replacement-plan.ts";
 import { factoryQaCockpitProjection } from "../lib/factory-qa-cockpit-projection.ts";
 
 const root = new URL("../", import.meta.url);
@@ -119,8 +120,8 @@ function seedTerminalRecoveryEvidence(database, provider, master) {
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run("terminal-lineage-diagnostic", "channel-hidden-systems", "terminal-master-rights-task", master.id, "COMPOSITE_PARENT_RIGHTS_MANIFEST", "EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1", `artifact-${master.id}`, master.exactHash, 0, 0, 0, "SOURCE_LINEAGE_BINDING_MISSING", "[\"SOURCE_ARTIFACT_HAS_NO_EXACT_MANIFEST_BINDING\"]");
 }
 
-test("migrations 0118 through 0122 install append-only zero-authority evidence, incident and current-rights receipts", () => {
-  assert.equal(migrations.at(-1), "0122_factory_assurance_current_rights_terminal_disposition.sql");
+test("migrations 0118 through 0123 install append-only zero-authority remediation and replacement-plan receipts", () => {
+  assert.equal(migrations.at(-1), "0123_factory_assurance_controlled_fixture_replacement_plan.sql");
   const migration = read("drizzle/0118_factory_assurance_corpus_remediation_evidence.sql");
   for (const table of ["factory_assurance_corpus_remediation_evidence_runs", "factory_assurance_corpus_remediation_evidence_receipts"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
@@ -141,6 +142,10 @@ test("migrations 0118 through 0122 install append-only zero-authority evidence, 
   for (const table of ["factory_assurance_current_rights_terminal_disposition_runs", "factory_assurance_current_rights_terminal_disposition_receipts"]) assert.ok(terminalMigration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(terminalMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
   assert.doesNotMatch(terminalMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
+  const replacementMigration = read("drizzle/0123_factory_assurance_controlled_fixture_replacement_plan.sql");
+  for (const table of ["factory_assurance_controlled_fixture_replacement_plan_runs", "factory_assurance_controlled_fixture_replacement_work_orders"]) assert.ok(replacementMigration.includes(`CREATE TABLE \`${table}\``));
+  for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(replacementMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.doesNotMatch(replacementMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
 });
 
 test("evidence runner verifies exact R2 bytes but keeps missing current rights fail-closed and count-ineligible", async () => {
@@ -259,7 +264,7 @@ test("current-rights collection materializes one fail-closed task per pending in
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_current_rights_collection_runs").get().count, 1);
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_current_rights_collection_tasks").get().count, 1);
   const projection = await factoryQaCockpitProjection(db);
-  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V7");
+  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V8");
   assert.equal(projection.summary.currentRightsCollectionOpen, 1);
   assert.deepEqual(projection.remediation.evidence.rightsCollectionQueue, [{ receiptType: "PROVIDER_TERMS_AND_PLAN_RECEIPT", state: "RECEIPT_REQUIRED", count: 1 }]);
   assert.match(projection.nextAction, /Classify the 1 collection tasks/);
@@ -304,10 +309,42 @@ test("terminal rights disposition quarantines exhausted provider and lineage tas
   ]);
   assert.equal((await classifyFactoryAssuranceCurrentRightsTerminalDisposition(db, input)).outcome, "IDEMPOTENT_REPLAY");
   const projection = await factoryQaCockpitProjection(db);
-  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V7");
+  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V8");
   assert.equal(projection.summary.currentRightsTerminalQuarantined, 2);
   assert.equal(projection.summary.currentRightsRemainingCollection, 0);
-  assert.match(projection.nextAction, /Replace the 2 terminal historical artifacts/);
+  assert.match(projection.nextAction, /Plan the 2 terminal quarantines/);
+  const planned = await planFactoryAssuranceControlledFixtureReplacements(db, { actor: "owner@example.com", idempotencyKey: "assurance-fixture-plan-0001" });
+  assert.deepEqual({ outcome: planned.outcome, scope: planned.scopeItems, planned: planned.plannedWorkOrders, provider: planned.providerAudioOrders, composite: planned.compositeMasterOrders, authorship: planned.authorshipOrders, materialized: planned.materializedItems, pending: planned.pendingMaterializationItems, requests: planned.providerRequests, spend: planned.spendMicros },
+    { outcome: "RECORDED", scope: 2, planned: 2, provider: 1, composite: 1, authorship: 0, materialized: 0, pending: 2, requests: 0, spend: 0 });
+  const orders = database.prepare(`SELECT replacement_route,historical_exact_artifact_hash,replacement_identity,replacement_correlation_group,generation_contract_json,rights_lineage_contract_json,independence_contract_json,work_order_state,materialization_state,source_disposition,source_rights_eligible,count_eligible,pass_authority,provider_dispatch_authority,r22_authority,master_authority,release_authority,publication_authority,provider_requests,spend_micros
+    FROM factory_assurance_controlled_fixture_replacement_work_orders ORDER BY replacement_route`).all().map((row) => ({ ...row }));
+  assert.equal(orders.length, 2);
+  assert.deepEqual(orders.map((order) => order.replacement_route), ["NEW_COMPOSITE_MASTER_WITH_EXACT_PARENT_MANIFEST", "NEW_PROVIDER_AUDIO_WITH_NATIVE_BINDING"]);
+  assert.equal(new Set(orders.map((order) => order.replacement_identity)).size, 2);
+  assert.equal(new Set(orders.map((order) => order.replacement_correlation_group)).size, 2);
+  for (const order of orders) {
+    const generation = JSON.parse(order.generation_contract_json), rights = JSON.parse(order.rights_lineage_contract_json), independence = JSON.parse(order.independence_contract_json);
+    assert.ok(generation.requiredAtGeneration.includes("EXACT_OUTPUT_BYTES_SHA256"));
+    assert.equal(rights.admissionAuthority, "NONE_UNTIL_SEPARATE_REVIEW");
+    assert.equal(independence.historicalExactArtifactHash, order.historical_exact_artifact_hash);
+    assert.equal(independence.historicalBytesUse, "FORBIDDEN_AS_REPLACEMENT_OR_PARENT");
+    assert.equal(independence.exactByteReuseAllowed, false);
+    assert.equal(independence.derivedFromHistoricalBytesAllowed, false);
+    for (const key of ["source_rights_eligible", "count_eligible", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.equal(order[key], 0);
+    assert.equal(order.work_order_state, "PLANNED_ZERO_DISPATCH");
+    assert.equal(order.materialization_state, "NOT_MATERIALIZED");
+    assert.equal(order.source_disposition, "QUARANTINED_FAILURE_EVIDENCE_ONLY");
+  }
+  assert.equal((await planFactoryAssuranceControlledFixtureReplacements(db, { actor: "owner@example.com", idempotencyKey: "assurance-fixture-plan-0001" })).outcome, "IDEMPOTENT_REPLAY");
+  const plannedProjection = await factoryQaCockpitProjection(db);
+  assert.equal(plannedProjection.summary.controlledFixtureReplacementPlanned, 2);
+  assert.equal(plannedProjection.summary.controlledFixturePending, 2);
+  assert.deepEqual(plannedProjection.remediation.evidence.controlledFixtureReplacementQueue.map((item) => ({ route: item.route, count: item.count })), [
+    { route: "NEW_COMPOSITE_MASTER_WITH_EXACT_PARENT_MANIFEST", count: 1 },
+    { route: "NEW_PROVIDER_AUDIO_WITH_NATIVE_BINDING", count: 1 },
+  ]);
+  assert.match(plannedProjection.nextAction, /Materialize the 2 planned controlled fixtures/);
+  assert.throws(() => database.prepare("UPDATE factory_assurance_controlled_fixture_replacement_work_orders SET materialization_state='NOT_MATERIALIZED'").run(), /APPEND_ONLY/);
   assert.throws(() => database.prepare("UPDATE factory_assurance_current_rights_terminal_disposition_receipts SET rights_eligible=1").run(), /APPEND_ONLY/);
   assert.equal(database.prepare("SELECT COUNT(*) count FROM v7_evaluation_candidates WHERE qualification_eligible=1 OR release_eligible=1").get().count, 0);
 });

@@ -32,6 +32,7 @@ import { classifyFactoryAssuranceCorpusRemediationIncidents } from "@/lib/factor
 import { inventoryFactoryAssuranceCurrentRightsEvidence } from "@/lib/factory-assurance-current-rights-inventory";
 import { materializeFactoryAssuranceCurrentRightsCollection } from "@/lib/factory-assurance-current-rights-collection";
 import { classifyFactoryAssuranceCurrentRightsTerminalDisposition } from "@/lib/factory-assurance-current-rights-terminal-disposition";
+import { planFactoryAssuranceControlledFixtureReplacements } from "@/lib/factory-assurance-controlled-fixture-replacement-plan";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ type RuntimeEnv = {
   FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_ENABLED?: string;
   FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_ENABLED?: string;
   FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_ENABLED?: string;
+  FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_ENABLED?: string;
   FACTORY_RUNTIME_QUALIFICATION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_TOKEN?: string;
@@ -64,6 +66,7 @@ type RuntimeEnv = {
   FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_TOKEN?: string;
   FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_TOKEN?: string;
   FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_TOKEN?: string;
+  FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_TOKEN?: string;
   FACTORY_AUTOMATION_ACTOR_EMAIL?: string;
   FACTORY_AUTOMATION_ACTOR_NAME?: string;
 };
@@ -106,7 +109,9 @@ async function secretMatches(left: string, right: string) {
 
 async function authorize(env: RuntimeEnv, request?: Request, action = "") {
   let user = await getChatGPTUser();
-  const credential = action === "CLASSIFY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION"
+  const credential = action === "PLAN_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENTS"
+    ? [request?.headers.get("x-factory-assurance-controlled-fixture-replacement-token") || "", env.FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_TOKEN || ""]
+    : action === "CLASSIFY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION"
     ? [request?.headers.get("x-factory-assurance-current-rights-terminal-token") || "", env.FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_TOKEN || ""]
     : action === "MATERIALIZE_ASSURANCE_CURRENT_RIGHTS_COLLECTION"
       ? [request?.headers.get("x-factory-assurance-current-rights-collection-token") || "", env.FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_TOKEN || ""]
@@ -122,7 +127,7 @@ async function authorize(env: RuntimeEnv, request?: Request, action = "") {
             ? [request?.headers.get("x-factory-assurance-corpus-token") || "", env.FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN || ""]
             : [request?.headers.get("x-factory-runtime-qualification-token") || "", env.FACTORY_RUNTIME_QUALIFICATION_TOKEN || ""];
   const qualificationCredential =
-    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION", "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION", "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE", "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS", "INVENTORY_ASSURANCE_CURRENT_RIGHTS", "MATERIALIZE_ASSURANCE_CURRENT_RIGHTS_COLLECTION", "CLASSIFY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION"].includes(action) &&
+    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION", "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION", "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE", "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS", "INVENTORY_ASSURANCE_CURRENT_RIGHTS", "MATERIALIZE_ASSURANCE_CURRENT_RIGHTS_COLLECTION", "CLASSIFY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION", "PLAN_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENTS"].includes(action) &&
     request &&
     await secretMatches(credential[0], credential[1]);
   if (!user && qualificationCredential) {
@@ -311,6 +316,13 @@ export async function POST(request: Request) {
     if (action === "CLASSIFY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION") {
       if (env.FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_ENABLED !== "true") return failure("FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_DISABLED", "The bounded terminal rights disposition is disabled until an explicit deployment authorization is configured", 503);
       return Response.json(await classifyFactoryAssuranceCurrentRightsTerminalDisposition(env.DB, {
+        actor: user.email, idempotencyKey: string(body.idempotencyKey),
+      }), { status: 201, headers: NO_STORE });
+    }
+
+    if (action === "PLAN_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENTS") {
+      if (env.FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_ENABLED !== "true") return failure("FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_DISABLED", "The zero-dispatch controlled-fixture replacement planner is disabled until an explicit deployment authorization is configured", 503);
+      return Response.json(await planFactoryAssuranceControlledFixtureReplacements(env.DB, {
         actor: user.email, idempotencyKey: string(body.idempotencyKey),
       }), { status: 201, headers: NO_STORE });
     }

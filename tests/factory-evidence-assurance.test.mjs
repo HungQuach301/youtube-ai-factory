@@ -93,7 +93,7 @@ async function createRun(db, overrides = {}) {
 }
 
 test("migration 0114 installs immutable exact evidence and L0-L7 assurance foundation with zero downstream authority", () => {
-  assert.equal(migrations.at(-1), "0122_factory_assurance_current_rights_terminal_disposition.sql");
+  assert.equal(migrations.at(-1), "0123_factory_assurance_controlled_fixture_replacement_plan.sql");
   const migration = read("drizzle/0114_factory_evidence_lineage_and_assurance_foundation.sql");
   for (const table of ["factory_evidence_bundles", "factory_evidence_items", "factory_assurance_judge_qualifications", "factory_assurance_runs", "factory_assurance_layer_receipts", "factory_assurance_decision_receipts", "factory_assurance_drift_receipts"]) assert.ok(migration.includes("CREATE TABLE `" + table + "`"));
   assert.match(migration, /candidate_outcome.*AI_ACCEPTED/);
