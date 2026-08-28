@@ -8,6 +8,8 @@ import { materializeFactoryAssuranceCorpusRemediationInventory } from "../lib/fa
 import { verifyFactoryAssuranceCorpusRemediationEvidenceBatch } from "../lib/factory-assurance-corpus-remediation-evidence.ts";
 import { classifyFactoryAssuranceCorpusRemediationIncidents } from "../lib/factory-assurance-corpus-remediation-incidents.ts";
 import { inventoryFactoryAssuranceCurrentRightsEvidence } from "../lib/factory-assurance-current-rights-inventory.ts";
+import { materializeFactoryAssuranceCurrentRightsCollection } from "../lib/factory-assurance-current-rights-collection.ts";
+import { factoryQaCockpitProjection } from "../lib/factory-qa-cockpit-projection.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -86,8 +88,8 @@ function bucket(items) {
   };
 }
 
-test("migrations 0118 through 0120 install append-only zero-authority evidence, incident and current-rights receipts", () => {
-  assert.equal(migrations.at(-1), "0120_factory_assurance_current_rights_inventory.sql");
+test("migrations 0118 through 0121 install append-only zero-authority evidence, incident and current-rights receipts", () => {
+  assert.equal(migrations.at(-1), "0121_factory_assurance_current_rights_collection.sql");
   const migration = read("drizzle/0118_factory_assurance_corpus_remediation_evidence.sql");
   for (const table of ["factory_assurance_corpus_remediation_evidence_runs", "factory_assurance_corpus_remediation_evidence_receipts"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
@@ -100,6 +102,10 @@ test("migrations 0118 through 0120 install append-only zero-authority evidence, 
   for (const table of ["factory_assurance_current_rights_inventory_runs", "factory_assurance_current_rights_inventory_receipts"]) assert.ok(rightsMigration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(rightsMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
   assert.doesNotMatch(rightsMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
+  const collectionMigration = read("drizzle/0121_factory_assurance_current_rights_collection.sql");
+  for (const table of ["factory_assurance_current_rights_collection_runs", "factory_assurance_current_rights_collection_tasks"]) assert.ok(collectionMigration.includes(`CREATE TABLE \`${table}\``));
+  for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(collectionMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.doesNotMatch(collectionMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
 });
 
 test("evidence runner verifies exact R2 bytes but keeps missing current rights fail-closed and count-ineligible", async () => {
@@ -190,4 +196,38 @@ test("current-rights inventory attaches only exact current immutable receipts an
   assert.equal((await inventoryFactoryAssuranceCurrentRightsEvidence(db, input)).outcome, "IDEMPOTENT_REPLAY");
   await assert.rejects(() => inventoryFactoryAssuranceCurrentRightsEvidence(db, { ...input, evaluatedAt: "2026-08-29T12:00:00.000Z" }), /idempotency key is bound/i);
   assert.throws(() => database.prepare("UPDATE factory_assurance_current_rights_inventory_receipts SET count_eligible=1").run(), /APPEND_ONLY/);
+});
+
+test("current-rights collection materializes one fail-closed task per pending inventory receipt and replays without dispatch", async () => {
+  const { database, db } = setup(); await seedCorpus(db);
+  const collisionKey = "remediation/rights-collection-collision.bin";
+  seedSource(database, { id: "rights-collection-overwritten", bytes: "rights-collection-old-bytes", storageKey: collisionKey });
+  const pending = seedSource(database, { id: "rights-collection-provider", bytes: "rights-collection-provider-bytes", storageKey: collisionKey });
+  await materializeFactoryAssuranceCorpusRemediationInventory(db, "owner@example.com");
+  await verifyFactoryAssuranceCorpusRemediationEvidenceBatch({ DB: db, BUCKET: bucket([pending]) }, {
+    actor: "owner@example.com", idempotencyKey: "assurance-collection-evidence-0001", batchLimit: 2,
+  });
+  await classifyFactoryAssuranceCorpusRemediationIncidents(db, { actor: "owner@example.com", idempotencyKey: "assurance-collection-incident-0001" });
+  await inventoryFactoryAssuranceCurrentRightsEvidence(db, { actor: "owner@example.com", idempotencyKey: "assurance-collection-inventory-0001", evaluatedAt: "2026-08-28T12:00:00.000Z" });
+  const input = { actor: "owner@example.com", idempotencyKey: "assurance-rights-collection-0001" };
+  const result = await materializeFactoryAssuranceCurrentRightsCollection(db, input);
+  assert.deepEqual({ outcome: result.outcome, scope: result.collectionScopeItems, open: result.openTasks, provider: result.providerTermsTasks, composite: result.compositeManifestTasks, authorship: result.authorshipTasks, requests: result.providerRequests, spend: result.spendMicros },
+    { outcome: "RECORDED", scope: 1, open: 1, provider: 1, composite: 0, authorship: 0, requests: 0, spend: 0 });
+  const task = database.prepare(`SELECT required_receipt_type,collection_state,requirements_json,source_receipt_id,count_eligible,pass_authority,provider_dispatch_authority,r22_authority,release_authority,publication_authority,provider_requests,spend_micros
+    FROM factory_assurance_current_rights_collection_tasks`).get();
+  assert.equal(task.required_receipt_type, "PROVIDER_TERMS_AND_PLAN_RECEIPT");
+  assert.equal(task.collection_state, "RECEIPT_REQUIRED");
+  assert.equal(task.source_receipt_id, null);
+  assert.deepEqual(JSON.parse(task.requirements_json), ["EXACT_REQUEST_RESPONSE_ARTIFACT_BINDING", "TERMS_SNAPSHOT_EFFECTIVE_AT_GENERATION", "PAID_PLAN_EVIDENCE_COVERS_GENERATION_AND_COLLECTION_TIME", "COMMERCIAL_SCOPE_AND_TERRITORY_VERIFIED", "RAW_RESPONSE_AND_RECEIPT_HASHES_PRESENT"]);
+  for (const key of ["count_eligible", "pass_authority", "provider_dispatch_authority", "r22_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.equal(task[key], 0);
+  assert.equal((await materializeFactoryAssuranceCurrentRightsCollection(db, input)).outcome, "IDEMPOTENT_REPLAY");
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_current_rights_collection_runs").get().count, 1);
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_current_rights_collection_tasks").get().count, 1);
+  const projection = await factoryQaCockpitProjection(db);
+  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V6");
+  assert.equal(projection.summary.currentRightsCollectionOpen, 1);
+  assert.deepEqual(projection.remediation.evidence.rightsCollectionQueue, [{ receiptType: "PROVIDER_TERMS_AND_PLAN_RECEIPT", state: "RECEIPT_REQUIRED", count: 1 }]);
+  assert.match(projection.nextAction, /Execute the 1 fail-closed collection tasks/);
+  assert.throws(() => database.prepare("UPDATE factory_assurance_current_rights_collection_tasks SET collection_state='RECEIPT_REQUIRED'").run(), /APPEND_ONLY/);
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM v7_evaluation_candidates WHERE qualification_eligible=1 OR release_eligible=1").get().count, 0);
 });

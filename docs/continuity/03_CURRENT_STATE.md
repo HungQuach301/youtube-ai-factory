@@ -16,15 +16,15 @@ PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
-PHASE_45 = IN_PROGRESS__CURRENT_RIGHTS_INVENTORY_V1_LIVE__0_ATTACHED__62_PENDING
+PHASE_45 = IN_PROGRESS__CURRENT_RIGHTS_COLLECTION_V1_LIVE__62_TASKS_PENDING
 PHASE_46 = GATED__ASSURANCE_CALIBRATION_AND_EXACT_DEPENDENCY_ADMISSION_REQUIRED__R22_BLOCKED
-SOURCE_MIGRATION = 0120_FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY__LIVE_VERIFIED
-SOURCE_MIGRATION_LIVE_D1 = VERIFIED__0120_ONE_RUN__62_ITEM_RECEIPTS__0_ATTACHED__62_REQUIRED__4_QUARANTINES_EXCLUDED__IDEMPOTENT_REPLAY
+SOURCE_MIGRATION = 0121_FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION__LIVE_VERIFIED
+SOURCE_MIGRATION_LIVE_D1 = VERIFIED__0121_ONE_RUN__62_COLLECTION_TASKS__46_PROVIDER__16_COMPOSITE__0_AUTHORSHIP__ALL_RECEIPT_REQUIRED__IDEMPOTENT_REPLAY
 DEPLOYMENT_RECEIPT = VERSION_516__APPGDEP_6A8D334895008191A77BF70256460F01__SUCCEEDED
 RENDERER_DEPLOYMENT_RECEIPT = VERSION_521__SUCCEEDED
 COMPOSITOR_DEPLOYMENT_RECEIPT = VERSION_523__SUCCEEDED
 LIVE_CANARY_RUNNER_DEPLOYMENT_RECEIPT = VERSION_527__COMMIT_163832638FC51E090F103B336E1A75734008B112__SUCCEEDED
-LAST_RECONCILED_SITE_VERSION = 550__CURRENT_RIGHTS_INVENTORY_LIVE_RECEIPT_DOCS__COMMIT_4767CDBF928BBBFF6904CD9D4201068A942A77F0__ENV_REVISION_61__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
+LAST_RECONCILED_SITE_VERSION = 552__CURRENT_RIGHTS_COLLECTION_LIVE__COMMIT_BBA8501ED0F0BA3F73C6408B442F59A2163D7530__ENV_REVISION_63__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
 LIVE_CANARY_QUALIFICATION = PASS__FACTORY_LIVE_CANARY_QUALIFICATION_6D527FCBA653A020ACFBA9A6__ZERO_DISPATCH__ZERO_SPEND
 HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION = PASS__FACTORY_TREATMENT_QUALIFICATION_35941CD62FB0364063A1F98D__10_CASES__D1_R2_READBACK__IDEMPOTENT_REPLAY__ZERO_DISPATCH__ZERO_SPEND
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
@@ -39,6 +39,8 @@ Migration `0118` is live in Sites v545 at commit `ca41b0afce1bc6698ef610e5f97586
 Migration `0119` is live in Sites v547 at commit `2838998bc1a8bb05bfdc476d4aaa4e14d989db05`. One bounded zero-provider classification stores one COMPLETE run plus four append-only `MUTABLE_R2_KEY_OVERWRITE` receipts. All four unrecoverable historical candidates are `QUARANTINED_NOT_RIGHTS_ELIGIBLE`; each references an already exact-evidence-verified surviving candidate without duplication or promotion. The eligible current-rights scope is therefore 62, all still receipt-pending. The identical request returns `IDEMPOTENT_REPLAY`. D1 read-back verifies one run/four receipts and zero count/qualification/PASS/provider/R22/master/release/publication authority, provider requests and spend. QA Cockpit V4 projects quarantine separately from rights work. Temporary writer/classifier flags and token are absent after same-source redeployment at environment revision 59; the Site remains owner-only. Full regression passes 263/263.
 
 Migration `0120` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_V1` are live in Sites v549 at commit `e3b695b3494bf0ee57add2ac65be1b677aa4c0f9`. The bounded append-only inventory examines only the 62 exact byte/checksum/provenance-eligible items and excludes all four `0119` quarantines. It attaches a source receipt only when exact artifact hash, receipt type, commercial scope, coverage and current validity all pass fail-closed checks; otherwise it records `SOURCE_RECEIPT_REQUIRED`. The first Production run stores 62 item receipts: 46 provider terms/plan tasks and 16 composite parent-manifest tasks. Zero source receipts satisfy the current exact contract, so attached remains 0 and pending remains 62. The identical request returns `IDEMPOTENT_REPLAY`. Every item and run retains zero count/qualification/PASS/provider/R22/master/release/publication authority, provider requests and spend. QA Cockpit V5 projects the truthful 0/62 result. Full regression passes 264/264; temporary writer/inventory flags and token are absent after same-source redeployment at environment revision 61, and the Site remains owner-only.
+
+Migration `0121` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_V1` are live in Sites v552 at commit `bba8501ed0f0ba3f73c6408b442f59a2163d7530`. One bounded zero-provider materialization stores one COMPLETE run and exactly 62 append-only collection tasks: 46 provider terms/plan receipts, 16 composite parent manifests and zero authorship receipts. Every task remains `RECEIPT_REQUIRED`; source-receipt references are null, each exact artifact/evidence hash is valid and all typed requirement packs are complete. D1 read-back across all 62 rows confirms zero count/qualification/PASS/provider/R22/master/release/publication authority, provider requests and spend. The same payload returns `IDEMPOTENT_REPLAY`. QA Cockpit V6 projects the live queue, and the writer/collection flags plus token are absent after same-source redeployment at environment revision 63. The Site remains owner-only.
 
 The owner authorizes continuing roadmap-bounded source, migration, test, private-mirror, Sites checkpoint/deployment and zero-provider verification work for this repository without asking for a new approval at each bounded slice. This standing authority excludes YouTube AI Factory V2 and does not grant provider dispatch, spend, R22, master, release or publication authority. Connector or platform controls may still require an exact payload-specific confirmation and cannot be bypassed.
 
@@ -82,7 +84,7 @@ Still required before R22:
 ## Next protected action
 
 ```text
-1. Inventory and attach current immutable rights receipts to the 62 byte/provenance-eligible items; quarantined originals are not rights-eligible and declarations alone remain insufficient.
+1. Collect and attach exact current immutable rights receipts to the 62 live `0121` tasks; quarantined originals are not rights-eligible and declarations alone remain insufficient.
 2. Resolve correlation and owner-label work only after exact bytes plus current rights pass.
 3. Review eligible independent inputs into a new immutable threshold-V2 corpus snapshot.
 4. Calibrate exact L0-L7 judge/sampler dependencies in `AI_SHADOW`; keep every result advisory until exact qualification registration passes.

@@ -1,6 +1,6 @@
 import { FACTORY_ASSURANCE_LAYERS } from "@/lib/factory-evidence-assurance";
 
-export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V5" as const;
+export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V6" as const;
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }> };
@@ -28,7 +28,7 @@ const layerDefinition: Record<AssuranceLayer, { name: string; role: string; evid
 export type FactoryQaCockpitProjection = Awaited<ReturnType<typeof factoryQaCockpitProjection>>;
 
 export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
-  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows, remediationIncidentRows, rightsInventoryRows] = await Promise.all([
+  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows, remediationIncidentRows, rightsInventoryRows, rightsCollectionRows, rightsCollectionTaskRows] = await Promise.all([
     rows(db, `SELECT r.*,c.dataset_version,c.dataset_manifest_hash,c.lifecycle_state campaign_state,c.created_at campaign_created_at
       FROM factory_assurance_calibration_results r JOIN factory_assurance_calibration_campaigns c ON c.id=r.campaign_id
       ORDER BY c.created_at DESC,r.created_at DESC,r.id DESC`),
@@ -84,6 +84,14 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
     rows(db, `SELECT * FROM factory_assurance_current_rights_inventory_runs
       WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
       ORDER BY created_at DESC,id DESC LIMIT 1`),
+    rows(db, `SELECT * FROM factory_assurance_current_rights_collection_runs
+      WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
+      ORDER BY created_at DESC,id DESC LIMIT 1`),
+    rows(db, `SELECT required_receipt_type,collection_state,COUNT(*) task_count FROM factory_assurance_current_rights_collection_tasks
+      WHERE run_id=(SELECT id FROM factory_assurance_current_rights_collection_runs
+        WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
+        ORDER BY created_at DESC,id DESC LIMIT 1)
+      GROUP BY required_receipt_type,collection_state ORDER BY required_receipt_type,collection_state`),
   ]);
 
   const latestCalibration = new Map<AssuranceLayer, Row>();
@@ -193,6 +201,7 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   const remediationEvidence = remediationEvidenceRows[0] ?? {};
   const remediationIncident = remediationIncidentRows[0] ?? {};
   const rightsInventory = rightsInventoryRows[0] ?? {};
+  const rightsCollection = rightsCollectionRows[0] ?? {};
   const corpusLayerReadiness = json<Array<Record<string, unknown>>>(corpus?.layer_readiness_json, []);
   const outcomeCounts = recentRuns.reduce<Record<string, number>>((accumulator, run) => {
     accumulator[run.outcome] = (accumulator[run.outcome] ?? 0) + 1;
@@ -211,6 +220,7 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   if (failedEvidenceItems > number(remediationIncident.quarantined_items)) blockers.push("REMEDIATION_EVIDENCE_INCIDENT_DISPOSITION_REQUIRED");
   if (number(remediationIncident.rights_eligible_items) > 0 && !text(rightsInventory.id)) blockers.push("CURRENT_RIGHTS_INVENTORY_REQUIRED");
   if (number(rightsInventory.pending_receipt_items) > 0) blockers.push("CURRENT_RIGHTS_RECEIPTS_PENDING");
+  if (number(rightsInventory.pending_receipt_items) > 0 && !text(rightsCollection.id)) blockers.push("CURRENT_RIGHTS_COLLECTION_QUEUE_REQUIRED");
 
   return {
     version: FACTORY_QA_COCKPIT_VERSION,
@@ -266,6 +276,11 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       currentRightsEvaluatedAt: text(rightsInventory.evaluated_at) || null,
       currentRightsAttached: number(rightsInventory.attached_receipt_items),
       currentRightsPending: number(rightsInventory.pending_receipt_items),
+      currentRightsCollectionState: text(rightsCollection.lifecycle_state) || "NOT_MATERIALIZED",
+      currentRightsCollectionOpen: number(rightsCollection.open_tasks),
+      currentRightsProviderTasks: number(rightsCollection.provider_terms_tasks),
+      currentRightsCompositeTasks: number(rightsCollection.composite_manifest_tasks),
+      currentRightsAuthorshipTasks: number(rightsCollection.authorship_tasks),
     },
     corpus: {
       snapshotHash: corpus ? text(corpus.snapshot_hash) : null,
@@ -297,6 +312,9 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
         rightsEvaluatedAt: text(rightsInventory.evaluated_at) || null,
         rightsAttached: number(rightsInventory.attached_receipt_items),
         rightsInventoryPending: number(rightsInventory.pending_receipt_items),
+        rightsCollectionState: text(rightsCollection.lifecycle_state) || "NOT_MATERIALIZED",
+        rightsCollectionOpen: number(rightsCollection.open_tasks),
+        rightsCollectionQueue: rightsCollectionTaskRows.map((row) => ({ receiptType: text(row.required_receipt_type), state: text(row.collection_state), count: number(row.task_count) })),
       },
       countEligible: false as const,
       qualificationAuthority: false as const,
@@ -314,7 +332,9 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
             : !text(rightsInventory.id)
               ? `Inventory current immutable rights evidence for the ${number(remediationIncident.rights_eligible_items)} byte/provenance-eligible items; do not infer PASS from declarations or historical state.`
               : number(rightsInventory.pending_receipt_items) > 0
-                ? `Attach exact, current immutable rights receipts for the ${number(rightsInventory.pending_receipt_items)} pending items; ${number(rightsInventory.attached_receipt_items)} source receipts are currently attached and ${number(remediationIncident.quarantined_items)} overwritten objects remain excluded.`
+                ? text(rightsCollection.id)
+                  ? `Execute the ${number(rightsCollection.open_tasks)} fail-closed collection tasks: ${number(rightsCollection.provider_terms_tasks)} provider terms/plan receipts, ${number(rightsCollection.composite_manifest_tasks)} composite parent manifests and ${number(rightsCollection.authorship_tasks)} authorship receipts. Collection tasks grant no rights PASS by themselves.`
+                  : `Materialize a zero-provider collection queue for the ${number(rightsInventory.pending_receipt_items)} pending exact current rights receipts; do not infer PASS or fetch external evidence in the inventory step.`
               : "Resolve correlation and owner-label work for exact-evidence-ready items; then review eligible inputs into a new immutable corpus snapshot. No work item counts as calibration evidence by itself."
         : "Close the exact corpus-admission gaps by first materializing the zero-provider remediation inventory; do not execute any L0-L7 judge yet."
       : qualifiedCandidateLayers < 8

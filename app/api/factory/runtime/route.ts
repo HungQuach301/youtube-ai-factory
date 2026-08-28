@@ -30,6 +30,7 @@ import { materializeFactoryAssuranceCorpusRemediationInventory } from "@/lib/fac
 import { verifyFactoryAssuranceCorpusRemediationEvidenceBatch } from "@/lib/factory-assurance-corpus-remediation-evidence";
 import { classifyFactoryAssuranceCorpusRemediationIncidents } from "@/lib/factory-assurance-corpus-remediation-incidents";
 import { inventoryFactoryAssuranceCurrentRightsEvidence } from "@/lib/factory-assurance-current-rights-inventory";
+import { materializeFactoryAssuranceCurrentRightsCollection } from "@/lib/factory-assurance-current-rights-collection";
 
 export const dynamic = "force-dynamic";
 
@@ -52,12 +53,14 @@ type RuntimeEnv = {
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE_ENABLED?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS_ENABLED?: string;
   FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_ENABLED?: string;
+  FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_ENABLED?: string;
   FACTORY_RUNTIME_QUALIFICATION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS_TOKEN?: string;
   FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_TOKEN?: string;
+  FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_TOKEN?: string;
   FACTORY_AUTOMATION_ACTOR_EMAIL?: string;
   FACTORY_AUTOMATION_ACTOR_NAME?: string;
 };
@@ -100,8 +103,10 @@ async function secretMatches(left: string, right: string) {
 
 async function authorize(env: RuntimeEnv, request?: Request, action = "") {
   let user = await getChatGPTUser();
-  const credential = action === "INVENTORY_ASSURANCE_CURRENT_RIGHTS"
-    ? [request?.headers.get("x-factory-assurance-current-rights-token") || "", env.FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_TOKEN || ""]
+  const credential = action === "MATERIALIZE_ASSURANCE_CURRENT_RIGHTS_COLLECTION"
+    ? [request?.headers.get("x-factory-assurance-current-rights-collection-token") || "", env.FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_TOKEN || ""]
+    : action === "INVENTORY_ASSURANCE_CURRENT_RIGHTS"
+      ? [request?.headers.get("x-factory-assurance-current-rights-token") || "", env.FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_TOKEN || ""]
     : action === "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS"
       ? [request?.headers.get("x-factory-assurance-remediation-incidents-token") || "", env.FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS_TOKEN || ""]
       : action === "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE"
@@ -112,7 +117,7 @@ async function authorize(env: RuntimeEnv, request?: Request, action = "") {
             ? [request?.headers.get("x-factory-assurance-corpus-token") || "", env.FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN || ""]
             : [request?.headers.get("x-factory-runtime-qualification-token") || "", env.FACTORY_RUNTIME_QUALIFICATION_TOKEN || ""];
   const qualificationCredential =
-    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION", "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION", "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE", "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS", "INVENTORY_ASSURANCE_CURRENT_RIGHTS"].includes(action) &&
+    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION", "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION", "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE", "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS", "INVENTORY_ASSURANCE_CURRENT_RIGHTS", "MATERIALIZE_ASSURANCE_CURRENT_RIGHTS_COLLECTION"].includes(action) &&
     request &&
     await secretMatches(credential[0], credential[1]);
   if (!user && qualificationCredential) {
@@ -288,6 +293,13 @@ export async function POST(request: Request) {
       if (env.FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_ENABLED !== "true") return failure("FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_DISABLED", "The bounded current-rights inventory is disabled until an explicit deployment authorization is configured", 503);
       return Response.json(await inventoryFactoryAssuranceCurrentRightsEvidence(env.DB, {
         actor: user.email, idempotencyKey: string(body.idempotencyKey), evaluatedAt: string(body.evaluatedAt),
+      }), { status: 201, headers: NO_STORE });
+    }
+
+    if (action === "MATERIALIZE_ASSURANCE_CURRENT_RIGHTS_COLLECTION") {
+      if (env.FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_ENABLED !== "true") return failure("FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_DISABLED", "The bounded current-rights collection queue is disabled until an explicit deployment authorization is configured", 503);
+      return Response.json(await materializeFactoryAssuranceCurrentRightsCollection(env.DB, {
+        actor: user.email, idempotencyKey: string(body.idempotencyKey),
       }), { status: 201, headers: NO_STORE });
     }
 
