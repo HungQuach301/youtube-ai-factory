@@ -16,15 +16,15 @@ PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
-PHASE_45 = IN_PROGRESS__REMEDIATION_INCIDENT_V1_LIVE__4_QUARANTINED__62_CURRENT_RIGHTS_RECEIPTS_PENDING
+PHASE_45 = IN_PROGRESS__CURRENT_RIGHTS_INVENTORY_V1_SOURCE_READY__LIVE_ZERO_PROVIDER_RUN_PENDING
 PHASE_46 = GATED__ASSURANCE_CALIBRATION_AND_EXACT_DEPENDENCY_ADMISSION_REQUIRED__R22_BLOCKED
-SOURCE_MIGRATION = 0119_FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENT_DISPOSITION__LIVE_VERIFIED
+SOURCE_MIGRATION = 0120_FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY__SOURCE_VERIFIED__PRODUCTION_PENDING
 SOURCE_MIGRATION_LIVE_D1 = VERIFIED__0119_ONE_RUN__4_QUARANTINE_RECEIPTS__4_REPLACEMENT_REFERENCES__62_RIGHTS_ELIGIBLE__62_RIGHTS_PENDING
 DEPLOYMENT_RECEIPT = VERSION_516__APPGDEP_6A8D334895008191A77BF70256460F01__SUCCEEDED
 RENDERER_DEPLOYMENT_RECEIPT = VERSION_521__SUCCEEDED
 COMPOSITOR_DEPLOYMENT_RECEIPT = VERSION_523__SUCCEEDED
 LIVE_CANARY_RUNNER_DEPLOYMENT_RECEIPT = VERSION_527__COMMIT_163832638FC51E090F103B336E1A75734008B112__SUCCEEDED
-LAST_RECONCILED_SITE_VERSION = 547__REMEDIATION_INCIDENT_V1__COMMIT_2838998BC1A8BB05BFDC476D4AAA4E14D989DB05__ENV_REVISION_59__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
+LAST_RECONCILED_SITE_VERSION = 548__REMEDIATION_INCIDENT_RECEIPT_DOCS__COMMIT_A5952E637F1FF73829C04E5F91553A5FA09BC03F__ENV_REVISION_59__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
 LIVE_CANARY_QUALIFICATION = PASS__FACTORY_LIVE_CANARY_QUALIFICATION_6D527FCBA653A020ACFBA9A6__ZERO_DISPATCH__ZERO_SPEND
 HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION = PASS__FACTORY_TREATMENT_QUALIFICATION_35941CD62FB0364063A1F98D__10_CASES__D1_R2_READBACK__IDEMPOTENT_REPLAY__ZERO_DISPATCH__ZERO_SPEND
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
@@ -37,6 +37,8 @@ Migration `0117` is live in Sites v543 at commit `54086a923f55c967a99c06df993054
 Migration `0118` is live in Sites v545 at commit `ca41b0afce1bc6698ef610e5f9758682decadc50`. Twenty-two bounded batches read back all 66 current remediation objects, totaling 846,257,129 bytes. All 66 byte reads completed; 62 pass exact checksum and provenance binding, while four fail exact byte/checksum/R2 metadata binding. No item has a current immutable rights receipt, so rights-ready and exact-evidence-ready remain zero and every item remains count-ineligible. The final batch returns `IDEMPOTENT_REPLAY` with the same 66/62/4/0 totals. Live D1 contains 22 immutable run rows and 66 receipt rows; every provider request, spend and qualification/PASS/R22/master/release/publication authority field is zero. The temporary writer, evidence flag and token are absent after the same-source redeployment at environment revision 57; the Site remains owner-only.
 
 Migration `0119` is live in Sites v547 at commit `2838998bc1a8bb05bfdc476d4aaa4e14d989db05`. One bounded zero-provider classification stores one COMPLETE run plus four append-only `MUTABLE_R2_KEY_OVERWRITE` receipts. All four unrecoverable historical candidates are `QUARANTINED_NOT_RIGHTS_ELIGIBLE`; each references an already exact-evidence-verified surviving candidate without duplication or promotion. The eligible current-rights scope is therefore 62, all still receipt-pending. The identical request returns `IDEMPOTENT_REPLAY`. D1 read-back verifies one run/four receipts and zero count/qualification/PASS/provider/R22/master/release/publication authority, provider requests and spend. QA Cockpit V4 projects quarantine separately from rights work. Temporary writer/classifier flags and token are absent after same-source redeployment at environment revision 59; the Site remains owner-only. Full regression passes 263/263.
+
+Migration `0120` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_V1` are source-ready but not yet Production evidence. The bounded append-only inventory can examine only the 62 exact byte/checksum/provenance-eligible items and excludes every `0119` quarantine. It attaches a source receipt only when the exact artifact hash, receipt type, commercial scope, coverage and current validity all pass fail-closed checks; otherwise it records `SOURCE_RECEIPT_REQUIRED`. Provider terms additionally require exact request/response/artifact binding and a paid-plan interval that covers both generation and inventory time; composite evidence requires a complete exact parent set; authorship evidence requires current territory/commercial terms. The inventory cannot update historical candidates, create rights PASS, count a corpus item, dispatch a provider or grant qualification/R22/master/release/publication authority. QA Cockpit V5 projects attached versus pending receipts. Targeted rights/Cockpit verification passes 10/10; the live zero-provider run, replay and cleanup remain pending.
 
 The owner authorizes continuing roadmap-bounded source, migration, test, private-mirror, Sites checkpoint/deployment and zero-provider verification work for this repository without asking for a new approval at each bounded slice. This standing authority excludes YouTube AI Factory V2 and does not grant provider dispatch, spend, R22, master, release or publication authority. Connector or platform controls may still require an exact payload-specific confirmation and cannot be bypassed.
 

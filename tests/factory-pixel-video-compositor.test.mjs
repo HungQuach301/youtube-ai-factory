@@ -188,7 +188,7 @@ async function stagedCanaryInput(storage, renderTapeArtifactVersionId) {
 }
 
 test("migrations 0110-0111 install append-only canary admission and one bounded live qualification receipt", () => {
-  assert.equal(migrations.at(-1), "0119_factory_assurance_corpus_remediation_incident_disposition.sql");
+  assert.equal(migrations.at(-1), "0120_factory_assurance_current_rights_inventory.sql");
   const migration = read("drizzle/0110_factory_asset_eligibility_and_pixel_canary.sql");
   for (const table of ["factory_asset_eligibility_receipts", "factory_pixel_compositor_bindings", "factory_video_composition_jobs", "factory_integrated_canary_receipts"]) assert.ok(migration.includes("CREATE TABLE `" + table + "`"));
   assert.match(migration, /FACTORY_INTEGRATED_CANARY_RECEIPTS_APPEND_ONLY/);

@@ -23,7 +23,7 @@ Exit evidence was satisfied on 2026-08-25 with verified common baseline `2431a80
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__REMEDIATION_INCIDENT_LIVE__4_QUARANTINED__62_CURRENT_RIGHTS_RECEIPTS_PENDING`
+**Status:** `IN_PROGRESS__CURRENT_RIGHTS_INVENTORY_V1_SOURCE_READY__LIVE_ZERO_PROVIDER_RUN_PENDING`
 
 Implement:
 
@@ -146,6 +146,8 @@ Migration `0117` and `FACTORY_ASSURANCE_CORPUS_REMEDIATION_V1` are live in Sites
 Migration `0118` and `FACTORY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE_V1` are live in Sites v545. Twenty-two zero-provider batches read all 66 R2 objects (846,257,129 bytes) and persist one immutable receipt per item. Sixty-two pass exact checksum/provenance binding; four fail byte/checksum/R2 metadata binding. Current immutable rights receipts are absent for all 66, so exact-evidence-ready and count-eligible remain zero. The final batch returns `IDEMPOTENT_REPLAY` with the same aggregate. D1 read-back confirms 22 run rows and 66 receipt rows with provider requests, spend and every downstream authority at zero. Temporary writer/evidence values are absent at environment revision 57. The next coherent unit is append-only correction of the four failed bindings and collection of current immutable rights evidence before correlation, owner labels or corpus review.
 
 Migration `0119` and `FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENT_V1` are live in Sites v547. The bounded zero-provider classifier stores one COMPLETE run and four append-only overwrite receipts, preserving every `0118` failure. All four originals are quarantined and not rights-eligible; all four reference an already exact-evidence-verified surviving candidate without duplication or promotion. The eligible current-rights scope is 62 and all 62 remain receipt-pending. The identical request returns `IDEMPOTENT_REPLAY`; D1 read-back and QA Cockpit V4 confirm zero count/downstream authority, provider requests and spend. Temporary runtime values are absent at environment revision 59. The next coherent unit is current immutable rights evidence for the 62 eligible items before correlation, owner labels or corpus review.
+
+Migration `0120` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_V1` are source-ready for the next bounded Production unit. They add one append-only inventory run and one receipt per exact byte/checksum/provenance-eligible item, exclude `0119` quarantines, and attach only exact/current provider, composite or authorship evidence. Missing, mismatched, expired or incomplete evidence remains `SOURCE_RECEIPT_REQUIRED`; no candidate rights state or downstream authority is mutated. QA Cockpit V5 exposes attached/pending counts. The live zero-provider inventory, idempotent replay and temporary-flag cleanup are the next protected action; correlation and owner labels remain later.
 
 ## Phase 46 — R22 canary
 

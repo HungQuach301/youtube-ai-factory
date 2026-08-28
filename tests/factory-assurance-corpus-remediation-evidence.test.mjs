@@ -7,6 +7,7 @@ import { recordFactoryAssuranceCorpusSnapshot } from "../lib/factory-assurance-c
 import { materializeFactoryAssuranceCorpusRemediationInventory } from "../lib/factory-assurance-corpus-remediation.ts";
 import { verifyFactoryAssuranceCorpusRemediationEvidenceBatch } from "../lib/factory-assurance-corpus-remediation-evidence.ts";
 import { classifyFactoryAssuranceCorpusRemediationIncidents } from "../lib/factory-assurance-corpus-remediation-incidents.ts";
+import { inventoryFactoryAssuranceCurrentRightsEvidence } from "../lib/factory-assurance-current-rights-inventory.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -85,8 +86,8 @@ function bucket(items) {
   };
 }
 
-test("migrations 0118 and 0119 install append-only zero-authority remediation evidence and incident receipts", () => {
-  assert.equal(migrations.at(-1), "0119_factory_assurance_corpus_remediation_incident_disposition.sql");
+test("migrations 0118 through 0120 install append-only zero-authority evidence, incident and current-rights receipts", () => {
+  assert.equal(migrations.at(-1), "0120_factory_assurance_current_rights_inventory.sql");
   const migration = read("drizzle/0118_factory_assurance_corpus_remediation_evidence.sql");
   for (const table of ["factory_assurance_corpus_remediation_evidence_runs", "factory_assurance_corpus_remediation_evidence_receipts"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
@@ -95,6 +96,10 @@ test("migrations 0118 and 0119 install append-only zero-authority remediation ev
   for (const table of ["factory_assurance_corpus_remediation_incident_runs", "factory_assurance_corpus_remediation_incident_receipts"]) assert.ok(incidentMigration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(incidentMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
   assert.doesNotMatch(incidentMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2/);
+  const rightsMigration = read("drizzle/0120_factory_assurance_current_rights_inventory.sql");
+  for (const table of ["factory_assurance_current_rights_inventory_runs", "factory_assurance_current_rights_inventory_receipts"]) assert.ok(rightsMigration.includes(`CREATE TABLE \`${table}\``));
+  for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(rightsMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.doesNotMatch(rightsMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
 });
 
 test("evidence runner verifies exact R2 bytes but keeps missing current rights fail-closed and count-ineligible", async () => {
@@ -153,4 +158,36 @@ test("incident classifier quarantines overwritten-key history and references the
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_corpus_remediation_evidence_receipts WHERE checksum_state='FAIL'").get().count, 1);
   assert.equal((await classifyFactoryAssuranceCorpusRemediationIncidents(db, { actor: "owner@example.com", idempotencyKey: "assurance-incident-collision-0001" })).outcome, "IDEMPOTENT_REPLAY");
   assert.throws(() => database.prepare("UPDATE factory_assurance_corpus_remediation_incident_receipts SET count_eligible=1").run(), /APPEND_ONLY/);
+});
+
+test("current-rights inventory attaches only exact current immutable receipts and keeps every missing item pending", async () => {
+  const { database, db } = setup(); await seedCorpus(db);
+  const collisionKey = "remediation/rights-collision.bin";
+  seedSource(database, { id: "rights-overwritten-history", bytes: "rights-old-bytes", storageKey: collisionKey });
+  const surviving = seedSource(database, { id: "rights-surviving-current", bytes: "rights-current-bytes", storageKey: collisionKey });
+  const authored = seedSource(database, { id: "rights-authored-current", bytes: "rights-authored-bytes", rights: true });
+  database.prepare(`INSERT INTO v7_evaluation_rights_evidence_tasks
+    (id,channel_id,candidate_id,task_type,blocking_reason,requirements_json,policy_version)
+    VALUES (?,?,?,?,?,?,?)`).run(
+      "rights-task-authored-current", "channel-hidden-systems", authored.id, "AUTHORSHIP_SOURCE_RECEIPT", "CURRENT_EXACT_AUTHORSHIP_RECEIPT_REQUIRED", "[]", "EVALUATION_RIGHTS_EVIDENCE_POLICY_V1",
+    );
+  await materializeFactoryAssuranceCorpusRemediationInventory(db, "owner@example.com");
+  await verifyFactoryAssuranceCorpusRemediationEvidenceBatch({ DB: db, BUCKET: bucket([surviving, authored]) }, {
+    actor: "owner@example.com", idempotencyKey: "assurance-rights-evidence-0001", batchLimit: 3,
+  });
+  const disposition = await classifyFactoryAssuranceCorpusRemediationIncidents(db, { actor: "owner@example.com", idempotencyKey: "assurance-rights-incident-0001" });
+  assert.equal(disposition.rightsEligibleItems, 2);
+  const input = { actor: "owner@example.com", idempotencyKey: "assurance-current-rights-0001", evaluatedAt: "2026-08-28T12:00:00.000Z" };
+  const result = await inventoryFactoryAssuranceCurrentRightsEvidence(db, input);
+  assert.deepEqual({ outcome: result.outcome, eligible: result.eligibleItems, attached: result.attachedReceiptItems, pending: result.pendingReceiptItems, quarantined: result.quarantinedItemsExcluded },
+    { outcome: "RECORDED", eligible: 2, attached: 1, pending: 1, quarantined: 1 });
+  const receipts = database.prepare(`SELECT source_candidate_id,required_receipt_type,source_receipt_table,artifact_binding_state,validity_state,commercial_scope_state,coverage_state,inventory_state,count_eligible,pass_authority,provider_requests,spend_micros
+    FROM factory_assurance_current_rights_inventory_receipts ORDER BY source_candidate_id`).all().map((row) => ({ ...row }));
+  assert.deepEqual(receipts, [
+    { source_candidate_id: authored.id, required_receipt_type: "AUTHORSHIP_SOURCE_RECEIPT", source_receipt_table: "v7_evaluation_authorship_receipts", artifact_binding_state: "EXACT_HASH_BOUND", validity_state: "CURRENT", commercial_scope_state: "VERIFIED", coverage_state: "COMPLETE", inventory_state: "SOURCE_RECEIPT_ATTACHED", count_eligible: 0, pass_authority: 0, provider_requests: 0, spend_micros: 0 },
+    { source_candidate_id: surviving.id, required_receipt_type: "PROVIDER_TERMS_AND_PLAN_RECEIPT", source_receipt_table: null, artifact_binding_state: "MISSING_OR_MISMATCHED", validity_state: "MISSING_OR_INVALID", commercial_scope_state: "MISSING_OR_INVALID", coverage_state: "MISSING_OR_INVALID", inventory_state: "SOURCE_RECEIPT_REQUIRED", count_eligible: 0, pass_authority: 0, provider_requests: 0, spend_micros: 0 },
+  ]);
+  assert.equal((await inventoryFactoryAssuranceCurrentRightsEvidence(db, input)).outcome, "IDEMPOTENT_REPLAY");
+  await assert.rejects(() => inventoryFactoryAssuranceCurrentRightsEvidence(db, { ...input, evaluatedAt: "2026-08-29T12:00:00.000Z" }), /idempotency key is bound/i);
+  assert.throws(() => database.prepare("UPDATE factory_assurance_current_rights_inventory_receipts SET count_eligible=1").run(), /APPEND_ONLY/);
 });
