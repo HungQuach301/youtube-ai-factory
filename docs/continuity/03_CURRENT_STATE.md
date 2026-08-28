@@ -10,21 +10,22 @@ REPOSITORY_POLICY = GIT_REPOSITORY_SSOT_V1
 REPLICATION_POLICY = DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1
 SITES_REMOTE = origin/main
 GITHUB_TARGET = HungQuach301/youtube-ai-factory
+PRIVATE_GITHUB_SYNC_AUTHORITY = CONTINUOUS__MAIN__ROADMAP_BOUNDED_SOURCE__NO_REPEAT_APPROVAL
 GITHUB_SYNC = CONTENT_SYNCHRONIZED__TREE_MATCH__EXACT_SHA_RECONCILIATION_BLOCKED
 INITIAL_MIRROR_BASELINE_SHA = 2431a800d2d540bcfea141c98c9977cd46667950
 PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
-PHASE_45 = IN_PROGRESS__CURRENT_RIGHTS_COLLECTION_V1_LIVE__62_TASKS_PENDING
+PHASE_45 = IN_PROGRESS__CURRENT_RIGHTS_TERMINAL_DISPOSITION_V1_LIVE__62_CONTROLLED_FIXTURE_REPLACEMENTS_PENDING
 PHASE_46 = GATED__ASSURANCE_CALIBRATION_AND_EXACT_DEPENDENCY_ADMISSION_REQUIRED__R22_BLOCKED
-SOURCE_MIGRATION = 0121_FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION__LIVE_VERIFIED
-SOURCE_MIGRATION_LIVE_D1 = VERIFIED__0121_ONE_RUN__62_COLLECTION_TASKS__46_PROVIDER__16_COMPOSITE__0_AUTHORSHIP__ALL_RECEIPT_REQUIRED__IDEMPOTENT_REPLAY
+SOURCE_MIGRATION = 0122_FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION__LIVE
+SOURCE_MIGRATION_LIVE_D1 = VERIFIED__0122_ONE_COMPLETE_RUN__62_TERMINAL_RECEIPTS__46_PROVIDER_UNRECOVERABLE__16_LINEAGE_UNRECOVERABLE__62_QUARANTINED__62_REPLACEMENT_REQUIRED__0_COLLECTION_REMAINING__IDEMPOTENT_REPLAY
 DEPLOYMENT_RECEIPT = VERSION_516__APPGDEP_6A8D334895008191A77BF70256460F01__SUCCEEDED
 RENDERER_DEPLOYMENT_RECEIPT = VERSION_521__SUCCEEDED
 COMPOSITOR_DEPLOYMENT_RECEIPT = VERSION_523__SUCCEEDED
 LIVE_CANARY_RUNNER_DEPLOYMENT_RECEIPT = VERSION_527__COMMIT_163832638FC51E090F103B336E1A75734008B112__SUCCEEDED
-LAST_RECONCILED_SITE_VERSION = 552__CURRENT_RIGHTS_COLLECTION_LIVE__COMMIT_BBA8501ED0F0BA3F73C6408B442F59A2163D7530__ENV_REVISION_63__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
+LAST_RECONCILED_SITE_VERSION = 554__CURRENT_RIGHTS_TERMINAL_DISPOSITION_LIVE__COMMIT_88BDE737BA9938FC9CF95A3CF4B74D1888C226A7__ENV_REVISION_65__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
 LIVE_CANARY_QUALIFICATION = PASS__FACTORY_LIVE_CANARY_QUALIFICATION_6D527FCBA653A020ACFBA9A6__ZERO_DISPATCH__ZERO_SPEND
 HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION = PASS__FACTORY_TREATMENT_QUALIFICATION_35941CD62FB0364063A1F98D__10_CASES__D1_R2_READBACK__IDEMPOTENT_REPLAY__ZERO_DISPATCH__ZERO_SPEND
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
@@ -42,7 +43,9 @@ Migration `0120` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_V1` are live in
 
 Migration `0121` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_V1` are live in Sites v552 at commit `bba8501ed0f0ba3f73c6408b442f59a2163d7530`. One bounded zero-provider materialization stores one COMPLETE run and exactly 62 append-only collection tasks: 46 provider terms/plan receipts, 16 composite parent manifests and zero authorship receipts. Every task remains `RECEIPT_REQUIRED`; source-receipt references are null, each exact artifact/evidence hash is valid and all typed requirement packs are complete. D1 read-back across all 62 rows confirms zero count/qualification/PASS/provider/R22/master/release/publication authority, provider requests and spend. The same payload returns `IDEMPOTENT_REPLAY`. QA Cockpit V6 projects the live queue, and the writer/collection flags plus token are absent after same-source redeployment at environment revision 63. The Site remains owner-only.
 
-The owner authorizes continuing roadmap-bounded source, migration, test, private-mirror, Sites checkpoint/deployment and zero-provider verification work for this repository without asking for a new approval at each bounded slice. This standing authority excludes YouTube AI Factory V2 and does not grant provider dispatch, spend, R22, master, release or publication authority. Connector or platform controls may still require an exact payload-specific confirmation and cannot be bypassed.
+Migration `0122` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_V1` are live in Sites v554 at commit `88bde737ba9938fc9cf95a3cf4b74d1888c226a7`. This reconciliation does not seek documents that cannot cure an exact-byte failure. It requires every provider task to bind its candidate-specific terminal `NO_EXACT_AUDIO_HASH_MATCH` diagnostic to the immutable historical recovery closure, and every composite/authorship task to bind its `SOURCE_LINEAGE_BINDING_MISSING` diagnostic. One bounded Production classification stores run `factory-assurance-current-rights-terminal-run-2e540f4ef0b2285d21d0619b` plus 62 immutable receipts: 46 `HISTORICAL_PROVIDER_BINDING_UNRECOVERABLE` and 16 `HISTORICAL_SOURCE_LINEAGE_UNRECOVERABLE`. All 62 are `QUARANTINED_FAILURE_EVIDENCE_ONLY`, all 62 require `CONTROLLED_FIXTURE_REPLACEMENT_REQUIRED`, zero historical receipt-collection items remain and none is rights-eligible. The identical request returns `IDEMPOTENT_REPLAY`; full D1 pagination verifies all 62 rows and zero count/qualification/PASS/provider/R22/master/release/publication authority, provider requests and spend. QA Cockpit V7 distinguishes terminal quarantine from collectible rights work. The temporary writer/classifier flags and token are absent after same-source redeployment at environment revision 65; the Site remains owner-only. Full regression passes 266/266.
+
+The owner continuously authorizes uploading and synchronizing the current and future roadmap-bounded source checkpoints to private repository `HungQuach301/youtube-ai-factory` on `main`, plus the related migration, test, Sites checkpoint/deployment and zero-provider verification work, without asking for approval again. This standing authority applies only to that exact repository, excludes `HungQuach301/youtube-ai-factory-v2`, does not authorize force-push or destructive history rewrite, and grants no provider dispatch, spend, R22, master, release or publication authority. Connector or platform controls may still require an exact payload-specific confirmation and cannot be bypassed.
 
 The current source tree is synchronized byte-for-byte to the private GitHub mirror, but the commit IDs are not equal: this turn's Sites lifecycle checkpoint created its commit before the GitHub object protocol ran, while GitHub creates its own authenticated commit identity. No branch was force-rewritten and no forward-only history was discarded. Exact-SHA convergence is therefore explicitly blocked pending separate approval for a non-fast-forward Sites source-ref replacement; until then, tree equality is evidence and commit equality must not be claimed.
 
@@ -84,9 +87,9 @@ Still required before R22:
 ## Next protected action
 
 ```text
-1. Collect and attach exact current immutable rights receipts to the 62 live `0121` tasks; quarantined originals are not rights-eligible and declarations alone remain insufficient.
-2. Resolve correlation and owner-label work only after exact bytes plus current rights pass.
-3. Review eligible independent inputs into a new immutable threshold-V2 corpus snapshot.
+1. Materialize new controlled fixtures with generation-time paid-plan evidence and exact source-manifest/parent lineage; do not retry exhausted historical recovery or mutate the 62 quarantined receipts.
+2. Verify each replacement's exact bytes, current rights and independent correlation before any owner-label or corpus-review admission.
+3. Resolve correlation and owner-label work only after exact bytes plus current rights pass, then review eligible independent inputs into a new immutable threshold-V2 corpus snapshot.
 4. Calibrate exact L0-L7 judge/sampler dependencies in `AI_SHADOW`; keep every result advisory until exact qualification registration passes.
 5. Bind and qualify exact R22 dependencies plus canary admission, then exercise recovery/incident controls; compile R22 only after explicit Production authority exists.
 ```

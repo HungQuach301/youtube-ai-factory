@@ -25,7 +25,7 @@ The current Rights Inventory tree is mirrored byte-for-byte, but this turn's Sit
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__CURRENT_RIGHTS_COLLECTION_V1_LIVE__62_TASKS_PENDING`
+**Status:** `IN_PROGRESS__CURRENT_RIGHTS_TERMINAL_DISPOSITION_V1_LIVE__62_CONTROLLED_FIXTURE_REPLACEMENTS_PENDING`
 
 Implement:
 
@@ -152,6 +152,8 @@ Migration `0119` and `FACTORY_ASSURANCE_CORPUS_REMEDIATION_INCIDENT_V1` are live
 Migration `0120` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_INVENTORY_V1` are live in Sites v549. One zero-provider COMPLETE run inventories the 62 exact byte/checksum/provenance-eligible items while excluding all four `0119` quarantines. D1 stores 62 immutable receipts: 46 require provider terms/plan evidence and 16 require complete composite parent manifests. No source receipt satisfies the exact current contract, so attached is 0 and pending is 62. Replay is idempotent; every count/downstream authority, provider-request and spend field is zero. QA Cockpit V5 exposes the truthful queue, and temporary runtime values are absent at environment revision 61. The next coherent unit is to collect and attach the 62 exact current rights receipts before correlation, owner labels or corpus review.
 
 Migration `0121` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_COLLECTION_V1` are live in Sites v552. One zero-provider COMPLETE run creates exactly 62 append-only `RECEIPT_REQUIRED` tasks from the immutable `0120` pending queue: 46 provider terms/plan packs and 16 exact composite parent manifests. Full D1 pagination verifies all 62 rows, null receipt references, valid exact artifact/evidence hashes, complete typed requirements and zero count/downstream authority, provider request or spend. The identical request returns `IDEMPOTENT_REPLAY`. QA Cockpit V6 exposes the queue, and temporary writer/collection values are absent at environment revision 63. The next coherent unit is actual receipt acquisition and append-only attachment; correlation, owner labels and corpus review remain blocked until exact rights pass.
+
+Migration `0122` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_V1` are live in owner-only Sites v554. The earlier active queue description is superseded by reconciliation with immutable historical recovery evidence: all 46 provider candidates have candidate-specific `NO_EXACT_AUDIO_HASH_MATCH` receipts under the terminal `NO_EXACT_PROVIDER_AUDIO_FOUND` closure, and all 16 composite candidates have `SOURCE_LINEAGE_BINDING_MISSING` diagnostics. One bounded zero-provider classification stores one COMPLETE run and 62 `QUARANTINED_FAILURE_EVIDENCE_ONLY` receipts, with all 62 routed to controlled-fixture replacement and zero historical collection remaining. The identical request returns `IDEMPOTENT_REPLAY`; full D1 pagination verifies 46 provider-binding failures, 16 lineage failures, 62 replacement requirements, zero rights eligibility and zero count/qualification/PASS/provider/R22/master/release/publication authority, provider request or spend. QA Cockpit V7 exposes this distinction. Temporary runtime values are absent at environment revision 65. The next coherent unit is controlled-fixture materialization with generation-time paid-plan evidence and exact source-manifest/parent lineage before correlation, owner labels or corpus review.
 
 ## Phase 46 — R22 canary
 

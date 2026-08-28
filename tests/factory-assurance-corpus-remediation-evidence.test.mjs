@@ -9,6 +9,7 @@ import { verifyFactoryAssuranceCorpusRemediationEvidenceBatch } from "../lib/fac
 import { classifyFactoryAssuranceCorpusRemediationIncidents } from "../lib/factory-assurance-corpus-remediation-incidents.ts";
 import { inventoryFactoryAssuranceCurrentRightsEvidence } from "../lib/factory-assurance-current-rights-inventory.ts";
 import { materializeFactoryAssuranceCurrentRightsCollection } from "../lib/factory-assurance-current-rights-collection.ts";
+import { classifyFactoryAssuranceCurrentRightsTerminalDisposition } from "../lib/factory-assurance-current-rights-terminal-disposition.ts";
 import { factoryQaCockpitProjection } from "../lib/factory-qa-cockpit-projection.ts";
 
 const root = new URL("../", import.meta.url);
@@ -53,20 +54,22 @@ async function seedCorpus(db) {
   });
 }
 
-function seedSource(database, { id, bytes, rights = false, metadataValid = true, storageKey: suppliedStorageKey = "" }) {
+function seedSource(database, { id, bytes, rights = false, metadataValid = true, storageKey: suppliedStorageKey = "", candidateKind = "AUDIO" }) {
   const artifactId = `artifact-${id}`, packageId = `package-${id}`, storageKey = suppliedStorageKey || `remediation/${id}.bin`, exactHash = hash(bytes);
+  const artifactType = candidateKind === "MASTER" ? "FULL_VIDEO_MASTER" : candidateKind;
+  const mimeType = candidateKind === "MASTER" ? "video/webm" : "audio/mpeg";
   database.exec("PRAGMA foreign_keys=OFF");
   database.prepare(`INSERT INTO production_v2_packages
     (id,channel_id,policy_id,source_brief_id,episode_concept_id,title,lifecycle_state,target_duration_seconds,shot_count,content_hash)
     VALUES (?,?,?,?,?,?,?,?,?,?)`).run(packageId, "channel-hidden-systems", "policy-test", `brief-${id}`, `episode-${id}`, `Package ${id}`, "REJECTED_QUALITY", 60, 1, hash(`package-${id}`));
   database.prepare(`INSERT INTO production_v2_artifacts
     (id,package_id,artifact_type,storage_key,mime_type,byte_size,sha256,rights_state,provenance_json,engine_version)
-    VALUES (?,?,?,?,?,?,?,?,?,?)`).run(artifactId, packageId, "AUDIO", storageKey, "audio/mpeg", Buffer.byteLength(bytes), exactHash, rights ? "COMMERCIAL_LICENSE_VERIFIED" : "RIGHTS_REVIEW_REQUIRED", JSON.stringify({ author: "factory-test", legacySources: 0 }), "ENGINE-TEST-V1");
+    VALUES (?,?,?,?,?,?,?,?,?,?)`).run(artifactId, packageId, artifactType, storageKey, mimeType, Buffer.byteLength(bytes), exactHash, rights ? "COMMERCIAL_LICENSE_VERIFIED" : "RIGHTS_REVIEW_REQUIRED", JSON.stringify({ author: "factory-test", legacySources: 0 }), "ENGINE-TEST-V1");
   database.exec("PRAGMA foreign_keys=ON");
   database.prepare(`INSERT INTO v7_evaluation_candidates
     (id,channel_id,source_family,source_table,source_id,candidate_kind,artifact_type,lifecycle_state,storage_key,mime_type,byte_size,content_hash,bytes_state,checksum_state,provenance_state,rights_declared_state,rights_verification_state,correlation_group,verification_state)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-      id, "channel-hidden-systems", "PRODUCTION_V2_REJECTED", "production_v2_artifacts", artifactId, "AUDIO", "AUDIO", "CANDIDATE_EVIDENCE", storageKey, "audio/mpeg", Buffer.byteLength(bytes), exactHash,
+      id, "channel-hidden-systems", "PRODUCTION_V2_REJECTED", "production_v2_artifacts", artifactId, candidateKind, artifactType, "CANDIDATE_EVIDENCE", storageKey, mimeType, Buffer.byteLength(bytes), exactHash,
       "READBACK_VERIFIED", "PASS", "PASS", rights ? "COMMERCIAL_LICENSE_VERIFIED" : "RIGHTS_REVIEW_REQUIRED", rights ? "PASS" : "RECEIPT_REQUIRED", `lineage-${id}`, rights ? "EVIDENCE_VERIFIED" : "PARTIAL_RIGHTS_PENDING",
     );
   if (rights) database.prepare(`INSERT INTO v7_evaluation_authorship_receipts
@@ -88,8 +91,36 @@ function bucket(items) {
   };
 }
 
-test("migrations 0118 through 0121 install append-only zero-authority evidence, incident and current-rights receipts", () => {
-  assert.equal(migrations.at(-1), "0121_factory_assurance_current_rights_collection.sql");
+function seedTerminalRecoveryEvidence(database, provider, master) {
+  const historyRunId = "terminal-history-run", historySnapshotId = "terminal-history-snapshot", audioRunId = "terminal-audio-run", audioSnapshotId = "terminal-audio-snapshot";
+  database.prepare(`INSERT INTO v7_evaluation_provider_history_recovery_runs
+    (id,channel_id,policy_version,idempotency_key,lifecycle_state,date_after_unix,date_before_unix,maximum_history_items,history_items_received,provider_requests,actor,completed_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(historyRunId, "channel-hidden-systems", "EVALUATION_PROVIDER_HISTORY_RECOVERY_V1", "terminal-history-idempotency-0001", "COMPLETE", 1, 2, 1000, 1, 2, "owner@example.com", "2026-08-28T00:00:00.000Z");
+  database.prepare(`INSERT INTO v7_evaluation_provider_history_snapshots
+    (id,channel_id,recovery_run_id,policy_version,history_items_received,history_items_with_native_request_id,candidates_diagnosed,unique_metadata_matches,no_metadata_matches,ambiguous_metadata_matches,subscription_tier,subscription_status,billing_period,subscription_observed_at,history_response_hash,subscription_response_hash,provider_requests)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(historySnapshotId, "channel-hidden-systems", historyRunId, "EVALUATION_PROVIDER_HISTORY_RECOVERY_V1", 1, 1, 1, 0, 0, 1, "PAYG", "ACTIVE", "MONTHLY", "2026-08-28T00:00:00.000Z", hash("terminal-history-response"), hash("terminal-subscription-response"), 2);
+  database.prepare(`INSERT INTO v7_evaluation_provider_audio_hash_runs
+    (id,channel_id,policy_version,idempotency_key,lifecycle_state,planned_history_items,processed_history_items,successful_history_items,failed_history_items,provider_requests,actor,completed_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(audioRunId, "channel-hidden-systems", "EVALUATION_PROVIDER_AUDIO_HASH_RECOVERY_V1", "terminal-audio-idempotency-0001", "COMPLETE", 1, 1, 1, 0, 1, "owner@example.com", "2026-08-28T00:00:00.000Z");
+  database.prepare(`INSERT INTO v7_evaluation_provider_audio_hash_snapshots
+    (id,channel_id,audio_hash_run_id,policy_version,lifecycle_state,history_items_total,history_items_hash_verified,history_items_retryable,history_items_exhausted,candidates_diagnosed,unique_exact_hash_matches,equivalent_exact_hash_match_sets,no_exact_hash_matches,provider_requests_cumulative)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(audioSnapshotId, "channel-hidden-systems", audioRunId, "EVALUATION_PROVIDER_AUDIO_HASH_RECOVERY_V1", "COMPLETE", 1, 1, 0, 0, 1, 0, 0, 1, 3);
+  database.prepare(`INSERT INTO v7_evaluation_historical_recovery_closures
+    (id,channel_id,policy_version,metadata_snapshot_id,audio_hash_snapshot_id,history_items_total,history_items_hash_verified,candidates_diagnosed,unique_exact_hash_matches,equivalent_exact_hash_match_sets,no_exact_hash_matches,conclusion,candidate_disposition,historical_rights_resolution_state,provider_requests)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run("terminal-recovery-closure", "channel-hidden-systems", "EVALUATION_HISTORICAL_RECOVERY_CLOSURE_V1", historySnapshotId, audioSnapshotId, 1, 1, 1, 0, 0, 1, "NO_EXACT_PROVIDER_AUDIO_FOUND", "QUARANTINE_FAILURE_EVIDENCE_ONLY", "EXHAUSTED_NO_EXACT_BINDING", 3);
+  database.prepare(`INSERT INTO v7_evaluation_provider_audio_hash_candidate_diagnostics
+    (id,channel_id,audio_hash_run_id,candidate_id,policy_version,exact_hash_match_count,matched_history_item_ids_json,provider_binding_state,exact_audio_hash_verified,evidence_hash)
+    VALUES (?,?,?,?,?,?,?,?,?,?)`).run("terminal-provider-diagnostic", "channel-hidden-systems", audioRunId, provider.id, "EVALUATION_PROVIDER_AUDIO_HASH_RECOVERY_V1", 0, "[]", "NO_EXACT_AUDIO_HASH_MATCH", 0, hash("terminal-provider-diagnostic"));
+  database.prepare(`INSERT INTO v7_evaluation_rights_evidence_tasks
+    (id,channel_id,candidate_id,task_type,blocking_reason,requirements_json,policy_version)
+    VALUES (?,?,?,?,?,?,?)`).run("terminal-master-rights-task", "channel-hidden-systems", master.id, "COMPOSITE_PARENT_RIGHTS_MANIFEST", "EXACT_PARENT_SET_REQUIRED", "[]", "EVALUATION_RIGHTS_EVIDENCE_POLICY_V1");
+  database.prepare(`INSERT INTO v7_evaluation_rights_lineage_diagnostics
+    (id,channel_id,task_id,candidate_id,task_type,policy_version,source_artifact_id,artifact_hash,discoverable_package_manifest_count,declared_parent_count,verified_parent_count,diagnostic_state,reasons_json)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run("terminal-lineage-diagnostic", "channel-hidden-systems", "terminal-master-rights-task", master.id, "COMPOSITE_PARENT_RIGHTS_MANIFEST", "EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1", `artifact-${master.id}`, master.exactHash, 0, 0, 0, "SOURCE_LINEAGE_BINDING_MISSING", "[\"SOURCE_ARTIFACT_HAS_NO_EXACT_MANIFEST_BINDING\"]");
+}
+
+test("migrations 0118 through 0122 install append-only zero-authority evidence, incident and current-rights receipts", () => {
+  assert.equal(migrations.at(-1), "0122_factory_assurance_current_rights_terminal_disposition.sql");
   const migration = read("drizzle/0118_factory_assurance_corpus_remediation_evidence.sql");
   for (const table of ["factory_assurance_corpus_remediation_evidence_runs", "factory_assurance_corpus_remediation_evidence_receipts"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
@@ -106,6 +137,10 @@ test("migrations 0118 through 0121 install append-only zero-authority evidence, 
   for (const table of ["factory_assurance_current_rights_collection_runs", "factory_assurance_current_rights_collection_tasks"]) assert.ok(collectionMigration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(collectionMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
   assert.doesNotMatch(collectionMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
+  const terminalMigration = read("drizzle/0122_factory_assurance_current_rights_terminal_disposition.sql");
+  for (const table of ["factory_assurance_current_rights_terminal_disposition_runs", "factory_assurance_current_rights_terminal_disposition_receipts"]) assert.ok(terminalMigration.includes(`CREATE TABLE \`${table}\``));
+  for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(terminalMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.doesNotMatch(terminalMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
 });
 
 test("evidence runner verifies exact R2 bytes but keeps missing current rights fail-closed and count-ineligible", async () => {
@@ -224,10 +259,55 @@ test("current-rights collection materializes one fail-closed task per pending in
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_current_rights_collection_runs").get().count, 1);
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_current_rights_collection_tasks").get().count, 1);
   const projection = await factoryQaCockpitProjection(db);
-  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V6");
+  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V7");
   assert.equal(projection.summary.currentRightsCollectionOpen, 1);
   assert.deepEqual(projection.remediation.evidence.rightsCollectionQueue, [{ receiptType: "PROVIDER_TERMS_AND_PLAN_RECEIPT", state: "RECEIPT_REQUIRED", count: 1 }]);
-  assert.match(projection.nextAction, /Execute the 1 fail-closed collection tasks/);
+  assert.match(projection.nextAction, /Classify the 1 collection tasks/);
   assert.throws(() => database.prepare("UPDATE factory_assurance_current_rights_collection_tasks SET collection_state='RECEIPT_REQUIRED'").run(), /APPEND_ONLY/);
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM v7_evaluation_candidates WHERE qualification_eligible=1 OR release_eligible=1").get().count, 0);
+});
+
+test("terminal rights disposition quarantines exhausted provider and lineage tasks without inventing receipts", async () => {
+  const { database, db } = setup(); await seedCorpus(db);
+  const collisionKey = "remediation/terminal-collision.bin";
+  seedSource(database, { id: "terminal-overwritten", bytes: "terminal-old-bytes", storageKey: collisionKey });
+  const surviving = seedSource(database, { id: "terminal-surviving-authored", bytes: "terminal-current-bytes", storageKey: collisionKey, rights: true });
+  database.prepare(`INSERT INTO v7_evaluation_rights_evidence_tasks
+    (id,channel_id,candidate_id,task_type,blocking_reason,requirements_json,policy_version)
+    VALUES (?,?,?,?,?,?,?)`).run("terminal-surviving-rights-task", "channel-hidden-systems", surviving.id, "AUTHORSHIP_SOURCE_RECEIPT", "CURRENT_AUTHORSHIP_RECEIPT", "[]", "EVALUATION_RIGHTS_EVIDENCE_POLICY_V1");
+  const provider = seedSource(database, { id: "terminal-provider-audio", bytes: "terminal-provider-bytes" });
+  const master = seedSource(database, { id: "terminal-master", bytes: "terminal-master-bytes", candidateKind: "MASTER" });
+  seedTerminalRecoveryEvidence(database, provider, master);
+  await materializeFactoryAssuranceCorpusRemediationInventory(db, "owner@example.com");
+  const terminalBucket = bucket([surviving, provider, master]);
+  await verifyFactoryAssuranceCorpusRemediationEvidenceBatch({ DB: db, BUCKET: terminalBucket }, {
+    actor: "owner@example.com", idempotencyKey: "assurance-terminal-evidence-0001", batchLimit: 3,
+  });
+  await verifyFactoryAssuranceCorpusRemediationEvidenceBatch({ DB: db, BUCKET: terminalBucket }, {
+    actor: "owner@example.com", idempotencyKey: "assurance-terminal-evidence-0002", batchLimit: 3,
+  });
+  const incident = await classifyFactoryAssuranceCorpusRemediationIncidents(db, { actor: "owner@example.com", idempotencyKey: "assurance-terminal-incident-0001" });
+  assert.deepEqual({ quarantined: incident.quarantinedItems, rightsEligible: incident.rightsEligibleItems }, { quarantined: 1, rightsEligible: 3 });
+  const inventory = await inventoryFactoryAssuranceCurrentRightsEvidence(db, { actor: "owner@example.com", idempotencyKey: "assurance-terminal-inventory-0001", evaluatedAt: "2026-08-28T12:00:00.000Z" });
+  assert.deepEqual({ attached: inventory.attachedReceiptItems, pending: inventory.pendingReceiptItems }, { attached: 1, pending: 2 });
+  const collection = await materializeFactoryAssuranceCurrentRightsCollection(db, { actor: "owner@example.com", idempotencyKey: "assurance-terminal-collection-0001" });
+  assert.deepEqual({ open: collection.openTasks, provider: collection.providerTermsTasks, composite: collection.compositeManifestTasks }, { open: 2, provider: 1, composite: 1 });
+  const input = { actor: "owner@example.com", idempotencyKey: "assurance-terminal-disposition-0001" };
+  const result = await classifyFactoryAssuranceCurrentRightsTerminalDisposition(db, input);
+  assert.deepEqual({ outcome: result.outcome, scope: result.scopeItems, provider: result.providerBindingUnrecoverableItems, lineage: result.lineageUnrecoverableItems, quarantined: result.quarantinedItems, replacement: result.replacementRequiredItems, remaining: result.remainingReceiptCollectionItems, requests: result.providerRequests, spend: result.spendMicros },
+    { outcome: "RECORDED", scope: 2, provider: 1, lineage: 1, quarantined: 2, replacement: 2, remaining: 0, requests: 0, spend: 0 });
+  const receipts = database.prepare(`SELECT required_receipt_type,terminal_reason,evidence_source_table,disposition,replacement_action,rights_eligible,count_eligible,pass_authority,provider_dispatch_authority,r22_authority,release_authority,publication_authority,provider_requests,spend_micros
+    FROM factory_assurance_current_rights_terminal_disposition_receipts ORDER BY required_receipt_type`).all().map((row) => ({ ...row }));
+  assert.deepEqual(receipts, [
+    { required_receipt_type: "COMPOSITE_PARENT_RIGHTS_MANIFEST", terminal_reason: "HISTORICAL_SOURCE_LINEAGE_UNRECOVERABLE", evidence_source_table: "v7_evaluation_rights_lineage_diagnostics", disposition: "QUARANTINED_FAILURE_EVIDENCE_ONLY", replacement_action: "CONTROLLED_FIXTURE_REPLACEMENT_REQUIRED", rights_eligible: 0, count_eligible: 0, pass_authority: 0, provider_dispatch_authority: 0, r22_authority: 0, release_authority: 0, publication_authority: 0, provider_requests: 0, spend_micros: 0 },
+    { required_receipt_type: "PROVIDER_TERMS_AND_PLAN_RECEIPT", terminal_reason: "HISTORICAL_PROVIDER_BINDING_UNRECOVERABLE", evidence_source_table: "v7_evaluation_provider_audio_hash_candidate_diagnostics", disposition: "QUARANTINED_FAILURE_EVIDENCE_ONLY", replacement_action: "CONTROLLED_FIXTURE_REPLACEMENT_REQUIRED", rights_eligible: 0, count_eligible: 0, pass_authority: 0, provider_dispatch_authority: 0, r22_authority: 0, release_authority: 0, publication_authority: 0, provider_requests: 0, spend_micros: 0 },
+  ]);
+  assert.equal((await classifyFactoryAssuranceCurrentRightsTerminalDisposition(db, input)).outcome, "IDEMPOTENT_REPLAY");
+  const projection = await factoryQaCockpitProjection(db);
+  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V7");
+  assert.equal(projection.summary.currentRightsTerminalQuarantined, 2);
+  assert.equal(projection.summary.currentRightsRemainingCollection, 0);
+  assert.match(projection.nextAction, /Replace the 2 terminal historical artifacts/);
+  assert.throws(() => database.prepare("UPDATE factory_assurance_current_rights_terminal_disposition_receipts SET rights_eligible=1").run(), /APPEND_ONLY/);
   assert.equal(database.prepare("SELECT COUNT(*) count FROM v7_evaluation_candidates WHERE qualification_eligible=1 OR release_eligible=1").get().count, 0);
 });

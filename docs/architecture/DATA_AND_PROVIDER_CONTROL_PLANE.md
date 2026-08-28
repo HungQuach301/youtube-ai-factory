@@ -85,6 +85,8 @@ Migration `0113` and `factory-provider-control-plane` make the next paid-request
 
 Migration `0110` makes asset eligibility executable independently of provider dispatch. A SOURCE/HYBRID artifact is usable only when its materialized R2 key, MIME, size and SHA-256 read back exactly, its dependency is not stale, and the referenced rights receipt is commercially eligible and current for the declared territory/modification scope. The resulting immutable receipt is then required by the pixel/video canary planner. A provider-level rights receipt alone cannot authorize unknown or changed asset bytes.
 
+Migration `0122` makes terminal historical-rights disposition executable without provider access and is live in owner-only Sites v554. A terms or plan document cannot repair an unavailable exact provider response, and same-package correlation cannot reconstruct an absent exact parent manifest. The classifier accepts only candidate-specific terminal provider no-match evidence or missing-lineage evidence; Production read-back verifies 46 provider failures plus 16 lineage failures, 62 failure-only quarantines and 62 controlled-fixture replacement requirements. It never converts a collection task into a rights receipt or mutates an old candidate.
+
 ## Approved capability plan
 
 | Capability | Preferred route | Control boundary |
