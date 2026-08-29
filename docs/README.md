@@ -17,6 +17,8 @@ The private personal GitHub repository is connected and contains the complete Si
 
 The current live checkpoint supersedes the earlier source-ready `0123` clause: owner-only Sites v557 stores 62 fresh-identity, fresh-correlation zero-dispatch work orders before any materialization. D1 verifies 46 provider-audio and 16 composite-master routes, idempotent replay, zero authority/request/spend and removal of temporary runtime values at environment revision 68.
 
+The current Phase 45 source checkpoint adds migration `0128` and QA Cockpit V13. It can authorize one exact paid audio dispatch for fifteen minutes only after the live `0127` request/route/reservation, current qualification/rights/drift and fresh paid-plan/official-rights R2 read-back all pass. The authorization performs zero synthesis, zero actual provider requests and zero spend; live authorization remains pending and actual provider execution is still a separate typed unit.
+
 ## Required reading order
 
 1. [`../AGENTS.md`](../AGENTS.md)

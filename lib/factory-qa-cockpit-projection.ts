@@ -1,6 +1,6 @@
 import { FACTORY_ASSURANCE_LAYERS } from "@/lib/factory-evidence-assurance";
 
-export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V12" as const;
+export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V13" as const;
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }> };
@@ -28,7 +28,7 @@ const layerDefinition: Record<AssuranceLayer, { name: string; role: string; evid
 export type FactoryQaCockpitProjection = Awaited<ReturnType<typeof factoryQaCockpitProjection>>;
 
 export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
-  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows, remediationIncidentRows, rightsInventoryRows, rightsCollectionRows, rightsCollectionTaskRows, rightsTerminalRows, rightsTerminalReceiptRows, replacementPlanRows, replacementWorkOrderRows, materializationAdmissionRows, materializationAdmissionItemRows, audioPreflightRows, audioRequestContractRows, audioProviderCertificationRows, audioRouteReservationRows] = await Promise.all([
+  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows, remediationIncidentRows, rightsInventoryRows, rightsCollectionRows, rightsCollectionTaskRows, rightsTerminalRows, rightsTerminalReceiptRows, replacementPlanRows, replacementWorkOrderRows, materializationAdmissionRows, materializationAdmissionItemRows, audioPreflightRows, audioRequestContractRows, audioProviderCertificationRows, audioRouteReservationRows, audioPaidDispatchAuthorizationRows] = await Promise.all([
     rows(db, `SELECT r.*,c.dataset_version,c.dataset_manifest_hash,c.lifecycle_state campaign_state,c.created_at campaign_created_at
       FROM factory_assurance_calibration_results r JOIN factory_assurance_calibration_campaigns c ON c.id=r.campaign_id
       ORDER BY c.created_at DESC,r.created_at DESC,r.id DESC`),
@@ -139,6 +139,11 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
           ORDER BY created_at DESC,id DESC LIMIT 1)
         ORDER BY created_at DESC,id DESC LIMIT 1)
       ORDER BY evaluated_at DESC,created_at DESC,id DESC LIMIT 1`),
+    rows(db, `SELECT *,CASE WHEN authorization_state='AUTHORIZED' AND datetime(authorization_expires_at)>datetime('now') THEN 1 ELSE 0 END authorization_current
+      FROM factory_assurance_audio_paid_dispatch_authorization_runs
+      WHERE cost_reservation_id=(SELECT cost_reservation_id FROM factory_assurance_audio_route_reservation_runs
+        WHERE plan_state='PLANNED' ORDER BY evaluated_at DESC,created_at DESC,id DESC LIMIT 1)
+      ORDER BY observed_at DESC,created_at DESC,id DESC LIMIT 1`),
   ]);
 
   const latestCalibration = new Map<AssuranceLayer, Row>();
@@ -255,6 +260,7 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   const audioPreflight = audioPreflightRows[0] ?? {};
   const audioProviderCertification = audioProviderCertificationRows[0] ?? {};
   const audioRouteReservation = audioRouteReservationRows[0] ?? {};
+  const audioPaidDispatchAuthorization = audioPaidDispatchAuthorizationRows[0] ?? {};
   const corpusLayerReadiness = json<Array<Record<string, unknown>>>(corpus?.layer_readiness_json, []);
   const outcomeCounts = recentRuns.reduce<Record<string, number>>((accumulator, run) => {
     accumulator[run.outcome] = (accumulator[run.outcome] ?? 0) + 1;
@@ -283,6 +289,9 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   if (text(audioPreflight.id) && number(audioProviderCertification.exact_audio_route_ready_bindings) === 0) blockers.push("CONTROLLED_FIXTURE_AUDIO_ROUTE_BLOCKED");
   if (text(audioProviderCertification.certification_state) === "CERTIFIED" && !text(audioRouteReservation.id)) blockers.push("CONTROLLED_FIXTURE_AUDIO_ROUTE_RESERVATION_REQUIRED");
   if (text(audioRouteReservation.id) && text(audioRouteReservation.plan_state) !== "PLANNED") blockers.push("CONTROLLED_FIXTURE_AUDIO_ROUTE_RESERVATION_BLOCKED");
+  if (text(audioRouteReservation.plan_state) === "PLANNED" && !text(audioPaidDispatchAuthorization.id)) blockers.push("CONTROLLED_FIXTURE_AUDIO_PAID_DISPATCH_AUTHORIZATION_REQUIRED");
+  if (text(audioPaidDispatchAuthorization.id) && text(audioPaidDispatchAuthorization.authorization_state) !== "AUTHORIZED") blockers.push("CONTROLLED_FIXTURE_AUDIO_PAID_DISPATCH_AUTHORIZATION_BLOCKED");
+  if (text(audioPaidDispatchAuthorization.authorization_state) === "AUTHORIZED" && number(audioPaidDispatchAuthorization.authorization_current) !== 1) blockers.push("CONTROLLED_FIXTURE_AUDIO_PAID_DISPATCH_AUTHORIZATION_EXPIRED");
 
   return {
     version: FACTORY_QA_COCKPIT_VERSION,
@@ -380,6 +389,14 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       controlledFixtureAudioProviderMetadataReads: number(audioProviderCertification.provider_metadata_reads),
       controlledFixtureAudioPublicRightsReads: number(audioProviderCertification.public_rights_reads),
       controlledFixtureAudioProviderGenerationRequests: number(audioProviderCertification.provider_generation_requests),
+      controlledFixtureAudioPaidDispatchAuthorizationState: text(audioPaidDispatchAuthorization.authorization_state) || "NOT_AUTHORIZED",
+      controlledFixtureAudioPaidDispatchAuthorizationCurrent: number(audioPaidDispatchAuthorization.authorization_current) === 1,
+      controlledFixtureAudioAuthorizedProviderRequests: number(audioPaidDispatchAuthorization.authorized_provider_requests),
+      controlledFixtureAudioAuthorizedSpendMicros: number(audioPaidDispatchAuthorization.authorized_spend_micros),
+      controlledFixtureAudioPaidDispatchAuthority: number(audioPaidDispatchAuthorization.provider_dispatch_authority) === 1,
+      controlledFixtureAudioAuthorizationExpiresAt: text(audioPaidDispatchAuthorization.authorization_expires_at) || null,
+      controlledFixtureAudioAuthorizationProviderMetadataReads: number(audioPaidDispatchAuthorization.provider_metadata_reads),
+      controlledFixtureAudioAuthorizationPublicRightsReads: number(audioPaidDispatchAuthorization.public_rights_reads),
     },
     corpus: {
       snapshotHash: corpus ? text(corpus.snapshot_hash) : null,
@@ -449,6 +466,15 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
         controlledFixtureAudioProviderMetadataReads: number(audioProviderCertification.provider_metadata_reads),
         controlledFixtureAudioPublicRightsReads: number(audioProviderCertification.public_rights_reads),
         controlledFixtureAudioProviderGenerationRequests: number(audioProviderCertification.provider_generation_requests),
+        controlledFixtureAudioPaidDispatchAuthorizationState: text(audioPaidDispatchAuthorization.authorization_state) || "NOT_AUTHORIZED",
+        controlledFixtureAudioPaidDispatchAuthorizationCurrent: number(audioPaidDispatchAuthorization.authorization_current) === 1,
+        controlledFixtureAudioPaidDispatchAuthorizationBlockers: json<string[]>(audioPaidDispatchAuthorization.blockers_json, []),
+        controlledFixtureAudioAuthorizedProviderRequests: number(audioPaidDispatchAuthorization.authorized_provider_requests),
+        controlledFixtureAudioAuthorizedSpendMicros: number(audioPaidDispatchAuthorization.authorized_spend_micros),
+        controlledFixtureAudioPaidDispatchAuthority: number(audioPaidDispatchAuthorization.provider_dispatch_authority) === 1,
+        controlledFixtureAudioAuthorizationExpiresAt: text(audioPaidDispatchAuthorization.authorization_expires_at) || null,
+        controlledFixtureAudioAuthorizationProviderMetadataReads: number(audioPaidDispatchAuthorization.provider_metadata_reads),
+        controlledFixtureAudioAuthorizationPublicRightsReads: number(audioPaidDispatchAuthorization.public_rights_reads),
         controlledFixtureAudioRequestContracts: audioRequestContractRows.map((row) => ({ capability: text(row.capability_key), version: text(row.capability_version), archetype: text(row.archetype), dispatchMode: text(row.dispatch_mode), routeState: text(row.route_preflight_state), materializationState: text(row.materialization_state), maxProviderRequests: number(row.max_provider_requests), maxSpendMicros: number(row.max_spend_micros), count: number(row.contract_count) })),
       },
       countEligible: false as const,
@@ -478,7 +504,9 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
                               ? !text(audioRouteReservation.id)
                                 ? `Create the canonical PLAN_ONLY work request, route decision and exact $0.08 / 2-request reservation from the certified audio binding. Provider dispatch, synthesis and spend remain closed.`
                                 : text(audioRouteReservation.plan_state) === "PLANNED"
-                                  ? `The canonical PLAN_ONLY request, zero-dispatch route and $0.08 / 2-request reservation are frozen. Next require a separately typed paid-dispatch authorization with fresh generation-time rights and entitlement evidence; no provider call is authorized yet.`
+                                  ? !text(audioPaidDispatchAuthorization.id) || text(audioPaidDispatchAuthorization.authorization_state) !== "AUTHORIZED" || number(audioPaidDispatchAuthorization.authorization_current) !== 1
+                                    ? `Authorize exactly one paid audio dispatch against the frozen reservation after fresh paid-plan, voice/model and official-rights read-back. Authorization lasts 15 minutes; this step makes 0 synthesis requests and spends $0.`
+                                    : `One exact paid audio dispatch is authorized until ${text(audioPaidDispatchAuthorization.authorization_expires_at)}. Next execute at most one synthesis request, bind its native identity and exact bytes, and reconcile actual cost without retry or fallback.`
                                   : `Resolve the fail-closed canonical audio route-reservation blockers against fresh qualification, rights and drift evidence. Do not dispatch, synthesize or spend.`
                               : `Resolve the fail-closed audio-provider certification blockers and record a fresh exact observation. Do not create a canonical work request, reservation or synthesis request while certification is blocked.`
                           : `Preflight the selected one-audio batch into one typed PLAN_ONLY request contract and one active $0.08 / 2-request cost envelope. Do not create a provider request, reservation or dispatch authority.`

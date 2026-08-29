@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { certifyFactoryAssuranceAudioProvider } from "../lib/factory-assurance-audio-provider-certification.ts";
 import { planFactoryAssuranceAudioRouteReservation } from "../lib/factory-assurance-audio-route-reservation.ts";
+import { authorizeFactoryAssuranceAudioPaidDispatch } from "../lib/factory-assurance-audio-paid-dispatch-authorization.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -93,11 +94,11 @@ function seedExactEvidence(database, objects) {
   return artifactHash;
 }
 
-function providerFetch() {
+function providerFetch({ tier = "starter", status = "active" } = {}) {
   let calls = 0;
   const fetcher = async (input) => {
     calls += 1; const url = String(input);
-    if (url.endsWith("/v1/user/subscription")) return Response.json({ tier: "starter", status: "active" });
+    if (url.endsWith("/v1/user/subscription")) return Response.json({ tier, status });
     if (url.includes("/v1/voices/")) return Response.json({ voice_id: "JBFqnCBsd6RMkjVDRZzb", name: "Documentary narrator", category: "premade" });
     if (url.endsWith("/v1/models")) return Response.json([{ model_id: "eleven_multilingual_v2", can_do_text_to_speech: true, requires_alpha_access: false, can_use_style: true, can_use_speaker_boost: true, maximum_text_length_per_request: 10_000 }]);
     return Response.json({ article: { id: 13313564601361, updated_at: "2026-08-11T11:49:17Z", body: "All paid plans include a commercial license, provided you are not using Beta Services." } });
@@ -141,6 +142,86 @@ test("certifies one exact ElevenLabs audio binding from sealed clean evidence an
   assert.equal((await planFactoryAssuranceAudioRouteReservation(db, routeInput)).outcome, "IDEMPOTENT_REPLAY");
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_audio_route_reservation_runs").get().count, 1);
   assert.throws(() => database.prepare("UPDATE factory_assurance_audio_route_reservation_runs SET plan_state='BLOCKED'").run(), /APPEND_ONLY/);
+});
+
+test("authorizes exactly one short-lived paid audio dispatch from fresh entitlement and rights read-back without synthesis", async () => {
+  const { database, db, bucket, objects } = setup(); seedExactEvidence(database, objects);
+  const certificationProvider = providerFetch();
+  await certifyFactoryAssuranceAudioProvider({
+    env: { DB: db, BUCKET: bucket, ELEVENLABS_API_KEY: "test-secret" }, actor: "owner@example.com",
+    idempotencyKey: "assurance-audio-provider-certification-auth-0001", observedAt: "2026-08-29T01:00:00.000Z", fetcher: certificationProvider.fetcher,
+  });
+  await planFactoryAssuranceAudioRouteReservation(db, {
+    actor: "owner@example.com", idempotencyKey: "assurance-audio-route-reservation-auth-0001", evaluatedAt: "2026-08-29T01:05:00.000Z",
+  });
+  const provider = providerFetch();
+  const input = {
+    env: { DB: db, BUCKET: bucket, ELEVENLABS_API_KEY: "test-secret" }, actor: "owner@example.com",
+    idempotencyKey: "assurance-audio-paid-dispatch-authorization-test-0001", observedAt: "2026-08-29T01:06:00.000Z", fetcher: provider.fetcher,
+  };
+  const result = await authorizeFactoryAssuranceAudioPaidDispatch(input);
+  assert.deepEqual({ state: result.authorizationState, metadata: result.providerMetadataReads, rights: result.publicRightsReads, authorizedRequests: result.authorizedProviderRequests, authorizedSpend: result.authorizedSpendMicros, dispatch: result.providerDispatchAuthority, generations: result.providerGenerationRequests, requests: result.providerRequests, spend: result.spendMicros, retry: result.retryAuthority, fallback: result.fallbackAuthority },
+    { state: "AUTHORIZED", metadata: 3, rights: 1, authorizedRequests: 1, authorizedSpend: 80000, dispatch: true, generations: 0, requests: 0, spend: 0, retry: false, fallback: false });
+  assert.equal(result.authorizationExpiresAt, "2026-08-29T01:21:00.000Z");
+  assert.equal(provider.calls(), 4);
+  const run = database.prepare("SELECT * FROM factory_assurance_audio_paid_dispatch_authorization_runs WHERE id=?").get(result.runId);
+  assert.deepEqual({ subscription: run.subscription_readback_state, official: run.official_rights_readback_state, dispatch: run.provider_dispatch_authority, generation: run.provider_generation_requests, requests: run.provider_requests, spend: run.spend_micros, r22: run.r22_authority, release: run.release_authority, publication: run.publication_authority },
+    { subscription: "PASS", official: "PASS", dispatch: 1, generation: 0, requests: 0, spend: 0, r22: 0, release: 0, publication: 0 });
+  assert.equal(database.prepare("SELECT lifecycle_state FROM factory_runtime_leases WHERE id=?").get(result.runtimeLeaseId).lifecycle_state, "RELEASED");
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_native_request_receipts").get().count, 0);
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_reconciliation_receipts").get().count, 0);
+  assert.equal((await authorizeFactoryAssuranceAudioPaidDispatch(input)).outcome, "IDEMPOTENT_REPLAY");
+  assert.equal(provider.calls(), 4);
+  assert.throws(() => database.prepare("UPDATE factory_assurance_audio_paid_dispatch_authorization_runs SET authorization_state='BLOCKED'").run(), /APPEND_ONLY/);
+  assert.throws(() => database.prepare("DELETE FROM factory_assurance_audio_paid_dispatch_entitlement_receipts").run(), /APPEND_ONLY/);
+});
+
+test("blocks paid-dispatch authority when generation-time subscription is not on an active paid plan", async () => {
+  const { database, db, bucket, objects } = setup(); seedExactEvidence(database, objects);
+  const certificationProvider = providerFetch();
+  await certifyFactoryAssuranceAudioProvider({
+    env: { DB: db, BUCKET: bucket, ELEVENLABS_API_KEY: "test-secret" }, actor: "owner@example.com",
+    idempotencyKey: "assurance-audio-provider-certification-block-auth-0001", observedAt: "2026-08-29T01:00:00.000Z", fetcher: certificationProvider.fetcher,
+  });
+  await planFactoryAssuranceAudioRouteReservation(db, {
+    actor: "owner@example.com", idempotencyKey: "assurance-audio-route-reservation-block-auth-0001", evaluatedAt: "2026-08-29T01:05:00.000Z",
+  });
+  const provider = providerFetch({ tier: "free" });
+  const result = await authorizeFactoryAssuranceAudioPaidDispatch({
+    env: { DB: db, BUCKET: bucket, ELEVENLABS_API_KEY: "test-secret" }, actor: "owner@example.com",
+    idempotencyKey: "assurance-audio-paid-dispatch-authorization-block-0001", observedAt: "2026-08-29T01:06:00.000Z", fetcher: provider.fetcher,
+  });
+  assert.equal(result.authorizationState, "BLOCKED");
+  assert.ok(result.blockers.includes("GENERATION_TIME_ACTIVE_PAID_SUBSCRIPTION_REQUIRED"));
+  assert.deepEqual({ authorizedRequests: result.authorizedProviderRequests, authorizedSpend: result.authorizedSpendMicros, dispatch: result.providerDispatchAuthority, generations: result.providerGenerationRequests, requests: result.providerRequests, spend: result.spendMicros },
+    { authorizedRequests: 0, authorizedSpend: 0, dispatch: false, generations: 0, requests: 0, spend: 0 });
+  assert.equal(provider.calls(), 4);
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_native_request_receipts").get().count, 0);
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_reconciliation_receipts").get().count, 0);
+});
+
+test("blocks before provider observation when exact qualification and rights have expired", async () => {
+  const { database, db, bucket, objects } = setup(); seedExactEvidence(database, objects);
+  const certificationProvider = providerFetch();
+  await certifyFactoryAssuranceAudioProvider({
+    env: { DB: db, BUCKET: bucket, ELEVENLABS_API_KEY: "test-secret" }, actor: "owner@example.com",
+    idempotencyKey: "assurance-audio-provider-certification-expired-auth-0001", observedAt: "2026-08-29T01:00:00.000Z", fetcher: certificationProvider.fetcher,
+  });
+  await planFactoryAssuranceAudioRouteReservation(db, {
+    actor: "owner@example.com", idempotencyKey: "assurance-audio-route-reservation-expired-auth-0001", evaluatedAt: "2026-08-29T01:05:00.000Z",
+  });
+  const provider = providerFetch();
+  const result = await authorizeFactoryAssuranceAudioPaidDispatch({
+    env: { DB: db, BUCKET: bucket, ELEVENLABS_API_KEY: "test-secret" }, actor: "owner@example.com",
+    idempotencyKey: "assurance-audio-paid-dispatch-authorization-expired-0001", observedAt: "2026-09-06T01:06:00.000Z", fetcher: provider.fetcher,
+  });
+  assert.equal(result.authorizationState, "BLOCKED");
+  assert.ok(result.blockers.includes("EXACT_AUDIO_QUALIFICATION_NOT_CURRENT"));
+  assert.ok(result.blockers.includes("EXACT_AUDIO_RIGHTS_NOT_CURRENT"));
+  assert.deepEqual({ metadata: result.providerMetadataReads, rights: result.publicRightsReads, dispatch: result.providerDispatchAuthority, requests: result.providerRequests, spend: result.spendMicros },
+    { metadata: 0, rights: 0, dispatch: false, requests: 0, spend: 0 });
+  assert.equal(provider.calls(), 0);
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_native_request_receipts").get().count, 0);
 });
 
 test("records BLOCKED without canonical provider controls when the historical exact clean reference is absent", async () => {
