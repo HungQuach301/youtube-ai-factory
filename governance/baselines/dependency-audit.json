@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "identityKey": "package:advisory-source",
+  "policy": "Current advisories may disappear; new advisory identities fail.",
+  "advisories": [
+    {
+      "identity": "nanoid:1138811",
+      "package": "nanoid",
+      "source": 1138811,
+      "url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+      "severity": "high",
+      "title": "nanoid: non-secure generators can loop indefinitely with negative size"
+    },
+    {
+      "identity": "nanoid:1139427",
+      "package": "nanoid",
+      "source": 1139427,
+      "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+      "severity": "high",
+      "title": "nanoid: custom generators can loop indefinitely when size is zero"
+    },
+    {
+      "identity": "next:1124170",
+      "package": "next",
+      "source": 1124170,
+      "url": "https://github.com/advisories/GHSA-6gpp-xcg3-4w24",
+      "severity": "high",
+      "title": "Next.js: Middleware / Proxy bypass in App Router applications using Turbopack and single locale"
+    },
+    {
+      "identity": "next:1124171",
+      "package": "next",
+      "source": 1124171,
+      "url": "https://github.com/advisories/GHSA-m99w-x7hq-7vfj",
+      "severity": "high",
+      "title": "Next.js: Denial of Service in App Router using Server Actions"
+    },
+    {
+      "identity": "next:1124184",
+      "package": "next",
+      "source": 1124184,
+      "url": "https://github.com/advisories/GHSA-89xv-2m56-2m9x",
+      "severity": "high",
+      "title": "Next.js: Server-Side Request Forgery in Server Actions on custom servers"
+    },
+    {
+      "identity": "next:1124186",
+      "package": "next",
+      "source": 1124186,
+      "url": "https://github.com/advisories/GHSA-68g3-v927-f742",
+      "severity": "moderate",
+      "title": "Next.js: Cache confusion of response bodies for requests with bodies"
+    },
+    {
+      "identity": "next:1124188",
+      "package": "next",
+      "source": 1124188,
+      "url": "https://github.com/advisories/GHSA-4633-3j49-mh5q",
+      "severity": "moderate",
+      "title": "Next.js: Cache confusion of response bodies for requests with bodies containing invalid UTF-8 byte sequences"
+    },
+    {
+      "identity": "next:1124190",
+      "package": "next",
+      "source": 1124190,
+      "url": "https://github.com/advisories/GHSA-4c39-4ccg-62r3",
+      "severity": "moderate",
+      "title": "Next.js: Unbounded Server Action payload in Edge runtime"
+    },
+    {
+      "identity": "next:1124192",
+      "package": "next",
+      "source": 1124192,
+      "url": "https://github.com/advisories/GHSA-p9j2-gv94-2wf4",
+      "severity": "high",
+      "title": "Next.js: Server-Side Request Forgery in rewrites via attacker-controlled destination hostname"
+    },
+    {
+      "identity": "next:1124194",
+      "package": "next",
+      "source": 1124194,
+      "url": "https://github.com/advisories/GHSA-q8wf-6r8g-63ch",
+      "severity": "moderate",
+      "title": "Next.js: Denial of Service in the Image Optimization API using SVGs"
+    },
+    {
+      "identity": "next:1124196",
+      "package": "next",
+      "source": 1124196,
+      "url": "https://github.com/advisories/GHSA-955p-x3mx-jcvp",
+      "severity": "moderate",
+      "title": "Next.js: Unauthenticated disclosure of internal Server Function endpoints"
+    },
+    {
+      "identity": "postcss:1117015",
+      "package": "postcss",
+      "source": 1117015,
+      "url": "https://github.com/advisories/GHSA-qx2v-qp2m-jg93",
+      "severity": "moderate",
+      "title": "PostCSS has XSS via Unescaped </style> in its CSS Stringify Output"
+    },
+    {
+      "identity": "postcss:1124252",
+      "package": "postcss",
+      "source": 1124252,
+      "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
+      "severity": "high",
+      "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments"
+    },
+    {
+      "identity": "postcss:1130709",
+      "package": "postcss",
+      "source": 1130709,
+      "url": "https://github.com/advisories/GHSA-fxqj-rqcc-2cmp",
+      "severity": "moderate",
+      "title": "PostCSS: incomplete fix of GHSA-6g55-p6wh-862q — attacker-controlled sourceMappingURL reads arbitrary .map files when `from` is unset"
+    },
+    {
+      "identity": "postcss:1139510",
+      "package": "postcss",
+      "source": 1139510,
+      "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+      "severity": "high",
+      "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure"
+    },
+    {
+      "identity": "sharp:1124066",
+      "package": "sharp",
+      "source": 1124066,
+      "url": "https://github.com/advisories/GHSA-f88m-g3jw-g9cj",
+      "severity": "high",
+      "title": "sharp inherited vulnerabilities in libvips: CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591"
+    }
+  ],
+  "metadata": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 4,
+    "critical": 0,
+    "total": 4
+  }
+}

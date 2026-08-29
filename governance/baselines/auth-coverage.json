@@ -1,0 +1,1020 @@
+{
+  "version": 1,
+  "identityKey": "sourceFile#exportedHandler",
+  "uncoveredHandlers": [
+    {
+      "identity": "app/api/factory/channel-strategy-activations/route.ts#POST",
+      "route": "/api/factory/channel-strategy-activations",
+      "method": "POST",
+      "sourceFile": "app/api/factory/channel-strategy-activations/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/channel-studio/route.ts#GET",
+      "route": "/api/factory/channel-studio",
+      "method": "GET",
+      "sourceFile": "app/api/factory/channel-studio/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/channels/[id]/route.ts#GET",
+      "route": "/api/factory/channels/[id]",
+      "method": "GET",
+      "sourceFile": "app/api/factory/channels/[id]/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/connections/route.ts#GET",
+      "route": "/api/factory/connections",
+      "method": "GET",
+      "sourceFile": "app/api/factory/connections/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/content-autopilot/preview/route.ts#POST",
+      "route": "/api/factory/content-autopilot/preview",
+      "method": "POST",
+      "sourceFile": "app/api/factory/content-autopilot/preview/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/content-autopilot/route.ts#GET",
+      "route": "/api/factory/content-autopilot",
+      "method": "GET",
+      "sourceFile": "app/api/factory/content-autopilot/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/content-autopilot/route.ts#POST",
+      "route": "/api/factory/content-autopilot",
+      "method": "POST",
+      "sourceFile": "app/api/factory/content-autopilot/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/continuity/route.ts#GET",
+      "route": "/api/factory/continuity",
+      "method": "GET",
+      "sourceFile": "app/api/factory/continuity/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/continuity/route.ts#POST",
+      "route": "/api/factory/continuity",
+      "method": "POST",
+      "sourceFile": "app/api/factory/continuity/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/control-plane/route.ts#GET",
+      "route": "/api/factory/control-plane",
+      "method": "GET",
+      "sourceFile": "app/api/factory/control-plane/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/control-plane/route.ts#POST",
+      "route": "/api/factory/control-plane",
+      "method": "POST",
+      "sourceFile": "app/api/factory/control-plane/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/creative-contract/route.ts#GET",
+      "route": "/api/factory/creative-contract",
+      "method": "GET",
+      "sourceFile": "app/api/factory/creative-contract/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/creative-contract/route.ts#POST",
+      "route": "/api/factory/creative-contract",
+      "method": "POST",
+      "sourceFile": "app/api/factory/creative-contract/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/discovery/route.ts#GET",
+      "route": "/api/factory/discovery",
+      "method": "GET",
+      "sourceFile": "app/api/factory/discovery/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/intelligence/route.ts#GET",
+      "route": "/api/factory/intelligence",
+      "method": "GET",
+      "sourceFile": "app/api/factory/intelligence/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/intelligence/route.ts#POST",
+      "route": "/api/factory/intelligence",
+      "method": "POST",
+      "sourceFile": "app/api/factory/intelligence/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/material-production/route.ts#GET",
+      "route": "/api/factory/material-production",
+      "method": "GET",
+      "sourceFile": "app/api/factory/material-production/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/material-production/route.ts#POST",
+      "route": "/api/factory/material-production",
+      "method": "POST",
+      "sourceFile": "app/api/factory/material-production/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/niche-decisions/route.ts#POST",
+      "route": "/api/factory/niche-decisions",
+      "method": "POST",
+      "sourceFile": "app/api/factory/niche-decisions/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/niche-evidence/route.ts#POST",
+      "route": "/api/factory/niche-evidence",
+      "method": "POST",
+      "sourceFile": "app/api/factory/niche-evidence/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/niche-governance/route.ts#POST",
+      "route": "/api/factory/niche-governance",
+      "method": "POST",
+      "sourceFile": "app/api/factory/niche-governance/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/niche-hypotheses/route.ts#POST",
+      "route": "/api/factory/niche-hypotheses",
+      "method": "POST",
+      "sourceFile": "app/api/factory/niche-hypotheses/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/niche-portfolio/route.ts#GET",
+      "route": "/api/factory/niche-portfolio",
+      "method": "GET",
+      "sourceFile": "app/api/factory/niche-portfolio/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/niche-priorities/route.ts#POST",
+      "route": "/api/factory/niche-priorities",
+      "method": "POST",
+      "sourceFile": "app/api/factory/niche-priorities/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/niche-scoring/route.ts#POST",
+      "route": "/api/factory/niche-scoring",
+      "method": "POST",
+      "sourceFile": "app/api/factory/niche-scoring/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/portfolio/route.ts#GET",
+      "route": "/api/factory/portfolio",
+      "method": "GET",
+      "sourceFile": "app/api/factory/portfolio/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/production-design/route.ts#GET",
+      "route": "/api/factory/production-design",
+      "method": "GET",
+      "sourceFile": "app/api/factory/production-design/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/production-design/route.ts#POST",
+      "route": "/api/factory/production-design",
+      "method": "POST",
+      "sourceFile": "app/api/factory/production-design/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/production-v2/route.ts#GET",
+      "route": "/api/factory/production-v2",
+      "method": "GET",
+      "sourceFile": "app/api/factory/production-v2/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/production-v2/route.ts#HEAD",
+      "route": "/api/factory/production-v2",
+      "method": "HEAD",
+      "sourceFile": "app/api/factory/production-v2/route.ts",
+      "handlerExport": "HEAD",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/script-development/route.ts#GET",
+      "route": "/api/factory/script-development",
+      "method": "GET",
+      "sourceFile": "app/api/factory/script-development/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/script-development/route.ts#POST",
+      "route": "/api/factory/script-development",
+      "method": "POST",
+      "sourceFile": "app/api/factory/script-development/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/sequential-production/evaluation/provider-history/route.ts#POST",
+      "route": "/api/factory/sequential-production/evaluation/provider-history",
+      "method": "POST",
+      "sourceFile": "app/api/factory/sequential-production/evaluation/provider-history/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/sequential-production/media/route.ts#GET",
+      "route": "/api/factory/sequential-production/media",
+      "method": "GET",
+      "sourceFile": "app/api/factory/sequential-production/media/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/sequential-production/quality/route.ts#GET",
+      "route": "/api/factory/sequential-production/quality",
+      "method": "GET",
+      "sourceFile": "app/api/factory/sequential-production/quality/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/sequential-production/route.ts#GET",
+      "route": "/api/factory/sequential-production",
+      "method": "GET",
+      "sourceFile": "app/api/factory/sequential-production/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/shot-orchestration/route.ts#GET",
+      "route": "/api/factory/shot-orchestration",
+      "method": "GET",
+      "sourceFile": "app/api/factory/shot-orchestration/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/shot-orchestration/route.ts#POST",
+      "route": "/api/factory/shot-orchestration",
+      "method": "POST",
+      "sourceFile": "app/api/factory/shot-orchestration/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/storage/google-drive/callback/route.ts#GET",
+      "route": "/api/factory/storage/google-drive/callback",
+      "method": "GET",
+      "sourceFile": "app/api/factory/storage/google-drive/callback/route.ts",
+      "handlerExport": "GET",
+      "classification": "PROVIDER_CALLBACK",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/storage/google-drive/route.ts#GET",
+      "route": "/api/factory/storage/google-drive",
+      "method": "GET",
+      "sourceFile": "app/api/factory/storage/google-drive/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/storage/google-drive/route.ts#POST",
+      "route": "/api/factory/storage/google-drive",
+      "method": "POST",
+      "sourceFile": "app/api/factory/storage/google-drive/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/story-architecture/route.ts#GET",
+      "route": "/api/factory/story-architecture",
+      "method": "GET",
+      "sourceFile": "app/api/factory/story-architecture/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/factory/story-architecture/route.ts#POST",
+      "route": "/api/factory/story-architecture",
+      "method": "POST",
+      "sourceFile": "app/api/factory/story-architecture/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/evidence/route.ts#GET",
+      "route": "/api/projects/[id]/evidence",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/evidence/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/evidence/route.ts#POST",
+      "route": "/api/projects/[id]/evidence",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/evidence/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/master-v5/route.ts#GET",
+      "route": "/api/projects/[id]/master-v5",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/master-v5/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/master-v5/route.ts#POST",
+      "route": "/api/projects/[id]/master-v5",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/master-v5/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/media/route.ts#GET",
+      "route": "/api/projects/[id]/media",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/media/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/media/route.ts#POST",
+      "route": "/api/projects/[id]/media",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/media/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/optimization/route.ts#GET",
+      "route": "/api/projects/[id]/optimization",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/optimization/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/optimization/route.ts#POST",
+      "route": "/api/projects/[id]/optimization",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/optimization/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/perceptual-qa/route.ts#GET",
+      "route": "/api/projects/[id]/perceptual-qa",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/perceptual-qa/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/perceptual-qa/route.ts#POST",
+      "route": "/api/projects/[id]/perceptual-qa",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/perceptual-qa/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/production/route.ts#GET",
+      "route": "/api/projects/[id]/production",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/production/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/production/route.ts#POST",
+      "route": "/api/projects/[id]/production",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/production/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/quality/route.ts#GET",
+      "route": "/api/projects/[id]/quality",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/quality/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/quality/route.ts#POST",
+      "route": "/api/projects/[id]/quality",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/quality/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/references/route.ts#GET",
+      "route": "/api/projects/[id]/references",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/references/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/references/route.ts#POST",
+      "route": "/api/projects/[id]/references",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/references/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/render/route.ts#GET",
+      "route": "/api/projects/[id]/render",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/render/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/render/route.ts#POST",
+      "route": "/api/projects/[id]/render",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/render/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/repair-v51/route.ts#GET",
+      "route": "/api/projects/[id]/repair-v51",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/repair-v51/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/repair-v51/route.ts#POST",
+      "route": "/api/projects/[id]/repair-v51",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/repair-v51/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/voice/route.ts#GET",
+      "route": "/api/projects/[id]/voice",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/voice/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/voice/route.ts#POST",
+      "route": "/api/projects/[id]/voice",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/voice/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/workspace/route.ts#GET",
+      "route": "/api/projects/[id]/workspace",
+      "method": "GET",
+      "sourceFile": "app/api/projects/[id]/workspace/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/workspace/route.ts#POST",
+      "route": "/api/projects/[id]/workspace",
+      "method": "POST",
+      "sourceFile": "app/api/projects/[id]/workspace/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/route.ts#GET",
+      "route": "/api/projects",
+      "method": "GET",
+      "sourceFile": "app/api/projects/route.ts",
+      "handlerExport": "GET",
+      "classification": "OWNER_READ",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/route.ts#PATCH",
+      "route": "/api/projects",
+      "method": "PATCH",
+      "sourceFile": "app/api/projects/route.ts",
+      "handlerExport": "PATCH",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    },
+    {
+      "identity": "app/api/projects/route.ts#POST",
+      "route": "/api/projects",
+      "method": "POST",
+      "sourceFile": "app/api/projects/route.ts",
+      "handlerExport": "POST",
+      "classification": "OWNER_WRITE",
+      "authenticationGuard": null,
+      "authorizationGuard": null,
+      "covered": false,
+      "reasons": [
+        "AUTH_GUARD_MISSING",
+        "WRITE_AUTHORIZATION_MISSING"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "identityKey": "gate.id",
+  "policy": "Status may improve only with complete structured evidence; regression fails.",
+  "gates": [
+    { "id": "CHANNEL_STRATEGY_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "CLAIM_EVIDENCE_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "SCRIPT_VISUAL_COVERAGE_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "VISUAL_INTENT_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "VIDEO_BLUEPRINT_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "SHOT_CONTRACT_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "ASSET_RIGHTS_ELIGIBILITY_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "ANIMATIC_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "VISUAL_CAPABILITY_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "AUDIO_CAPABILITY_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "SCENE_GRAPH_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "INTEGRATED_CANARY_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "COST_RESERVATION_GATE", "minimumStatus": "PARTIAL" },
+    { "id": "EXACT_MASTER_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "AI_PRODUCTION_ASSURANCE_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "PUBLICATION_GATE", "minimumStatus": "NOT_IMPLEMENTED" },
+    { "id": "LEARNING_PROMOTION_GATE", "minimumStatus": "NOT_IMPLEMENTED" }
+  ]
+}

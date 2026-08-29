@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "identityKey": "sourceFile#GET",
+  "handlersWithReachableWrites": [
+    {
+      "identity": "app/api/factory/control-plane/route.ts#GET",
+      "evidence": [
+        "ensureFoundationSchema:CALL:batch",
+        "readDashboard:CALL:seedControlPlane",
+        "seedControlPlane:CALL:insert",
+        "seedControlPlane:CALL:update"
+      ]
+    },
+    {
+      "identity": "app/api/factory/creative-contract/route.ts#GET",
+      "evidence": [
+        "runtime:CALL:batch"
+      ]
+    },
+    {
+      "identity": "app/api/factory/intelligence/route.ts#GET",
+      "evidence": [
+        "runtime:CALL:batch"
+      ]
+    },
+    {
+      "identity": "app/api/factory/material-production/route.ts#GET",
+      "evidence": [
+        "runtime:CALL:batch",
+        "runtime:SQL:INSERT_INTO"
+      ]
+    },
+    {
+      "identity": "app/api/factory/production-design/route.ts#GET",
+      "evidence": [
+        "runtime:CALL:batch",
+        "runtime:SQL:INSERT_INTO"
+      ]
+    },
+    {
+      "identity": "app/api/factory/script-development/route.ts#GET",
+      "evidence": [
+        "runtime:CALL:batch"
+      ]
+    },
+    {
+      "identity": "app/api/factory/shot-orchestration/route.ts#GET",
+      "evidence": [
+        "runtime:CALL:batch",
+        "runtime:SQL:INSERT_INTO"
+      ]
+    },
+    {
+      "identity": "app/api/factory/story-architecture/route.ts#GET",
+      "evidence": [
+        "runtime:CALL:batch"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/evidence/route.ts#GET",
+      "evidence": [
+        "ensureFoundation:CALL:insert"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/optimization/route.ts#GET",
+      "evidence": [
+        "GET:CALL:insert",
+        "ensureV5Profile:CALL:insert"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/production/route.ts#GET",
+      "evidence": [
+        "GET:CALL:seedProduction",
+        "seedProduction:CALL:insert",
+        "seedProduction:CALL:update"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/quality/route.ts#GET",
+      "evidence": [
+        "GET:CALL:insert"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/references/route.ts#GET",
+      "evidence": [
+        "GET:CALL:insert"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/voice/route.ts#GET",
+      "evidence": [
+        "GET:CALL:insert",
+        "GET:CALL:seedVoiceWorkspace",
+        "GET:CALL:update",
+        "seedVoiceWorkspace:CALL:insert"
+      ]
+    },
+    {
+      "identity": "app/api/projects/[id]/workspace/route.ts#GET",
+      "evidence": [
+        "GET:CALL:seedWorkspace",
+        "seedWorkspace:CALL:insert"
+      ]
+    },
+    {
+      "identity": "app/api/projects/route.ts#GET",
+      "evidence": [
+        "GET:CALL:insert"
+      ]
+    }
+  ]
+}
