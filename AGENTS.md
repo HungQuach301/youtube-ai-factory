@@ -1,58 +1,79 @@
-# AI Factory Working Instructions
+# Repository Agent Instructions
 
-## Repository authority
+## Scope
 
-This Git repository is the sole source of project truth and knowledge. Chat transcripts, Personal Context, Library, Drive, scratch folders, screenshots, patches, bundles and archives are discovery or recovery aids only. They cannot override tracked source, decisions or reconciled runtime evidence.
+- Repository: HungQuach301/youtube-ai-factory
+- Production Site: youtube-ai-factory.quach-hung.chatgpt.site
+- Excluded repository: HungQuach301/youtube-ai-factory-v2
+- Never access, inspect, modify, synchronize, or infer from the excluded repository.
 
-The active policy is [`docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md`](docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md).
+## Source of truth
 
-## Start every chat
+- GitHub main is the sole code and documentation SSOT.
+- Sites is a deployment target, not a source-authoring surface.
+- Start every change from current GitHub main.
+- Never copy a newer Sites source state back into GitHub except the explicitly
+  authorized one-time M0-00 reconciliation.
 
-1. Read `docs/README.md` and follow its required reading order before changing source.
-2. Verify the exact repository, branch, HEAD, remote and `git status --short --branch`; never infer source from a prior chat transcript.
-3. If the required commit is absent, fetch the canonical `main` object graph. `origin/main` is the ChatGPT Sites source remote and `github/main` is the personal GitHub mirror; after setup they must resolve to the same commit. Do not reconstruct ordinary source from an old chat or Library capsule while either verified mirror is available.
-4. Treat the product as a multi-channel operating system. V7/V23 is the Video Production Engine, not the whole product.
-5. Reconcile current state, open issues, active roadmap wave and protected scope.
-6. State the bounded outcome, acceptance evidence and protected scope.
+## Work package contract
 
-Do not load or treat `docs/archive` as ordinary development context. It is read-only historical evidence and may be consulted only for a named investigation.
+- One work package per branch and pull request.
+- Branch names use wp/<id>-<slug>.
+- Do not push directly to main.
+- Read only the files needed for the current work package.
+- Preserve existing architecture, package manager, lockfile, hosting manifest,
+  D1/R2 binding names, and unrelated user changes.
+- Do not create new documentation, migrations, gates, tables, or authorities
+  unless the work package explicitly requires them.
 
-## Non-negotiable controls
+## Required order
 
-- New portfolio slices are read-only until a separately approved typed command contract grants mutation authority.
-- Build quality into every owning stage. QA is independent release assurance, not a repair department.
-- Preserve recommendation, expert decision and committed state as separate facts.
-- Niche Discovery must output a comparable opportunity portfolio, never a single champion presented as a yes/no decision.
-- Only typed `NICHE_OPPORTUNITY` aggregates may enter Niche Discovery; content pillars, series and video topics belong downstream in Channel Studio/Content Planning.
-- Slices 4–8 are permanent commercial-tool capabilities with owned data/API/UI/audit/metrics boundaries, never one-time project tasks or manual document workflows.
-- Keep system rank, expert priority, selection, commitment and Channel Strategy activation as separate versioned facts.
-- Treat niche prerequisites as hard gates; an attractive-market score cannot compensate for a failed prerequisite.
-- Route expert-seeded and system-discovered niche hypotheses through the same support, contradiction and unknown-evidence workflow.
-- No demo/local fallback may replace unavailable canonical data.
-- No operator-facing slice is commercial-ready without responsive, interaction, accessibility, truthful-state and performance evidence.
-- One chat may mutate a given worktree at a time.
-- Do not deploy, dispatch a provider, migrate data, run production QA or delete legacy state without explicit authority and runtime reconciliation.
-- Capability qualification, active settings/version, cost reservation, rights eligibility and idempotency are dispatch prerequisites.
-- Plans, schemas, migrations, UI labels and provider responses do not prove completion by themselves.
+1. Read this file and the work package inputs.
+2. Confirm protected scope and excluded repository.
+3. Create a feature branch from current main.
+4. Implement the smallest coherent change.
+5. Run relevant focused tests, full tests, production build, and documentation checks.
+6. Open a pull request and read GitHub Actions.
+7. Repair the cause of failures; never weaken checks to obtain green.
+8. Merge only after required checks pass.
+9. Deploy the exact merged source tree to Sites.
+10. Verify deployment status and runtime evidence.
 
-## Standing owner production authority
+## Security and authority
 
-`OWNER_STANDING_PRODUCTION_AUTHORITY_V1`, granted 2026-08-21, covers roadmap-bounded production deployments, additive migrations, production QA and provider dispatch without asking the owner for a duplicate chat confirmation. Every operation must still pass the active typed plan, capability/settings qualification, atomic budget reservation, rights, safety, idempotency and fencing gates. This standing authority does not authorize auto-publish, public publication, deletion of historical evidence or weakening a hard gate; those remain separate typed owner decisions.
+- Every route requires explicit application-layer authentication or an exact
+  documented public allowlist entry.
+- Write handlers require authorization in addition to authentication.
+- An AGENT actor cannot execute CERTIFY, APPROVE, ACTIVATE, COMMIT, RELEASE,
+  PUBLISH, or equivalent business-authority commands unless the work package
+  supplies a separate owner-authorized command contract.
+- Secrets belong only in Sites environment or approved GitHub Actions secrets.
+- Never print, commit, document, upload, or persist secret values elsewhere.
+- Provider calls and spend require typed requests, current entitlement,
+  current rights, an active cost envelope, exact reservation, idempotency, and
+  dispatch authority.
 
-## Documentation and continuity rule
+## Data and migrations
 
-Before a chat rollover or after a coherent material milestone, the active assistant must:
+- Migrations are append-only and forward-only.
+- Never rename, edit, delete, reorder, squash, or reuse identifiers of applied
+  migrations in the canonical repository.
+- Every mutation needs idempotency and read-back evidence.
+- Code rollback is not a database rollback. Use a forward-fix plan when data or
+  schema may already have changed.
 
-1. finish the smallest coherent unit and run the required verification;
-2. update the relevant current state, decision, issue and roadmap documents;
-3. run `npm run check:docs` and the relevant source checks;
-4. review the full diff and create a bounded Git commit;
-5. push the exact commit to `origin/main` and `github/main` under [`docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md`](docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md);
-6. verify local HEAD, `origin/main` and `github/main` are identical and the worktree is clean;
-7. report `ROLLOVER READY` only after those gates pass.
+## Completion
 
-Optional patches, bundles and archives are derivative disaster-recovery exports, not project authority. Do not copy nested repository bundles into this repository. If the Git checkpoint cannot complete, report `ROLLOVER BLOCKED`, keep the worktree intact and name the failed gate.
+A work package is complete only when:
 
-## End every material session
+- the pull request is merged;
+- required checks passed for the merged source;
+- Sites deployed the matching source tree;
+- production verification passed;
+- temporary flags and credentials were removed;
+- a deployment receipt records GitHub SHA, Git tree SHA, Sites version, and
+  schema version.
 
-Record actual tests/build/lint results, deployment truth, known limitations, exact next action and protected scope. A material handoff is not complete until both canonical Git mirrors contain the same checkpoint. `HungQuach301/youtube-ai-factory-v2` is excluded and must never be used as an upstream, mirror, fallback or recovery input.
+If blocked, stop safely and report completed work, remaining work, root cause,
+impact, and the exact next action. Never wait silently and never switch targets.
+

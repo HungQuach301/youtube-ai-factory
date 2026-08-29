@@ -3,17 +3,27 @@ import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const required = [
+const canonicalControlDocuments = [
   "AGENTS.md",
+  "docs/roadmap/00_PROGRAM_MILESTONES.md",
+  "docs/operations/01_OPERATING_MANUAL.md",
+  "docs/governance/03_ENFORCEMENT_KIT.md",
+  "docs/commercialization/04_COMMERCIALIZATION_SPEC.md",
+  "docs/governance/AI_FACTORY_ISSUE_REGISTER.md",
+  "docs/operations/SOURCE_DEPLOYMENT_POLICY.md",
+  "docs/security/AUTH_SECRETS_PUBLICATION_SPEC.md",
+  "docs/architecture/E2E_PRODUCTION_GATE_MODEL.md",
+];
+const required = [
   "README.md",
   "docs/README.md",
+  ...canonicalControlDocuments,
   "docs/governance/REPOSITORY_SOURCE_OF_TRUTH.md",
   "docs/governance/MASTER_ISSUE_REGISTRY.md",
   "docs/architecture/TARGET_OPERATING_ARCHITECTURE.md",
   "docs/architecture/BUSINESS_OPERATING_MODEL.md",
   "docs/architecture/TECHNICAL_RUNTIME_ARCHITECTURE.md",
   "docs/architecture/VISUAL_PRODUCTION_OPERATING_MODEL.md",
-  "docs/architecture/E2E_PRODUCTION_GATE_MODEL.md",
   "docs/architecture/VISUAL_MOTION_TECHNIQUE_PLAYBOOK.md",
   "docs/architecture/MULTI_CHANNEL_SCALE_AND_LEARNING.md",
   "docs/architecture/AI_FIRST_PRODUCTION_ASSURANCE.md",
@@ -35,12 +45,23 @@ const failures = [];
 for (const path of required) if (!existsSync(join(root, path))) failures.push(`MISSING_REQUIRED_FILE:${path}`);
 
 const text = (path) => readFileSync(join(root, path), "utf8");
-if (!text("AGENTS.md").includes("sole source of project truth")) failures.push("AGENTS_SSOT_RULE_MISSING");
+const agentsDocument = text("AGENTS.md");
+if (!agentsDocument.includes("sole source of project truth") && !agentsDocument.includes("GitHub main is the sole code and documentation SSOT")) failures.push("AGENTS_SSOT_RULE_MISSING");
 if (!text("README.md").includes("docs/README.md")) failures.push("ROOT_README_KNOWLEDGE_ENTRY_MISSING");
 if (!text("docs/README.md").includes("GIT_REPOSITORY_SSOT_V1")) failures.push("DOC_INDEX_POLICY_MISSING");
 if (!text("docs/README.md").includes("DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1")) failures.push("DUAL_REMOTE_POLICY_MISSING");
 if (!text("docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md").includes("origin/main")) failures.push("ROLLOVER_GIT_REMOTE_MISSING");
 if (!text("docs/continuity/09_CHAT_ROLLOVER_CAPSULE.md").includes("github/main")) failures.push("ROLLOVER_GITHUB_MIRROR_MISSING");
+for (const path of canonicalControlDocuments) {
+  if (!text("README.md").includes(path)) failures.push(`ROOT_README_CANONICAL_LINK_MISSING:${path}`);
+}
+if (!text("docs/operations/SOURCE_DEPLOYMENT_POLICY.md").includes("GitHub main is the only code SSOT")) failures.push("SOURCE_DEPLOYMENT_GITHUB_FIRST_RULE_MISSING");
+for (const path of canonicalControlDocuments) {
+  const content = text(path);
+  if (content.includes("DUAL_REMOTE_SINGLE_COMMIT_SSOT_V1") || content.includes("Sites mirror: origin/main")) {
+    failures.push(`CANONICAL_CONTROL_SPLIT_BRAIN_MARKER:${path}`);
+  }
+}
 if (!text("docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md").includes("youtube-ai-factory-v2")) failures.push("EXCLUDED_REPOSITORY_RULE_MISSING");
 if (!text("docs/governance/REPOSITORY_SYNC_AND_RECOVERY.md").includes("ACTIVE_NORMATIVE__SYNCHRONIZED")) failures.push("REPOSITORY_SYNC_RECEIPT_MISSING");
 if (text("docs/continuity/03_CURRENT_STATE.md").includes("CONNECTOR_ACCESS_REQUIRED")) failures.push("STALE_GITHUB_ACCESS_BLOCKER_IN_CURRENT_STATE");
@@ -103,4 +124,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Documentation SSOT PASS · ${activeMarkdownFiles.length} active Markdown files · ${archiveMarkdownFiles.length} historical archive files · ${required.length} canonical files present · active local links resolve`);
+console.log(`Documentation SSOT PASS · ${canonicalControlDocuments.length} canonical control documents · ${activeMarkdownFiles.length} active Markdown files · ${archiveMarkdownFiles.length} historical archive files · ${required.length} required files present · active local links resolve`);
