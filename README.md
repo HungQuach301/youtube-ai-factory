@@ -1,56 +1,22 @@
 # YouTube AI Factory
 
-YouTube AI Factory is a multi-channel operating system for:
+GitHub `main` is the sole code and documentation source of truth. GPT Sites is
+the deployment target. `HungQuach301/youtube-ai-factory-v2` is excluded.
 
-```text
-Market intelligence -> Niche portfolio -> Channel strategy
--> Content planning -> Video production -> Assurance
--> Release/publication -> Measurement and learning
-```
+## Canonical control documents
 
-The Video Engine is one subsystem, not the entire product.
+| Control | Canonical document |
+|---|---|
+| Repository agent instructions | [`AGENTS.md`](AGENTS.md) |
+| Program milestones | [`docs/roadmap/00_PROGRAM_MILESTONES.md`](docs/roadmap/00_PROGRAM_MILESTONES.md) |
+| Operating manual | [`docs/operations/01_OPERATING_MANUAL.md`](docs/operations/01_OPERATING_MANUAL.md) |
+| Enforcement kit | [`docs/governance/03_ENFORCEMENT_KIT.md`](docs/governance/03_ENFORCEMENT_KIT.md) |
+| Commercialization specification | [`docs/commercialization/04_COMMERCIALIZATION_SPEC.md`](docs/commercialization/04_COMMERCIALIZATION_SPEC.md) |
+| Issue register | [`docs/governance/AI_FACTORY_ISSUE_REGISTER.md`](docs/governance/AI_FACTORY_ISSUE_REGISTER.md) |
+| Source and deployment policy | [`docs/operations/SOURCE_DEPLOYMENT_POLICY.md`](docs/operations/SOURCE_DEPLOYMENT_POLICY.md) |
+| Authentication, secrets, provider, and publication specification | [`docs/security/AUTH_SECRETS_PUBLICATION_SPEC.md`](docs/security/AUTH_SECRETS_PUBLICATION_SPEC.md) |
+| End-to-end production gate model | [`docs/architecture/E2E_PRODUCTION_GATE_MODEL.md`](docs/architecture/E2E_PRODUCTION_GATE_MODEL.md) |
 
-## Single source of truth
-
-This Git repository is the sole engineering and knowledge SSOT. Start with [`docs/README.md`](docs/README.md). Active documents are separate from the read-only [`docs/archive`](docs/archive/README.md).
-
-```text
-canonical branch: main
-Sites mirror: origin/main
-personal mirror: github/main (HungQuach301/youtube-ai-factory)
-excluded repository: HungQuach301/youtube-ai-factory-v2
-```
-
-The personal GitHub mirror was initialized from the complete Sites Git history and exact-SHA equality was verified on 2026-08-25. A later material checkpoint is complete only after local `HEAD`, `origin/main` and `github/main` are again verified as the same exact commit.
-
-## Current checkpoint
-
-- R21 exact master `3f968794…` is immutable: English/en-US audio PASS 95; visual FAIL 67.
-- R22 is design-only and has not been dispatched.
-- Browser, owner freeze, release, publication and auto-publish remain blocked.
-- Architecture/documentation is complete for the approved design scope.
-- Phase 45 runtime/contracts and capability qualification must pass before R22.
-
-See [`docs/continuity/03_CURRENT_STATE.md`](docs/continuity/03_CURRENT_STATE.md), [`docs/governance/MASTER_ISSUE_REGISTRY.md`](docs/governance/MASTER_ISSUE_REGISTRY.md) and [`docs/roadmap/MASTER_ROADMAP.md`](docs/roadmap/MASTER_ROADMAP.md).
-
-## Local verification
-
-Prerequisite: Node.js `>=22.13.0`.
-
-```bash
-npm run check:docs
-npm run build
-npm test
-```
-
-Use the Sites lifecycle for hosted checkpoints. Do not store credentials, provider keys or deployment tokens in Git configuration, remote URLs, documents or logs.
-
-## Runtime shape
-
-- Vinext/React application under `app/`.
-- Cloudflare D1 operational metadata and receipts.
-- Cloudflare R2 active media/evidence bytes.
-- Drizzle schema and append-only migrations under `db/`.
-- Typed production, assurance and provider services under `lib/`.
-- Verification and bounded executors under `scripts/` and `tests/`.
-- Google Drive is `USER_CONTROLLED_RECOVERY_ARCHIVE`, not code/docs or transactional SSOT.
+Detailed architecture, continuity, evidence, and historical documents are
+indexed under [`docs/README.md`](docs/README.md) and remain subordinate to the
+canonical control documents above.

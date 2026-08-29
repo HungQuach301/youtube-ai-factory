@@ -1,56 +1,170 @@
 # End-to-End Production Gate Model
 
-**State:** `ACTIVE_NORMATIVE__PARTIAL_IMPLEMENTATION`
-**Policy:** `E2E_PRODUCTION_GATE_MODEL_V1`  
-**Effective:** 2026-08-24
+Status: Baseline for M0 verification  
+Applies to: YouTube AI Factory original
 
-## Purpose
+## 1. Gate status vocabulary
 
-This model turns an audience opportunity into an exact, evidence-bound release candidate. Data lifecycle, production workflow and acceptance are separate concerns: every stage has a Definition of Ready, producer self-check, independent gate, failure owner and typed handoff.
+Every gate has exactly one status:
 
-## Canonical workflow and gates
+| Status | Meaning |
+|---|---|
+| IMPLEMENTED | Runtime enforcement, focused test, and production evidence exist |
+| PARTIAL | Some enforcement exists; documented gaps remain |
+| NOT_IMPLEMENTED | No enforcement claim is made |
+| DEPRECATED | Gate is disabled and has an approved replacement |
 
-| Stage | Definition of Ready | Producer self-check | Independent gate and PASS evidence | Failure owner | Downstream handoff |
-|---|---|---|---|---|---|
-| Audience need | Versioned market, audience and channel context | Opportunity is specific, comparable and within channel envelope | `CHANNEL_STRATEGY_GATE`: active strategy/DNA, demand evidence, budget/risk eligibility | Channel Strategy | Opportunity brief |
-| Claim graph | Research plan and source policy | Each material claim has scope, date, confidence and contradiction state | `CLAIM_EVIDENCE_GATE`: qualified sources and exact evidence bindings; unknown factual safety fails closed | Research/Claims | Frozen claim graph |
-| Narrative | Frozen claims and video promise | Every sentence maps to claim/purpose; no unsupported certainty | `SCRIPT_VISUAL_COVERAGE_GATE`: factual, audience, pacing and visualizability coverage | Editorial | Versioned script and narration clauses |
-| Visual intent | Script clauses and Channel Visual DNA | Every clause has typed audience job and treatment intent | `VISUAL_INTENT_GATE`: SOURCE/MAKE/HYBRID eligibility and no uncovered duration | Visual Planning | Visual-intent program |
-| Video Blueprint | Claims, narration, format and Visual DNA | Sequences follow `Reality -> Mechanism -> Proof`; novelty and duration budgets fit | `VIDEO_BLUEPRINT_GATE`: coverage, treatment diversity, capability and cost feasibility | Creative Director | Frozen blueprint |
-| Shot Contracts | Blueprint and canonical timebase | Frame/sample ranges are gap-free, non-overlapping and acceptance-testable | `SHOT_CONTRACT_GATE`: exact lineage, rights needs, motion/typography and evidence contract | Shot Planning | Compiled shot jobs |
-| Candidate tournament | Shot jobs and provider eligibility | Relevant candidates compared for meaning, quality, diversity, rights and cost | `ASSET_RIGHTS_ELIGIBILITY_GATE`: winner is qualified, licensed and frozen to exact bytes/range/crop | Asset/Provider | Champion manifest and rights receipt |
-| Animatic | Champion plan, draft audio and shot timing | Full duration plays coherently on target viewport; no slide grammar | `ANIMATIC_GATE`: story clarity, timing, coverage and treatment rhythm | Edit/Creative | Accepted timing plan |
-| Qualified production | Accepted animatic and qualified capabilities | Visual/audio outputs meet their contracts and hashes reconcile | `VISUAL_CAPABILITY_GATE` plus `AUDIO_CAPABILITY_GATE`: capability receipts active for exact versions | Capability owners | Verified components |
-| Scene graph | Verified components and frozen timebase | Objects, states, transitions, captions and transforms compile deterministically | `SCENE_GRAPH_GATE`: schema, determinism, lineage, bounds and mobile-safe layout | Renderer | Frozen render manifest |
-| Integrated canary | Hardest 60-90 seconds selected before master render | Canary uses the exact Production path and dependency versions | `INTEGRATED_CANARY_GATE`: deterministic, semantic, temporal and audio checks pass | Root production owner | Master-render authorization |
-| Exact master | Passed canary and frozen dependencies | Master decodes; hashes, duration, A/V sync and delivery properties reconcile | `EXACT_MASTER_GATE`: one exact master hash and complete lineage | Compositor | Exact-master evidence bundle |
-| AI assurance | Exact master and qualified L0-L7 bindings | Evidence coverage, cost and raw responses complete | `AI_PRODUCTION_ASSURANCE_GATE`: `AI_ACCEPTED`, `CONTENT_REJECTED`, `ASSURANCE_INCOMPLETE` or `HUMAN_ESCALATION_REQUIRED` | Assurance/root defect owner | Acceptance or exception receipt |
-| Freeze and release | Accepted exact hash, no stale dependency and applicable human authority | All receipts bind the same bytes; release policy satisfied | `RELEASE_GATE`: creates `RELEASE_READY`; never implies publication | Release authority | Release-ready package |
-| Publication | Release-ready package and separate publication authorization | Channel, metadata, schedule and rollback target verified | `PUBLICATION_GATE`: provider receipt and exact published identity | Publication owner | Published identity |
-| Performance learning | Published identity and measurement window | Metrics reconcile to exact video, prediction and treatments | `LEARNING_PROMOTION_GATE`: minimum sample, experiment validity and no unresolved confounder | Learning/Channel | Candidate, promotion, revoke or rollback |
+A name appearing in source, test, comments, or documentation is not evidence of
+implementation.
 
-## Gate rules
+## 2. Required evidence
 
-- A producer cannot independently PASS its own output.
-- A score average cannot compensate for a hard factual, rights, safety, exact-byte or P0/P1 failure.
-- A PASS binds exact input/output hashes, policy versions, acceptance authority and evidence limitations.
-- Upstream mutation makes dependent gates stale; it never edits historical receipts.
-- Infrastructure failure is `ASSURANCE_INCOMPLETE`, not content rejection.
-- Repair routes to one root owner and permits at most one bounded append-only root revision before escalation.
-- Release and publication are distinct commands, connections and receipts.
+IMPLEMENTED requires all:
 
-## State transitions
+1. canonical gate identifier;
+2. exact runtime enforcement point;
+3. typed input and output contract;
+4. focused negative and positive tests;
+5. failure behavior;
+6. authority effect;
+7. production receipt or explicitly non-production qualification evidence;
+8. owner of the gate;
+9. last-verified date.
 
-```text
-DRAFT -> READY -> PRODUCING -> PRODUCED -> VERIFYING -> VERIFIED -> FROZEN
-                 |             |            |
-                 +-> BLOCKED   +-> FAILED   +-> ESCALATED
+PARTIAL requires implemented portions and exact missing controls.
 
-VERIFIED/FROZEN -> STALE only through a recorded dependency/version event
-```
+NOT_IMPLEMENTED requires a linked issue and must never be presented as PASS.
 
-UI labels are projections only. A transition is authoritative only when the typed event and required receipt exist.
+## 3. Gate registry
 
-## Current boundary
+The status values below are bootstrap classifications and must be verified in
+M0 before any implementation claim is promoted.
 
-R21 remains immutable evidence. Migrations `0106`-`0112` cover canonical planning contracts, the fenced writer, zero-dispatch provider routing/compiler, exact-byte render tape, asset eligibility, integrated pixel/video canary admission, bounded success/orphan/replay qualification and the Hidden Systems production-scale treatment package. The generic 60-second canary and ten-case 1920×1080 treatment package both pass live exact D1/R2 read-back and idempotent replay with zero provider requests/spend. They cannot open master render. Animatic, exact R22 dependency admission, exact master and assurance gates remain incomplete. Legacy Production V2 is outside this change.
+| Gate | Baseline status | Required outcome |
+|---|---|---|
+| CHANNEL_STRATEGY_GATE | NOT_IMPLEMENTED | Approved channel strategy and winning criteria |
+| CLAIM_EVIDENCE_GATE | NOT_IMPLEMENTED | Every material claim linked to admissible evidence |
+| SCRIPT_VISUAL_COVERAGE_GATE | NOT_IMPLEMENTED | Script concepts mapped to visual coverage |
+| VISUAL_INTENT_GATE | NOT_IMPLEMENTED | Shot intent is explicit and non-template |
+| VIDEO_BLUEPRINT_GATE | NOT_IMPLEMENTED | Full narrative, audio, visual, and timing blueprint |
+| SHOT_CONTRACT_GATE | NOT_IMPLEMENTED | Exact shot-level contract and duration coverage |
+| ASSET_RIGHTS_ELIGIBILITY_GATE | NOT_IMPLEMENTED | Exact bytes have current usage rights |
+| ANIMATIC_GATE | NOT_IMPLEMENTED | Timing and narrative flow verified before full render |
+| VISUAL_CAPABILITY_GATE | NOT_IMPLEMENTED | Route can produce required visual form |
+| AUDIO_CAPABILITY_GATE | NOT_IMPLEMENTED | Voice, model, entitlement, rights, and quality qualified |
+| SCENE_GRAPH_GATE | NOT_IMPLEMENTED | Exact scene dependencies and lineage |
+| INTEGRATED_CANARY_GATE | NOT_IMPLEMENTED | Bounded integrated output passes before scale |
+| COST_RESERVATION_GATE | PARTIAL | Typed reservation, lease, settlement, reconciliation |
+| EXACT_MASTER_GATE | NOT_IMPLEMENTED | Exact parent manifest and byte read-back |
+| AI_PRODUCTION_ASSURANCE_GATE | NOT_IMPLEMENTED | Multi-dimensional production assurance |
+| PUBLICATION_GATE | NOT_IMPLEMENTED | Owner-authorized exact upload contract |
+| LEARNING_PROMOTION_GATE | NOT_IMPLEMENTED | External evidence can promote a treatment |
+
+## 4. Gate dependency order
+
+### Strategy and evidence
+
+1. CHANNEL_STRATEGY_GATE
+2. CLAIM_EVIDENCE_GATE
+3. SCRIPT_VISUAL_COVERAGE_GATE
+
+### Blueprint and production contracts
+
+4. VISUAL_INTENT_GATE
+5. VIDEO_BLUEPRINT_GATE
+6. SHOT_CONTRACT_GATE
+7. ASSET_RIGHTS_ELIGIBILITY_GATE
+
+### Capability and integrated proof
+
+8. ANIMATIC_GATE
+9. VISUAL_CAPABILITY_GATE
+10. AUDIO_CAPABILITY_GATE
+11. SCENE_GRAPH_GATE
+12. INTEGRATED_CANARY_GATE
+13. COST_RESERVATION_GATE
+
+### Master, release, and learning
+
+14. EXACT_MASTER_GATE
+15. AI_PRODUCTION_ASSURANCE_GATE
+16. PUBLICATION_GATE
+17. LEARNING_PROMOTION_GATE
+
+No downstream gate can repair missing upstream evidence by declaration.
+
+## 5. Authority effects
+
+Gate PASS grants only the authority explicitly listed in its contract.
+
+- Strategy PASS does not authorize generation.
+- Capability PASS does not authorize paid dispatch.
+- Cost reservation does not authorize publication.
+- Master PASS does not authorize release.
+- Publication eligibility does not invoke publication.
+- Learning evidence does not automatically promote a treatment.
+
+Authority defaults to zero.
+
+## 6. Failure behavior
+
+Every gate failure:
+
+- records the evaluated subject and evidence versions;
+- states the failed rule;
+- blocks its exact downstream authority;
+- leaves unrelated authority unchanged;
+- does not silently fall back;
+- does not create provider calls or spend unless the gate itself is an
+  explicitly authorized bounded qualification;
+- supports idempotent read-back.
+
+## 7. Traceability check
+
+The machine check validates registry structure, not runtime implementation.
+
+For every gate it verifies:
+
+- exactly one status;
+- issue reference for PARTIAL or NOT_IMPLEMENTED;
+- source enforcement reference for IMPLEMENTED;
+- focused test reference for IMPLEMENTED;
+- evidence reference for IMPLEMENTED;
+- no contradictory status.
+
+The check must not mark a gate IMPLEMENTED merely because the gate literal
+appears in source and tests.
+
+## 8. Promotion process
+
+Changing a gate from NOT_IMPLEMENTED or PARTIAL to IMPLEMENTED requires one
+work package and pull request containing:
+
+- gate contract;
+- runtime enforcement;
+- focused positive and negative tests;
+- documentation update;
+- authority projection update;
+- bounded live verification when applicable;
+- deployment receipt.
+
+Changing a gate to DEPRECATED requires an approved replacement and proof that
+no active route still depends on it.
+
+## 9. Learning model
+
+Retention and external analytics may influence strategy, treatment, pacing,
+hook, and engagement predictions. They do not override:
+
+- factual evidence;
+- rights eligibility;
+- security;
+- synchronization;
+- policy;
+- audio correctness;
+- exact lineage.
+
+Learning promotion requires adequate traffic qualification, predeclared
+metrics, and a comparison design. Five videos are a pilot sample, not a general
+statistical calibration guarantee.
+
