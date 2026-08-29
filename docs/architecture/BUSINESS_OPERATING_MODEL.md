@@ -83,3 +83,5 @@ Revoke or rollback occurs when rights/terms change, provider/model/rubric drift 
 ## Current pilot boundary
 
 One channel, one active video and no automatic publication remain in force. R21 is immutable visual FAIL/audio PASS evidence. R22 is a gated canary; this document creates no dispatch, release or publication authority.
+
+The controlled-audio `0127` route plan treats its two-request / USD 0.08 reservation as committed capacity, not incurred cost or permission to buy. The operator projection must keep actual requests and actual spend at zero until a separately typed paid-dispatch authorization revalidates generation-time entitlement, rights, exact binding and idempotency. This prevents a successful plan from being misreported as materialization or accepted-output economics.

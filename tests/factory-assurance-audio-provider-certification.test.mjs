@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { certifyFactoryAssuranceAudioProvider } from "../lib/factory-assurance-audio-provider-certification.ts";
+import { planFactoryAssuranceAudioRouteReservation } from "../lib/factory-assurance-audio-route-reservation.ts";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
@@ -62,6 +63,9 @@ function seedExactEvidence(database, objects) {
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
       "audio-contract-0125","preflight-0125","admission-item","work-order","future-request","CONTROLLED_FIXTURE_CLEAN_AUDIO_SYNTHESIS","V1","CLEAN_AUDIO_CONTROL",JSON.stringify({ text: "sealed" }),H.d,320,JSON.stringify({ type: "audio/mpeg" }),H.e,JSON.stringify({ voiceIdentity: "PINNED_EXACTLY_AT_BINDING" }),H.f,"FACTORY_CONTROLLED_FIXTURE_AUDIO_QUALITY_STANDARD_V1","FACTORY_CONTROLLED_FIXTURE_AUDIO_COMMERCIAL_RIGHTS_V1","FACTORY_CONTROLLED_FIXTURE_AUDIO_RETENTION_V1","PLAN_ONLY",2,80000,0,"envelope",null,null,null,null,null,null,null,"BLOCKED",JSON.stringify(["EXACT_AUDIO_PROVIDER_BINDING_REQUIRED"]),"NOT_MATERIALIZED","FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_V1",0,0,0,0,0,0,0,0,0,0,0,H.g,
     );
+  database.prepare(`INSERT INTO factory_cost_envelopes
+    (id,scope_type,scope_id,currency,max_spend_micros,max_provider_requests,policy_version,lifecycle_state,evidence_hash)
+    VALUES ('envelope','REQUEST','future-request','USD',80000,2,'FACTORY_CONTROLLED_FIXTURE_AUDIO_COST_POLICY_V1','ACTIVE',?)`).run(H.h);
   database.prepare(`INSERT INTO v7_evaluation_commercial_subscription_receipts
     (id,run_id,channel_id,policy_version,entitlement_policy_version,subscription_tier,subscription_status,entitlement_state,commercial_use_eligible,exact_response_hash,response_byte_size,r2_storage_key,r2_readback_hash,r2_readback_verified,observed_at,evidence_hash)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run("subscription-old","commercial-run","channel-hidden-systems","COMMERCIAL_CLEAN_AUDIO_REGENERATION_V1","ELEVENLABS_COMMERCIAL_ENTITLEMENT_V1","starter","active","EXPLICIT_ACTIVE_PAID_BASE_PLAN",1,H.h,100,"subscription.json",H.h,1,"2026-08-20T00:00:00.000Z",H.i);
@@ -117,6 +121,26 @@ test("certifies one exact ElevenLabs audio binding from sealed clean evidence an
   assert.equal((await certifyFactoryAssuranceAudioProvider(input)).outcome, "IDEMPOTENT_REPLAY");
   assert.equal(provider.calls(), 4);
   assert.throws(() => database.prepare("UPDATE factory_assurance_audio_provider_certification_runs SET certification_state='BLOCKED'").run(), /APPEND_ONLY/);
+
+  const routeInput = { actor: "owner@example.com", idempotencyKey: "assurance-audio-route-reservation-test-0001", evaluatedAt: "2026-08-29T01:05:00.000Z" };
+  const planned = await planFactoryAssuranceAudioRouteReservation(db, routeInput);
+  assert.deepEqual({ state: planned.planState, work: planned.canonicalWorkRequests, route: planned.canonicalRouteDecisions, reservation: planned.canonicalCostReservations, requests: planned.reservedProviderRequests, spend: planned.reservedSpendMicros, generations: planned.providerGenerationRequests, dispatch: planned.providerDispatchAuthority },
+    { state: "PLANNED", work: 1, route: 1, reservation: 1, requests: 2, spend: 80000, generations: 0, dispatch: false });
+  const work = database.prepare("SELECT * FROM factory_provider_work_requests").get();
+  assert.deepEqual({ id: work.id, mode: work.dispatch_mode, maxRequests: work.max_provider_requests, maxSpend: work.max_spend_micros, fallback: work.fallback_allowed },
+    { id: "future-request", mode: "PLAN_ONLY", maxRequests: 2, maxSpend: 80000, fallback: 0 });
+  const route = database.prepare("SELECT * FROM factory_provider_route_decisions").get();
+  assert.deepEqual({ decision: route.decision, requests: route.provider_requests, spend: route.spend_micros, fallback: route.fallback_used },
+    { decision: "PLANNED_ZERO_DISPATCH", requests: 0, spend: 0, fallback: 0 });
+  const reservation = database.prepare("SELECT * FROM factory_provider_cost_reservations").get();
+  assert.deepEqual({ state: reservation.reservation_state, requests: reservation.reserved_provider_requests, spend: reservation.reserved_spend_micros, dispatch: reservation.dispatch_authority, r22: reservation.r22_authority, release: reservation.release_authority, publication: reservation.publication_authority },
+    { state: "RESERVED", requests: 2, spend: 80000, dispatch: 0, r22: 0, release: 0, publication: 0 });
+  assert.equal(database.prepare("SELECT lifecycle_state FROM factory_runtime_leases WHERE id=?").get(planned.runtimeLeaseId).lifecycle_state, "RELEASED");
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_native_request_receipts").get().count, 0);
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_reconciliation_receipts").get().count, 0);
+  assert.equal((await planFactoryAssuranceAudioRouteReservation(db, routeInput)).outcome, "IDEMPOTENT_REPLAY");
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_audio_route_reservation_runs").get().count, 1);
+  assert.throws(() => database.prepare("UPDATE factory_assurance_audio_route_reservation_runs SET plan_state='BLOCKED'").run(), /APPEND_ONLY/);
 });
 
 test("records BLOCKED without canonical provider controls when the historical exact clean reference is absent", async () => {
@@ -135,4 +159,24 @@ test("records BLOCKED without canonical provider controls when the historical ex
   assert.ok(result.blockers.includes("HISTORICAL_CLEAN_AUDIO_REFERENCE_REQUIRED"));
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_bindings WHERE capability_id IN (SELECT id FROM factory_capabilities WHERE capability_key='CONTROLLED_FIXTURE_CLEAN_AUDIO_SYNTHESIS')").get().count, 0);
   assert.equal(database.prepare("SELECT provider_generation_requests FROM factory_assurance_audio_provider_certification_runs").get().provider_generation_requests, 0);
+});
+
+test("fails closed without canonical route or reservation when exact qualification and rights evidence has expired", async () => {
+  const { database, db, bucket, objects } = setup(); seedExactEvidence(database, objects);
+  const provider = providerFetch();
+  await certifyFactoryAssuranceAudioProvider({
+    env: { DB: db, BUCKET: bucket, ELEVENLABS_API_KEY: "test-secret" }, actor: "owner@example.com",
+    idempotencyKey: "assurance-audio-provider-certification-expiry-0001", observedAt: "2026-08-29T01:00:00.000Z", fetcher: provider.fetcher,
+  });
+  const result = await planFactoryAssuranceAudioRouteReservation(db, {
+    actor: "owner@example.com", idempotencyKey: "assurance-audio-route-reservation-expiry-0001", evaluatedAt: "2026-09-06T01:00:00.000Z",
+  });
+  assert.equal(result.planState, "BLOCKED");
+  assert.ok(result.blockers.includes("EXACT_AUDIO_QUALIFICATION_INVALID"));
+  assert.ok(result.blockers.includes("EXACT_AUDIO_RIGHTS_INVALID"));
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_work_requests").get().count, 0);
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_route_decisions").get().count, 0);
+  assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_provider_cost_reservations").get().count, 0);
+  assert.equal(database.prepare("SELECT provider_requests FROM factory_assurance_audio_route_reservation_runs").get().provider_requests, 0);
+  assert.equal(database.prepare("SELECT spend_micros FROM factory_assurance_audio_route_reservation_runs").get().spend_micros, 0);
 });
