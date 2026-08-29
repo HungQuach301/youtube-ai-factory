@@ -34,6 +34,7 @@ import { materializeFactoryAssuranceCurrentRightsCollection } from "@/lib/factor
 import { classifyFactoryAssuranceCurrentRightsTerminalDisposition } from "@/lib/factory-assurance-current-rights-terminal-disposition";
 import { planFactoryAssuranceControlledFixtureReplacements } from "@/lib/factory-assurance-controlled-fixture-replacement-plan";
 import { admitFactoryAssuranceControlledFixtureMaterializationBatch } from "@/lib/factory-assurance-controlled-fixture-materialization-admission";
+import { preflightFactoryAssuranceControlledFixtureAudioBatch } from "@/lib/factory-assurance-controlled-fixture-audio-preflight";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ type RuntimeEnv = {
   FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_ENABLED?: string;
   FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_ENABLED?: string;
   FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_ENABLED?: string;
+  FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_ENABLED?: string;
   FACTORY_RUNTIME_QUALIFICATION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_TOKEN?: string;
@@ -70,6 +72,7 @@ type RuntimeEnv = {
   FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_TOKEN?: string;
   FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_TOKEN?: string;
   FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_TOKEN?: string;
+  FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_TOKEN?: string;
   FACTORY_AUTOMATION_ACTOR_EMAIL?: string;
   FACTORY_AUTOMATION_ACTOR_NAME?: string;
 };
@@ -112,7 +115,9 @@ async function secretMatches(left: string, right: string) {
 
 async function authorize(env: RuntimeEnv, request?: Request, action = "") {
   let user = await getChatGPTUser();
-  const credential = action === "ADMIT_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_BATCH"
+  const credential = action === "PREFLIGHT_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_BATCH"
+    ? [request?.headers.get("x-factory-assurance-controlled-fixture-audio-preflight-token") || "", env.FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_TOKEN || ""]
+    : action === "ADMIT_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_BATCH"
     ? [request?.headers.get("x-factory-assurance-controlled-fixture-materialization-admission-token") || "", env.FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_TOKEN || ""]
     : action === "PLAN_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENTS"
     ? [request?.headers.get("x-factory-assurance-controlled-fixture-replacement-token") || "", env.FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_TOKEN || ""]
@@ -132,7 +137,7 @@ async function authorize(env: RuntimeEnv, request?: Request, action = "") {
             ? [request?.headers.get("x-factory-assurance-corpus-token") || "", env.FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN || ""]
             : [request?.headers.get("x-factory-runtime-qualification-token") || "", env.FACTORY_RUNTIME_QUALIFICATION_TOKEN || ""];
   const qualificationCredential =
-    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION", "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION", "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE", "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS", "INVENTORY_ASSURANCE_CURRENT_RIGHTS", "MATERIALIZE_ASSURANCE_CURRENT_RIGHTS_COLLECTION", "CLASSIFY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION", "PLAN_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENTS", "ADMIT_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_BATCH"].includes(action) &&
+    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION", "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION", "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE", "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS", "INVENTORY_ASSURANCE_CURRENT_RIGHTS", "MATERIALIZE_ASSURANCE_CURRENT_RIGHTS_COLLECTION", "CLASSIFY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION", "PLAN_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENTS", "ADMIT_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_BATCH", "PREFLIGHT_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_BATCH"].includes(action) &&
     request &&
     await secretMatches(credential[0], credential[1]);
   if (!user && qualificationCredential) {
@@ -335,6 +340,13 @@ export async function POST(request: Request) {
     if (action === "ADMIT_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_BATCH") {
       if (env.FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_ENABLED !== "true") return failure("FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_DISABLED", "The zero-provider controlled-fixture materialization admission is disabled until an explicit deployment authorization is configured", 503);
       return Response.json(await admitFactoryAssuranceControlledFixtureMaterializationBatch(env.DB, {
+        actor: user.email, idempotencyKey: string(body.idempotencyKey), evaluatedAt: string(body.evaluatedAt) || undefined,
+      }), { status: 201, headers: NO_STORE });
+    }
+
+    if (action === "PREFLIGHT_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_BATCH") {
+      if (env.FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_ENABLED !== "true") return failure("FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_DISABLED", "The zero-provider controlled-fixture audio preflight is disabled until an explicit deployment authorization is configured", 503);
+      return Response.json(await preflightFactoryAssuranceControlledFixtureAudioBatch(env.DB, {
         actor: user.email, idempotencyKey: string(body.idempotencyKey), evaluatedAt: string(body.evaluatedAt) || undefined,
       }), { status: 201, headers: NO_STORE });
     }

@@ -1,7 +1,7 @@
 # AI Factory Master Roadmap
 
 **State:** `ACTIVE`  
-**Reconciled:** 2026-08-28
+**Reconciled:** 2026-08-29
 
 ## Current position
 
@@ -25,7 +25,7 @@ The current Rights Inventory tree is mirrored byte-for-byte, but this turn's Sit
 
 ## Phase 45 — Contracts and technical runtime
 
-**Status:** `IN_PROGRESS__CURRENT_RIGHTS_TERMINAL_DISPOSITION_V1_LIVE__62_CONTROLLED_FIXTURE_REPLACEMENTS_PENDING`
+**Status:** `IN_PROGRESS__CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_V1_LIVE__EXACT_AUDIO_PROVIDER_CONTROLS_AND_CANONICAL_ROUTE_PENDING`
 
 Implement:
 
@@ -158,6 +158,8 @@ Migration `0122` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_V1` 
 Migration `0123` and `FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_V1` are live in owner-only Sites v557. Before any materialization, every terminal receipt becomes one immutable `PLANNED_ZERO_DISPATCH` work order with a fresh replacement identity, unique correlation group, route-specific generation contract, current rights/lineage contract and an explicit ban on old-byte reuse or derivation. The COMPLETE live plan contains 62 orders: 46 new provider-audio bindings and 16 new composite masters with exact parent manifests. Full D1 pagination verifies 62 unique identities/groups, 0 materialized, 62 pending, zero downstream authority/provider requests/spend and idempotent replay. QA Cockpit V8 separates planning from materialization. The verified build and 266/266 full tests pass; temporary runtime values are absent at environment revision 68. Actual provider or composition work remains a separately typed bounded batch with exact cost reservation.
 
 Migration `0124` and `FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_V1` are live in owner-only Sites v559. One zero-provider COMPLETE admission freezes all 62 planned work orders into a deterministic queue: one selected audio item carries only a two-request / USD 0.08 planning ceiling, 45 audio items wait for prior-batch settlement and 16 composites wait for an exact new parent set. Live controls observe one active binding, current qualification and current rights record, but no CURRENT drift receipt or active cost envelope. The selected batch also lacks its typed request, exact reservation and explicit paid-dispatch approval. All 62 are therefore `BLOCKED` / `NOT_MATERIALIZED`, with zero dispatch-ready, authority, actual request or spend. Full D1 pagination and idempotent replay pass; QA Cockpit V9 exposes the admission queue, 266/266 tests pass and temporary runtime values are absent at environment revision 70. The next coherent unit is to establish those exact selected-batch controls before requesting one explicit bounded paid dispatch.
+
+Migration `0125` and `FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_V1` are live in owner-only Sites v562. The selected audio batch now has one immutable provider-agnostic typed `PLAN_ONLY` contract plus one active request-scoped USD 0.08 / two-request cost envelope. Exact audio evaluation finds zero matching active binding, current qualification, commercial-rights receipt, CURRENT drift receipt or route-ready binding; generic provider controls cannot satisfy the audio gate. No canonical work request, route decision, cost reservation, dispatch, materialized bytes, provider request or spend was created. Live D1 read-back confirms one COMPLETE/BLOCKED run and one contract; QA Cockpit V10 exposes the next exact controls, 7/7 focused and 266/266 full tests pass, and temporary runtime values are absent at environment revision 73. The next coherent unit is to register and qualify the exact audio binding, attach current rights and drift evidence, then create a canonical work request, route decision and plan-only reservation before any separately authorized paid dispatch.
 
 ## Phase 46 — R22 canary
 

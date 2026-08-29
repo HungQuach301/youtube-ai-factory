@@ -1,0 +1,133 @@
+CREATE TABLE `factory_assurance_controlled_fixture_audio_preflight_runs` (
+  `id` text PRIMARY KEY NOT NULL,
+  `admission_run_id` text NOT NULL,
+  `admission_item_id` text NOT NULL,
+  `replacement_plan_run_id` text NOT NULL,
+  `work_order_id` text NOT NULL,
+  `remediation_snapshot_id` text NOT NULL,
+  `idempotency_key` text NOT NULL,
+  `request_hash` text NOT NULL CHECK (length(`request_hash`) = 64),
+  `policy_version` text NOT NULL CHECK (`policy_version` = 'FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_V1'),
+  `future_work_request_id` text NOT NULL,
+  `cost_envelope_id` text NOT NULL,
+  `typed_request_contracts` integer NOT NULL CHECK (`typed_request_contracts` = 1),
+  `exact_audio_bindings` integer NOT NULL CHECK (`exact_audio_bindings` >= 0),
+  `exact_audio_qualifications` integer NOT NULL CHECK (`exact_audio_qualifications` >= 0),
+  `exact_audio_rights_receipts` integer NOT NULL CHECK (`exact_audio_rights_receipts` >= 0),
+  `exact_audio_current_drift_receipts` integer NOT NULL CHECK (`exact_audio_current_drift_receipts` >= 0),
+  `exact_audio_route_ready_bindings` integer NOT NULL CHECK (`exact_audio_route_ready_bindings` >= 0),
+  `active_cost_envelopes` integer NOT NULL CHECK (`active_cost_envelopes` = 1),
+  `canonical_work_requests` integer NOT NULL CHECK (`canonical_work_requests` = 0),
+  `canonical_route_decisions` integer NOT NULL CHECK (`canonical_route_decisions` = 0),
+  `canonical_cost_reservations` integer NOT NULL CHECK (`canonical_cost_reservations` = 0),
+  `dispatch_ready_items` integer NOT NULL CHECK (`dispatch_ready_items` = 0),
+  `blocked_items` integer NOT NULL CHECK (`blocked_items` = 1),
+  `planned_max_provider_requests` integer NOT NULL CHECK (`planned_max_provider_requests` = 2),
+  `planned_max_spend_micros` integer NOT NULL CHECK (`planned_max_spend_micros` = 80000),
+  `preflight_state` text NOT NULL CHECK (`preflight_state` = 'BLOCKED'),
+  `blockers_json` text NOT NULL CHECK (json_valid(`blockers_json`)),
+  `lifecycle_state` text NOT NULL CHECK (`lifecycle_state` = 'COMPLETE'),
+  `evaluated_at` text NOT NULL,
+  `actor` text NOT NULL,
+  `count_eligible` integer NOT NULL CHECK (`count_eligible` = 0),
+  `qualification_authority` integer NOT NULL CHECK (`qualification_authority` = 0),
+  `pass_authority` integer NOT NULL CHECK (`pass_authority` = 0),
+  `provider_dispatch_authority` integer NOT NULL CHECK (`provider_dispatch_authority` = 0),
+  `cost_reservation_authority` integer NOT NULL CHECK (`cost_reservation_authority` = 0),
+  `r22_authority` integer NOT NULL CHECK (`r22_authority` = 0),
+  `master_authority` integer NOT NULL CHECK (`master_authority` = 0),
+  `release_authority` integer NOT NULL CHECK (`release_authority` = 0),
+  `publication_authority` integer NOT NULL CHECK (`publication_authority` = 0),
+  `provider_requests` integer NOT NULL CHECK (`provider_requests` = 0),
+  `spend_micros` integer NOT NULL CHECK (`spend_micros` = 0),
+  `manifest_hash` text NOT NULL CHECK (length(`manifest_hash`) = 64),
+  `evidence_hash` text NOT NULL CHECK (length(`evidence_hash`) = 64),
+  `created_at` text NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`admission_run_id`) REFERENCES `factory_assurance_controlled_fixture_materialization_admission_runs`(`id`),
+  FOREIGN KEY (`admission_item_id`) REFERENCES `factory_assurance_controlled_fixture_materialization_admission_items`(`id`),
+  FOREIGN KEY (`replacement_plan_run_id`) REFERENCES `factory_assurance_controlled_fixture_replacement_plan_runs`(`id`),
+  FOREIGN KEY (`work_order_id`) REFERENCES `factory_assurance_controlled_fixture_replacement_work_orders`(`id`),
+  FOREIGN KEY (`remediation_snapshot_id`) REFERENCES `factory_assurance_corpus_remediation_snapshots`(`id`),
+  FOREIGN KEY (`cost_envelope_id`) REFERENCES `factory_cost_envelopes`(`id`)
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `factory_assurance_controlled_fixture_audio_preflight_admission_uq` ON `factory_assurance_controlled_fixture_audio_preflight_runs` (`admission_run_id`);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `factory_assurance_controlled_fixture_audio_preflight_idempotency_uq` ON `factory_assurance_controlled_fixture_audio_preflight_runs` (`admission_run_id`,`idempotency_key`);
+--> statement-breakpoint
+CREATE INDEX `factory_assurance_controlled_fixture_audio_preflight_scope_idx` ON `factory_assurance_controlled_fixture_audio_preflight_runs` (`remediation_snapshot_id`,`preflight_state`,`created_at`);
+--> statement-breakpoint
+CREATE TABLE `factory_assurance_controlled_fixture_audio_request_contracts` (
+  `id` text PRIMARY KEY NOT NULL,
+  `run_id` text NOT NULL,
+  `admission_item_id` text NOT NULL,
+  `work_order_id` text NOT NULL,
+  `future_work_request_id` text NOT NULL,
+  `capability_key` text NOT NULL CHECK (`capability_key` = 'CONTROLLED_FIXTURE_CLEAN_AUDIO_SYNTHESIS'),
+  `capability_version` text NOT NULL CHECK (`capability_version` = 'V1'),
+  `archetype` text NOT NULL CHECK (`archetype` = 'CLEAN_AUDIO_CONTROL'),
+  `input_contract_json` text NOT NULL CHECK (json_valid(`input_contract_json`)),
+  `input_hash` text NOT NULL CHECK (length(`input_hash`) = 64),
+  `payload_bytes` integer NOT NULL CHECK (`payload_bytes` > 0),
+  `output_schema_json` text NOT NULL CHECK (json_valid(`output_schema_json`)),
+  `output_schema_hash` text NOT NULL CHECK (length(`output_schema_hash`) = 64),
+  `settings_contract_json` text NOT NULL CHECK (json_valid(`settings_contract_json`)),
+  `settings_hash` text NOT NULL CHECK (length(`settings_hash`) = 64),
+  `quality_standard_version` text NOT NULL CHECK (`quality_standard_version` = 'FACTORY_CONTROLLED_FIXTURE_AUDIO_QUALITY_STANDARD_V1'),
+  `rights_policy_version` text NOT NULL CHECK (`rights_policy_version` = 'FACTORY_CONTROLLED_FIXTURE_AUDIO_COMMERCIAL_RIGHTS_V1'),
+  `retention_policy_version` text NOT NULL CHECK (`retention_policy_version` = 'FACTORY_CONTROLLED_FIXTURE_AUDIO_RETENTION_V1'),
+  `dispatch_mode` text NOT NULL CHECK (`dispatch_mode` = 'PLAN_ONLY'),
+  `max_provider_requests` integer NOT NULL CHECK (`max_provider_requests` = 2),
+  `max_spend_micros` integer NOT NULL CHECK (`max_spend_micros` = 80000),
+  `fallback_allowed` integer NOT NULL CHECK (`fallback_allowed` = 0),
+  `cost_envelope_id` text NOT NULL,
+  `binding_id` text,
+  `qualification_id` text,
+  `rights_receipt_id` text,
+  `drift_receipt_id` text,
+  `canonical_work_request_id` text,
+  `canonical_route_decision_id` text,
+  `canonical_cost_reservation_id` text,
+  `route_preflight_state` text NOT NULL CHECK (`route_preflight_state` = 'BLOCKED'),
+  `blockers_json` text NOT NULL CHECK (json_valid(`blockers_json`)),
+  `materialization_state` text NOT NULL CHECK (`materialization_state` = 'NOT_MATERIALIZED'),
+  `policy_version` text NOT NULL CHECK (`policy_version` = 'FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_V1'),
+  `count_eligible` integer NOT NULL CHECK (`count_eligible` = 0),
+  `qualification_authority` integer NOT NULL CHECK (`qualification_authority` = 0),
+  `pass_authority` integer NOT NULL CHECK (`pass_authority` = 0),
+  `provider_dispatch_authority` integer NOT NULL CHECK (`provider_dispatch_authority` = 0),
+  `cost_reservation_authority` integer NOT NULL CHECK (`cost_reservation_authority` = 0),
+  `r22_authority` integer NOT NULL CHECK (`r22_authority` = 0),
+  `master_authority` integer NOT NULL CHECK (`master_authority` = 0),
+  `release_authority` integer NOT NULL CHECK (`release_authority` = 0),
+  `publication_authority` integer NOT NULL CHECK (`publication_authority` = 0),
+  `provider_requests` integer NOT NULL CHECK (`provider_requests` = 0),
+  `spend_micros` integer NOT NULL CHECK (`spend_micros` = 0),
+  `evidence_hash` text NOT NULL CHECK (length(`evidence_hash`) = 64),
+  `created_at` text NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`run_id`) REFERENCES `factory_assurance_controlled_fixture_audio_preflight_runs`(`id`),
+  FOREIGN KEY (`admission_item_id`) REFERENCES `factory_assurance_controlled_fixture_materialization_admission_items`(`id`),
+  FOREIGN KEY (`work_order_id`) REFERENCES `factory_assurance_controlled_fixture_replacement_work_orders`(`id`),
+  FOREIGN KEY (`cost_envelope_id`) REFERENCES `factory_cost_envelopes`(`id`),
+  FOREIGN KEY (`binding_id`) REFERENCES `factory_provider_bindings`(`id`),
+  FOREIGN KEY (`qualification_id`) REFERENCES `factory_capability_qualifications`(`id`),
+  FOREIGN KEY (`rights_receipt_id`) REFERENCES `factory_rights_eligibility_receipts`(`id`),
+  FOREIGN KEY (`drift_receipt_id`) REFERENCES `factory_provider_drift_receipts`(`id`),
+  FOREIGN KEY (`canonical_work_request_id`) REFERENCES `factory_provider_work_requests`(`id`),
+  FOREIGN KEY (`canonical_route_decision_id`) REFERENCES `factory_provider_route_decisions`(`id`),
+  FOREIGN KEY (`canonical_cost_reservation_id`) REFERENCES `factory_provider_cost_reservations`(`id`),
+  CHECK (`binding_id` IS NULL AND `qualification_id` IS NULL AND `rights_receipt_id` IS NULL AND `drift_receipt_id` IS NULL),
+  CHECK (`canonical_work_request_id` IS NULL AND `canonical_route_decision_id` IS NULL AND `canonical_cost_reservation_id` IS NULL)
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `factory_assurance_controlled_fixture_audio_request_contract_run_uq` ON `factory_assurance_controlled_fixture_audio_request_contracts` (`run_id`);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `factory_assurance_controlled_fixture_audio_request_contract_work_request_uq` ON `factory_assurance_controlled_fixture_audio_request_contracts` (`future_work_request_id`);
+--> statement-breakpoint
+CREATE TRIGGER `factory_assurance_controlled_fixture_audio_preflight_runs_no_update` BEFORE UPDATE ON `factory_assurance_controlled_fixture_audio_preflight_runs` BEGIN SELECT RAISE(ABORT,'FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_RUNS_APPEND_ONLY'); END;
+--> statement-breakpoint
+CREATE TRIGGER `factory_assurance_controlled_fixture_audio_preflight_runs_no_delete` BEFORE DELETE ON `factory_assurance_controlled_fixture_audio_preflight_runs` BEGIN SELECT RAISE(ABORT,'FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_RUNS_APPEND_ONLY'); END;
+--> statement-breakpoint
+CREATE TRIGGER `factory_assurance_controlled_fixture_audio_request_contracts_no_update` BEFORE UPDATE ON `factory_assurance_controlled_fixture_audio_request_contracts` BEGIN SELECT RAISE(ABORT,'FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_REQUEST_CONTRACTS_APPEND_ONLY'); END;
+--> statement-breakpoint
+CREATE TRIGGER `factory_assurance_controlled_fixture_audio_request_contracts_no_delete` BEFORE DELETE ON `factory_assurance_controlled_fixture_audio_request_contracts` BEGIN SELECT RAISE(ABORT,'FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_REQUEST_CONTRACTS_APPEND_ONLY'); END;

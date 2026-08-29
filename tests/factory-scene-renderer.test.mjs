@@ -152,7 +152,7 @@ async function renderCommand(input, reservation) {
 }
 
 test("migration 0109 installs append-only qualified render worker, jobs and exact-byte receipts", () => {
-  assert.equal(migrations.at(-1), "0124_factory_assurance_controlled_fixture_materialization_admission.sql");
+  assert.equal(migrations.at(-1), "0125_factory_assurance_controlled_fixture_audio_preflight.sql");
   const migration = read("drizzle/0109_factory_scene_renderer_and_workers.sql");
   for (const table of ["factory_render_worker_bindings", "factory_scene_render_jobs", "factory_scene_render_receipts"]) assert.ok(migration.includes("CREATE TABLE `" + table + "`"));
   assert.match(migration, /FACTORY_SCENE_RENDER_RECEIPTS_APPEND_ONLY/);

@@ -1,6 +1,6 @@
 import { FACTORY_ASSURANCE_LAYERS } from "@/lib/factory-evidence-assurance";
 
-export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V9" as const;
+export const FACTORY_QA_COCKPIT_VERSION = "FACTORY_QA_COCKPIT_PROJECTION_V10" as const;
 
 type Row = Record<string, unknown>;
 type Statement = { bind(...values: unknown[]): Statement; all<T = Row>(): Promise<{ results?: T[] }> };
@@ -28,7 +28,7 @@ const layerDefinition: Record<AssuranceLayer, { name: string; role: string; evid
 export type FactoryQaCockpitProjection = Awaited<ReturnType<typeof factoryQaCockpitProjection>>;
 
 export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
-  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows, remediationIncidentRows, rightsInventoryRows, rightsCollectionRows, rightsCollectionTaskRows, rightsTerminalRows, rightsTerminalReceiptRows, replacementPlanRows, replacementWorkOrderRows, materializationAdmissionRows, materializationAdmissionItemRows] = await Promise.all([
+  const [calibrationRows, qualificationRows, layerReceiptRows, runRows, evidenceRows, corpusRows, corpusGapRows, remediationRows, remediationQueueRows, remediationEvidenceRows, remediationIncidentRows, rightsInventoryRows, rightsCollectionRows, rightsCollectionTaskRows, rightsTerminalRows, rightsTerminalReceiptRows, replacementPlanRows, replacementWorkOrderRows, materializationAdmissionRows, materializationAdmissionItemRows, audioPreflightRows, audioRequestContractRows] = await Promise.all([
     rows(db, `SELECT r.*,c.dataset_version,c.dataset_manifest_hash,c.lifecycle_state campaign_state,c.created_at campaign_created_at
       FROM factory_assurance_calibration_results r JOIN factory_assurance_calibration_campaigns c ON c.id=r.campaign_id
       ORDER BY c.created_at DESC,r.created_at DESC,r.id DESC`),
@@ -116,6 +116,15 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
         WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
         ORDER BY created_at DESC,id DESC LIMIT 1)
       GROUP BY admission_lane,admission_state ORDER BY admission_lane`),
+    rows(db, `SELECT * FROM factory_assurance_controlled_fixture_audio_preflight_runs
+      WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
+      ORDER BY created_at DESC,id DESC LIMIT 1`),
+    rows(db, `SELECT capability_key,capability_version,archetype,dispatch_mode,route_preflight_state,materialization_state,max_provider_requests,max_spend_micros,COUNT(*) contract_count
+      FROM factory_assurance_controlled_fixture_audio_request_contracts
+      WHERE run_id=(SELECT id FROM factory_assurance_controlled_fixture_audio_preflight_runs
+        WHERE remediation_snapshot_id=(SELECT id FROM factory_assurance_corpus_remediation_snapshots ORDER BY created_at DESC,id DESC LIMIT 1)
+        ORDER BY created_at DESC,id DESC LIMIT 1)
+      GROUP BY capability_key,capability_version,archetype,dispatch_mode,route_preflight_state,materialization_state,max_provider_requests,max_spend_micros`),
   ]);
 
   const latestCalibration = new Map<AssuranceLayer, Row>();
@@ -229,6 +238,7 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   const rightsTerminal = rightsTerminalRows[0] ?? {};
   const replacementPlan = replacementPlanRows[0] ?? {};
   const materializationAdmission = materializationAdmissionRows[0] ?? {};
+  const audioPreflight = audioPreflightRows[0] ?? {};
   const corpusLayerReadiness = json<Array<Record<string, unknown>>>(corpus?.layer_readiness_json, []);
   const outcomeCounts = recentRuns.reduce<Record<string, number>>((accumulator, run) => {
     accumulator[run.outcome] = (accumulator[run.outcome] ?? 0) + 1;
@@ -251,6 +261,8 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
   if (text(rightsTerminal.id) && number(rightsTerminal.remaining_receipt_collection_items) === 0 && !text(replacementPlan.id)) blockers.push("CONTROLLED_FIXTURE_REPLACEMENT_PLAN_REQUIRED");
   if (text(replacementPlan.id) && number(replacementPlan.pending_materialization_items) > 0 && !text(materializationAdmission.id)) blockers.push("CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_REQUIRED");
   if (text(materializationAdmission.id) && number(materializationAdmission.dispatch_ready_items) === 0) blockers.push("CONTROLLED_FIXTURE_MATERIALIZATION_BLOCKED");
+  if (text(materializationAdmission.id) && number(materializationAdmission.selected_batch_items) === 1 && !text(audioPreflight.id)) blockers.push("CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_REQUIRED");
+  if (text(audioPreflight.id) && number(audioPreflight.dispatch_ready_items) === 0) blockers.push("CONTROLLED_FIXTURE_AUDIO_ROUTE_BLOCKED");
 
   return {
     version: FACTORY_QA_COCKPIT_VERSION,
@@ -330,6 +342,15 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
       controlledFixtureBlockedItems: number(materializationAdmission.blocked_items),
       controlledFixturePlannedMaxProviderRequests: number(materializationAdmission.planned_max_provider_requests),
       controlledFixturePlannedMaxSpendMicros: number(materializationAdmission.planned_max_spend_micros),
+      controlledFixtureAudioPreflightState: text(audioPreflight.preflight_state) || "NOT_PREFLIGHTED",
+      controlledFixtureAudioTypedRequestContracts: number(audioPreflight.typed_request_contracts),
+      controlledFixtureAudioExactBindings: number(audioPreflight.exact_audio_bindings),
+      controlledFixtureAudioExactQualifications: number(audioPreflight.exact_audio_qualifications),
+      controlledFixtureAudioExactRightsReceipts: number(audioPreflight.exact_audio_rights_receipts),
+      controlledFixtureAudioCurrentDriftReceipts: number(audioPreflight.exact_audio_current_drift_receipts),
+      controlledFixtureAudioRouteReadyBindings: number(audioPreflight.exact_audio_route_ready_bindings),
+      controlledFixtureAudioActiveCostEnvelopes: number(audioPreflight.active_cost_envelopes),
+      controlledFixtureAudioCostReservations: number(audioPreflight.canonical_cost_reservations),
     },
     corpus: {
       snapshotHash: corpus ? text(corpus.snapshot_hash) : null,
@@ -379,6 +400,16 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
         controlledFixtureDispatchReadyItems: number(materializationAdmission.dispatch_ready_items),
         controlledFixtureBlockedItems: number(materializationAdmission.blocked_items),
         controlledFixtureMaterializationAdmissionQueue: materializationAdmissionItemRows.map((row) => ({ lane: text(row.admission_lane), state: text(row.admission_state), count: number(row.item_count) })),
+        controlledFixtureAudioPreflightState: text(audioPreflight.preflight_state) || "NOT_PREFLIGHTED",
+        controlledFixtureAudioTypedRequestContracts: number(audioPreflight.typed_request_contracts),
+        controlledFixtureAudioExactBindings: number(audioPreflight.exact_audio_bindings),
+        controlledFixtureAudioExactQualifications: number(audioPreflight.exact_audio_qualifications),
+        controlledFixtureAudioExactRightsReceipts: number(audioPreflight.exact_audio_rights_receipts),
+        controlledFixtureAudioCurrentDriftReceipts: number(audioPreflight.exact_audio_current_drift_receipts),
+        controlledFixtureAudioRouteReadyBindings: number(audioPreflight.exact_audio_route_ready_bindings),
+        controlledFixtureAudioActiveCostEnvelopes: number(audioPreflight.active_cost_envelopes),
+        controlledFixtureAudioCostReservations: number(audioPreflight.canonical_cost_reservations),
+        controlledFixtureAudioRequestContracts: audioRequestContractRows.map((row) => ({ capability: text(row.capability_key), version: text(row.capability_version), archetype: text(row.archetype), dispatchMode: text(row.dispatch_mode), routeState: text(row.route_preflight_state), materializationState: text(row.materialization_state), maxProviderRequests: number(row.max_provider_requests), maxSpendMicros: number(row.max_spend_micros), count: number(row.contract_count) })),
       },
       countEligible: false as const,
       qualificationAuthority: false as const,
@@ -400,7 +431,9 @@ export async function factoryQaCockpitProjection(db: FactoryQaCockpitDB) {
                   ? text(rightsTerminal.id)
                     ? text(replacementPlan.id)
                       ? text(materializationAdmission.id)
-                        ? `Resolve the blocked one-audio materialization batch gates: typed provider request, exact current binding/qualification/rights/drift, active cost envelope, exact reservation and explicit paid-dispatch approval. Keep the other audio and composite work orders queued.`
+                        ? text(audioPreflight.id)
+                          ? `Register and qualify the exact audio capability binding, attach current commercial-rights and CURRENT drift receipts, then create the canonical work request, route decision and exact reservation. The typed contract and active $0.08 / 2-request envelope are ready; dispatch remains closed.`
+                          : `Preflight the selected one-audio batch into one typed PLAN_ONLY request contract and one active $0.08 / 2-request cost envelope. Do not create a provider request, reservation or dispatch authority.`
                         : `Admit the ${number(replacementPlan.pending_materialization_items)} planned controlled fixtures into a zero-provider bounded materialization queue before any cost reservation or dispatch.`
                       : `Plan the ${number(rightsTerminal.replacement_required_items)} terminal quarantines as immutable zero-dispatch controlled-fixture work orders before any provider or composition request.`
                     : `Classify the ${number(rightsCollection.open_tasks)} collection tasks against immutable terminal recovery and lineage evidence before seeking new receipts. Do not retry exhausted historical recovery or infer rights from package correlation.`

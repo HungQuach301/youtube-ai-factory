@@ -89,7 +89,7 @@ function routeInput(overrides = {}) {
 }
 
 test("migration 0113 installs append-only provider cost, native reconciliation, drift and explicit fallback controls", () => {
-  assert.equal(migrations.at(-1), "0124_factory_assurance_controlled_fixture_materialization_admission.sql");
+  assert.equal(migrations.at(-1), "0125_factory_assurance_controlled_fixture_audio_preflight.sql");
   const migration = read("drizzle/0113_factory_provider_cost_reconciliation_and_drift.sql");
   for (const table of ["factory_provider_cost_reservations", "factory_provider_native_request_receipts", "factory_provider_reconciliation_receipts", "factory_provider_drift_receipts", "factory_provider_fallback_authorizations"]) assert.ok(migration.includes("CREATE TABLE `" + table + "`"));
   assert.match(migration, /FACTORY_PROVIDER_COST_ENVELOPE_EXCEEDED/);

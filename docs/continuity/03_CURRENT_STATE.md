@@ -1,7 +1,7 @@
 # Current State
 
 **State:** `ACTIVE_CURRENT_STATE`  
-**Reconciled:** 2026-08-28 (Asia/Bangkok)
+**Reconciled:** 2026-08-29 (Asia/Bangkok)
 
 ## Repository and documentation
 
@@ -17,15 +17,15 @@ PHASE_45_FOUNDATION_SHA = 4c45e5bd36ec69c0eb09682fba3b411c723b84b2
 EXCLUDED_REPOSITORY = HungQuach301/youtube-ai-factory-v2
 DOCUMENTATION = COMPLETE_FOR_APPROVED_DESIGN_SCOPE
 ARCHIVE_AUTHORITY = HISTORICAL_READ_ONLY
-PHASE_45 = IN_PROGRESS__CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_V1_LIVE__ONE_AUDIO_BATCH_BLOCKED__62_MATERIALIZATIONS_PENDING
+PHASE_45 = IN_PROGRESS__CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_V1_LIVE__TYPED_PLAN_AND_COST_ENVELOPE_READY__EXACT_AUDIO_ROUTE_BLOCKED__62_MATERIALIZATIONS_PENDING
 PHASE_46 = GATED__ASSURANCE_CALIBRATION_AND_EXACT_DEPENDENCY_ADMISSION_REQUIRED__R22_BLOCKED
-SOURCE_MIGRATION = 0124_FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION__LIVE
-SOURCE_MIGRATION_LIVE_D1 = VERIFIED__0124_ONE_COMPLETE_BLOCKED_RUN__62_ADMISSION_ITEMS__1_SELECTED_AUDIO__45_AUDIO_WAITING_SETTLEMENT__16_COMPOSITE_WAITING_EXACT_PARENT_SET__0_DISPATCH_READY__0_MATERIALIZED__IDEMPOTENT_REPLAY
+SOURCE_MIGRATION = 0125_FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT__LIVE
+SOURCE_MIGRATION_LIVE_D1 = VERIFIED__0125_ONE_COMPLETE_BLOCKED_RUN__1_TYPED_PLAN_ONLY_CONTRACT__1_ACTIVE_REQUEST_COST_ENVELOPE_2_REQUESTS_80000_USD_MICROS__0_EXACT_AUDIO_BINDING_QUALIFICATION_RIGHTS_DRIFT_ROUTE__0_CANONICAL_WORK_REQUEST_ROUTE_RESERVATION__0_DISPATCH_READY__0_MATERIALIZED__0_PROVIDER_REQUESTS__0_SPEND
 DEPLOYMENT_RECEIPT = VERSION_516__APPGDEP_6A8D334895008191A77BF70256460F01__SUCCEEDED
 RENDERER_DEPLOYMENT_RECEIPT = VERSION_521__SUCCEEDED
 COMPOSITOR_DEPLOYMENT_RECEIPT = VERSION_523__SUCCEEDED
 LIVE_CANARY_RUNNER_DEPLOYMENT_RECEIPT = VERSION_527__COMMIT_163832638FC51E090F103B336E1A75734008B112__SUCCEEDED
-LAST_RECONCILED_SITE_VERSION = 559__CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_LIVE__COMMIT_D4C83D01359705231DEC9A33445E603DD41BF84F__ENV_REVISION_70__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
+LAST_RECONCILED_SITE_VERSION = 562__CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_LIVE__COMMIT_A287FC4FA3D58DFB3B1343F719DC3CE8969322ED__ENV_REVISION_73__OWNER_ONLY__TEMPORARY_FLAGS_ABSENT
 LIVE_CANARY_QUALIFICATION = PASS__FACTORY_LIVE_CANARY_QUALIFICATION_6D527FCBA653A020ACFBA9A6__ZERO_DISPATCH__ZERO_SPEND
 HIDDEN_SYSTEMS_TREATMENT_QUALIFICATION = PASS__FACTORY_TREATMENT_QUALIFICATION_35941CD62FB0364063A1F98D__10_CASES__D1_R2_READBACK__IDEMPOTENT_REPLAY__ZERO_DISPATCH__ZERO_SPEND
 PRESERVED_NON_NORMATIVE_GITHUB_TIP = 03434774a407dcc91c798f94bda89a388b8c2ae5
@@ -48,6 +48,8 @@ Migration `0122` and `FACTORY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION_V1` 
 Migration `0123` and `FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_V1` are live in owner-only Sites v557 at commit `17ee66173db78a3ddb7119c82d56161cb0d76b91` with QA Cockpit V8. The planner consumes only the COMPLETE `0122` terminal run and maps every immutable terminal receipt to one fresh replacement identity and one unique correlation group. The live run stores 62 `PLANNED_ZERO_DISPATCH` / `NOT_MATERIALIZED` work orders: 46 `NEW_PROVIDER_AUDIO_WITH_NATIVE_BINDING` and 16 `NEW_COMPOSITE_MASTER_WITH_EXACT_PARENT_MANIFEST`. D1 pagination verifies all 62 unique identities/groups, valid historical/evidence hashes, the explicit old-byte reuse/derivation ban and zero materialization, count, qualification, PASS, provider, R22, master, release or publication authority, provider requests and spend. Repeated calls return `IDEMPOTENT_REPLAY`. Focused tests pass 7/7 and the verified full repository suite passes 266/266. The temporary writer/planner flags and token are absent after same-source redeployment at environment revision 68; the Site remains owner-only.
 
 Migration `0124` and `FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_V1` are live in owner-only Sites v559 at commit `d4c83d01359705231dec9a33445e603dd41bf84f` with QA Cockpit V9. The zero-provider admission run `factory-assurance-fixture-materialization-admission-run-8e976283d85ce57c7a92c4a5` freezes all 62 planned work orders into one immutable queue: one audio item is the selected batch with planning ceilings of two provider requests and 80,000 USD micros, 45 audio items wait for prior-batch settlement and 16 composite items wait for an exact new parent set plus current rights. Live control observation finds one active binding, one current qualification and one current rights record, but zero CURRENT drift receipts and zero active cost envelopes; the selected item also lacks its typed request contract, exact reservation and explicit paid-dispatch approval. Therefore all 62 remain `BLOCKED` / `NOT_MATERIALIZED`, dispatch-ready remains 0, and the ceiling grants neither cost-reservation nor dispatch authority. The same payload returns `IDEMPOTENT_REPLAY`; full D1 pagination verifies all 62 unique rows, exact ceilings and zero count/qualification/PASS/provider/cost-reservation/R22/master/release/publication authority, actual provider requests and spend. Focused tests pass 7/7 and the full repository suite passes 266/266. Temporary writer/admission flags and token are absent at environment revision 70; the Site remains owner-only.
+
+Migration `0125` and `FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_V1` are live in owner-only Sites v562 at commit `a287fc4fa3d58dfb3b1343f719dc3ce8969322ed` with QA Cockpit V10. The selected `0124` audio item now has one immutable provider-agnostic `PLAN_ONLY` request contract for `CONTROLLED_FIXTURE_CLEAN_AUDIO_SYNTHESIS/V1`, exact input/output/settings hashes and one active request-scoped cost envelope capped at two requests and 80,000 USD micros. Live audio-specific evaluation truthfully finds zero exact matching binding, qualification, current commercial-rights receipt, CURRENT drift receipt or route-ready binding; the earlier generic provider-control inventory is not accepted as audio evidence. No canonical provider work request, route decision or cost reservation exists, and the contract retains null binding/qualification/rights/drift/work-request/route/reservation references, no fallback and `NOT_MATERIALIZED`. Live D1 read-back verifies exactly one COMPLETE/BLOCKED preflight run, one contract, zero dispatch-ready items, zero provider requests and zero spend. QA Cockpit exposes the next exact control set and hides the one-time action after success. Focused tests pass 7/7 and the full repository suite passes 266/266. The temporary writer, preflight flag and token are absent at environment revision 73; the Site remains owner-only.
 
 The owner continuously authorizes uploading and synchronizing the current and future roadmap-bounded source checkpoints to private repository `HungQuach301/youtube-ai-factory` on `main`, plus the related migration, test, Sites checkpoint/deployment and zero-provider verification work, without asking for approval again. This standing authority applies only to that exact repository, excludes `HungQuach301/youtube-ai-factory-v2`, does not authorize force-push or destructive history rewrite, and grants no provider dispatch, spend, R22, master, release or publication authority. Connector or platform controls may still require an exact payload-specific confirmation and cannot be bypassed.
 
