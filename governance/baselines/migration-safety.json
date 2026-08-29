@@ -1,0 +1,1459 @@
+{
+  "version": 1,
+  "identityKey": "path+sha256",
+  "maxNumericId": 128,
+  "appliedMigrations": [
+    {
+      "path": "drizzle/0000_premium_dracula.sql",
+      "numericId": 0,
+      "logicalId": "premium_dracula",
+      "sha256": "8a874bc94103f4f9b306334cd46853b2bd94b24d4ad690a0fdb9c5972f8ae667"
+    },
+    {
+      "path": "drizzle/0001_jazzy_gargoyle.sql",
+      "numericId": 1,
+      "logicalId": "jazzy_gargoyle",
+      "sha256": "280f7977bb7c0cf87f552d538daca5a239819ae610f5c854b88f7cf3d3533f8c"
+    },
+    {
+      "path": "drizzle/0002_cuddly_roxanne_simpson.sql",
+      "numericId": 2,
+      "logicalId": "cuddly_roxanne_simpson",
+      "sha256": "0fd3a668b84eec3eb322c9b7e2708eb233c0b89315d01057629ace70c5c991d2"
+    },
+    {
+      "path": "drizzle/0003_striped_kylun.sql",
+      "numericId": 3,
+      "logicalId": "striped_kylun",
+      "sha256": "7fefbf0e3ff51db1e28dd1469e30971599f56279167200f91400a59c90ab36f1"
+    },
+    {
+      "path": "drizzle/0004_nice_purifiers.sql",
+      "numericId": 4,
+      "logicalId": "nice_purifiers",
+      "sha256": "5dd82feb2162ca6dd9b578b2da5679a40f03512615d9a912d7c9270aa029ff68"
+    },
+    {
+      "path": "drizzle/0005_lovely_phantom_reporter.sql",
+      "numericId": 5,
+      "logicalId": "lovely_phantom_reporter",
+      "sha256": "8a1e77406204d2710c16ab956787bd5bb033f9527a14611f0d4c8ddd9b8c1f51"
+    },
+    {
+      "path": "drizzle/0006_wild_killraven.sql",
+      "numericId": 6,
+      "logicalId": "wild_killraven",
+      "sha256": "f7238fbdb8a3719deef3394664463af366ebd0552d267adca69321fe35025a27"
+    },
+    {
+      "path": "drizzle/0007_early_forge.sql",
+      "numericId": 7,
+      "logicalId": "early_forge",
+      "sha256": "7189af7ad90257ee00b20519ceb0d6b3f6dc4dd388be2997ecea408e21c58218"
+    },
+    {
+      "path": "drizzle/0008_curved_hellfire_club.sql",
+      "numericId": 8,
+      "logicalId": "curved_hellfire_club",
+      "sha256": "f15a05907be88193973ab51159f254b866a0a708c356c54bf5d1e2f3ea2daa99"
+    },
+    {
+      "path": "drizzle/0009_round_justin_hammer.sql",
+      "numericId": 9,
+      "logicalId": "round_justin_hammer",
+      "sha256": "67217eee2a9127ad2f99a22b35a76e6fa96a1b4cf3acb077c215fafa378d1f3d"
+    },
+    {
+      "path": "drizzle/0010_smiling_giant_man.sql",
+      "numericId": 10,
+      "logicalId": "smiling_giant_man",
+      "sha256": "1bb53a0587e3447a1b5217ede4b97d351f3e3c7eb6ab09ca1a08c7089c448a7b"
+    },
+    {
+      "path": "drizzle/0011_flashy_scorpion.sql",
+      "numericId": 11,
+      "logicalId": "flashy_scorpion",
+      "sha256": "00979662e7845113b0681992d93de23347b658d930d70068fd8fe1170cba0a74"
+    },
+    {
+      "path": "drizzle/0012_dashing_swarm.sql",
+      "numericId": 12,
+      "logicalId": "dashing_swarm",
+      "sha256": "df77e6bed4d64c4dec1b25349d7f3fb082da139bf29ed05df177302ee68a94ce"
+    },
+    {
+      "path": "drizzle/0013_lying_spot.sql",
+      "numericId": 13,
+      "logicalId": "lying_spot",
+      "sha256": "d0c39703a96de57069bb904853ad76d890828ecc2b289fa47afdbd29c20d1bba"
+    },
+    {
+      "path": "drizzle/0014_clean_gargoyle.sql",
+      "numericId": 14,
+      "logicalId": "clean_gargoyle",
+      "sha256": "87080d27245c663c197923de5e481d35648a591b11bfbf1d70479861f8553de2"
+    },
+    {
+      "path": "drizzle/0015_flat_legion.sql",
+      "numericId": 15,
+      "logicalId": "flat_legion",
+      "sha256": "e04e026a3bbcdc916947652aff397be5be11f30163034aefdc9459beabc4b5ea"
+    },
+    {
+      "path": "drizzle/0016_productive_swordsman.sql",
+      "numericId": 16,
+      "logicalId": "productive_swordsman",
+      "sha256": "ef0a60e94329a90a39d71f3f3f85359b0a6599ac0dc27fc0da73703232ce6a73"
+    },
+    {
+      "path": "drizzle/0017_milky_redwing.sql",
+      "numericId": 17,
+      "logicalId": "milky_redwing",
+      "sha256": "8d0ca9b81b9b36163dd73967a138c6c9f37e7549d4a6a6b17e6588ad61a12c36"
+    },
+    {
+      "path": "drizzle/0018_woozy_excalibur.sql",
+      "numericId": 18,
+      "logicalId": "woozy_excalibur",
+      "sha256": "cf78b67af04981e8773a64078c0c58df98946c245fcd8a5d584720a9bf6b964f"
+    },
+    {
+      "path": "drizzle/0019_burly_ogun.sql",
+      "numericId": 19,
+      "logicalId": "burly_ogun",
+      "sha256": "aecc02774d624a80ce59c7d0005c88473523d34977ba9f4352248c5b72643b83"
+    },
+    {
+      "path": "drizzle/0020_goofy_chimera.sql",
+      "numericId": 20,
+      "logicalId": "goofy_chimera",
+      "sha256": "092a3ce7458c876c23864cd810124508283d4594abf71ecdddcbfaff226f78de"
+    },
+    {
+      "path": "drizzle/0021_material_gateway.sql",
+      "numericId": 21,
+      "logicalId": "material_gateway",
+      "sha256": "7aff96c8f81e68c361ab34821a1824ed8d365d610c46a849c856ba3387a9fcd1"
+    },
+    {
+      "path": "drizzle/0022_smiling_brother_voodoo.sql",
+      "numericId": 22,
+      "logicalId": "smiling_brother_voodoo",
+      "sha256": "eb413a2be0e552dc5f4157d3cbfd1cca7a24a4cfc260a999b09b733adee76c4e"
+    },
+    {
+      "path": "drizzle/0023_stage09_reliability_baseline.sql",
+      "numericId": 23,
+      "logicalId": "stage09_reliability_baseline",
+      "sha256": "44718b77e94f9cc143831718a3ebcbf4ee669a83754d67eae6c359df8821e57e"
+    },
+    {
+      "path": "drizzle/0024_archetype_certification.sql",
+      "numericId": 24,
+      "logicalId": "archetype_certification",
+      "sha256": "5267a7809e364a8e226e0a6bac61415a850c6d1496c2f17ccb1d1c51e9fbc940"
+    },
+    {
+      "path": "drizzle/0025_artifact_promotion_binding.sql",
+      "numericId": 25,
+      "logicalId": "artifact_promotion_binding",
+      "sha256": "c95acafc7d816c889ff7ffdae45d1f3d3cfa99f26fac6d241c604aa55956a415"
+    },
+    {
+      "path": "drizzle/0026_striped_the_stranger.sql",
+      "numericId": 26,
+      "logicalId": "striped_the_stranger",
+      "sha256": "4f948f2d473ef455541b2936fef81387b24ae97bfcd80fbe7a9c0fcbc355d48b"
+    },
+    {
+      "path": "drizzle/0027_integrated_sequence_product.sql",
+      "numericId": 27,
+      "logicalId": "integrated_sequence_product",
+      "sha256": "883c113db640cb10478758e2c13c1b9ebe6c039cb922769b73703bf8201ad79c"
+    },
+    {
+      "path": "drizzle/0027_marvelous_johnny_storm.sql",
+      "numericId": 27,
+      "logicalId": "marvelous_johnny_storm",
+      "sha256": "80da487b39c1d4cb41d1a77570f06b0df5f6059c3ddb97220204a971c5978965"
+    },
+    {
+      "path": "drizzle/0028_sequence_product_independent_audit.sql",
+      "numericId": 28,
+      "logicalId": "sequence_product_independent_audit",
+      "sha256": "69ca035e07542851ee8708c56909fcd889ec51ffa3b96503e6f376a5cc21eab5"
+    },
+    {
+      "path": "drizzle/0029_wave_batch_product_complete.sql",
+      "numericId": 29,
+      "logicalId": "wave_batch_product_complete",
+      "sha256": "a07ae9cac82d72be99d63626af61c4261abea1abdd2c0ebeb188126b712c1c22"
+    },
+    {
+      "path": "drizzle/0030_niche_expert_decision_command.sql",
+      "numericId": 30,
+      "logicalId": "niche_expert_decision_command",
+      "sha256": "9bbd841d34cdabaaffae060e3d656b3521db12ce05531c590dc741f4b74ec959"
+    },
+    {
+      "path": "drizzle/0031_famous_puff_adder.sql",
+      "numericId": 31,
+      "logicalId": "famous_puff_adder",
+      "sha256": "c92010850dbdba795abc058657793b1d87e896d89ca420477886ad5eddcf1c9f"
+    },
+    {
+      "path": "drizzle/0032_smooth_nebula.sql",
+      "numericId": 32,
+      "logicalId": "smooth_nebula",
+      "sha256": "ac2502d95f7162082395a4c168be7fecc82dcb1b3a0a48c8622e0ccd004dfc21"
+    },
+    {
+      "path": "drizzle/0033_famous_mauler.sql",
+      "numericId": 33,
+      "logicalId": "famous_mauler",
+      "sha256": "1e68d908c4fb6f4ba198beb1a61bd65fae0f03143b4deaafa575450f3615a4dd"
+    },
+    {
+      "path": "drizzle/0034_tiny_richard_fisk.sql",
+      "numericId": 34,
+      "logicalId": "tiny_richard_fisk",
+      "sha256": "a0dab9bb4d7ac2fcc36a6f56973d1b778d88b5301b5911e29ca4767ae92203bc"
+    },
+    {
+      "path": "drizzle/0035_massive_celestials.sql",
+      "numericId": 35,
+      "logicalId": "massive_celestials",
+      "sha256": "c43bfa1a61c9e28b0e0066cbe290cbf78f98789e8caf1245bd34b299c56f921b"
+    },
+    {
+      "path": "drizzle/0036_colossal_master_mold.sql",
+      "numericId": 36,
+      "logicalId": "colossal_master_mold",
+      "sha256": "410f6737ad3b3492cba5c7927604bdf3d910db8171633437260afcb1b42476fd"
+    },
+    {
+      "path": "drizzle/0037_intelligence_niche_bridge.sql",
+      "numericId": 37,
+      "logicalId": "intelligence_niche_bridge",
+      "sha256": "93c49ef3addc65c3dcf3c5004670c39ab2b62896c734ce8d70c6388c8a933b8f"
+    },
+    {
+      "path": "drizzle/0038_clean_dexter_bennett.sql",
+      "numericId": 38,
+      "logicalId": "clean_dexter_bennett",
+      "sha256": "22219f61c02e877248b855f97958f7b43296b40721a786dd0ea91f267a4ee5ab"
+    },
+    {
+      "path": "drizzle/0039_fancy_legion.sql",
+      "numericId": 39,
+      "logicalId": "fancy_legion",
+      "sha256": "caa662b188cc36f7ff14876799137ee18078a6c85c6162fa3d1687f22aaeb520"
+    },
+    {
+      "path": "drizzle/0040_exact_cadence_v2.sql",
+      "numericId": 40,
+      "logicalId": "exact_cadence_v2",
+      "sha256": "6721813f95c4fac7c3ed2f71afec239c293b722a1801443218b40ee30386fc9f"
+    },
+    {
+      "path": "drizzle/0041_confused_rockslide.sql",
+      "numericId": 41,
+      "logicalId": "confused_rockslide",
+      "sha256": "a500d3300ab6a30a114bf26ad9892326c58ee25c2898061d80a769924b1fc54b"
+    },
+    {
+      "path": "drizzle/0042_flashy_black_tarantula.sql",
+      "numericId": 42,
+      "logicalId": "flashy_black_tarantula",
+      "sha256": "6ea58241419fe421b03410d03e0487d1c3096d3c4c26e9d2a2d0067a205cd318"
+    },
+    {
+      "path": "drizzle/0043_gorgeous_angel.sql",
+      "numericId": 43,
+      "logicalId": "gorgeous_angel",
+      "sha256": "7c1f74d19bbb64db8db09da7c3200622025d2c53af8bc4ee9d6d749d2188e4bc"
+    },
+    {
+      "path": "drizzle/0044_adorable_skaar.sql",
+      "numericId": 44,
+      "logicalId": "adorable_skaar",
+      "sha256": "09e4375d1f0d993212fb1236dc47e485dc3d8d68c79e80e815cc51a281b005a7"
+    },
+    {
+      "path": "drizzle/0045_video_quality_standard_v2.sql",
+      "numericId": 45,
+      "logicalId": "video_quality_standard_v2",
+      "sha256": "c8d033cc3084fd815c33dfc34092d5065de737b082eda0b4fea74de8cca2a167"
+    },
+    {
+      "path": "drizzle/0046_golden_master_truth.sql",
+      "numericId": 46,
+      "logicalId": "golden_master_truth",
+      "sha256": "21ae3abb79c305d01a9c88523da3efe3488b39ccb390eb7ff98f1abeb0d51290"
+    },
+    {
+      "path": "drizzle/0047_perceptual_playback_truth.sql",
+      "numericId": 47,
+      "logicalId": "perceptual_playback_truth",
+      "sha256": "346328be47faac937ee0f9cf2fde31e02cac5c78cbfb520194b087097b81c423"
+    },
+    {
+      "path": "drizzle/0048_first_pass_capability_registry.sql",
+      "numericId": 48,
+      "logicalId": "first_pass_capability_registry",
+      "sha256": "a0d2a59c1c0f77ac2f1e3c0ce6e7d322ef5867c8f9b9b01f8e73cdd7a3d015df"
+    },
+    {
+      "path": "drizzle/0049_first_pass_shot_cue_program.sql",
+      "numericId": 49,
+      "logicalId": "first_pass_shot_cue_program",
+      "sha256": "239b212db32f90b01b815d3626d24ff59675d1197afe093730c5660fac304cc0"
+    },
+    {
+      "path": "drizzle/0050_fp3_1_production_integrity.sql",
+      "numericId": 50,
+      "logicalId": "fp3_1_production_integrity",
+      "sha256": "20d672a008f678a8307d33b20af7ce85d033c4fd4e41a48868de38c6ac96026c"
+    },
+    {
+      "path": "drizzle/0051_learning_ready_contract_pack.sql",
+      "numericId": 51,
+      "logicalId": "learning_ready_contract_pack",
+      "sha256": "1372e2e147fbe8d340f426cca41ab453cacaa90db53fc2cb76ee50a018edee07"
+    },
+    {
+      "path": "drizzle/0052_evaluation_foundation.sql",
+      "numericId": 52,
+      "logicalId": "evaluation_foundation",
+      "sha256": "8584c9e4acc37f1fc4f0dffa36933f48df39a68c23947fc0c49b92ae851a9ba0"
+    },
+    {
+      "path": "drizzle/0053_evaluation_corpus_verification.sql",
+      "numericId": 53,
+      "logicalId": "evaluation_corpus_verification",
+      "sha256": "8deaedc88197d5e23a1a093841b17490806d0b9d81f8a531f85b438ed70c50c8"
+    },
+    {
+      "path": "drizzle/0054_evaluation_evidence_disposition.sql",
+      "numericId": 54,
+      "logicalId": "evaluation_evidence_disposition",
+      "sha256": "3314d1989f66ae484b9ae42ee6ef97e401af85a466991babb5279a7c711af5d0"
+    },
+    {
+      "path": "drizzle/0055_evaluation_metadata_binding_reconciliation.sql",
+      "numericId": 55,
+      "logicalId": "evaluation_metadata_binding_reconciliation",
+      "sha256": "f17ffb751457fcc520cf266d6eb92ea3baf5b463cd1928d9e4dd916b74a648be"
+    },
+    {
+      "path": "drizzle/0056_evaluation_rights_reconciliation.sql",
+      "numericId": 56,
+      "logicalId": "evaluation_rights_reconciliation",
+      "sha256": "65bcb64e90055acc63533add1124df38766fe013d9bac099091a98dd068b98df"
+    },
+    {
+      "path": "drizzle/0057_evaluation_rights_evidence_collection.sql",
+      "numericId": 57,
+      "logicalId": "evaluation_rights_evidence_collection",
+      "sha256": "20730c600fe7402d388904254be66676c6e9133d522e57de4cb88b2f6fe2ff2c"
+    },
+    {
+      "path": "drizzle/0058_evaluation_owner_label_workflow.sql",
+      "numericId": 58,
+      "logicalId": "evaluation_owner_label_workflow",
+      "sha256": "c560be46928630b3670e84c87b386221945b42a6950e3d934cc3c168de0b4860"
+    },
+    {
+      "path": "drizzle/0059_evaluation_correlation_control.sql",
+      "numericId": 59,
+      "logicalId": "evaluation_correlation_control",
+      "sha256": "7805030e1b9a674a2baab018ef1bfb83e7fc35111625fa122143532cef137eb1"
+    },
+    {
+      "path": "drizzle/0060_browser_assurance_gate.sql",
+      "numericId": 60,
+      "logicalId": "browser_assurance_gate",
+      "sha256": "0b73aaf4555222db2d8cf58d0b042976c7c24688cf74ba7da433d50ea9a76e2e"
+    },
+    {
+      "path": "drizzle/0061_factory_first_qa.sql",
+      "numericId": 61,
+      "logicalId": "factory_first_qa",
+      "sha256": "5a83edade0cd10c9536e8d75147fb749551f295d8ba5f42821eb661480288e36"
+    },
+    {
+      "path": "drizzle/0062_factory_qa_review_surface.sql",
+      "numericId": 62,
+      "logicalId": "factory_qa_review_surface",
+      "sha256": "6e01f3f81aae49decc646a0d4920b537bb59daea5d2f7c80aba6cf6d8fa79242"
+    },
+    {
+      "path": "drizzle/0063_factory_qa_calibration_v2.sql",
+      "numericId": 63,
+      "logicalId": "factory_qa_calibration_v2",
+      "sha256": "333f0c95e60b68d4448f53f75eb4625b00d5fb057d86ff353baadf194f86bb65"
+    },
+    {
+      "path": "drizzle/0064_factory_qa_deterministic_adjudication.sql",
+      "numericId": 64,
+      "logicalId": "factory_qa_deterministic_adjudication",
+      "sha256": "7b7db96a9f65048a72609b452dfd396288d4a0a4205fc91edef358f02f070b38"
+    },
+    {
+      "path": "drizzle/0065_factory_browser_qa.sql",
+      "numericId": 65,
+      "logicalId": "factory_browser_qa",
+      "sha256": "17ef1bc23c9d92aefeedbbe53ce80ccf3a1b8f058bdc1a6c674eae24b62b0e4d"
+    },
+    {
+      "path": "drizzle/0066_factory_qa_routing_adjudication.sql",
+      "numericId": 66,
+      "logicalId": "factory_qa_routing_adjudication",
+      "sha256": "b311e6df9011d00075d429b6c7a11ac43c7a24a874a3da654120bac26d5a2fcc"
+    },
+    {
+      "path": "drizzle/0067_wp7_regression_corpus.sql",
+      "numericId": 67,
+      "logicalId": "wp7_regression_corpus",
+      "sha256": "04d4078ededa342698d98657deccc754fbe67b57157290e09381e69fa60873f5"
+    },
+    {
+      "path": "drizzle/0068_evaluation_rights_lineage_diagnostics.sql",
+      "numericId": 68,
+      "logicalId": "evaluation_rights_lineage_diagnostics",
+      "sha256": "2f1a8f91f6664bcaddb34f307e9f23f94a76d5f46601efbf9882243b52afda44"
+    },
+    {
+      "path": "drizzle/0069_evaluation_provider_binding_diagnostics.sql",
+      "numericId": 69,
+      "logicalId": "evaluation_provider_binding_diagnostics",
+      "sha256": "dd0d38d5787b95657b6765c4b6cb4a1c12d167ffe3edc1157aeda2f1dfb160ac"
+    },
+    {
+      "path": "drizzle/0070_evaluation_provider_history_recovery.sql",
+      "numericId": 70,
+      "logicalId": "evaluation_provider_history_recovery",
+      "sha256": "ed95d215bf2fdd2495b3a155f2e9b7ace4069be431536ca96aa6285ae613109c"
+    },
+    {
+      "path": "drizzle/0071_evaluation_provider_audio_hash_recovery.sql",
+      "numericId": 71,
+      "logicalId": "evaluation_provider_audio_hash_recovery",
+      "sha256": "e14724594c47e4093b4be94e034733bcc3ab1fe4089878abd1c73365b1ecff62"
+    },
+    {
+      "path": "drizzle/0072_historical_recovery_closure_and_controlled_fixture_plan.sql",
+      "numericId": 72,
+      "logicalId": "historical_recovery_closure_and_controlled_fixture_plan",
+      "sha256": "0c61a3c200d3311efe5aab3a8ed3b09c47f77d4da76928c595dda7a04669ad79"
+    },
+    {
+      "path": "drizzle/0073_controlled_fixture_clean_audio_materialization.sql",
+      "numericId": 73,
+      "logicalId": "controlled_fixture_clean_audio_materialization",
+      "sha256": "e030ea28d79c2faf92452e747af513a945a42908d774acac934cdc232ffb84f6"
+    },
+    {
+      "path": "drizzle/0074_clean_audio_commercial_rights_evidence.sql",
+      "numericId": 74,
+      "logicalId": "clean_audio_commercial_rights_evidence",
+      "sha256": "597416ce77c3e0b38c4ab4df2325bd16c00e23bf7cc9e4de8fa4d4e161c038f3"
+    },
+    {
+      "path": "drizzle/0075_commercial_clean_audio_regeneration.sql",
+      "numericId": 75,
+      "logicalId": "commercial_clean_audio_regeneration",
+      "sha256": "50d6dec7f51c77ff52498dbcd9edd463587a9ee345fe6b0a93aec772579b5b57"
+    },
+    {
+      "path": "drizzle/0076_commercial_clean_audio_recovery.sql",
+      "numericId": 76,
+      "logicalId": "commercial_clean_audio_recovery",
+      "sha256": "f915135cd427e5abc929ee5ada39ee90cd04dd7bfa23d763e1feaee47d0c1336"
+    },
+    {
+      "path": "drizzle/0077_factory_audio_qa_response_recovery.sql",
+      "numericId": 77,
+      "logicalId": "factory_audio_qa_response_recovery",
+      "sha256": "d19fa9a6f0be55826149f1d69cad696d043050a9e1faa0137ea2aea4f782296e"
+    },
+    {
+      "path": "drizzle/0078_clean_audio_owner_ground_truth.sql",
+      "numericId": 78,
+      "logicalId": "clean_audio_owner_ground_truth",
+      "sha256": "8bfd6d3fc5a86ff0f530d79fd599ccec1b76bdc2b773d2af4c503918d2fffdec"
+    },
+    {
+      "path": "drizzle/0079_clean_audio_control_eligibility.sql",
+      "numericId": 79,
+      "logicalId": "clean_audio_control_eligibility",
+      "sha256": "a70024083dc695dfa2f45fdef30bb6fc7d5a4c490465769f4c2325fcf05f82d8"
+    },
+    {
+      "path": "drizzle/0080_controlled_defect_derivation.sql",
+      "numericId": 80,
+      "logicalId": "controlled_defect_derivation",
+      "sha256": "982588d814afd8155705663a7196e9f409670b321c9423da1eaa63bff67fc089"
+    },
+    {
+      "path": "drizzle/0081_clean_av_master_materialization.sql",
+      "numericId": 81,
+      "logicalId": "clean_av_master_materialization",
+      "sha256": "45d8b6fd29595e3279c82a30672dace70ce9e3b667894b5d8cd237939f106940"
+    },
+    {
+      "path": "drizzle/0082_autonomous_clean_av_browser_qa.sql",
+      "numericId": 82,
+      "logicalId": "autonomous_clean_av_browser_qa",
+      "sha256": "ec296015bed33868f338459b4b9e30bd53129c7d315445aa6ea33e2d6ce4d677"
+    },
+    {
+      "path": "drizzle/0083_youtube_audience_golden_sequence.sql",
+      "numericId": 83,
+      "logicalId": "youtube_audience_golden_sequence",
+      "sha256": "5770171414299cf14f1377c7eed074cbbbadedf40392f8c918f6793f9c9dc4bf"
+    },
+    {
+      "path": "drizzle/0084_youtube_audience_golden_audio_recovery.sql",
+      "numericId": 84,
+      "logicalId": "youtube_audience_golden_audio_recovery",
+      "sha256": "78e4bc19af079e64d9d62eb11aeb22a90ea5753476788323d397daea0c0044e8"
+    },
+    {
+      "path": "drizzle/0085_youtube_audience_golden_revision_2.sql",
+      "numericId": 85,
+      "logicalId": "youtube_audience_golden_revision_2",
+      "sha256": "299226f3b32812e54c97fa42822720584c65888fb6ac05f89c5b193918f91a59"
+    },
+    {
+      "path": "drizzle/0086_youtube_audience_golden_revision_3.sql",
+      "numericId": 86,
+      "logicalId": "youtube_audience_golden_revision_3",
+      "sha256": "1f429acfdc1fb144f69f1f78c42ffbc8efb0302cbe565139ab5e3b93635d26ab"
+    },
+    {
+      "path": "drizzle/0087_youtube_audience_golden_revision_4.sql",
+      "numericId": 87,
+      "logicalId": "youtube_audience_golden_revision_4",
+      "sha256": "ab5ef8afe4c9517537d0798f2f5db355de47a0d91df150567cf69c82a2225401"
+    },
+    {
+      "path": "drizzle/0088_youtube_audience_golden_revision_5.sql",
+      "numericId": 88,
+      "logicalId": "youtube_audience_golden_revision_5",
+      "sha256": "c78720203a7052ad0382cf39ae5266a4955fbe99b8ba2e58a242ada811bb8ede"
+    },
+    {
+      "path": "drizzle/0089_youtube_audience_golden_revision_6.sql",
+      "numericId": 89,
+      "logicalId": "youtube_audience_golden_revision_6",
+      "sha256": "d3895a36efa707e60671c55ce8795241502aee62f5032dafdc85a3db8259c4b2"
+    },
+    {
+      "path": "drizzle/0090_youtube_audience_golden_audio_qa_recovery.sql",
+      "numericId": 90,
+      "logicalId": "youtube_audience_golden_audio_qa_recovery",
+      "sha256": "e4bc5a7cbb4f40f199020ef53f8615decc0d6e6e761e0c5a4eb0b723a88e3e41"
+    },
+    {
+      "path": "drizzle/0091_youtube_audience_golden_revision_7.sql",
+      "numericId": 91,
+      "logicalId": "youtube_audience_golden_revision_7",
+      "sha256": "0bff1f68da3076bb7deafe64268dc6d7110897b998c46750210bc9c040905bf3"
+    },
+    {
+      "path": "drizzle/0092_youtube_audience_golden_revision_8.sql",
+      "numericId": 92,
+      "logicalId": "youtube_audience_golden_revision_8",
+      "sha256": "aa423567c80b85db0d253e56763306c7ba999d4d29351f19645b3d48e6a21376"
+    },
+    {
+      "path": "drizzle/0093_youtube_audience_golden_revision_9.sql",
+      "numericId": 93,
+      "logicalId": "youtube_audience_golden_revision_9",
+      "sha256": "8ca583fbe745ce7719772a15c33da18abcbed3692556294d7d05739063ddb274"
+    },
+    {
+      "path": "drizzle/0094_youtube_audience_golden_revision_10.sql",
+      "numericId": 94,
+      "logicalId": "youtube_audience_golden_revision_10",
+      "sha256": "7e74e410175807517f5a7588fd8d4f2392a5e2db7f4f406e402f00180bb9d6bf"
+    },
+    {
+      "path": "drizzle/0095_youtube_audience_golden_revision_11.sql",
+      "numericId": 95,
+      "logicalId": "youtube_audience_golden_revision_11",
+      "sha256": "cba08c410a5861070d888ca03c35b36ad28af2c949b7fd9cc9c377f36e48f4cb"
+    },
+    {
+      "path": "drizzle/0096_youtube_audience_golden_revision_12.sql",
+      "numericId": 96,
+      "logicalId": "youtube_audience_golden_revision_12",
+      "sha256": "00c838db355b796157500ea91b0f4478bf0371e2337906a31017efed3321e185"
+    },
+    {
+      "path": "drizzle/0097_youtube_audience_golden_revision_13.sql",
+      "numericId": 97,
+      "logicalId": "youtube_audience_golden_revision_13",
+      "sha256": "ab4fef336e94469c3e3d156fccb3bfc7d2e37d52c9b421c89325d5941c0c20b4"
+    },
+    {
+      "path": "drizzle/0098_youtube_audience_golden_revision_14.sql",
+      "numericId": 98,
+      "logicalId": "youtube_audience_golden_revision_14",
+      "sha256": "9a630e468e2f22e8aebe3a8228bd9bf88895a803932621c46bbe4ad8448f7f03"
+    },
+    {
+      "path": "drizzle/0099_youtube_audience_golden_revision_15.sql",
+      "numericId": 99,
+      "logicalId": "youtube_audience_golden_revision_15",
+      "sha256": "485ce6d6fdcb91f411d03a643576e2a67c81bfec23514c0b7fabb248c1823cfe"
+    },
+    {
+      "path": "drizzle/0100_youtube_audience_golden_revision_16.sql",
+      "numericId": 100,
+      "logicalId": "youtube_audience_golden_revision_16",
+      "sha256": "1b7f6a5df9a090f89b183a4f3431c4b51667e84b43cdacbb392acc37e442793d"
+    },
+    {
+      "path": "drizzle/0101_youtube_audience_golden_revision_17.sql",
+      "numericId": 101,
+      "logicalId": "youtube_audience_golden_revision_17",
+      "sha256": "7b43515c00d897361e0a37f483c0389ffb1fc3aa1dc83681597171ec74b4da1f"
+    },
+    {
+      "path": "drizzle/0102_youtube_audience_golden_revision_18.sql",
+      "numericId": 102,
+      "logicalId": "youtube_audience_golden_revision_18",
+      "sha256": "72dbb48e23b84014145bea5c7ae8f43673e9378a55f0b082d617b31db7e17da6"
+    },
+    {
+      "path": "drizzle/0103_youtube_audience_golden_revision_19.sql",
+      "numericId": 103,
+      "logicalId": "youtube_audience_golden_revision_19",
+      "sha256": "155a9ac170cbdddce0c153e88dedab206e06d53bb160f583d49315cca0dcd103"
+    },
+    {
+      "path": "drizzle/0104_youtube_audience_golden_revision_20.sql",
+      "numericId": 104,
+      "logicalId": "youtube_audience_golden_revision_20",
+      "sha256": "38c858e69929463cefd9271d6bfa5fb2a0839bfdf918716d89c1aa2492ea002c"
+    },
+    {
+      "path": "drizzle/0105_youtube_audience_golden_revision_21.sql",
+      "numericId": 105,
+      "logicalId": "youtube_audience_golden_revision_21",
+      "sha256": "38d0a8fa8a49e7a304be0a46361c6d79005856dbffcc3691271f7976ab01c7a1"
+    },
+    {
+      "path": "drizzle/0106_factory_runtime_contract_foundation.sql",
+      "numericId": 106,
+      "logicalId": "factory_runtime_contract_foundation",
+      "sha256": "c241e09ade5a9d89e2c1bd738764b2d22222cd4da777ddde5af0b2bf0d47db22"
+    },
+    {
+      "path": "drizzle/0107_factory_runtime_writer_and_replay.sql",
+      "numericId": 107,
+      "logicalId": "factory_runtime_writer_and_replay",
+      "sha256": "044c128ad5dbe6ae8c1638074e1340b4950323b388e45feadba628d642ce119a"
+    },
+    {
+      "path": "drizzle/0108_factory_provider_gateway_and_compilers.sql",
+      "numericId": 108,
+      "logicalId": "factory_provider_gateway_and_compilers",
+      "sha256": "e29727a8a172fef71a47c4440723cd9f02cfc9196723c970d8d1bdb69853fc49"
+    },
+    {
+      "path": "drizzle/0109_factory_scene_renderer_and_workers.sql",
+      "numericId": 109,
+      "logicalId": "factory_scene_renderer_and_workers",
+      "sha256": "12ccd408aaffae5e1495bf24ff30dd7e564f0bfdcb9e4532c517c098b9417c74"
+    },
+    {
+      "path": "drizzle/0110_factory_asset_eligibility_and_pixel_canary.sql",
+      "numericId": 110,
+      "logicalId": "factory_asset_eligibility_and_pixel_canary",
+      "sha256": "99dcddd2bee1a146158e04f2aae807e60a9cb1c74829601a2d2c37736d708136"
+    },
+    {
+      "path": "drizzle/0111_factory_live_canary_qualification.sql",
+      "numericId": 111,
+      "logicalId": "factory_live_canary_qualification",
+      "sha256": "b8034950cb55d2c850812f2d6d330cf2b38e0665a32b8ea87a0de37a24b73d2f"
+    },
+    {
+      "path": "drizzle/0112_factory_hidden_systems_treatment_qualification.sql",
+      "numericId": 112,
+      "logicalId": "factory_hidden_systems_treatment_qualification",
+      "sha256": "acbb597a16ca86e86b435a26f3f32e527d76ab71df230b868e7be65f5d59768a"
+    },
+    {
+      "path": "drizzle/0113_factory_provider_cost_reconciliation_and_drift.sql",
+      "numericId": 113,
+      "logicalId": "factory_provider_cost_reconciliation_and_drift",
+      "sha256": "6cac0d2d430eadda4cd8f288820a097c7db1771f56b4222541a3ae4338963a45"
+    },
+    {
+      "path": "drizzle/0114_factory_evidence_lineage_and_assurance_foundation.sql",
+      "numericId": 114,
+      "logicalId": "factory_evidence_lineage_and_assurance_foundation",
+      "sha256": "a1f93cd5df8ce0298aff06a916b47c9bcf8b7aa91b23c0ee2f1fe8eb886ea9c6"
+    },
+    {
+      "path": "drizzle/0115_factory_assurance_calibration_and_qa_cockpit.sql",
+      "numericId": 115,
+      "logicalId": "factory_assurance_calibration_and_qa_cockpit",
+      "sha256": "44c5cbb9a79ac6335f6ac3b877b10c1285fee8cf8e36287dd31976faaad0dc66"
+    },
+    {
+      "path": "drizzle/0116_factory_assurance_calibration_corpus_admission.sql",
+      "numericId": 116,
+      "logicalId": "factory_assurance_calibration_corpus_admission",
+      "sha256": "491df3323e02469e5d55d812e7e29498b5797faa0aaa13ea1d7c383850d67cef"
+    },
+    {
+      "path": "drizzle/0117_factory_assurance_corpus_remediation_inventory.sql",
+      "numericId": 117,
+      "logicalId": "factory_assurance_corpus_remediation_inventory",
+      "sha256": "aedeb17395c2bb92f71d293cda30e78e02cfa90795952e37e17c53215cc7324f"
+    },
+    {
+      "path": "drizzle/0118_factory_assurance_corpus_remediation_evidence.sql",
+      "numericId": 118,
+      "logicalId": "factory_assurance_corpus_remediation_evidence",
+      "sha256": "5f60cdb91f1cbabff7e2bd2bd0145661792e46a6fddecc3b3e9c0504562d6a3a"
+    },
+    {
+      "path": "drizzle/0119_factory_assurance_corpus_remediation_incident_disposition.sql",
+      "numericId": 119,
+      "logicalId": "factory_assurance_corpus_remediation_incident_disposition",
+      "sha256": "1d8e1f05b37b6fc287c4ed27f501dfee7395834af494a9910578f9aea699fc3f"
+    },
+    {
+      "path": "drizzle/0120_factory_assurance_current_rights_inventory.sql",
+      "numericId": 120,
+      "logicalId": "factory_assurance_current_rights_inventory",
+      "sha256": "533e101db7d50083b4af64c48d20925b5b8465cd84d7a47c880dc016f09f90c2"
+    },
+    {
+      "path": "drizzle/0121_factory_assurance_current_rights_collection.sql",
+      "numericId": 121,
+      "logicalId": "factory_assurance_current_rights_collection",
+      "sha256": "d9c40e326ad494543681cb3fe210dcad4c0b555da3eeddb050f0ce4f1a8bedfd"
+    },
+    {
+      "path": "drizzle/0122_factory_assurance_current_rights_terminal_disposition.sql",
+      "numericId": 122,
+      "logicalId": "factory_assurance_current_rights_terminal_disposition",
+      "sha256": "4fa04111a0cf8ea5b2d1cf51d8fd77bac9f7ca943a6105f29ecc02083fd86c09"
+    },
+    {
+      "path": "drizzle/0123_factory_assurance_controlled_fixture_replacement_plan.sql",
+      "numericId": 123,
+      "logicalId": "factory_assurance_controlled_fixture_replacement_plan",
+      "sha256": "3f045539b43810c3525740161f1e652c2d4a0abbe88cce68e0e12373f20a4f5f"
+    },
+    {
+      "path": "drizzle/0124_factory_assurance_controlled_fixture_materialization_admission.sql",
+      "numericId": 124,
+      "logicalId": "factory_assurance_controlled_fixture_materialization_admission",
+      "sha256": "67de822a9f44f7747c8b49bb8ba4f4ffd3e1e0edf7ed34185b3c1141581c4917"
+    },
+    {
+      "path": "drizzle/0125_factory_assurance_controlled_fixture_audio_preflight.sql",
+      "numericId": 125,
+      "logicalId": "factory_assurance_controlled_fixture_audio_preflight",
+      "sha256": "ee12afabd47f980047f80f88bedb3cc6bfc73ae10772fa67e9a8a5b152a98f05"
+    },
+    {
+      "path": "drizzle/0126_factory_assurance_audio_provider_certification.sql",
+      "numericId": 126,
+      "logicalId": "factory_assurance_audio_provider_certification",
+      "sha256": "1b77d0245bb40cd7d9d30c329652ada520ea92d7092bedcfdaf4b2a517b50715"
+    },
+    {
+      "path": "drizzle/0127_factory_assurance_audio_route_reservation.sql",
+      "numericId": 127,
+      "logicalId": "factory_assurance_audio_route_reservation",
+      "sha256": "78b8e44209c703318f22a42e295313d3a570fc00b6545aad7e6b3f04e1745df6"
+    },
+    {
+      "path": "drizzle/0128_factory_assurance_audio_paid_dispatch_authorization.sql",
+      "numericId": 128,
+      "logicalId": "factory_assurance_audio_paid_dispatch_authorization",
+      "sha256": "fad99cafeaed36f11cdab612c430a0f4912ecbe0dbd9996a8e6e27b99db3f8e1"
+    }
+  ],
+  "duplicateDebt": [
+    {
+      "identity": "DUPLICATE_NUMERIC_ID:0027:drizzle/0027_integrated_sequence_product.sql|drizzle/0027_marvelous_johnny_storm.sql",
+      "numericId": 27,
+      "paths": [
+        "drizzle/0027_integrated_sequence_product.sql",
+        "drizzle/0027_marvelous_johnny_storm.sql"
+      ]
+    }
+  ],
+  "safetyDebt": [
+    {
+      "identity": "drizzle/0000_premium_dracula.sql:READ_BACK_MISSING",
+      "path": "drizzle/0000_premium_dracula.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0001_jazzy_gargoyle.sql:READ_BACK_MISSING",
+      "path": "drizzle/0001_jazzy_gargoyle.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0002_cuddly_roxanne_simpson.sql:READ_BACK_MISSING",
+      "path": "drizzle/0002_cuddly_roxanne_simpson.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0003_striped_kylun.sql:READ_BACK_MISSING",
+      "path": "drizzle/0003_striped_kylun.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0004_nice_purifiers.sql:READ_BACK_MISSING",
+      "path": "drizzle/0004_nice_purifiers.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0005_lovely_phantom_reporter.sql:READ_BACK_MISSING",
+      "path": "drizzle/0005_lovely_phantom_reporter.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0006_wild_killraven.sql:READ_BACK_MISSING",
+      "path": "drizzle/0006_wild_killraven.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0007_early_forge.sql:READ_BACK_MISSING",
+      "path": "drizzle/0007_early_forge.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0008_curved_hellfire_club.sql:READ_BACK_MISSING",
+      "path": "drizzle/0008_curved_hellfire_club.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0009_round_justin_hammer.sql:READ_BACK_MISSING",
+      "path": "drizzle/0009_round_justin_hammer.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0010_smiling_giant_man.sql:READ_BACK_MISSING",
+      "path": "drizzle/0010_smiling_giant_man.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0011_flashy_scorpion.sql:READ_BACK_MISSING",
+      "path": "drizzle/0011_flashy_scorpion.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0012_dashing_swarm.sql:READ_BACK_MISSING",
+      "path": "drizzle/0012_dashing_swarm.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0013_lying_spot.sql:READ_BACK_MISSING",
+      "path": "drizzle/0013_lying_spot.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0014_clean_gargoyle.sql:READ_BACK_MISSING",
+      "path": "drizzle/0014_clean_gargoyle.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0015_flat_legion.sql:READ_BACK_MISSING",
+      "path": "drizzle/0015_flat_legion.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0016_productive_swordsman.sql:READ_BACK_MISSING",
+      "path": "drizzle/0016_productive_swordsman.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0017_milky_redwing.sql:READ_BACK_MISSING",
+      "path": "drizzle/0017_milky_redwing.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0018_woozy_excalibur.sql:READ_BACK_MISSING",
+      "path": "drizzle/0018_woozy_excalibur.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0019_burly_ogun.sql:READ_BACK_MISSING",
+      "path": "drizzle/0019_burly_ogun.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0020_goofy_chimera.sql:READ_BACK_MISSING",
+      "path": "drizzle/0020_goofy_chimera.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0021_material_gateway.sql:READ_BACK_MISSING",
+      "path": "drizzle/0021_material_gateway.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0022_smiling_brother_voodoo.sql:READ_BACK_MISSING",
+      "path": "drizzle/0022_smiling_brother_voodoo.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0023_stage09_reliability_baseline.sql:READ_BACK_MISSING",
+      "path": "drizzle/0023_stage09_reliability_baseline.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0024_archetype_certification.sql:READ_BACK_MISSING",
+      "path": "drizzle/0024_archetype_certification.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0025_artifact_promotion_binding.sql:READ_BACK_MISSING",
+      "path": "drizzle/0025_artifact_promotion_binding.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0026_striped_the_stranger.sql:READ_BACK_MISSING",
+      "path": "drizzle/0026_striped_the_stranger.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0027_integrated_sequence_product.sql:READ_BACK_MISSING",
+      "path": "drizzle/0027_integrated_sequence_product.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0027_marvelous_johnny_storm.sql:READ_BACK_MISSING",
+      "path": "drizzle/0027_marvelous_johnny_storm.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0028_sequence_product_independent_audit.sql:READ_BACK_MISSING",
+      "path": "drizzle/0028_sequence_product_independent_audit.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0029_wave_batch_product_complete.sql:READ_BACK_MISSING",
+      "path": "drizzle/0029_wave_batch_product_complete.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0030_niche_expert_decision_command.sql:READ_BACK_MISSING",
+      "path": "drizzle/0030_niche_expert_decision_command.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0031_famous_puff_adder.sql:READ_BACK_MISSING",
+      "path": "drizzle/0031_famous_puff_adder.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0032_smooth_nebula.sql:READ_BACK_MISSING",
+      "path": "drizzle/0032_smooth_nebula.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0033_famous_mauler.sql:READ_BACK_MISSING",
+      "path": "drizzle/0033_famous_mauler.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0034_tiny_richard_fisk.sql:READ_BACK_MISSING",
+      "path": "drizzle/0034_tiny_richard_fisk.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0035_massive_celestials.sql:READ_BACK_MISSING",
+      "path": "drizzle/0035_massive_celestials.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0036_colossal_master_mold.sql:READ_BACK_MISSING",
+      "path": "drizzle/0036_colossal_master_mold.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0037_intelligence_niche_bridge.sql:READ_BACK_MISSING",
+      "path": "drizzle/0037_intelligence_niche_bridge.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0038_clean_dexter_bennett.sql:READ_BACK_MISSING",
+      "path": "drizzle/0038_clean_dexter_bennett.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0039_fancy_legion.sql:READ_BACK_MISSING",
+      "path": "drizzle/0039_fancy_legion.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0041_confused_rockslide.sql:READ_BACK_MISSING",
+      "path": "drizzle/0041_confused_rockslide.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0042_flashy_black_tarantula.sql:READ_BACK_MISSING",
+      "path": "drizzle/0042_flashy_black_tarantula.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0043_gorgeous_angel.sql:READ_BACK_MISSING",
+      "path": "drizzle/0043_gorgeous_angel.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0044_adorable_skaar.sql:READ_BACK_MISSING",
+      "path": "drizzle/0044_adorable_skaar.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0045_video_quality_standard_v2.sql:READ_BACK_MISSING",
+      "path": "drizzle/0045_video_quality_standard_v2.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0046_golden_master_truth.sql:READ_BACK_MISSING",
+      "path": "drizzle/0046_golden_master_truth.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0048_first_pass_capability_registry.sql:READ_BACK_MISSING",
+      "path": "drizzle/0048_first_pass_capability_registry.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0049_first_pass_shot_cue_program.sql:READ_BACK_MISSING",
+      "path": "drizzle/0049_first_pass_shot_cue_program.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0050_fp3_1_production_integrity.sql:READ_BACK_MISSING",
+      "path": "drizzle/0050_fp3_1_production_integrity.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0051_learning_ready_contract_pack.sql:READ_BACK_MISSING",
+      "path": "drizzle/0051_learning_ready_contract_pack.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0052_evaluation_foundation.sql:READ_BACK_MISSING",
+      "path": "drizzle/0052_evaluation_foundation.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0053_evaluation_corpus_verification.sql:READ_BACK_MISSING",
+      "path": "drizzle/0053_evaluation_corpus_verification.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0054_evaluation_evidence_disposition.sql:READ_BACK_MISSING",
+      "path": "drizzle/0054_evaluation_evidence_disposition.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0055_evaluation_metadata_binding_reconciliation.sql:READ_BACK_MISSING",
+      "path": "drizzle/0055_evaluation_metadata_binding_reconciliation.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0056_evaluation_rights_reconciliation.sql:READ_BACK_MISSING",
+      "path": "drizzle/0056_evaluation_rights_reconciliation.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0057_evaluation_rights_evidence_collection.sql:READ_BACK_MISSING",
+      "path": "drizzle/0057_evaluation_rights_evidence_collection.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0058_evaluation_owner_label_workflow.sql:READ_BACK_MISSING",
+      "path": "drizzle/0058_evaluation_owner_label_workflow.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0059_evaluation_correlation_control.sql:READ_BACK_MISSING",
+      "path": "drizzle/0059_evaluation_correlation_control.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0060_browser_assurance_gate.sql:READ_BACK_MISSING",
+      "path": "drizzle/0060_browser_assurance_gate.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0061_factory_first_qa.sql:READ_BACK_MISSING",
+      "path": "drizzle/0061_factory_first_qa.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0062_factory_qa_review_surface.sql:READ_BACK_MISSING",
+      "path": "drizzle/0062_factory_qa_review_surface.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0063_factory_qa_calibration_v2.sql:BACKUP_PLAN_MISSING",
+      "path": "drizzle/0063_factory_qa_calibration_v2.sql",
+      "issue": "BACKUP_PLAN_MISSING"
+    },
+    {
+      "identity": "drizzle/0063_factory_qa_calibration_v2.sql:DESTRUCTIVE_REVIEW_MARKER_MISSING",
+      "path": "drizzle/0063_factory_qa_calibration_v2.sql",
+      "issue": "DESTRUCTIVE_REVIEW_MARKER_MISSING"
+    },
+    {
+      "identity": "drizzle/0063_factory_qa_calibration_v2.sql:READ_BACK_MISSING",
+      "path": "drizzle/0063_factory_qa_calibration_v2.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0064_factory_qa_deterministic_adjudication.sql:READ_BACK_MISSING",
+      "path": "drizzle/0064_factory_qa_deterministic_adjudication.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0065_factory_browser_qa.sql:READ_BACK_MISSING",
+      "path": "drizzle/0065_factory_browser_qa.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0066_factory_qa_routing_adjudication.sql:READ_BACK_MISSING",
+      "path": "drizzle/0066_factory_qa_routing_adjudication.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0067_wp7_regression_corpus.sql:READ_BACK_MISSING",
+      "path": "drizzle/0067_wp7_regression_corpus.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0068_evaluation_rights_lineage_diagnostics.sql:READ_BACK_MISSING",
+      "path": "drizzle/0068_evaluation_rights_lineage_diagnostics.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0069_evaluation_provider_binding_diagnostics.sql:READ_BACK_MISSING",
+      "path": "drizzle/0069_evaluation_provider_binding_diagnostics.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0070_evaluation_provider_history_recovery.sql:READ_BACK_MISSING",
+      "path": "drizzle/0070_evaluation_provider_history_recovery.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0071_evaluation_provider_audio_hash_recovery.sql:READ_BACK_MISSING",
+      "path": "drizzle/0071_evaluation_provider_audio_hash_recovery.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0072_historical_recovery_closure_and_controlled_fixture_plan.sql:READ_BACK_MISSING",
+      "path": "drizzle/0072_historical_recovery_closure_and_controlled_fixture_plan.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0073_controlled_fixture_clean_audio_materialization.sql:READ_BACK_MISSING",
+      "path": "drizzle/0073_controlled_fixture_clean_audio_materialization.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0074_clean_audio_commercial_rights_evidence.sql:READ_BACK_MISSING",
+      "path": "drizzle/0074_clean_audio_commercial_rights_evidence.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0075_commercial_clean_audio_regeneration.sql:READ_BACK_MISSING",
+      "path": "drizzle/0075_commercial_clean_audio_regeneration.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0076_commercial_clean_audio_recovery.sql:READ_BACK_MISSING",
+      "path": "drizzle/0076_commercial_clean_audio_recovery.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0077_factory_audio_qa_response_recovery.sql:READ_BACK_MISSING",
+      "path": "drizzle/0077_factory_audio_qa_response_recovery.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0078_clean_audio_owner_ground_truth.sql:READ_BACK_MISSING",
+      "path": "drizzle/0078_clean_audio_owner_ground_truth.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0079_clean_audio_control_eligibility.sql:READ_BACK_MISSING",
+      "path": "drizzle/0079_clean_audio_control_eligibility.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0080_controlled_defect_derivation.sql:READ_BACK_MISSING",
+      "path": "drizzle/0080_controlled_defect_derivation.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0081_clean_av_master_materialization.sql:READ_BACK_MISSING",
+      "path": "drizzle/0081_clean_av_master_materialization.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0082_autonomous_clean_av_browser_qa.sql:READ_BACK_MISSING",
+      "path": "drizzle/0082_autonomous_clean_av_browser_qa.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0083_youtube_audience_golden_sequence.sql:READ_BACK_MISSING",
+      "path": "drizzle/0083_youtube_audience_golden_sequence.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0084_youtube_audience_golden_audio_recovery.sql:READ_BACK_MISSING",
+      "path": "drizzle/0084_youtube_audience_golden_audio_recovery.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0085_youtube_audience_golden_revision_2.sql:BACKUP_PLAN_MISSING",
+      "path": "drizzle/0085_youtube_audience_golden_revision_2.sql",
+      "issue": "BACKUP_PLAN_MISSING"
+    },
+    {
+      "identity": "drizzle/0085_youtube_audience_golden_revision_2.sql:DESTRUCTIVE_REVIEW_MARKER_MISSING",
+      "path": "drizzle/0085_youtube_audience_golden_revision_2.sql",
+      "issue": "DESTRUCTIVE_REVIEW_MARKER_MISSING"
+    },
+    {
+      "identity": "drizzle/0085_youtube_audience_golden_revision_2.sql:READ_BACK_MISSING",
+      "path": "drizzle/0085_youtube_audience_golden_revision_2.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0086_youtube_audience_golden_revision_3.sql:READ_BACK_MISSING",
+      "path": "drizzle/0086_youtube_audience_golden_revision_3.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0087_youtube_audience_golden_revision_4.sql:READ_BACK_MISSING",
+      "path": "drizzle/0087_youtube_audience_golden_revision_4.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0088_youtube_audience_golden_revision_5.sql:READ_BACK_MISSING",
+      "path": "drizzle/0088_youtube_audience_golden_revision_5.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0089_youtube_audience_golden_revision_6.sql:READ_BACK_MISSING",
+      "path": "drizzle/0089_youtube_audience_golden_revision_6.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0090_youtube_audience_golden_audio_qa_recovery.sql:READ_BACK_MISSING",
+      "path": "drizzle/0090_youtube_audience_golden_audio_qa_recovery.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0091_youtube_audience_golden_revision_7.sql:READ_BACK_MISSING",
+      "path": "drizzle/0091_youtube_audience_golden_revision_7.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0092_youtube_audience_golden_revision_8.sql:READ_BACK_MISSING",
+      "path": "drizzle/0092_youtube_audience_golden_revision_8.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0093_youtube_audience_golden_revision_9.sql:READ_BACK_MISSING",
+      "path": "drizzle/0093_youtube_audience_golden_revision_9.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0094_youtube_audience_golden_revision_10.sql:READ_BACK_MISSING",
+      "path": "drizzle/0094_youtube_audience_golden_revision_10.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0095_youtube_audience_golden_revision_11.sql:READ_BACK_MISSING",
+      "path": "drizzle/0095_youtube_audience_golden_revision_11.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0096_youtube_audience_golden_revision_12.sql:READ_BACK_MISSING",
+      "path": "drizzle/0096_youtube_audience_golden_revision_12.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0097_youtube_audience_golden_revision_13.sql:READ_BACK_MISSING",
+      "path": "drizzle/0097_youtube_audience_golden_revision_13.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0098_youtube_audience_golden_revision_14.sql:READ_BACK_MISSING",
+      "path": "drizzle/0098_youtube_audience_golden_revision_14.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0099_youtube_audience_golden_revision_15.sql:READ_BACK_MISSING",
+      "path": "drizzle/0099_youtube_audience_golden_revision_15.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0100_youtube_audience_golden_revision_16.sql:READ_BACK_MISSING",
+      "path": "drizzle/0100_youtube_audience_golden_revision_16.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0101_youtube_audience_golden_revision_17.sql:READ_BACK_MISSING",
+      "path": "drizzle/0101_youtube_audience_golden_revision_17.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0102_youtube_audience_golden_revision_18.sql:READ_BACK_MISSING",
+      "path": "drizzle/0102_youtube_audience_golden_revision_18.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0103_youtube_audience_golden_revision_19.sql:READ_BACK_MISSING",
+      "path": "drizzle/0103_youtube_audience_golden_revision_19.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0104_youtube_audience_golden_revision_20.sql:READ_BACK_MISSING",
+      "path": "drizzle/0104_youtube_audience_golden_revision_20.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0105_youtube_audience_golden_revision_21.sql:READ_BACK_MISSING",
+      "path": "drizzle/0105_youtube_audience_golden_revision_21.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0106_factory_runtime_contract_foundation.sql:READ_BACK_MISSING",
+      "path": "drizzle/0106_factory_runtime_contract_foundation.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0107_factory_runtime_writer_and_replay.sql:READ_BACK_MISSING",
+      "path": "drizzle/0107_factory_runtime_writer_and_replay.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0108_factory_provider_gateway_and_compilers.sql:READ_BACK_MISSING",
+      "path": "drizzle/0108_factory_provider_gateway_and_compilers.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0109_factory_scene_renderer_and_workers.sql:READ_BACK_MISSING",
+      "path": "drizzle/0109_factory_scene_renderer_and_workers.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0110_factory_asset_eligibility_and_pixel_canary.sql:READ_BACK_MISSING",
+      "path": "drizzle/0110_factory_asset_eligibility_and_pixel_canary.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0111_factory_live_canary_qualification.sql:READ_BACK_MISSING",
+      "path": "drizzle/0111_factory_live_canary_qualification.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0112_factory_hidden_systems_treatment_qualification.sql:READ_BACK_MISSING",
+      "path": "drizzle/0112_factory_hidden_systems_treatment_qualification.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0113_factory_provider_cost_reconciliation_and_drift.sql:READ_BACK_MISSING",
+      "path": "drizzle/0113_factory_provider_cost_reconciliation_and_drift.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0114_factory_evidence_lineage_and_assurance_foundation.sql:READ_BACK_MISSING",
+      "path": "drizzle/0114_factory_evidence_lineage_and_assurance_foundation.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0115_factory_assurance_calibration_and_qa_cockpit.sql:READ_BACK_MISSING",
+      "path": "drizzle/0115_factory_assurance_calibration_and_qa_cockpit.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0116_factory_assurance_calibration_corpus_admission.sql:READ_BACK_MISSING",
+      "path": "drizzle/0116_factory_assurance_calibration_corpus_admission.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0117_factory_assurance_corpus_remediation_inventory.sql:READ_BACK_MISSING",
+      "path": "drizzle/0117_factory_assurance_corpus_remediation_inventory.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0118_factory_assurance_corpus_remediation_evidence.sql:READ_BACK_MISSING",
+      "path": "drizzle/0118_factory_assurance_corpus_remediation_evidence.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0119_factory_assurance_corpus_remediation_incident_disposition.sql:READ_BACK_MISSING",
+      "path": "drizzle/0119_factory_assurance_corpus_remediation_incident_disposition.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0120_factory_assurance_current_rights_inventory.sql:READ_BACK_MISSING",
+      "path": "drizzle/0120_factory_assurance_current_rights_inventory.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0121_factory_assurance_current_rights_collection.sql:READ_BACK_MISSING",
+      "path": "drizzle/0121_factory_assurance_current_rights_collection.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0122_factory_assurance_current_rights_terminal_disposition.sql:READ_BACK_MISSING",
+      "path": "drizzle/0122_factory_assurance_current_rights_terminal_disposition.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0123_factory_assurance_controlled_fixture_replacement_plan.sql:READ_BACK_MISSING",
+      "path": "drizzle/0123_factory_assurance_controlled_fixture_replacement_plan.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0124_factory_assurance_controlled_fixture_materialization_admission.sql:READ_BACK_MISSING",
+      "path": "drizzle/0124_factory_assurance_controlled_fixture_materialization_admission.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0125_factory_assurance_controlled_fixture_audio_preflight.sql:READ_BACK_MISSING",
+      "path": "drizzle/0125_factory_assurance_controlled_fixture_audio_preflight.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0126_factory_assurance_audio_provider_certification.sql:READ_BACK_MISSING",
+      "path": "drizzle/0126_factory_assurance_audio_provider_certification.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0127_factory_assurance_audio_route_reservation.sql:READ_BACK_MISSING",
+      "path": "drizzle/0127_factory_assurance_audio_route_reservation.sql",
+      "issue": "READ_BACK_MISSING"
+    },
+    {
+      "identity": "drizzle/0128_factory_assurance_audio_paid_dispatch_authorization.sql:READ_BACK_MISSING",
+      "path": "drizzle/0128_factory_assurance_audio_paid_dispatch_authorization.sql",
+      "issue": "READ_BACK_MISSING"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "version": 1,
+  "identityKey": "sourceFile#handler:command",
+  "prohibitedFamilies": [
+    "CERTIFY_*",
+    "APPROVE_*",
+    "ACTIVATE_*",
+    "COMMIT_*",
+    "RELEASE_*",
+    "PUBLISH_*"
+  ],
+  "unseparatedCommands": [
+    {
+      "identity": "app/api/factory/material-production/route.ts#POST:RELEASE_CONTRACT_ALIGNED_RECOVERY_PROBE",
+      "handler": "app/api/factory/material-production/route.ts#POST",
+      "command": "RELEASE_CONTRACT_ALIGNED_RECOVERY_PROBE",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/material-production/route.ts#POST:RELEASE_CONTROLLED_CANARY_V5_UNIT",
+      "handler": "app/api/factory/material-production/route.ts#POST",
+      "command": "RELEASE_CONTROLLED_CANARY_V5_UNIT",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/material-production/route.ts#POST:RELEASE_MP002_PIXEL_ORACLE_REPAIR",
+      "handler": "app/api/factory/material-production/route.ts#POST",
+      "command": "RELEASE_MP002_PIXEL_ORACLE_REPAIR",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/material-production/route.ts#POST:RELEASE_NEXT_CONTROLLED_CANARY_UNIT",
+      "handler": "app/api/factory/material-production/route.ts#POST",
+      "command": "RELEASE_NEXT_CONTROLLED_CANARY_UNIT",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/material-production/route.ts#POST:RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT",
+      "handler": "app/api/factory/material-production/route.ts#POST",
+      "command": "RELEASE_NEXT_RELEASE_TRAIN_BATCH_UNIT",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/material-production/route.ts#POST:RELEASE_PRODUCTION_RECOVERY_PROBE",
+      "handler": "app/api/factory/material-production/route.ts#POST",
+      "command": "RELEASE_PRODUCTION_RECOVERY_PROBE",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/material-production/route.ts#POST:RELEASE_RELEASE_TRAIN_SEQUENCE_PROOF",
+      "handler": "app/api/factory/material-production/route.ts#POST",
+      "command": "RELEASE_RELEASE_TRAIN_SEQUENCE_PROOF",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/material-production/route.ts#POST:RELEASE_STABILIZED_MP002_TARGETED_REPAIR",
+      "handler": "app/api/factory/material-production/route.ts#POST",
+      "command": "RELEASE_STABILIZED_MP002_TARGETED_REPAIR",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/runtime/route.ts#POST:CERTIFY_ASSURANCE_AUDIO_PROVIDER",
+      "handler": "app/api/factory/runtime/route.ts#POST",
+      "command": "CERTIFY_ASSURANCE_AUDIO_PROVIDER",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/runtime/route.ts#POST:RELEASE_LEASE",
+      "handler": "app/api/factory/runtime/route.ts#POST",
+      "command": "RELEASE_LEASE",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/sequential-production/audience-golden/route.ts#POST:COMMIT_MATERIALIZATION",
+      "handler": "app/api/factory/sequential-production/audience-golden/route.ts#POST",
+      "command": "COMMIT_MATERIALIZATION",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/sequential-production/evaluation/route.ts#POST:COMMIT_CLEAN_AV_MASTER",
+      "handler": "app/api/factory/sequential-production/evaluation/route.ts#POST",
+      "command": "COMMIT_CLEAN_AV_MASTER",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/factory/sequential-production/plan/route.ts#POST:APPROVE_COST_RIGHTS_PLAN",
+      "handler": "app/api/factory/sequential-production/plan/route.ts#POST",
+      "command": "APPROVE_COST_RIGHTS_PLAN",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/projects/[id]/media/route.ts#POST:APPROVE_ASSET",
+      "handler": "app/api/projects/[id]/media/route.ts#POST",
+      "command": "APPROVE_ASSET",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/projects/[id]/optimization/route.ts#POST:APPROVE_HANDOFF",
+      "handler": "app/api/projects/[id]/optimization/route.ts#POST",
+      "command": "APPROVE_HANDOFF",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/projects/[id]/production/route.ts#POST:APPROVE_SCENE",
+      "handler": "app/api/projects/[id]/production/route.ts#POST",
+      "command": "APPROVE_SCENE",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/projects/[id]/quality/route.ts#POST:APPROVE_GATE",
+      "handler": "app/api/projects/[id]/quality/route.ts#POST",
+      "command": "APPROVE_GATE",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/projects/[id]/references/route.ts#POST:APPROVE_BENCHMARK",
+      "handler": "app/api/projects/[id]/references/route.ts#POST",
+      "command": "APPROVE_BENCHMARK",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    },
+    {
+      "identity": "app/api/projects/[id]/voice/route.ts#POST:APPROVE_SEGMENT",
+      "handler": "app/api/projects/[id]/voice/route.ts#POST",
+      "command": "APPROVE_SEGMENT",
+      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
+    }
+  ]
+}

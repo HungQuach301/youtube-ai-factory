@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "canonicalModel": "docs/architecture/E2E_PRODUCTION_GATE_MODEL.md",
+  "gates": [
+    { "ordinal": 1, "id": "CHANNEL_STRATEGY_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["SX-01"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 2, "id": "CLAIM_EVIDENCE_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["SX-02"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 3, "id": "SCRIPT_VISUAL_COVERAGE_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["SX-04"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 4, "id": "VISUAL_INTENT_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["SX-03"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 5, "id": "VIDEO_BLUEPRINT_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["SX-02"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 6, "id": "SHOT_CONTRACT_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["SX-04"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 7, "id": "ASSET_RIGHTS_ELIGIBILITY_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["RT-01"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 8, "id": "ANIMATIC_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["SX-03"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 9, "id": "VISUAL_CAPABILITY_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["SX-04"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 10, "id": "AUDIO_CAPABILITY_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["AU-01", "AU-02"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 11, "id": "SCENE_GRAPH_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["LN-01"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 12, "id": "INTEGRATED_CANARY_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["SX-01"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 13, "id": "COST_RESERVATION_GATE", "status": "PARTIAL", "issueRefs": ["KT-09", "CM-01"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 14, "id": "EXACT_MASTER_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["LN-01"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 15, "id": "AI_PRODUCTION_ASSURANCE_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["SX-02"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 16, "id": "PUBLICATION_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["KT-10"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] },
+    { "ordinal": 17, "id": "LEARNING_PROMOTION_GATE", "status": "NOT_IMPLEMENTED", "issueRefs": ["NV-05", "EX-04"], "sourceRefs": [], "positiveTests": [], "negativeTests": [], "evidenceRefs": [] }
+  ]
+}
