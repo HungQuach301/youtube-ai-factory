@@ -23,7 +23,7 @@ Ordinary recovery uses either verified mirror of the same Git object graph. Arch
 
 - R21 is immutable visual FAIL/audio PASS evidence.
 - R22 is design-only and undispatched.
-- Phase 45 contracts, writer, zero-dispatch Gateway/compiler, generic live canary, the 1920×1080 Hidden Systems treatment qualifier and the selected controlled-fixture audio typed/cost preflight are live; exact audio binding/qualification/rights/drift, canonical route/reservation and Assurance still precede R22.
+- Phase 45 contracts, writer, zero-dispatch Gateway/compiler, generic live canary, the 1920×1080 Hidden Systems treatment qualifier, the selected controlled-fixture audio typed/cost preflight and its exact provider certification are live. The first `0126` rights observation failed closed on HTTP 403; the immutable retry passed official-rights R2 read-back and established one exact route-ready binding. A canonical `PLAN_ONLY` work request, route decision and exact reservation are next; dispatch, synthesis, spend and Assurance still precede R22.
 - The private GitHub mirror is synchronized; every material session must re-prove exact three-ref equality before close.
 - `youtube-ai-factory-v2` is prohibited as input.
 - No auto-publish, hard-gate weakening or infinite repair loop.

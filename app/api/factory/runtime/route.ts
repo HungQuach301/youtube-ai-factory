@@ -35,6 +35,7 @@ import { classifyFactoryAssuranceCurrentRightsTerminalDisposition } from "@/lib/
 import { planFactoryAssuranceControlledFixtureReplacements } from "@/lib/factory-assurance-controlled-fixture-replacement-plan";
 import { admitFactoryAssuranceControlledFixtureMaterializationBatch } from "@/lib/factory-assurance-controlled-fixture-materialization-admission";
 import { preflightFactoryAssuranceControlledFixtureAudioBatch } from "@/lib/factory-assurance-controlled-fixture-audio-preflight";
+import { certifyFactoryAssuranceAudioProvider } from "@/lib/factory-assurance-audio-provider-certification";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,7 @@ type RuntimeEnv = {
   FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_ENABLED?: string;
   FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_ENABLED?: string;
   FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_ENABLED?: string;
+  FACTORY_ASSURANCE_AUDIO_PROVIDER_CERTIFICATION_ENABLED?: string;
   FACTORY_RUNTIME_QUALIFICATION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN?: string;
   FACTORY_ASSURANCE_CORPUS_REMEDIATION_TOKEN?: string;
@@ -73,6 +75,8 @@ type RuntimeEnv = {
   FACTORY_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENT_PLAN_TOKEN?: string;
   FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_TOKEN?: string;
   FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_TOKEN?: string;
+  FACTORY_ASSURANCE_AUDIO_PROVIDER_CERTIFICATION_TOKEN?: string;
+  ELEVENLABS_API_KEY?: string;
   FACTORY_AUTOMATION_ACTOR_EMAIL?: string;
   FACTORY_AUTOMATION_ACTOR_NAME?: string;
 };
@@ -115,7 +119,9 @@ async function secretMatches(left: string, right: string) {
 
 async function authorize(env: RuntimeEnv, request?: Request, action = "") {
   let user = await getChatGPTUser();
-  const credential = action === "PREFLIGHT_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_BATCH"
+  const credential = action === "CERTIFY_ASSURANCE_AUDIO_PROVIDER"
+    ? [request?.headers.get("x-factory-assurance-audio-provider-certification-token") || "", env.FACTORY_ASSURANCE_AUDIO_PROVIDER_CERTIFICATION_TOKEN || ""]
+    : action === "PREFLIGHT_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_BATCH"
     ? [request?.headers.get("x-factory-assurance-controlled-fixture-audio-preflight-token") || "", env.FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_TOKEN || ""]
     : action === "ADMIT_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_BATCH"
     ? [request?.headers.get("x-factory-assurance-controlled-fixture-materialization-admission-token") || "", env.FACTORY_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_ADMISSION_TOKEN || ""]
@@ -137,7 +143,7 @@ async function authorize(env: RuntimeEnv, request?: Request, action = "") {
             ? [request?.headers.get("x-factory-assurance-corpus-token") || "", env.FACTORY_ASSURANCE_CORPUS_ADMISSION_TOKEN || ""]
             : [request?.headers.get("x-factory-runtime-qualification-token") || "", env.FACTORY_RUNTIME_QUALIFICATION_TOKEN || ""];
   const qualificationCredential =
-    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION", "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION", "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE", "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS", "INVENTORY_ASSURANCE_CURRENT_RIGHTS", "MATERIALIZE_ASSURANCE_CURRENT_RIGHTS_COLLECTION", "CLASSIFY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION", "PLAN_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENTS", "ADMIT_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_BATCH", "PREFLIGHT_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_BATCH"].includes(action) &&
+    ["RUN_NON_R22_LIVE_CANARY_QUALIFICATION", "MATERIALIZE_ASSURANCE_CORPUS_ADMISSION", "MATERIALIZE_ASSURANCE_CORPUS_REMEDIATION", "VERIFY_ASSURANCE_CORPUS_REMEDIATION_EVIDENCE", "CLASSIFY_ASSURANCE_CORPUS_REMEDIATION_INCIDENTS", "INVENTORY_ASSURANCE_CURRENT_RIGHTS", "MATERIALIZE_ASSURANCE_CURRENT_RIGHTS_COLLECTION", "CLASSIFY_ASSURANCE_CURRENT_RIGHTS_TERMINAL_DISPOSITION", "PLAN_ASSURANCE_CONTROLLED_FIXTURE_REPLACEMENTS", "ADMIT_ASSURANCE_CONTROLLED_FIXTURE_MATERIALIZATION_BATCH", "PREFLIGHT_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_BATCH", "CERTIFY_ASSURANCE_AUDIO_PROVIDER"].includes(action) &&
     request &&
     await secretMatches(credential[0], credential[1]);
   if (!user && qualificationCredential) {
@@ -348,6 +354,16 @@ export async function POST(request: Request) {
       if (env.FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_ENABLED !== "true") return failure("FACTORY_ASSURANCE_CONTROLLED_FIXTURE_AUDIO_PREFLIGHT_DISABLED", "The zero-provider controlled-fixture audio preflight is disabled until an explicit deployment authorization is configured", 503);
       return Response.json(await preflightFactoryAssuranceControlledFixtureAudioBatch(env.DB, {
         actor: user.email, idempotencyKey: string(body.idempotencyKey), evaluatedAt: string(body.evaluatedAt) || undefined,
+      }), { status: 201, headers: NO_STORE });
+    }
+
+    if (action === "CERTIFY_ASSURANCE_AUDIO_PROVIDER") {
+      if (env.FACTORY_ASSURANCE_AUDIO_PROVIDER_CERTIFICATION_ENABLED !== "true") return failure("FACTORY_ASSURANCE_AUDIO_PROVIDER_CERTIFICATION_DISABLED", "Exact audio-provider certification is disabled until an explicit deployment authorization is configured", 503);
+      if (!env.BUCKET) return failure("ACTIVE_MEDIA_STORAGE_UNAVAILABLE", "The active media storage binding is unavailable", 503);
+      if (!env.ELEVENLABS_API_KEY) return failure("ELEVENLABS_API_KEY_REQUIRED", "ElevenLabs must be connected before exact audio-provider certification", 424);
+      return Response.json(await certifyFactoryAssuranceAudioProvider({
+        env: { DB: env.DB, BUCKET: env.BUCKET, ELEVENLABS_API_KEY: env.ELEVENLABS_API_KEY },
+        actor: user.email, idempotencyKey: string(body.idempotencyKey), observedAt: string(body.observedAt) || undefined,
       }), { status: 201, headers: NO_STORE });
     }
 
