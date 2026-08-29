@@ -105,7 +105,7 @@ function compilationInput() {
 }
 
 test("migration 0108 creates append-only Provider Gateway and compilation contracts", () => {
-  assert.equal(migrations.at(-1), "0127_factory_assurance_audio_route_reservation.sql");
+  assert.equal(migrations.at(-1), "0128_factory_assurance_audio_paid_dispatch_authorization.sql");
   const migration = read("drizzle/0108_factory_provider_gateway_and_compilers.sql");
   for (const table of ["factory_providers", "factory_capabilities", "factory_provider_bindings", "factory_capability_qualifications", "factory_rights_eligibility_receipts", "factory_cost_envelopes", "factory_provider_work_requests", "factory_provider_route_decisions", "factory_production_compilation_receipts"]) {
     assert.ok(migration.includes("CREATE TABLE `" + table + "`"));

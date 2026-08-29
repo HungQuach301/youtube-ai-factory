@@ -122,8 +122,8 @@ function seedTerminalRecoveryEvidence(database, provider, master) {
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run("terminal-lineage-diagnostic", "channel-hidden-systems", "terminal-master-rights-task", master.id, "COMPOSITE_PARENT_RIGHTS_MANIFEST", "EVALUATION_RIGHTS_LINEAGE_DIAGNOSTIC_V1", `artifact-${master.id}`, master.exactHash, 0, 0, 0, "SOURCE_LINEAGE_BINDING_MISSING", "[\"SOURCE_ARTIFACT_HAS_NO_EXACT_MANIFEST_BINDING\"]");
 }
 
-test("migrations 0118 through 0127 install append-only fail-closed remediation, audio certification and route-plan receipts", () => {
-  assert.equal(migrations.at(-1), "0127_factory_assurance_audio_route_reservation.sql");
+test("migrations 0118 through 0128 install append-only fail-closed remediation and exact audio authorization receipts", () => {
+  assert.equal(migrations.at(-1), "0128_factory_assurance_audio_paid_dispatch_authorization.sql");
   const migration = read("drizzle/0118_factory_assurance_corpus_remediation_evidence.sql");
   for (const table of ["factory_assurance_corpus_remediation_evidence_runs", "factory_assurance_corpus_remediation_evidence_receipts"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
@@ -166,6 +166,13 @@ test("migrations 0118 through 0127 install append-only fail-closed remediation, 
   assert.match(audioRouteMigration, /reserved_provider_requests[^;]+CHECK \(`reserved_provider_requests` IN \(0,2\)\)/s);
   assert.match(audioRouteMigration, /reserved_spend_micros[^;]+CHECK \(`reserved_spend_micros` IN \(0,80000\)\)/s);
   assert.doesNotMatch(audioRouteMigration, /api\.openai\.com|elevenlabs\.io|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
+  const audioAuthorizationMigration = read("drizzle/0128_factory_assurance_audio_paid_dispatch_authorization.sql");
+  for (const table of ["factory_assurance_audio_paid_dispatch_authorization_policies", "factory_assurance_audio_paid_dispatch_authorization_runs", "factory_assurance_audio_paid_dispatch_entitlement_receipts"]) assert.ok(audioAuthorizationMigration.includes(`CREATE TABLE \`${table}\``));
+  for (const lock of ["provider_generation_requests", "provider_requests", "spend_micros", "retry_authority", "fallback_authority", "r22_authority", "master_authority", "release_authority", "publication_authority"]) assert.match(audioAuthorizationMigration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
+  assert.match(audioAuthorizationMigration, /authorization_validity_seconds[^;]+CHECK \(`authorization_validity_seconds` = 900\)/s);
+  assert.match(audioAuthorizationMigration, /authorized_provider_requests[^;]+CHECK \(`authorized_provider_requests` IN \(0,1\)\)/s);
+  assert.match(audioAuthorizationMigration, /provider_dispatch_authority[^;]+CHECK \(`provider_dispatch_authority` IN \(0,1\)\)/s);
+  assert.doesNotMatch(audioAuthorizationMigration, /api\.openai\.com|youtube-ai-factory-v2|UPDATE `v7_evaluation_candidates`/);
 });
 
 test("evidence runner verifies exact R2 bytes but keeps missing current rights fail-closed and count-ineligible", async () => {
@@ -284,7 +291,7 @@ test("current-rights collection materializes one fail-closed task per pending in
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_current_rights_collection_runs").get().count, 1);
   assert.equal(database.prepare("SELECT COUNT(*) count FROM factory_assurance_current_rights_collection_tasks").get().count, 1);
   const projection = await factoryQaCockpitProjection(db);
-  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V12");
+  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V13");
   assert.equal(projection.summary.currentRightsCollectionOpen, 1);
   assert.deepEqual(projection.remediation.evidence.rightsCollectionQueue, [{ receiptType: "PROVIDER_TERMS_AND_PLAN_RECEIPT", state: "RECEIPT_REQUIRED", count: 1 }]);
   assert.match(projection.nextAction, /Classify the 1 collection tasks/);
@@ -329,7 +336,7 @@ test("terminal rights disposition quarantines exhausted provider and lineage tas
   ]);
   assert.equal((await classifyFactoryAssuranceCurrentRightsTerminalDisposition(db, input)).outcome, "IDEMPOTENT_REPLAY");
   const projection = await factoryQaCockpitProjection(db);
-  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V12");
+  assert.equal(projection.version, "FACTORY_QA_COCKPIT_PROJECTION_V13");
   assert.equal(projection.summary.currentRightsTerminalQuarantined, 2);
   assert.equal(projection.summary.currentRightsRemainingCollection, 0);
   assert.match(projection.nextAction, /Plan the 2 terminal quarantines/);
@@ -384,7 +391,7 @@ test("terminal rights disposition quarantines exhausted provider and lineage tas
   }
   assert.equal((await admitFactoryAssuranceControlledFixtureMaterializationBatch(db, { actor: "owner@example.com", idempotencyKey: "assurance-fixture-materialization-admission-0001", evaluatedAt: "2026-08-28T12:00:00.000Z" })).outcome, "IDEMPOTENT_REPLAY");
   const admittedProjection = await factoryQaCockpitProjection(db);
-  assert.equal(admittedProjection.version, "FACTORY_QA_COCKPIT_PROJECTION_V12");
+  assert.equal(admittedProjection.version, "FACTORY_QA_COCKPIT_PROJECTION_V13");
   assert.equal(admittedProjection.summary.controlledFixtureMaterializationAdmissionState, "BLOCKED");
   assert.equal(admittedProjection.summary.controlledFixtureSelectedBatchItems, 1);
   assert.equal(admittedProjection.summary.controlledFixtureDispatchReadyItems, 0);
@@ -420,7 +427,7 @@ test("terminal rights disposition quarantines exhausted provider and lineage tas
   assert.equal(database.prepare(`SELECT COUNT(*) count FROM factory_provider_cost_reservations`).get().count, 0);
   assert.equal((await preflightFactoryAssuranceControlledFixtureAudioBatch(db, { actor: "owner@example.com", idempotencyKey: "assurance-fixture-audio-preflight-0001", evaluatedAt: "2026-08-28T12:05:00.000Z" })).outcome, "IDEMPOTENT_REPLAY");
   const preflightProjection = await factoryQaCockpitProjection(db);
-  assert.equal(preflightProjection.version, "FACTORY_QA_COCKPIT_PROJECTION_V12");
+  assert.equal(preflightProjection.version, "FACTORY_QA_COCKPIT_PROJECTION_V13");
   assert.equal(preflightProjection.summary.controlledFixtureAudioPreflightState, "BLOCKED");
   assert.equal(preflightProjection.summary.controlledFixtureAudioTypedRequestContracts, 1);
   assert.equal(preflightProjection.summary.controlledFixtureAudioExactBindings, 0);

@@ -93,6 +93,8 @@ Migration `0126` adds a fail-closed exact-audio certification boundary without o
 
 Migration `0127` makes the next planning boundary executable while retaining zero dispatch. The assurance planner re-reads the immutable `0125` typed contract, exact `0126` binding/qualification/rights/CURRENT-drift identities and active request-scoped envelope, then runs the existing Provider Gateway at the supplied evaluation time. Only an exact `PLANNED_ZERO_DISPATCH` result may atomically freeze one canonical `PLAN_ONLY` work request, one route decision and one reservation for two requests / 80,000 USD micros through the fenced runtime writer. Expired or mismatched evidence appends a `BLOCKED` assurance receipt and no canonical provider row. A reservation neither calls ElevenLabs nor grants dispatch, synthesis, actual spend, retry, R22, master, release or publication authority.
 
+Migration `0128` makes the paid-dispatch authorization boundary executable without performing dispatch. The authorizer binds only to the exact `0127` work request, route decision and reservation; rechecks current qualification, commercial rights, latest CURRENT drift, active request envelope and zero provider-native/reconciliation rows; then observes the current paid subscription, pinned voice, pinned non-beta model and official commercial-license source. Exact subscription and official-rights response bytes must survive R2 read-back before one 15-minute authorization can grant one request / 80,000 micros. The authorization action records zero synthesis, zero actual provider requests and zero actual spend. A later typed executor must consume the exact authorization, capture the native request identity and exact bytes, and reconcile actual cost; no retry or fallback is implied.
+
 ## Approved capability plan
 
 | Capability | Preferred route | Control boundary |
@@ -121,7 +123,7 @@ PLAN -> RESERVE_COST -> CHECK_QUALIFICATION -> CHECK_RIGHTS_SAFETY
 
 On timeout, reconcile provider status before retry. A known active request waits; pre-dispatch failure may retry within ceiling; unknown state becomes `UNKNOWN_SPEND_RESERVED`. Never create a second request merely because the caller timed out.
 
-The current `0113` implementation intentionally stops before `DISPATCH`: no provider client, credential, paid request or retry path is exposed. Secret-scoped dispatch, retention enforcement, live rate-card reconciliation and accepted-output unit economics require separate implementation and qualification.
+The current implementation reaches a source-qualified short-lived dispatch authorization but still stops before `DISPATCH`: no synthesis client call, paid request or retry path is exposed by `0128`. Secret-scoped execution, exact output storage/read-back, native identity capture, live rate-card reconciliation and accepted-output unit economics require the next separate implementation and qualification.
 
 ## Data-quality gates
 
