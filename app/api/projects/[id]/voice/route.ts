@@ -1,4 +1,5 @@
 import { asc, desc, eq } from "drizzle-orm";
+import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "../../../../../db";
 import {
   narrationSegments,
@@ -11,6 +12,7 @@ import {
 } from "../../../../../db/schema";
 
 type RuntimeEnv = {
+  FACTORY_EXPERT_EMAILS?: string;
   ELEVENLABS_API_KEY?: string;
   BUCKET?: {
     put(key: string, value: ArrayBuffer | Uint8Array, options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<unknown>;
@@ -28,6 +30,16 @@ type TimingResponse = {
 async function runtimeEnv() {
   const { env } = await import("cloudflare:workers");
   return env as unknown as RuntimeEnv;
+}
+
+async function authorizeWriteAccess() {
+  const user = await getChatGPTUser();
+  if (!user) return Response.json({ error: "SIWC_AUTHENTICATION_REQUIRED" }, { status: 401 });
+  const env = await runtimeEnv();
+  const owners = new Set(String(env.FACTORY_EXPERT_EMAILS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
+  if (!owners.size) return Response.json({ error: "OWNER_WRITE_ALLOWLIST_UNCONFIGURED" }, { status: 503 });
+  if (!owners.has(user.email.trim().toLowerCase())) return Response.json({ error: "OWNER_WRITE_AUTHORIZATION_REQUIRED" }, { status: 403 });
+  return { user, env };
 }
 
 async function seedVoiceWorkspace(projectId: string) {
@@ -77,6 +89,8 @@ async function seedVoiceWorkspace(projectId: string) {
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const authorization = await authorizeWriteAccess();
+    if (authorization instanceof Response) return authorization;
     const { id } = await context.params;
     await seedVoiceWorkspace(id);
     const url = new URL(request.url);
@@ -119,6 +133,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const authorization = await authorizeWriteAccess();
+    if (authorization instanceof Response) return authorization;
     const { id } = await context.params;
     const payload = await request.json() as { action?: "LOCK_VOICE" | "GENERATE_SEGMENT" | "APPROVE_SEGMENT" | "PASS_VOICE_GATE"; segmentId?: string };
     await seedVoiceWorkspace(id);

@@ -24,6 +24,34 @@ test("an auth comment cannot cover an exported handler", () => {
   assert.deepEqual(uncovered(source), ["app/api/example/route.ts#POST"]);
 });
 
+test("an auth string cannot cover an exported handler", () => {
+  const source = `
+    export async function POST(request: Request) {
+      const claim = "requireOwnerAuth(request); return 401 AUTHORIZATION_REQUIRED";
+      return Response.json({ claim });
+    }
+  `;
+  assert.deepEqual(uncovered(source), ["app/api/example/route.ts#POST"]);
+});
+
+test("an auth guard after the first mutation cannot cover a handler", () => {
+  const source = `
+    async function requireOwnerAuth() {
+      const actor = await getChatGPTUser();
+      if (!actor) return Response.json({ error: "AUTHORIZATION_REQUIRED" }, { status: 401 });
+      return actor;
+    }
+    export async function POST() {
+      await db.insert(rows).values({ id: "already-mutated" });
+      await requireOwnerAuth();
+      return Response.json({ ok: true });
+    }
+  `;
+  const [result] = analyzeAuthSource(source);
+  assert.equal(result.covered, false);
+  assert.deepEqual(result.reasons, ["AUTH_GUARD_AFTER_MUTATION", "WRITE_AUTHORIZATION_MISSING"]);
+});
+
 test("a token environment-variable name cannot cover an exported handler", () => {
   const source = `
     type Env = { OWNER_AUTH_TOKEN?: string };
