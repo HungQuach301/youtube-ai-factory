@@ -232,6 +232,32 @@
       "remediationWp": "NONE"
     },
     {
+      "identity": "app/api/factory/deployment-evidence/automation-read/route.ts#GET",
+      "sourceFile": "app/api/factory/deployment-evidence/automation-read/route.ts",
+      "routePath": "/api/factory/deployment-evidence/automation-read",
+      "method": "GET",
+      "readWrite": "READ",
+      "actor": "AUTOMATION",
+      "authentication": "SCOPED_HMAC_AUTOMATION_REQUEST",
+      "authorization": "SIGNED_READ_SCOPE_AND_ENVIRONMENT",
+      "audit": "NOT_APPLICABLE_READ_ONLY",
+      "status": "PROTECTED",
+      "remediationWp": "NONE"
+    },
+    {
+      "identity": "app/api/factory/deployment-evidence/finalize/route.ts#POST",
+      "sourceFile": "app/api/factory/deployment-evidence/finalize/route.ts",
+      "routePath": "/api/factory/deployment-evidence/finalize",
+      "method": "POST",
+      "readWrite": "WRITE",
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST_AND_SAME_ORIGIN",
+      "audit": "IMMUTABLE_OWNER_COMMAND_AND_DEPLOYMENT_RECEIPT",
+      "status": "PROTECTED",
+      "remediationWp": "NONE"
+    },
+    {
       "identity": "app/api/factory/discovery/route.ts#GET",
       "sourceFile": "app/api/factory/discovery/route.ts",
       "routePath": "/api/factory/discovery",
