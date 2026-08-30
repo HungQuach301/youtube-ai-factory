@@ -67,7 +67,7 @@ async function syntheticExecution(input, outputBytes = null) {
 }
 
 test("migration 0112 installs append-only production-scale treatment qualification receipts with no R22 authority", () => {
-  assert.equal(migrations.at(-1), "0129_exact_tree_deployment_receipts.sql");
+  assert.equal(migrations.at(-1), "0130_scoped_deployment_receipt_writer.sql");
   const migration = read("drizzle/0112_factory_hidden_systems_treatment_qualification.sql");
   for (const table of ["factory_treatment_qualification_packages", "factory_treatment_qualification_case_receipts"]) assert.ok(migration.includes("CREATE TABLE `" + table + "`"));
   for (const lock of ["r22_authority", "master_authority", "release_authority", "publication_authority"]) assert.ok(migration.includes("`" + lock + "` integer NOT NULL CHECK (`" + lock + "` = 0)"));

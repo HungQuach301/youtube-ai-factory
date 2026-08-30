@@ -90,14 +90,12 @@ test("missing terminal deployment status cannot pass", async () => {
   await rejectsCode(sealDeploymentReceipt(receipt), "DEPLOYMENT_RECEIPT_FIELD_MISSING");
 });
 
-test("secret-like evidence is redacted and excluded from the sealed receipt", async () => {
+test("secret-like evidence is redacted by diagnostics and rejected from a sealed receipt", async () => {
   const secret = "never-store-this-value";
   const redacted = redactSecretValues({ authorization: secret, nested: { api_key: secret, result: "PASS" } });
   assert.deepEqual(redacted, { authorization: "[REDACTED]", nested: { api_key: "[REDACTED]", result: "PASS" } });
   assert.doesNotMatch(JSON.stringify(redacted), new RegExp(secret));
-  const sealed = await sealDeploymentReceipt({ ...validReceipt(), access_token: secret });
-  assert.doesNotMatch(JSON.stringify(sealed), new RegExp(secret));
-  assert.equal("access_token" in sealed, false);
+  await rejectsCode(sealDeploymentReceipt({ ...validReceipt(), access_token: secret }), "DEPLOYMENT_RECEIPT_FIELD_FORBIDDEN");
 });
 
 test("receipt storage is append-only, immutable and idempotent", async () => {

@@ -7,6 +7,14 @@ export const DEPLOYMENT_REPOSITORY = "HungQuach301/youtube-ai-factory" as const;
 const SHA_PATTERN = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
 const SECRET_KEY_PATTERN = /(?:authorization|cookie|credential|password|private[_-]?key|secret|token|api[_-]?key|client[_-]?secret)/i;
 const REDACTED = "[REDACTED]";
+const RECEIPT_INPUT_KEYS = new Set([
+  "receipt_schema_version", "work_package_id", "pull_request", "github_repository", "github_commit_sha", "git_tree_sha",
+  "sites_version", "sites_source_commit", "sites_source_tree_sha", "schema_version", "environment_revision",
+  "deployment_terminal_status", "deployed_at", "smoke_readback_result", "verified_at",
+]);
+const SMOKE_INPUT_KEYS = new Set([
+  "production_smoke", "d1_readback", "r2_readback", "provider_requests", "actual_spend_micros", "temporary_controls_removed",
+]);
 
 export type SmokeReadbackResult = {
   production_smoke: "PASS";
@@ -94,6 +102,13 @@ function enumValue<T extends string>(record: Record<string, unknown>, key: strin
   return value;
 }
 
+function exactKeys(record: Record<string, unknown>, allowed: Set<string>, code: string) {
+  const unexpected = Object.keys(record).filter((key) => !allowed.has(key));
+  if (unexpected.length) {
+    throw new DeploymentReceiptError(code, "Deployment receipt contains caller-controlled or unsupported fields", 400);
+  }
+}
+
 export function redactSecretValues(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactSecretValues);
   if (!value || typeof value !== "object") return value;
@@ -133,7 +148,8 @@ export function evaluateExactTreePreparation(input: {
 }
 
 export async function sealDeploymentReceipt(value: unknown): Promise<SealedDeploymentReceipt> {
-  const record = object(redactSecretValues(value));
+  const record = object(value);
+  exactKeys(record, RECEIPT_INPUT_KEYS, "DEPLOYMENT_RECEIPT_FIELD_FORBIDDEN");
   const preparation = evaluateExactTreePreparation({
     github_repository: requiredString(record, "github_repository"),
     github_commit_sha: requiredString(record, "github_commit_sha"),
@@ -161,6 +177,7 @@ export async function sealDeploymentReceipt(value: unknown): Promise<SealedDeplo
   }
 
   const smoke = object(record.smoke_readback_result);
+  exactKeys(smoke, SMOKE_INPUT_KEYS, "DEPLOYMENT_RECEIPT_SMOKE_FIELD_FORBIDDEN");
   const smokeReadbackResult: SmokeReadbackResult = {
     production_smoke: enumValue(smoke, "production_smoke", ["PASS"] as const),
     d1_readback: enumValue(smoke, "d1_readback", ["PASS", "NOT_APPLICABLE"] as const),
@@ -205,6 +222,25 @@ type RuntimeStatement = {
 };
 export type DeploymentReceiptDatabase = { prepare: (sql: string) => RuntimeStatement };
 
+export type DeploymentReceiptAppendAuthorization = {
+  actor: string;
+  claims: {
+    actor_type: "AUTOMATION";
+    subject: string;
+    scope: "deployment_receipt:append";
+    method: "POST";
+    route: "/api/factory/deployment-evidence";
+    nonce: string;
+    idempotency_key: string;
+    body_sha256: string;
+    github_repository: typeof DEPLOYMENT_REPOSITORY;
+    github_commit_sha: string;
+    git_tree_sha: string;
+    sites_version: number;
+    environment_revision: number;
+  };
+};
+
 type ReceiptRow = {
   receipt_id: string;
   receipt_schema_version: string;
@@ -224,6 +260,24 @@ type ReceiptRow = {
   verified_at: string;
   receipt_hash: string;
   verification_result: string;
+};
+
+type AppendAttemptRow = {
+  idempotency_key: string;
+  nonce: string;
+  request_body_hash: string;
+  receipt_id: string;
+  receipt_hash: string;
+  github_repository: string;
+  github_commit_sha: string;
+  git_tree_sha: string;
+  sites_version: number;
+  environment_revision: number;
+  actor_type: string;
+  actor_subject: string;
+  permission_scope: string;
+  request_method: string;
+  request_route: string;
 };
 
 function rowProjection(row: ReceiptRow | null) {
@@ -273,6 +327,54 @@ export async function recordDeploymentReceipt(db: DeploymentReceiptDatabase, val
     throw new DeploymentReceiptError("DEPLOYMENT_RECEIPT_IMMUTABLE_CONFLICT", "Sites version already has different immutable deployment evidence", 409);
   }
   return { receipt: rowProjection(stored), idempotent: false };
+}
+
+export async function recordAuthorizedDeploymentReceipt(
+  db: DeploymentReceiptDatabase,
+  value: unknown,
+  authorization: DeploymentReceiptAppendAuthorization,
+) {
+  const sealed = await sealDeploymentReceipt(value);
+  const claims = authorization.claims;
+  if (claims.actor_type !== "AUTOMATION"
+    || claims.scope !== "deployment_receipt:append"
+    || claims.method !== "POST"
+    || claims.route !== "/api/factory/deployment-evidence"
+    || claims.github_repository !== sealed.github_repository
+    || claims.github_commit_sha !== sealed.github_commit_sha
+    || claims.git_tree_sha !== sealed.git_tree_sha
+    || claims.sites_version !== sealed.sites_version
+    || claims.environment_revision !== sealed.environment_revision) {
+    throw new DeploymentReceiptError("AUTOMATION_EVIDENCE_BINDING_MISMATCH", "Automation authority is not bound to this exact deployment receipt", 409);
+  }
+
+  await db.prepare(`INSERT INTO factory_deployment_receipt_append_attempts
+    (idempotency_key,nonce,request_body_hash,receipt_id,receipt_hash,github_repository,github_commit_sha,git_tree_sha,sites_version,environment_revision,actor_type,actor_subject,permission_scope,request_method,request_route)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT DO NOTHING`).bind(
+    claims.idempotency_key, claims.nonce, claims.body_sha256, sealed.receipt_id, sealed.receipt_hash, sealed.github_repository,
+    sealed.github_commit_sha, sealed.git_tree_sha, sealed.sites_version, sealed.environment_revision, claims.actor_type,
+    claims.subject, claims.scope, claims.method, claims.route,
+  ).run();
+  const attempt = await db.prepare("SELECT * FROM factory_deployment_receipt_append_attempts WHERE idempotency_key=? LIMIT 1")
+    .bind(claims.idempotency_key).first<AppendAttemptRow>();
+  if (!attempt
+    || attempt.request_body_hash !== claims.body_sha256
+    || attempt.receipt_id !== sealed.receipt_id
+    || attempt.receipt_hash !== sealed.receipt_hash
+    || attempt.github_repository !== sealed.github_repository
+    || attempt.github_commit_sha !== sealed.github_commit_sha
+    || attempt.git_tree_sha !== sealed.git_tree_sha
+    || Number(attempt.sites_version) !== sealed.sites_version
+    || Number(attempt.environment_revision) !== sealed.environment_revision
+    || attempt.actor_type !== claims.actor_type
+    || attempt.actor_subject !== claims.subject
+    || attempt.permission_scope !== claims.scope
+    || attempt.request_method !== claims.method
+    || attempt.request_route !== claims.route) {
+    throw new DeploymentReceiptError("DEPLOYMENT_RECEIPT_IDEMPOTENCY_CONFLICT", "Idempotency key is already bound to different immutable deployment evidence", 409);
+  }
+  return recordDeploymentReceipt(db, value, authorization.actor);
 }
 
 export async function readLatestDeploymentReceipt(db: DeploymentReceiptDatabase) {
