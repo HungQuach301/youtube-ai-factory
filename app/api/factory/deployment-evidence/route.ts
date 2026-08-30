@@ -1,7 +1,6 @@
 import { getChatGPTUser as getCurrentUser } from "../../../chatgpt-auth";
 import {
   DeploymentReceiptError,
-  readLatestDeploymentReceipt,
   recordAuthorizedDeploymentReceipt,
   type DeploymentReceiptDatabase,
 } from "../../../../lib/deployment-receipt";
@@ -10,6 +9,7 @@ import {
   verifyDeploymentReceiptAutomationAuth,
   type VerifiedDeploymentReceiptAutomationRequest,
 } from "../../../../lib/deployment-receipt-auth";
+import { readOwnerDeploymentReceiptState } from "../../../../lib/deployment-receipt-owner";
 
 const NO_STORE = { "cache-control": "no-store" };
 const MAX_BODY_BYTES = 32 * 1024;
@@ -18,6 +18,7 @@ type RuntimeEnv = {
   DB?: DeploymentReceiptDatabase;
   FACTORY_EXPERT_EMAILS?: string;
   FACTORY_DEPLOYMENT_RECEIPT_AUTOMATION_SECRET?: string;
+  FACTORY_DEPLOYMENT_RECEIPT_EVIDENCE?: string;
 };
 
 function failure(error: DeploymentReceiptError) {
@@ -61,7 +62,9 @@ export async function GET() {
     const env = await runtime();
     await requireOwnerAuth(env);
     if (!env.DB) throw new DeploymentReceiptError("CANONICAL_DATABASE_UNAVAILABLE", "Canonical database binding is unavailable", 503);
-    return Response.json(await readLatestDeploymentReceipt(env.DB), { headers: NO_STORE });
+    return Response.json(await readOwnerDeploymentReceiptState(env.DB, env.FACTORY_DEPLOYMENT_RECEIPT_EVIDENCE, {
+      builtSourceTree: __FACTORY_BUILD_SOURCE_TREE__,
+    }), { headers: NO_STORE });
   } catch (error) {
     return failure(error instanceof DeploymentReceiptError ? error : new DeploymentReceiptError("DEPLOYMENT_EVIDENCE_UNAVAILABLE", "Deployment evidence projection is unavailable", 503));
   }
