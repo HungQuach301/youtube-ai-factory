@@ -97,7 +97,7 @@ test("runtime event replay is deterministic and rejects missing versions or mixe
 
 test("Phase 45 contract migration replays and enforces immutable exact-lineage records", () => {
   const migrations = readdirSync(new URL("../drizzle", import.meta.url)).filter((name) => name.endsWith(".sql")).sort();
-  assert.equal(migrations.at(-1), "0128_factory_assurance_audio_paid_dispatch_authorization.sql");
+  assert.equal(migrations.at(-1), "0129_exact_tree_deployment_receipts.sql");
   const migration = read("drizzle/0106_factory_runtime_contract_foundation.sql");
   for (const table of [
     "factory_contract_registry", "factory_canonical_timebases", "factory_runtime_commands", "factory_runtime_events", "factory_channel_visual_profile_versions",

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/HungQuach301/youtube-ai-factory/governance/schemas/deployment-receipt.schema.json",
+  "title": "YouTube AI Factory exact-tree deployment receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receipt_schema_version",
+    "receipt_id",
+    "work_package_id",
+    "pull_request",
+    "github_repository",
+    "github_commit_sha",
+    "git_tree_sha",
+    "sites_version",
+    "sites_source_commit",
+    "sites_source_tree_sha",
+    "schema_version",
+    "environment_revision",
+    "deployment_terminal_status",
+    "deployed_at",
+    "smoke_readback_result",
+    "verified_at",
+    "receipt_hash",
+    "verification_result"
+  ],
+  "properties": {
+    "receipt_schema_version": { "const": "DEPLOYMENT_RECEIPT_V1" },
+    "receipt_id": { "type": "string", "pattern": "^deployment-receipt-[0-9a-f]{32}$" },
+    "work_package_id": { "type": "string", "minLength": 1 },
+    "pull_request": { "type": "string", "pattern": "^https://github\\.com/HungQuach301/youtube-ai-factory/pull/[1-9][0-9]*$" },
+    "github_repository": { "const": "HungQuach301/youtube-ai-factory" },
+    "github_commit_sha": { "$ref": "#/$defs/gitSha" },
+    "git_tree_sha": { "$ref": "#/$defs/gitSha" },
+    "sites_version": { "type": "integer", "minimum": 1 },
+    "sites_source_commit": { "$ref": "#/$defs/gitSha" },
+    "sites_source_tree_sha": { "$ref": "#/$defs/gitSha" },
+    "schema_version": { "type": "string", "pattern": "^[0-9]{4}(_[A-Z0-9_]+)?$" },
+    "environment_revision": { "type": "integer", "minimum": 0 },
+    "deployment_terminal_status": { "const": "SUCCEEDED" },
+    "deployed_at": { "type": "string", "format": "date-time" },
+    "smoke_readback_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "production_smoke",
+        "d1_readback",
+        "r2_readback",
+        "provider_requests",
+        "actual_spend_micros",
+        "temporary_controls_removed"
+      ],
+      "properties": {
+        "production_smoke": { "const": "PASS" },
+        "d1_readback": { "enum": ["PASS", "NOT_APPLICABLE"] },
+        "r2_readback": { "enum": ["PASS", "NOT_APPLICABLE"] },
+        "provider_requests": { "type": "integer", "minimum": 0 },
+        "actual_spend_micros": { "type": "integer", "minimum": 0 },
+        "temporary_controls_removed": { "const": true }
+      }
+    },
+    "verified_at": { "type": "string", "format": "date-time" },
+    "receipt_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "verification_result": { "const": "PASS" }
+  },
+  "$defs": {
+    "gitSha": { "type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$" }
+  }
+}

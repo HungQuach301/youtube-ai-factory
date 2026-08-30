@@ -41,11 +41,9 @@ Purpose: GitHub required checks must stand before production.
 | M0-00 | Reconcile Sites 0128 into GitHub | Exact tree verified; PR merged; no deploy |
 | M0-01 | Install canonical control documents | Nine-document registry present |
 | M0-02 | Add candidate CI | Build, tests, docs, security checks run on PR |
-| M0-03 | Capture debt baselines | Baselines committed through PR; CI green |
-| M0-04 | Enable main ruleset | PR and required checks enforced |
-| M0-05 | Add deployment receipt contract | GitHub SHA/tree and Sites version recorded |
-| M0-06 | Add exact-tree deployment verification | Mismatch blocks checkpoint |
-| M0-07 | Add production verification procedure | Owner-only smoke and read-back evidenced |
+| M0-03 | Verify main protection | PR, required checks, up-to-date branch and conversation resolution enforced |
+| M0-04 | Add exact-tree deployment receipt | Mismatch blocks checkpoint; immutable terminal receipt and runtime projection enforced |
+| M0-05 | Add production verification procedure | Owner-only smoke and D1/R2 read-back evidenced |
 
 Exit:
 
@@ -234,4 +232,3 @@ Stop and reassess when:
 
 Stopping means choosing a new evidence-backed hypothesis, not adding control
 planes unrelated to the blocker.
-

@@ -18,6 +18,7 @@
     "check:docs-growth": "node scripts/check-docs-growth.mjs",
     "check:legacy-shrink": "node scripts/check-legacy-shrink.mjs",
     "check:dependency-audit": "node scripts/check-dependency-audit.mjs",
+    "verify:deployment-tree": "node --import tsx scripts/verify-exact-tree-deployment.mjs",
     "check:candidate-policy": "npm run check:auth-coverage && npm run check:no-write-in-get && npm run check:actor-separation && npm run check:migration-safety && npm run check:gate-status && npm run check:docs-growth && npm run check:legacy-shrink",
     "check:commercial-ui": "node scripts/check-commercial-ui.mjs",
     "check:commercial-primary": "node --import tsx scripts/check-commercial-primary.ts",
