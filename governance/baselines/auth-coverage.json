@@ -3,21 +3,6 @@
   "identityKey": "sourceFile#exportedHandler",
   "uncoveredHandlers": [
     {
-      "identity": "app/api/factory/channel-strategy-activations/route.ts#POST",
-      "route": "/api/factory/channel-strategy-activations",
-      "method": "POST",
-      "sourceFile": "app/api/factory/channel-strategy-activations/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/factory/channel-studio/route.ts#GET",
       "route": "/api/factory/channel-studio",
       "method": "GET",
@@ -60,21 +45,6 @@
       ]
     },
     {
-      "identity": "app/api/factory/content-autopilot/preview/route.ts#POST",
-      "route": "/api/factory/content-autopilot/preview",
-      "method": "POST",
-      "sourceFile": "app/api/factory/content-autopilot/preview/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/factory/content-autopilot/route.ts#GET",
       "route": "/api/factory/content-autopilot",
       "method": "GET",
@@ -86,21 +56,6 @@
       "covered": false,
       "reasons": [
         "AUTH_GUARD_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/factory/content-autopilot/route.ts#POST",
-      "route": "/api/factory/content-autopilot",
-      "method": "POST",
-      "sourceFile": "app/api/factory/content-autopilot/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
       ]
     },
     {
@@ -263,66 +218,6 @@
       ]
     },
     {
-      "identity": "app/api/factory/niche-decisions/route.ts#POST",
-      "route": "/api/factory/niche-decisions",
-      "method": "POST",
-      "sourceFile": "app/api/factory/niche-decisions/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/factory/niche-evidence/route.ts#POST",
-      "route": "/api/factory/niche-evidence",
-      "method": "POST",
-      "sourceFile": "app/api/factory/niche-evidence/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/factory/niche-governance/route.ts#POST",
-      "route": "/api/factory/niche-governance",
-      "method": "POST",
-      "sourceFile": "app/api/factory/niche-governance/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/factory/niche-hypotheses/route.ts#POST",
-      "route": "/api/factory/niche-hypotheses",
-      "method": "POST",
-      "sourceFile": "app/api/factory/niche-hypotheses/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/factory/niche-portfolio/route.ts#GET",
       "route": "/api/factory/niche-portfolio",
       "method": "GET",
@@ -334,36 +229,6 @@
       "covered": false,
       "reasons": [
         "AUTH_GUARD_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/factory/niche-priorities/route.ts#POST",
-      "route": "/api/factory/niche-priorities",
-      "method": "POST",
-      "sourceFile": "app/api/factory/niche-priorities/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/factory/niche-scoring/route.ts#POST",
-      "route": "/api/factory/niche-scoring",
-      "method": "POST",
-      "sourceFile": "app/api/factory/niche-scoring/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
       ]
     },
     {
@@ -456,21 +321,6 @@
       "route": "/api/factory/script-development",
       "method": "POST",
       "sourceFile": "app/api/factory/script-development/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/factory/sequential-production/evaluation/provider-history/route.ts#POST",
-      "route": "/api/factory/sequential-production/evaluation/provider-history",
-      "method": "POST",
-      "sourceFile": "app/api/factory/sequential-production/evaluation/provider-history/route.ts",
       "handlerExport": "POST",
       "classification": "OWNER_WRITE",
       "authenticationGuard": null,
