@@ -120,14 +120,6 @@ Receipt creation has two fail-closed phases:
    smoke/read-back, remaining temporary controls, or a changed tree blocks the
    receipt.
 
-The thirty-minute terminal-evidence window applies only to first creation. An
-owner-authenticated exact replay of an existing immutable receipt is permitted
-after that window only when the current server-owned deployment identity still
-matches the stored receipt exactly. Replay returns the same `receipt_id` and
-`receipt_hash`, appends an `IDEMPOTENT_REPLAY` owner command/audit result, and
-never inserts or updates a receipt. A stale or mismatched deployment fails
-closed. The browser never receives the automation secret or server evidence.
-
 Every sealed deployment receipt contains:
 
 | Field | Requirement |
