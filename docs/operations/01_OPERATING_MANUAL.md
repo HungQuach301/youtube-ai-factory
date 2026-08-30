@@ -162,7 +162,8 @@ Merge only when:
 - Resolve merged GitHub SHA and tree SHA.
 - Open the existing Sites lifecycle checkout.
 - Make the Sites source tree exactly match the approved GitHub tree.
-- Verify the tree before checkpointing.
+- Run `npm run verify:deployment-tree -- --github-checkout <github-checkout> --sites-checkout <sites-checkout> --github-commit <merged-sha>`.
+- Stop before checkpointing unless the structured result is `preparation_status: READY` and `git_tree_sha` exactly equals `sites_source_tree_sha`.
 - Save one immutable version.
 - Deploy owner-only unless wider access is explicitly authorized.
 - Poll the exact deployment to terminal status.
@@ -177,6 +178,12 @@ Merge only when:
 - Confirm provider request and spend counts.
 - Remove temporary flags and tokens.
 - Redeploy the same source when environment cleanup requires it.
+- Seal `DEPLOYMENT_RECEIPT_V1` only from the exact terminal deployment, current
+  environment revision, current schema version, and the verified tree evidence.
+- POST the sealed evidence once to `/api/factory/deployment-evidence`; replay the
+  identical receipt only for read-back, never to replace evidence.
+- GET the same projection and require matching receipt hash, Sites version,
+  terminal `SUCCEEDED`, and `verification_result: PASS`.
 
 ### 7. Completion
 
@@ -330,4 +337,3 @@ Expected:
     EXCLUDED_REPOSITORY=youtube-ai-factory-v2
 
 If the answer differs, repair Project Instructions before starting execution.
-

@@ -54,6 +54,7 @@ Do not read `docs/archive` as current authority. Use it only when investigating 
 | Current roadmap | [`roadmap/MASTER_ROADMAP.md`](roadmap/MASTER_ROADMAP.md) |
 | Document coverage boundary | [`governance/DOCUMENT_COMPLETION_MATRIX.md`](governance/DOCUMENT_COMPLETION_MATRIX.md) |
 | Repository synchronization and recovery | [`governance/REPOSITORY_SYNC_AND_RECOVERY.md`](governance/REPOSITORY_SYNC_AND_RECOVERY.md) |
+| Exact-tree deployment receipt | [`../governance/schemas/deployment-receipt.schema.json`](../governance/schemas/deployment-receipt.schema.json), [`operations/SOURCE_DEPLOYMENT_POLICY.md`](operations/SOURCE_DEPLOYMENT_POLICY.md) |
 
 ## Archive boundary
 

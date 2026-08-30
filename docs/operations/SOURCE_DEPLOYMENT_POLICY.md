@@ -107,29 +107,53 @@ Production verification never substitutes for pre-merge CI.
 
 ## 7. Deployment receipt
 
-Every deployment receipt must contain:
+The canonical machine-readable contract is
+[`../../governance/schemas/deployment-receipt.schema.json`](../../governance/schemas/deployment-receipt.schema.json).
+Receipt creation has two fail-closed phases:
+
+1. Before checkpoint preparation, resolve the merged GitHub commit and tree from
+   the GitHub checkout, resolve the Sites source commit and tree from the Sites
+   lifecycle checkout, and require exact tree equality. A mismatch blocks
+   checkpoint preparation.
+2. After Sites reports a terminal deployment, seal one receipt within thirty
+   minutes. Missing or non-success terminal status, stale evidence, failed
+   smoke/read-back, remaining temporary controls, or a changed tree blocks the
+   receipt.
+
+Every sealed deployment receipt contains:
 
 | Field | Requirement |
 |---|---|
+| receipt_schema_version | `DEPLOYMENT_RECEIPT_V1` |
+| receipt_id | Content-addressed immutable identity |
 | work_package_id | Required |
 | pull_request | Required |
+| github_repository | `HungQuach301/youtube-ai-factory` |
 | github_commit_sha | Required |
-| github_tree_sha | Required |
+| git_tree_sha | Required |
 | sites_version | Required |
 | sites_source_commit | Required |
+| sites_source_tree_sha | Must equal `git_tree_sha` |
 | schema_version | Required |
 | environment_revision | Required |
-| deployment_status | SUCCEEDED |
-| production_smoke | PASS |
-| d1_readback | PASS, NOT_APPLICABLE, or exact failure |
-| r2_readback | PASS, NOT_APPLICABLE, or exact failure |
-| provider_requests | Exact integer |
-| actual_spend_micros | Exact integer |
-| temporary_controls_removed | true |
+| deployment_terminal_status | `SUCCEEDED` |
+| deployed_at | Canonical UTC timestamp |
+| smoke_readback_result | Structured production smoke, D1/R2, request/spend, and cleanup result |
 | verified_at | UTC timestamp |
+| receipt_hash | Canonical SHA-256 |
+| verification_result | `PASS` |
 
-The receipt belongs in a runtime control table or GitHub Deployment record. Do
-not create a new narrative document for every deployment.
+Migration `0129_exact_tree_deployment_receipts.sql` provides the append-only
+runtime control table. Database triggers reject update and delete. Replaying an
+identical receipt is idempotent; different evidence for an existing Sites
+version is an immutable conflict. The owner-authenticated
+`/api/factory/deployment-evidence` projection returns only structured,
+non-secret evidence and fails closed when no terminal PASS receipt exists.
+
+Secret-like fields are redacted before validation and are not part of the
+sealed schema. Do not record environment values, tokens, credentials, request
+headers, cookies, provider payloads, or free-form logs. `SITES_VERSION.txt`, a
+matching filename, or a matching commit message is never synchronization proof.
 
 ## 8. Failure and rollback policy
 
@@ -185,4 +209,3 @@ GitHub and Sites are synchronized only when all are true:
 
 A matching version number, filename, commit message, or SITES_VERSION.txt value
 alone is not synchronization proof.
-

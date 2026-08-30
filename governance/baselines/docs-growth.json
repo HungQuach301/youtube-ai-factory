@@ -702,20 +702,20 @@
     {
       "path": "docs/operations/01_OPERATING_MANUAL.md",
       "classification": "ACTIVE",
-      "maxLines": 333,
-      "maxBytes": 10540
+      "maxLines": 339,
+      "maxBytes": 11230
     },
     {
       "path": "docs/operations/SOURCE_DEPLOYMENT_POLICY.md",
       "classification": "ACTIVE",
-      "maxLines": 188,
-      "maxBytes": 6044
+      "maxLines": 211,
+      "maxBytes": 7548
     },
     {
       "path": "docs/README.md",
       "classification": "ACTIVE",
-      "maxLines": 64,
-      "maxBytes": 7654
+      "maxLines": 65,
+      "maxBytes": 7885
     },
     {
       "path": "docs/roadmap/00_PROGRAM_MILESTONES.md",
