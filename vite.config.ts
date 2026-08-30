@@ -1,5 +1,9 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
 
@@ -10,6 +14,20 @@ const { d1, r2 } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+
+function workingTreeIdentity() {
+  const temporaryDirectory = mkdtempSync(join(tmpdir(), "factory-source-tree-"));
+  const env = { ...process.env, GIT_INDEX_FILE: join(temporaryDirectory, "index") };
+  try {
+    execFileSync("git", ["read-tree", "HEAD"], { env });
+    execFileSync("git", ["add", "-A", "--", "."], { env });
+    return execFileSync("git", ["write-tree"], { encoding: "utf8", env }).trim().toLowerCase();
+  } catch {
+    return "UNAVAILABLE";
+  } finally {
+    rmSync(temporaryDirectory, { recursive: true, force: true });
+  }
+}
 
 const localBindingConfig = {
   main: "./worker/index.ts",
@@ -44,6 +62,9 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    define: {
+      __FACTORY_BUILD_SOURCE_TREE__: JSON.stringify(workingTreeIdentity()),
+    },
     server: {
       host: "0.0.0.0",
       allowedHosts: ["terminal.local"],

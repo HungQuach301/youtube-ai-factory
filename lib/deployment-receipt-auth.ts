@@ -15,6 +15,10 @@ export const DEPLOYMENT_RECEIPT_AUTOMATION_METHOD = "POST" as const;
 export const DEPLOYMENT_RECEIPT_AUTOMATION_ROUTE = "/api/factory/deployment-evidence" as const;
 export const DEPLOYMENT_RECEIPT_AUTOMATION_MAX_TTL_MS = 5 * 60 * 1000;
 export const DEPLOYMENT_RECEIPT_AUTOMATION_CLOCK_SKEW_MS = 30 * 1000;
+export const DEPLOYMENT_RECEIPT_AUTOMATION_READ_SUBJECT = "exact-tree-deployment-receipt-reader" as const;
+export const DEPLOYMENT_RECEIPT_AUTOMATION_READ_SCOPE = "deployment_receipt:read" as const;
+export const DEPLOYMENT_RECEIPT_AUTOMATION_READ_METHOD = "GET" as const;
+export const DEPLOYMENT_RECEIPT_AUTOMATION_READ_ROUTE = "/api/factory/deployment-evidence/automation-read" as const;
 
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{16,200}$/;
@@ -64,6 +68,20 @@ export type VerifiedDeploymentReceiptAutomationRequest = {
   actor: `${typeof DEPLOYMENT_RECEIPT_AUTOMATION_ACTOR_TYPE}:${typeof DEPLOYMENT_RECEIPT_AUTOMATION_SUBJECT}`;
   claims: DeploymentReceiptAutomationClaims;
   body: DeploymentReceiptInput;
+};
+
+export type DeploymentReceiptAutomationReadClaims = {
+  version: typeof DEPLOYMENT_RECEIPT_AUTOMATION_AUTH_VERSION;
+  issuer: typeof DEPLOYMENT_RECEIPT_AUTOMATION_ISSUER;
+  subject: typeof DEPLOYMENT_RECEIPT_AUTOMATION_READ_SUBJECT;
+  actor_type: typeof DEPLOYMENT_RECEIPT_AUTOMATION_ACTOR_TYPE;
+  scope: typeof DEPLOYMENT_RECEIPT_AUTOMATION_READ_SCOPE;
+  environment: typeof DEPLOYMENT_RECEIPT_AUTOMATION_ENVIRONMENT;
+  method: typeof DEPLOYMENT_RECEIPT_AUTOMATION_READ_METHOD;
+  route: typeof DEPLOYMENT_RECEIPT_AUTOMATION_READ_ROUTE;
+  issued_at: string;
+  expires_at: string;
+  nonce: string;
 };
 
 function requiredHeader(request: Request, name: string) {
@@ -124,6 +142,10 @@ export async function deploymentReceiptBodyHash(rawBody: string) {
 }
 
 export function buildDeploymentReceiptAutomationSigningPayload(claims: DeploymentReceiptAutomationClaims) {
+  return canonicalStringify(claims);
+}
+
+export function buildDeploymentReceiptAutomationReadSigningPayload(claims: DeploymentReceiptAutomationReadClaims) {
   return canonicalStringify(claims);
 }
 
@@ -249,4 +271,52 @@ export async function verifyDeploymentReceiptAutomationAuth(
     claims,
     body: body as DeploymentReceiptInput,
   };
+}
+
+export async function verifyDeploymentReceiptAutomationReadAuth(
+  request: Request,
+  secret: string | undefined,
+  nowMilliseconds = Date.now(),
+) {
+  const url = new URL(request.url);
+  if (request.method !== DEPLOYMENT_RECEIPT_AUTOMATION_READ_METHOD || url.pathname !== DEPLOYMENT_RECEIPT_AUTOMATION_READ_ROUTE || url.search) {
+    throw new DeploymentReceiptError("AUTOMATION_TARGET_FORBIDDEN", "Automation read credential is not valid for this method or route", 403);
+  }
+  if (!secret || secret.length < 32) {
+    throw new DeploymentReceiptError("AUTOMATION_AUTHORITY_UNCONFIGURED", "Deployment receipt automation authority is not configured", 503);
+  }
+  const map = DEPLOYMENT_RECEIPT_AUTOMATION_HEADERS;
+  const claims: DeploymentReceiptAutomationReadClaims = {
+    version: requiredHeader(request, map.version) as DeploymentReceiptAutomationReadClaims["version"],
+    issuer: requiredHeader(request, map.issuer) as DeploymentReceiptAutomationReadClaims["issuer"],
+    subject: requiredHeader(request, map.subject) as DeploymentReceiptAutomationReadClaims["subject"],
+    actor_type: requiredHeader(request, map.actorType) as DeploymentReceiptAutomationReadClaims["actor_type"],
+    scope: requiredHeader(request, map.scope) as DeploymentReceiptAutomationReadClaims["scope"],
+    environment: requiredHeader(request, map.environment) as DeploymentReceiptAutomationReadClaims["environment"],
+    method: DEPLOYMENT_RECEIPT_AUTOMATION_READ_METHOD,
+    route: DEPLOYMENT_RECEIPT_AUTOMATION_READ_ROUTE,
+    issued_at: requiredHeader(request, map.issuedAt),
+    expires_at: requiredHeader(request, map.expiresAt),
+    nonce: requiredHeader(request, map.nonce),
+  };
+  exact(claims.version, DEPLOYMENT_RECEIPT_AUTOMATION_AUTH_VERSION);
+  exact(claims.issuer, DEPLOYMENT_RECEIPT_AUTOMATION_ISSUER);
+  exact(claims.subject, DEPLOYMENT_RECEIPT_AUTOMATION_READ_SUBJECT);
+  exact(claims.actor_type, DEPLOYMENT_RECEIPT_AUTOMATION_ACTOR_TYPE);
+  exact(claims.scope, DEPLOYMENT_RECEIPT_AUTOMATION_READ_SCOPE);
+  exact(claims.environment, DEPLOYMENT_RECEIPT_AUTOMATION_ENVIRONMENT);
+  if (!REQUEST_ID_PATTERN.test(claims.nonce)) throw new DeploymentReceiptError("AUTOMATION_REPLAY_IDENTITY_INVALID", "Automation read nonce is invalid", 401);
+  const issuedAtMilliseconds = canonicalTimestamp(claims.issued_at, "issued_at");
+  const expiresAtMilliseconds = canonicalTimestamp(claims.expires_at, "expires_at");
+  if (expiresAtMilliseconds <= issuedAtMilliseconds || expiresAtMilliseconds - issuedAtMilliseconds > DEPLOYMENT_RECEIPT_AUTOMATION_MAX_TTL_MS) {
+    throw new DeploymentReceiptError("AUTOMATION_EXPIRY_INVALID", "Automation read credential expiry is outside the bounded lifetime", 401);
+  }
+  if (nowMilliseconds + DEPLOYMENT_RECEIPT_AUTOMATION_CLOCK_SKEW_MS < issuedAtMilliseconds || nowMilliseconds > expiresAtMilliseconds) {
+    throw new DeploymentReceiptError("AUTOMATION_CREDENTIAL_EXPIRED", "Automation read credential is expired or not yet valid", 401);
+  }
+  const signature = requiredHeader(request, map.signature).toLowerCase();
+  if (!await verifyHmac(secret, buildDeploymentReceiptAutomationReadSigningPayload(claims), signature)) {
+    throw new DeploymentReceiptError("AUTOMATION_SIGNATURE_INVALID", "Automation read signature is invalid", 401);
+  }
+  return { actor: `${DEPLOYMENT_RECEIPT_AUTOMATION_ACTOR_TYPE}:${DEPLOYMENT_RECEIPT_AUTOMATION_READ_SUBJECT}` as const, claims };
 }
