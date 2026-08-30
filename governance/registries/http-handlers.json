@@ -991,11 +991,11 @@
       "routePath": "/api/projects/[id]/master-v5",
       "method": "POST",
       "readWrite": "WRITE",
-      "actor": "UNCLASSIFIED",
-      "authentication": "NONE",
-      "authorization": "NONE",
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST",
       "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
+      "status": "GAP_AUDIT_NOT_PROVEN",
       "remediationWp": "M1-03"
     },
     {
@@ -1108,12 +1108,12 @@
       "routePath": "/api/projects/[id]/quality",
       "method": "GET",
       "readWrite": "WRITE",
-      "actor": "UNCLASSIFIED",
-      "authentication": "NONE",
-      "authorization": "NONE",
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST",
       "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
-      "remediationWp": "M1-04,M1-05"
+      "status": "GAP_GET_WRITE_AND_AUDIT_NOT_PROVEN",
+      "remediationWp": "M1-05"
     },
     {
       "identity": "app/api/projects/[id]/quality/route.ts#POST",
@@ -1121,11 +1121,11 @@
       "routePath": "/api/projects/[id]/quality",
       "method": "POST",
       "readWrite": "WRITE",
-      "actor": "UNCLASSIFIED",
-      "authentication": "NONE",
-      "authorization": "NONE",
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST",
       "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
+      "status": "GAP_AUDIT_NOT_PROVEN",
       "remediationWp": "M1-03"
     },
     {
@@ -1212,12 +1212,12 @@
       "routePath": "/api/projects/[id]/voice",
       "method": "GET",
       "readWrite": "WRITE",
-      "actor": "UNCLASSIFIED",
-      "authentication": "NONE",
-      "authorization": "NONE",
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST",
       "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
-      "remediationWp": "M1-04,M1-05"
+      "status": "GAP_GET_WRITE_AND_AUDIT_NOT_PROVEN",
+      "remediationWp": "M1-05"
     },
     {
       "identity": "app/api/projects/[id]/voice/route.ts#POST",
@@ -1225,11 +1225,11 @@
       "routePath": "/api/projects/[id]/voice",
       "method": "POST",
       "readWrite": "WRITE",
-      "actor": "UNCLASSIFIED",
-      "authentication": "NONE",
-      "authorization": "NONE",
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST",
       "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
+      "status": "GAP_AUDIT_NOT_PROVEN",
       "remediationWp": "M1-03"
     },
     {
@@ -1264,12 +1264,12 @@
       "routePath": "/api/projects",
       "method": "GET",
       "readWrite": "WRITE",
-      "actor": "UNCLASSIFIED",
-      "authentication": "NONE",
-      "authorization": "NONE",
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST",
       "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
-      "remediationWp": "M1-04,M1-05"
+      "status": "GAP_GET_WRITE_AND_AUDIT_NOT_PROVEN",
+      "remediationWp": "M1-05"
     },
     {
       "identity": "app/api/projects/route.ts#PATCH",
@@ -1277,11 +1277,11 @@
       "routePath": "/api/projects",
       "method": "PATCH",
       "readWrite": "WRITE",
-      "actor": "UNCLASSIFIED",
-      "authentication": "NONE",
-      "authorization": "NONE",
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST",
       "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
+      "status": "GAP_AUDIT_NOT_PROVEN",
       "remediationWp": "M1-03"
     },
     {
@@ -1290,11 +1290,11 @@
       "routePath": "/api/projects",
       "method": "POST",
       "readWrite": "WRITE",
-      "actor": "UNCLASSIFIED",
-      "authentication": "NONE",
-      "authorization": "NONE",
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST",
       "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
+      "status": "GAP_AUDIT_NOT_PROVEN",
       "remediationWp": "M1-03"
     }
   ]

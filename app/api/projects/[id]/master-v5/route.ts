@@ -1,4 +1,5 @@
 import { asc, desc, eq } from "drizzle-orm";
+import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "../../../../../db";
 import { evidenceAuditRuns, evidenceBindings, evidenceRecords, productionProfiles, videoProjects, videoRenders, workflowEvents } from "../../../../../db/schema";
 
@@ -9,11 +10,20 @@ type RuntimeBucket = {
   put(key: string, value: ArrayBuffer | Uint8Array, options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<unknown>;
   delete(keys: string | string[]): Promise<unknown>;
 };
-type RuntimeEnv = { BUCKET?: RuntimeBucket; ELEVENLABS_API_KEY?: string };
+type RuntimeEnv = { BUCKET?: RuntimeBucket; ELEVENLABS_API_KEY?: string; FACTORY_EXPERT_EMAILS?: string };
 
 const QA_CHECKS = ["FULL_PLAYBACK", "SINGLE_VOICE", "SYNC", "LOUDNESS", "BLACK_FRAMES", "RIGHTS", "SEMANTIC_FIT", "SOUNDSCAPE"] as const;
 
 async function runtimeEnv() { const { env } = await import("cloudflare:workers"); return env as unknown as RuntimeEnv; }
+async function authorizeWriteAccess() {
+  const user = await getChatGPTUser();
+  if (!user) return Response.json({ error: "SIWC_AUTHENTICATION_REQUIRED" }, { status: 401 });
+  const env = await runtimeEnv();
+  const owners = new Set(String(env.FACTORY_EXPERT_EMAILS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
+  if (!owners.size) return Response.json({ error: "OWNER_WRITE_ALLOWLIST_UNCONFIGURED" }, { status: 503 });
+  if (!owners.has(user.email.trim().toLowerCase())) return Response.json({ error: "OWNER_WRITE_AUTHORIZATION_REQUIRED" }, { status: 403 });
+  return { user, env };
+}
 function jsonObject(value: string | null) { try { return value ? JSON.parse(value) as Record<string, unknown> : {}; } catch { return {}; } }
 function validUploadId(value: string) { return /^[a-zA-Z0-9-]{12,80}$/.test(value); }
 function safeName(value: string) { return value.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 100) || "master-v5.webm"; }
@@ -109,6 +119,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const authorization = await authorizeWriteAccess(); if (authorization instanceof Response) return authorization;
     const { id } = await context.params; const url = new URL(request.url); const bucket = (await runtimeEnv()).BUCKET; if (!bucket) return Response.json({ error: "V5 media vault is unavailable" }, { status: 424 });
     if (url.searchParams.get("upload") === "part") {
       const uploadId = url.searchParams.get("uploadId") || ""; const part = Number(url.searchParams.get("part")); if (!validUploadId(uploadId) || !Number.isInteger(part) || part < 0 || part > 600) return Response.json({ error: "Invalid V5 upload part" }, { status: 400 });

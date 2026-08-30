@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "../../../../../db";
 import {
   assemblyRuns,
@@ -20,7 +21,7 @@ import {
 } from "../../../../../db/schema";
 
 type RuntimeD1 = { prepare(sql: string): { run(): Promise<unknown> } };
-type RuntimeEnv = { DB?: RuntimeD1 };
+type RuntimeEnv = { DB?: RuntimeD1; FACTORY_EXPERT_EMAILS?: string };
 type VerificationMode = "AUTOPILOT" | "EXCEPTIONS" | "MANUAL";
 type AdapterKey = "EXPLAINER_DOCUMENTARY" | "SHORTS" | "TUTORIAL" | "COMMENTARY" | "REVIEW_COMPARISON" | "NEWS_CURRENT" | "INTERVIEW_PODCAST" | "STORY_ENTERTAINMENT";
 
@@ -39,6 +40,16 @@ const weights = [6, 8, 12, 8, 12, 10, 10, 10, 10, 5, 5, 4];
 let schemaReady: Promise<void> | null = null;
 
 async function runtimeEnv() { const { env } = await import("cloudflare:workers"); return env as unknown as RuntimeEnv; }
+
+async function authorizeWriteAccess() {
+  const user = await getChatGPTUser();
+  if (!user) return Response.json({ error: "SIWC_AUTHENTICATION_REQUIRED" }, { status: 401 });
+  const env = await runtimeEnv();
+  const owners = new Set(String(env.FACTORY_EXPERT_EMAILS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
+  if (!owners.size) return Response.json({ error: "OWNER_WRITE_ALLOWLIST_UNCONFIGURED" }, { status: 503 });
+  if (!owners.has(user.email.trim().toLowerCase())) return Response.json({ error: "OWNER_WRITE_AUTHORIZATION_REQUIRED" }, { status: 403 });
+  return { user, env };
+}
 
 async function ensureSchema() {
   if (!schemaReady) schemaReady = (async () => {
@@ -203,12 +214,13 @@ async function responseData(projectId: string) {
 }
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
-  try { const { id } = await context.params; await ensureSchema(); const db = await getDb(); await db.insert(qualityGateSettings).values({ projectId: id, verificationMode: "AUTOPILOT", minimumScore: 85, dimensionFloor: 70, criticalFloor: 80, formatAdapter: "EXPLAINER_DOCUMENTARY", maximumRepairLoops: 2 }).onConflictDoNothing(); return Response.json(await responseData(id)); }
+  try { const authorization = await authorizeWriteAccess(); if (authorization instanceof Response) return authorization; const { id } = await context.params; await ensureSchema(); const db = await getDb(); await db.insert(qualityGateSettings).values({ projectId: id, verificationMode: "AUTOPILOT", minimumScore: 85, dimensionFloor: 70, criticalFloor: 80, formatAdapter: "EXPLAINER_DOCUMENTARY", maximumRepairLoops: 2 }).onConflictDoNothing(); return Response.json(await responseData(id)); }
   catch (error) { console.error("Universal Quality Gate GET failed", error); return Response.json({ error: "Universal Quality Gate could not be loaded" }, { status: 500 }); }
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const authorization = await authorizeWriteAccess(); if (authorization instanceof Response) return authorization;
     const { id } = await context.params; await ensureSchema(); const db = await getDb();
     const payload = await request.json() as { action?: "RUN_GATE" | "SET_MODE" | "SET_ADAPTER" | "ROUTE_REPAIRS" | "APPROVE_GATE"; verificationMode?: VerificationMode; formatAdapter?: AdapterKey };
     const [productionProfile] = await db.select().from(productionProfiles).where(eq(productionProfiles.projectId, id)).limit(1);

@@ -518,21 +518,6 @@
       ]
     },
     {
-      "identity": "app/api/projects/[id]/master-v5/route.ts#POST",
-      "route": "/api/projects/[id]/master-v5",
-      "method": "POST",
-      "sourceFile": "app/api/projects/[id]/master-v5/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/projects/[id]/media/route.ts#GET",
       "route": "/api/projects/[id]/media",
       "method": "GET",
@@ -649,35 +634,6 @@
       ]
     },
     {
-      "identity": "app/api/projects/[id]/quality/route.ts#GET",
-      "route": "/api/projects/[id]/quality",
-      "method": "GET",
-      "sourceFile": "app/api/projects/[id]/quality/route.ts",
-      "handlerExport": "GET",
-      "classification": "OWNER_READ",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/projects/[id]/quality/route.ts#POST",
-      "route": "/api/projects/[id]/quality",
-      "method": "POST",
-      "sourceFile": "app/api/projects/[id]/quality/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/projects/[id]/references/route.ts#GET",
       "route": "/api/projects/[id]/references",
       "method": "GET",
@@ -765,35 +721,6 @@
       ]
     },
     {
-      "identity": "app/api/projects/[id]/voice/route.ts#GET",
-      "route": "/api/projects/[id]/voice",
-      "method": "GET",
-      "sourceFile": "app/api/projects/[id]/voice/route.ts",
-      "handlerExport": "GET",
-      "classification": "OWNER_READ",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/projects/[id]/voice/route.ts#POST",
-      "route": "/api/projects/[id]/voice",
-      "method": "POST",
-      "sourceFile": "app/api/projects/[id]/voice/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/projects/[id]/workspace/route.ts#GET",
       "route": "/api/projects/[id]/workspace",
       "method": "GET",
@@ -812,50 +739,6 @@
       "route": "/api/projects/[id]/workspace",
       "method": "POST",
       "sourceFile": "app/api/projects/[id]/workspace/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/projects/route.ts#GET",
-      "route": "/api/projects",
-      "method": "GET",
-      "sourceFile": "app/api/projects/route.ts",
-      "handlerExport": "GET",
-      "classification": "OWNER_READ",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/projects/route.ts#PATCH",
-      "route": "/api/projects",
-      "method": "PATCH",
-      "sourceFile": "app/api/projects/route.ts",
-      "handlerExport": "PATCH",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
-      "identity": "app/api/projects/route.ts#POST",
-      "route": "/api/projects",
-      "method": "POST",
-      "sourceFile": "app/api/projects/route.ts",
       "handlerExport": "POST",
       "classification": "OWNER_WRITE",
       "authenticationGuard": null,

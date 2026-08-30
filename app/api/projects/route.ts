@@ -1,6 +1,9 @@
 import { desc, eq } from "drizzle-orm";
+import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "../../../db";
 import { channels, videoProjects, workflowEvents } from "../../../db/schema";
+
+type RuntimeEnv = { FACTORY_EXPERT_EMAILS?: string };
 
 const allowedStatuses = [
   "OPPORTUNITY_REVIEW",
@@ -9,8 +12,25 @@ const allowedStatuses = [
   "STORYBOARDING",
 ] as const;
 
+async function runtimeEnv() {
+  const { env } = await import("cloudflare:workers");
+  return env as unknown as RuntimeEnv;
+}
+
+async function authorizeWriteAccess() {
+  const user = await getChatGPTUser();
+  if (!user) return Response.json({ error: "SIWC_AUTHENTICATION_REQUIRED" }, { status: 401 });
+  const env = await runtimeEnv();
+  const owners = new Set(String(env.FACTORY_EXPERT_EMAILS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
+  if (!owners.size) return Response.json({ error: "OWNER_WRITE_ALLOWLIST_UNCONFIGURED" }, { status: 503 });
+  if (!owners.has(user.email.trim().toLowerCase())) return Response.json({ error: "OWNER_WRITE_AUTHORIZATION_REQUIRED" }, { status: 403 });
+  return { user, env };
+}
+
 export async function GET() {
   try {
+    const authorization = await authorizeWriteAccess();
+    if (authorization instanceof Response) return authorization;
     const db = await getDb();
     let projects = await db
       .select()
@@ -40,6 +60,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const authorization = await authorizeWriteAccess();
+    if (authorization instanceof Response) return authorization;
     const payload = (await request.json()) as { title?: string };
     const title = payload.title?.trim();
     if (!title) return Response.json({ error: "title is required" }, { status: 400 });
@@ -70,6 +92,8 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const authorization = await authorizeWriteAccess();
+    if (authorization instanceof Response) return authorization;
     const payload = (await request.json()) as { id?: string; status?: string };
     if (!payload.id || !payload.status || !allowedStatuses.includes(payload.status as never)) {
       return Response.json({ error: "Valid id and status are required" }, { status: 400 });
