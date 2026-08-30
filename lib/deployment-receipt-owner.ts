@@ -4,6 +4,7 @@ import {
   DEPLOYMENT_REPOSITORY,
   DeploymentReceiptError,
   recordDeploymentReceipt,
+  sealDeploymentReceipt,
   type DeploymentReceiptDatabase,
   type DeploymentReceiptInput,
   type SealedDeploymentReceipt,
@@ -13,18 +14,40 @@ export const FINALIZE_DEPLOYMENT_RECEIPT_COMMAND = "FINALIZE_DEPLOYMENT_RECEIPT"
 export const OWNER_DEPLOYMENT_RECEIPT_ROUTE = "/api/factory/deployment-evidence/finalize" as const;
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{16,200}$/;
+const RECEIPT_ID_PATTERN = /^deployment-receipt-[0-9a-f]{32}$/;
+const RECEIPT_HASH_PATTERN = /^[0-9a-f]{64}$/;
 const EVIDENCE_KEYS = new Set([
   "work_package_id", "pull_request", "github_repository", "github_commit_sha", "git_tree_sha", "sites_version",
   "sites_source_commit", "sites_source_tree_sha", "schema_version", "environment_revision", "deployment_terminal_status",
   "deployed_at", "manifest_mismatch", "smoke_readback_result",
 ]);
-const COMMAND_KEYS = new Set(["command", "idempotency_key"]);
+const COMMAND_KEYS = new Set(["command", "idempotency_key", "receipt_id", "receipt_hash"]);
 
 type OwnerCommandRow = {
   idempotency_key: string;
   request_hash: string;
   receipt_id: string;
   receipt_hash: string;
+};
+
+type OwnerCommand = {
+  command: typeof FINALIZE_DEPLOYMENT_RECEIPT_COMMAND;
+  idempotency_key: string;
+  receipt_id?: string;
+  receipt_hash?: string;
+};
+
+export type OwnerDeploymentReceiptState = {
+  submission_state: "SUBMITTED" | "NOT_SUBMITTED";
+  receipt: SealedDeploymentReceipt | null;
+  actions: {
+    finalize_available: boolean;
+    replay_available: boolean;
+  };
+  creation_blocker: null | {
+    code: string;
+    message: string;
+  };
 };
 
 export type OwnerDeploymentEvidenceRuntime = {
@@ -63,7 +86,7 @@ function integer(record: Record<string, unknown>, key: string, minimum = 0) {
   return value;
 }
 
-function parseCommand(rawBody: string) {
+function parseCommand(rawBody: string): OwnerCommand {
   let value: unknown;
   try { value = JSON.parse(rawBody); }
   catch { throw new DeploymentReceiptError("DEPLOYMENT_RECEIPT_JSON_INVALID", "Owner command is not valid JSON", 400); }
@@ -76,7 +99,18 @@ function parseCommand(rawBody: string) {
   if (!REQUEST_ID_PATTERN.test(idempotencyKey)) {
     throw new DeploymentReceiptError("DEPLOYMENT_RECEIPT_IDEMPOTENCY_INVALID", "A stable idempotency key is required", 400);
   }
-  return { command: FINALIZE_DEPLOYMENT_RECEIPT_COMMAND, idempotency_key: idempotencyKey } as const;
+  const receiptId = typeof command.receipt_id === "string" ? command.receipt_id.trim().toLowerCase() : "";
+  const receiptHash = typeof command.receipt_hash === "string" ? command.receipt_hash.trim().toLowerCase() : "";
+  if (Boolean(receiptId) !== Boolean(receiptHash)
+    || (receiptId && !RECEIPT_ID_PATTERN.test(receiptId))
+    || (receiptHash && !RECEIPT_HASH_PATTERN.test(receiptHash))) {
+    throw new DeploymentReceiptError("DEPLOYMENT_RECEIPT_REPLAY_BINDING_INVALID", "Exact replay requires a valid receipt_id and receipt_hash pair", 400);
+  }
+  return {
+    command: FINALIZE_DEPLOYMENT_RECEIPT_COMMAND,
+    idempotency_key: idempotencyKey,
+    ...(receiptId ? { receipt_id: receiptId, receipt_hash: receiptHash } : {}),
+  };
 }
 
 export function assertOwnerSameOrigin(request: Request) {
@@ -153,6 +187,62 @@ async function receiptById(db: DeploymentReceiptDatabase, receiptId: string) {
   } as SealedDeploymentReceipt;
 }
 
+async function receiptBySitesVersion(db: DeploymentReceiptDatabase, sitesVersion: number) {
+  const row = await db.prepare("SELECT * FROM factory_deployment_receipts WHERE sites_version=? LIMIT 1")
+    .bind(sitesVersion).first<Record<string, unknown>>();
+  return row ? receiptById(db, String(row.receipt_id)) : null;
+}
+
+function assertExactReceiptBinding(receipt: SealedDeploymentReceipt, input: DeploymentReceiptInput) {
+  const exactFields: (keyof DeploymentReceiptInput)[] = [
+    "work_package_id", "pull_request", "github_repository", "github_commit_sha", "git_tree_sha", "sites_version",
+    "sites_source_commit", "sites_source_tree_sha", "schema_version", "environment_revision", "deployment_terminal_status", "deployed_at",
+  ];
+  const mismatched = exactFields.filter((field) => receipt[field] !== input[field]);
+  if (mismatched.length
+    || receipt.verification_result !== "PASS"
+    || receipt.git_tree_sha !== receipt.sites_source_tree_sha) {
+    throw new DeploymentReceiptError("DEPLOYMENT_RECEIPT_BINDING_MISMATCH", "Immutable receipt is not bound to the current exact deployment", 409);
+  }
+}
+
+export async function readOwnerDeploymentReceiptState(
+  db: DeploymentReceiptDatabase,
+  evidenceJson: string | undefined,
+  runtime: OwnerDeploymentEvidenceRuntime,
+): Promise<OwnerDeploymentReceiptState> {
+  const input = serverReceiptInput(evidenceJson, runtime);
+  const receipt = await receiptBySitesVersion(db, input.sites_version);
+  if (receipt) {
+    assertExactReceiptBinding(receipt, input);
+    return {
+      submission_state: "SUBMITTED",
+      receipt,
+      actions: { finalize_available: false, replay_available: true },
+      creation_blocker: null,
+    };
+  }
+  try {
+    await sealDeploymentReceipt(input);
+    return {
+      submission_state: "NOT_SUBMITTED",
+      receipt: null,
+      actions: { finalize_available: true, replay_available: false },
+      creation_blocker: null,
+    };
+  } catch (error) {
+    if (error instanceof DeploymentReceiptError && error.code === "DEPLOYMENT_RECEIPT_STALE") {
+      return {
+        submission_state: "NOT_SUBMITTED",
+        receipt: null,
+        actions: { finalize_available: false, replay_available: false },
+        creation_blocker: { code: error.code, message: error.message },
+      };
+    }
+    throw error;
+  }
+}
+
 async function audit(db: DeploymentReceiptDatabase, values: {
   actor: string; command: string; attemptedAt: string; idempotencyKey: string; requestHash: string;
   result: "CREATED" | "IDEMPOTENT_REPLAY" | "REJECTED"; resultCode: string; receiptId?: string; receiptHash?: string;
@@ -176,6 +266,7 @@ export async function finalizeOwnerDeploymentReceipt(
   const requestHash = await canonicalHash(command);
   const attemptedAt = runtime.now || new Date().toISOString();
   const randomUUID = runtime.randomUUID || (() => crypto.randomUUID());
+  const input = serverReceiptInput(evidenceJson, runtime);
   const existing = await db.prepare("SELECT * FROM factory_deployment_receipt_owner_commands WHERE idempotency_key=? LIMIT 1")
     .bind(command.idempotency_key).first<OwnerCommandRow>();
   if (existing) {
@@ -185,14 +276,45 @@ export async function finalizeOwnerDeploymentReceipt(
     }
     const receipt = await receiptById(db, existing.receipt_id);
     if (receipt.receipt_hash !== existing.receipt_hash) throw new DeploymentReceiptError("DEPLOYMENT_RECEIPT_IMMUTABLE_CONFLICT", "Owner command ledger does not match immutable receipt", 409);
+    assertExactReceiptBinding(receipt, input);
+    if ((command.receipt_id && command.receipt_id !== receipt.receipt_id)
+      || (command.receipt_hash && command.receipt_hash !== receipt.receipt_hash)) {
+      await audit(db, { actor: actorEmail, command: command.command, attemptedAt, idempotencyKey: command.idempotency_key, requestHash, result: "REJECTED", resultCode: "DEPLOYMENT_RECEIPT_REPLAY_BINDING_MISMATCH" }, randomUUID);
+      throw new DeploymentReceiptError("DEPLOYMENT_RECEIPT_REPLAY_BINDING_MISMATCH", "Replay binding does not match the immutable receipt", 409);
+    }
     await audit(db, { actor: actorEmail, command: command.command, attemptedAt, idempotencyKey: command.idempotency_key, requestHash, result: "IDEMPOTENT_REPLAY", resultCode: "IDEMPOTENT_REPLAY", receiptId: receipt.receipt_id, receiptHash: receipt.receipt_hash }, randomUUID);
     return { receipt, replay_state: "IDEMPOTENT_REPLAY" };
   }
 
+  if (command.receipt_id && command.receipt_hash) {
+    try {
+      const receipt = await receiptById(db, command.receipt_id);
+      if (receipt.receipt_hash !== command.receipt_hash) {
+        throw new DeploymentReceiptError("DEPLOYMENT_RECEIPT_REPLAY_BINDING_MISMATCH", "Replay hash does not match the immutable receipt", 409);
+      }
+      assertExactReceiptBinding(receipt, input);
+      await db.prepare(`INSERT INTO factory_deployment_receipt_owner_commands
+        (idempotency_key,request_hash,actor_type,actor_subject,command,receipt_id,receipt_hash,result,executed_at)
+        VALUES (?,?,'CHATGPT_OWNER',?,?,?,?, 'IDEMPOTENT_REPLAY',?) ON CONFLICT DO NOTHING`).bind(
+        command.idempotency_key, requestHash, actorEmail, command.command, receipt.receipt_id, receipt.receipt_hash, attemptedAt,
+      ).run();
+      const stored = await db.prepare("SELECT * FROM factory_deployment_receipt_owner_commands WHERE idempotency_key=? LIMIT 1")
+        .bind(command.idempotency_key).first<OwnerCommandRow>();
+      if (!stored || stored.request_hash !== requestHash || stored.receipt_id !== receipt.receipt_id || stored.receipt_hash !== receipt.receipt_hash) {
+        throw new DeploymentReceiptError("DEPLOYMENT_RECEIPT_IDEMPOTENCY_CONFLICT", "Concurrent replay command conflicts with immutable evidence", 409);
+      }
+      await audit(db, { actor: actorEmail, command: command.command, attemptedAt, idempotencyKey: command.idempotency_key, requestHash, result: "IDEMPOTENT_REPLAY", resultCode: "IDEMPOTENT_REPLAY", receiptId: receipt.receipt_id, receiptHash: receipt.receipt_hash }, randomUUID);
+      return { receipt, replay_state: "IDEMPOTENT_REPLAY" };
+    } catch (error) {
+      const code = error instanceof DeploymentReceiptError ? error.code : "DEPLOYMENT_RECEIPT_WRITE_UNAVAILABLE";
+      await audit(db, { actor: actorEmail, command: command.command, attemptedAt, idempotencyKey: command.idempotency_key, requestHash, result: "REJECTED", resultCode: code }, randomUUID);
+      throw error;
+    }
+  }
+
   let recorded: Awaited<ReturnType<typeof recordDeploymentReceipt>>;
   try {
-    const receiptInput = serverReceiptInput(evidenceJson, runtime);
-    recorded = await recordDeploymentReceipt(db, receiptInput, `CHATGPT_OWNER:${actorEmail.toLowerCase()}`);
+    recorded = await recordDeploymentReceipt(db, input, `CHATGPT_OWNER:${actorEmail.toLowerCase()}`);
   } catch (error) {
     const code = error instanceof DeploymentReceiptError ? error.code : "DEPLOYMENT_RECEIPT_WRITE_UNAVAILABLE";
     await audit(db, { actor: actorEmail, command: command.command, attemptedAt, idempotencyKey: command.idempotency_key, requestHash, result: "REJECTED", resultCode: code }, randomUUID);
