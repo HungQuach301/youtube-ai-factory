@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { analyzeActorSource, analyzeAuthSource, analyzeGetWritesSource } from "../scripts/lib/candidate-ci-policy.mjs";
+import { analyzeActorSource, analyzeAuthSource, analyzeGetWritesSource, collectRouteHandlers, handlerId, routePath, validateHandlerRegistry } from "../scripts/lib/candidate-ci-policy.mjs";
 
 const uncovered = (source) => analyzeAuthSource(source).filter((handler) => !handler.covered).map((handler) => handler.identity);
 
@@ -109,4 +109,57 @@ test("comments cannot invent a prohibited command", () => {
     }
   `;
   assert.deepEqual(analyzeActorSource(source), []);
+});
+
+function registryEntry(sourceFile, method) {
+  return {
+    identity: handlerId(sourceFile, method), sourceFile, routePath: routePath(sourceFile), method,
+    readWrite: ["GET", "HEAD", "OPTIONS"].includes(method) ? "READ" : "WRITE",
+    actor: "CHATGPT_OWNER", authentication: "NONE", authorization: "NONE",
+    audit: "NONE_PROVEN", status: "GAP_AUTHENTICATION", remediationWp: "M1-03",
+  };
+}
+
+function registryHandlers(source, path = "app/api/example/route.ts") {
+  return collectRouteHandlers(source, path).map((handler) => ({ identity: handlerId(path, handler.method) }));
+}
+
+test("handler registry rejects a newly exported handler with no entry", () => {
+  const handlers = registryHandlers("export async function GET() {} export async function POST() {}");
+  const registry = { version: 1, identityKey: "sourceFile#method", handlers: [registryEntry("app/api/example/route.ts", "GET")] };
+  assert.throws(() => validateHandlerRegistry(registry, handlers), /missing from registry/);
+});
+
+test("handler registry rejects an orphan entry", () => {
+  const handlers = registryHandlers("export async function GET() {}");
+  const registry = { version: 1, identityKey: "sourceFile#method", handlers: [registryEntry("app/api/example/route.ts", "GET"), registryEntry("app/api/example/route.ts", "POST")] };
+  assert.throws(() => validateHandlerRegistry(registry, handlers), /Orphan handler registry entries/);
+});
+
+test("handler registry rejects method/file identity mismatch", () => {
+  const entry = registryEntry("app/api/example/route.ts", "GET");
+  entry.sourceFile = "app/api/other/route.ts";
+  const registry = { version: 1, identityKey: "sourceFile#method", handlers: [entry] };
+  assert.throws(() => validateHandlerRegistry(registry, []), /method\/file mismatch/);
+});
+
+test("imports, comments, strings, token names, and unexported helpers do not create handler entries", () => {
+  const source = `
+    import { POST as importedPost } from "./other";
+    // export async function PUT() {}
+    const tokenName = "DELETE";
+    async function PATCH() {}
+    export const GET = async () => Response.json({ importedPost, tokenName });
+  `;
+  assert.deepEqual(collectRouteHandlers(source).map((handler) => handler.method), ["GET"]);
+});
+
+test("named aliases and exported handler variables are counted structurally", () => {
+  const source = `
+    async function readHandler() { return Response.json({ ok: true }); }
+    const writeHandler = async () => Response.json({ ok: true });
+    export { readHandler as GET };
+    export const POST = writeHandler;
+  `;
+  assert.deepEqual(collectRouteHandlers(source).map((handler) => handler.method), ["GET", "POST"]);
 });

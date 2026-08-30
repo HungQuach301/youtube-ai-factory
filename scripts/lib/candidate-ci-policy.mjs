@@ -5,9 +5,11 @@ import { spawnSync } from "node:child_process";
 import ts from "typescript";
 
 export const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
+export const HANDLER_ACTORS = new Set(["PUBLIC", "CHATGPT_OWNER", "AUTOMATION", "PROVIDER_CALLBACK", "INTERNAL_SYSTEM", "UNCLASSIFIED"]);
+export const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 export const PROHIBITED_COMMAND = /^(CERTIFY|APPROVE|ACTIVATE|COMMIT|RELEASE|PUBLISH)_[A-Z0-9_]+$/;
 const AUTH_HELPER = /^(authorized(?:Runtime)?|authorize|authenticate|require[A-Za-z0-9]*(?:Auth|Owner|Token|Actor)|assert[A-Za-z0-9]*(?:Auth|Owner|Token|Actor))$/;
-const AUTH_PRIMITIVE = /^(secretMatches|timingSafeEqual|verify[A-Za-z0-9]*(?:Token|Signature|Auth)|getRequestContext|getCloudflareContext|getCurrentUser|currentUser)$/;
+const AUTH_PRIMITIVE = /^(secretMatches|timingSafeEqual|verify[A-Za-z0-9]*(?:Token|Signature|Auth)|getRequestContext|getCloudflareContext|getChatGPTUser|getCurrentUser|currentUser)$/;
 const ACTOR_GUARD = /^(assertActorSeparation|enforceActorSeparation|requireOwnerAuthority|denyAgentAuthority)$/;
 const MUTATING_METHODS = new Set(["insert", "update", "delete", "upsert", "batch", "put"]);
 const MUTATING_CALL = /^(seed|bootstrap|materialize|createArtifact|record[A-Za-z0-9]*Receipt|dispatch|reserve|settle|mutate|write|persist|authorizeRecovery|repair|reconcile)/;
@@ -75,28 +77,79 @@ function localFunctions(file) {
 export function collectRouteHandlers(source, path = "app/api/example/route.ts") {
   const file = sourceFile(source, path);
   const handlers = [];
+  const seen = new Set();
+  const local = localFunctions(file);
+  const add = (method, exportName, body, node) => {
+    if (!HTTP_METHODS.has(method) || seen.has(method)) return;
+    seen.add(method);
+    handlers.push({ method, exportName, body, node, file });
+  };
   for (const statement of file.statements) {
     if (ts.isFunctionDeclaration(statement) && exported(statement) && statement.name && HTTP_METHODS.has(statement.name.text) && statement.body) {
-      handlers.push({ method: statement.name.text, exportName: statement.name.text, body: statement.body, node: statement, file });
+      add(statement.name.text, statement.name.text, statement.body, statement);
     }
     if (ts.isVariableStatement(statement) && exported(statement)) {
       for (const declaration of statement.declarationList.declarations) {
         if (!ts.isIdentifier(declaration.name) || !HTTP_METHODS.has(declaration.name.text) || !declaration.initializer) continue;
         if (ts.isArrowFunction(declaration.initializer) || ts.isFunctionExpression(declaration.initializer)) {
-          handlers.push({ method: declaration.name.text, exportName: declaration.name.text, body: declaration.initializer.body, node: declaration, file });
+          add(declaration.name.text, declaration.name.text, declaration.initializer.body, declaration);
+        } else if (ts.isIdentifier(declaration.initializer) && local.has(declaration.initializer.text)) {
+          add(declaration.name.text, declaration.name.text, local.get(declaration.initializer.text), declaration);
         }
       }
     }
+    if (ts.isExportDeclaration(statement) && !statement.moduleSpecifier && statement.exportClause && ts.isNamedExports(statement.exportClause)) {
+      for (const element of statement.exportClause.elements) {
+        const method = element.name.text;
+        const localName = element.propertyName?.text || method;
+        if (HTTP_METHODS.has(method) && local.has(localName)) add(method, method, local.get(localName), element);
+      }
+    }
   }
-  return handlers;
+  return handlers.sort((a, b) => a.method.localeCompare(b.method));
 }
 
 export function handlerId(path, method) {
   return `${path.replaceAll(sep, "/")}#${method}`;
 }
 
-function routePath(path) {
+export function routePath(path) {
   return `/${path.replaceAll(sep, "/").replace(/^app\//, "").replace(/\/route\.ts$/, "")}`;
+}
+
+export function validateHandlerRegistry(registry, handlers, semanticWriteIdentities = []) {
+  if (registry?.version !== 1 || registry?.identityKey !== "sourceFile#method" || !Array.isArray(registry.handlers)) {
+    throw new Error("Handler registry schema is invalid");
+  }
+  const registryByIdentity = new Map();
+  for (const entry of registry.handlers) {
+    const required = ["identity", "sourceFile", "routePath", "method", "readWrite", "actor", "authentication", "authorization", "audit", "status", "remediationWp"];
+    for (const field of required) if (typeof entry?.[field] !== "string" || !entry[field].trim()) throw new Error(`Handler registry entry lacks ${field}: ${entry?.identity || "<unknown>"}`);
+    const derivedIdentity = handlerId(entry.sourceFile, entry.method);
+    if (entry.identity !== derivedIdentity) throw new Error(`Handler registry method/file mismatch: ${entry.identity} != ${derivedIdentity}`);
+    if (!HTTP_METHODS.has(entry.method)) throw new Error(`Handler registry method is invalid: ${entry.identity}`);
+    if (entry.routePath !== routePath(entry.sourceFile)) throw new Error(`Handler registry route/file mismatch: ${entry.identity}`);
+    if (!["READ", "WRITE"].includes(entry.readWrite)) throw new Error(`Handler registry read/write classification is invalid: ${entry.identity}`);
+    if (!HANDLER_ACTORS.has(entry.actor)) throw new Error(`Handler registry actor is invalid: ${entry.identity}:${entry.actor}`);
+    if (registryByIdentity.has(entry.identity)) throw new Error(`Handler registry contains duplicate identity: ${entry.identity}`);
+    registryByIdentity.set(entry.identity, entry);
+  }
+  const codeByIdentity = new Map(handlers.map((handler) => [handler.identity, handler]));
+  const missing = [...codeByIdentity.keys()].filter((identity) => !registryByIdentity.has(identity)).sort();
+  const orphan = [...registryByIdentity.keys()].filter((identity) => !codeByIdentity.has(identity)).sort();
+  if (missing.length) throw new Error(`Exported handlers missing from registry:\n${missing.join("\n")}`);
+  if (orphan.length) throw new Error(`Orphan handler registry entries:\n${orphan.join("\n")}`);
+  const semanticWrites = new Set(semanticWriteIdentities);
+  for (const handler of handlers) {
+    const expected = !READ_METHODS.has(handler.method) || semanticWrites.has(handler.identity) ? "WRITE" : "READ";
+    if (registryByIdentity.get(handler.identity).readWrite !== expected) throw new Error(`Handler registry read/write mismatch: ${handler.identity}`);
+  }
+  return { registeredHandlers: registry.handlers.length, unclassifiedHandlers: registry.handlers.filter((entry) => entry.actor === "UNCLASSIFIED").length };
+}
+
+export function checkHandlerRegistry(root, analysis = analyzeRoutes(root)) {
+  const registry = json(join(root, "governance", "registries", "http-handlers.json"));
+  return validateHandlerRegistry(registry, analysis.handlers, analysis.getWriteDebt.map((entry) => entry.identity));
 }
 
 function calls(node) {
@@ -117,22 +170,28 @@ function helperAuthEvidence(name, helpers, file, visited = new Set()) {
   if (!body) return null;
   const helperText = textOf(body, file);
   let primitive = "";
+  let nestedDenial = false;
+  let nestedAuthority = false;
   for (const call of calls(body)) {
     const candidate = callName(call);
     if (AUTH_PRIMITIVE.test(candidate)) { primitive = candidate; break; }
-    if (AUTH_HELPER.test(candidate)) {
+    if (AUTH_HELPER.test(candidate) || helpers.has(candidate)) {
       const nested = helperAuthEvidence(candidate, helpers, file, visited);
-      if (nested) primitive = nested.primitive;
+      if (nested) {
+        primitive = nested.primitive;
+        nestedDenial = true;
+        nestedAuthority ||= nested.authority;
+      }
     }
   }
-  if (!primitive || !denyEvidence(body, file)) return null;
-  const authority = /\b(actor|actorType|owner|expert|automation|FACTORY_EXPERT_EMAILS|[A-Z][A-Z0-9_]*_TOKEN)\b/i.test(helperText);
+  if (!primitive || (!nestedDenial && !denyEvidence(body, file))) return null;
+  const authority = nestedAuthority || /\b(actor|actorType|owner|expert|automation|FACTORY_EXPERT_EMAILS|[A-Z][A-Z0-9_]*_TOKEN)\b/i.test(helperText);
   return { primitive, authority };
 }
 
 function directAuthEvidence(call, handler, helpers) {
   const name = callName(call);
-  if (AUTH_HELPER.test(name)) {
+  if (AUTH_HELPER.test(name) || helpers.has(name)) {
     const evidence = helperAuthEvidence(name, helpers, handler.file);
     if (evidence) return { call: name, position: call.getStart(), ...evidence };
   }
@@ -387,6 +446,7 @@ export function assertSubset(current, baseline, label) {
 export function checkAuth(root) {
   const baseline = json(join(root, "governance", "baselines", "auth-coverage.json"));
   const analysis = analyzeRoutes(root);
+  const handlerRegistry = checkHandlerRegistry(root, analysis);
   const publicRegistry = json(join(root, "governance", "registries", "public-routes.json"));
   if (new Set(publicRegistry.routes.map((route) => route.identity)).size !== publicRegistry.routes.length) throw new Error("Public route allowlist contains duplicate identities");
   for (const route of publicRegistry.routes) {
@@ -395,7 +455,7 @@ export function checkAuth(root) {
     if (!route.issueRef || !route.rationale) throw new Error(`Public allowlist entry lacks review evidence: ${route.identity}`);
   }
   assertSubset(analysis.authDebt, baseline.uncoveredHandlers, "Auth coverage");
-  return `Auth coverage PASS · ${analysis.handlers.length} exported handlers · ${analysis.authDebt.length} exact baseline gaps`;
+  return `Auth coverage PASS · ${handlerRegistry.registeredHandlers} exact registered handlers · ${analysis.authDebt.length} exact baseline gaps · ${handlerRegistry.unclassifiedHandlers} unclassified`;
 }
 
 export function checkGetWrites(root) {
