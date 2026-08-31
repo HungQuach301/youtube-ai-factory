@@ -1,5 +1,12 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
+import { getChatGPTUser } from "../../../../chatgpt-auth";
+import {
+  appendWriteCommandAudit,
+  hashActorSubject,
+  type WriteCommandAuditDatabase,
+  type WriteCommandAuditIdentity,
+} from "../../../../../lib/write-command-audit";
 import {
   narrationSegments,
   productionPackages,
@@ -8,6 +15,130 @@ import {
   videoProjects,
   workflowEvents,
 } from "../../../../../db/schema";
+
+const OWNER_HANDLER_IDENTITY = "app/api/projects/[id]/production/route.ts#POST";
+const OWNER_ACTIONS = new Set(["APPROVE_SCENE", "PASS_STORYBOARD_GATE", "BUILD_EXPORT"]);
+const MAX_OWNER_BODY_BYTES = 16 * 1024;
+const CORRELATION_ID_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
+
+type ProductionOwnerAction = "APPROVE_SCENE" | "PASS_STORYBOARD_GATE" | "BUILD_EXPORT";
+type ProductionOwnerPayload = { action: ProductionOwnerAction; sceneId?: string };
+type ProductionOwnerRuntimeEnv = {
+  DB?: WriteCommandAuditDatabase;
+  FACTORY_EXPERT_EMAILS?: string;
+};
+
+function ownerFailure(error: string, status: number) {
+  return Response.json({ error }, { status });
+}
+
+function ownerSameOrigin(request: Request) {
+  const url = new URL(request.url);
+  return request.method === "POST"
+    && /^\/api\/projects\/[^/]+\/production$/.test(url.pathname)
+    && url.search === ""
+    && request.headers.get("origin") === url.origin
+    && request.headers.get("sec-fetch-site") === "same-origin";
+}
+
+async function productionOwnerRuntimeEnv(): Promise<ProductionOwnerRuntimeEnv> {
+  const { env } = await import("cloudflare:workers");
+  return env as ProductionOwnerRuntimeEnv;
+}
+
+async function authorizeProductionOwnerWrite(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user?.email) return ownerFailure("SIWC_AUTHENTICATION_REQUIRED", 401);
+
+  const env = await productionOwnerRuntimeEnv();
+  const normalizedEmail = user.email.trim().toLowerCase();
+  const owners = String(env.FACTORY_EXPERT_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (owners.length === 0) return ownerFailure("OWNER_WRITE_ALLOWLIST_UNCONFIGURED", 503);
+  if (!owners.includes(normalizedEmail)) return ownerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+  if (!ownerSameOrigin(request)) return ownerFailure("OWNER_WRITE_SAME_ORIGIN_REQUIRED", 403);
+  if (!env.DB) return ownerFailure("CANONICAL_DATABASE_UNAVAILABLE", 503);
+
+  return { env, normalizedEmail };
+}
+
+async function sha256RawBody(bytes: ArrayBuffer) {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return [...digest].map((item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+async function readBoundedProductionOwnerBody(request: Request) {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") return ownerFailure("JSON_CONTENT_TYPE_REQUIRED", 415);
+
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_OWNER_BODY_BYTES) {
+    return ownerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+  }
+
+  const bytes = await request.arrayBuffer();
+  if (bytes.byteLength > MAX_OWNER_BODY_BYTES) return ownerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+
+  let parsed: unknown;
+  try {
+    const rawBody = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+    parsed = JSON.parse(rawBody);
+  } catch {
+    return ownerFailure("OWNER_WRITE_JSON_INVALID", 400);
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return ownerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  }
+
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.action !== "string" || !OWNER_ACTIONS.has(record.action)) {
+    return ownerFailure("OWNER_WRITE_ACTION_FORBIDDEN", 403);
+  }
+
+  const action = record.action as ProductionOwnerAction;
+  const allowedFields = action === "APPROVE_SCENE" ? new Set(["action", "sceneId"]) : new Set(["action"]);
+  if (Object.keys(record).some((key) => !allowedFields.has(key))) {
+    return ownerFailure("OWNER_WRITE_COMMAND_FIELD_FORBIDDEN", 400);
+  }
+  if (action === "APPROVE_SCENE" && (typeof record.sceneId !== "string" || record.sceneId.trim().length === 0)) {
+    return ownerFailure("SCENE_ID_REQUIRED", 400);
+  }
+
+  return {
+    bodySha256: await sha256RawBody(bytes),
+    payload: {
+      action,
+      ...(action === "APPROVE_SCENE" ? { sceneId: String(record.sceneId).trim() } : {}),
+    } satisfies ProductionOwnerPayload,
+  };
+}
+
+function productionOwnerCorrelationId(request: Request) {
+  const supplied = request.headers.get("x-correlation-id")?.trim() ?? "";
+  return CORRELATION_ID_PATTERN.test(supplied) ? supplied : `production-owner:${crypto.randomUUID()}`;
+}
+
+async function productionOwnerAuditIdentity(
+  request: Request,
+  projectId: string,
+  normalizedEmail: string,
+  action: ProductionOwnerAction,
+  bodySha256: string,
+): Promise<WriteCommandAuditIdentity> {
+  return {
+    handlerIdentity: OWNER_HANDLER_IDENTITY,
+    actorType: "CHATGPT_OWNER",
+    actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", normalizedEmail),
+    action,
+    resourceScope: `project:${projectId}:production`,
+    correlationId: productionOwnerCorrelationId(request),
+    requestHash: bodySha256,
+  };
+}
 
 const sceneBlueprints = [
   { beat: "The tap", visualIntent: "Macro close-up of a card tapping a payment terminal; hold on APPROVED while the world behind it stays unseen.", shotType: "Macro b-roll", mediaStrategy: "STOCK_PAID", searchQuery: "contactless credit card payment terminal macro 4k", assetSource: "Artgrid / Storyblocks" },
@@ -175,35 +306,112 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   }
 }
 
+async function executeProductionOwnerAction(projectId: string, payload: ProductionOwnerPayload) {
+  await ensureProductionSchema();
+  await seedProduction(projectId);
+  const db = await getDb();
+
+  if (payload.action === "APPROVE_SCENE") {
+    const sceneId = payload.sceneId as string;
+    await db.update(sceneManifest)
+      .set({ status: "APPROVED", updatedAt: new Date() })
+      .where(eq(sceneManifest.id, sceneId));
+    return Response.json({ ok: true, sceneId, status: "APPROVED" });
+  }
+
+  if (payload.action === "PASS_STORYBOARD_GATE") {
+    const requiredScenes = await db.select().from(sceneManifest).where(eq(sceneManifest.projectId, projectId));
+    const blockers = requiredScenes.filter((scene) => scene.reviewRequired === 1 && scene.status !== "APPROVED");
+    if (blockers.length > 0) {
+      return Response.json({ error: "All review-required scenes must be approved", blockerCount: blockers.length }, { status: 409 });
+    }
+    const eventId = crypto.randomUUID();
+    await db.update(videoProjects)
+      .set({ status: "STORYBOARD_APPROVED", updatedAt: new Date() })
+      .where(eq(videoProjects.id, projectId));
+    await db.insert(workflowEvents).values({
+      id: eventId,
+      projectId,
+      eventType: "STORYBOARD_GATE_PASSED",
+      fromState: "STORYBOARD_REVIEW",
+      toState: "STORYBOARD_APPROVED",
+      reasonCode: "OWNER_APPROVED",
+      actorType: "HUMAN_OWNER",
+      idempotencyKey: `storyboard-gate-${projectId}`,
+      payload: JSON.stringify({ approvedAt: new Date().toISOString() }),
+    });
+    return Response.json({ ok: true, status: "STORYBOARD_APPROVED" });
+  }
+
+  if (payload.action === "BUILD_EXPORT") {
+    const project = await db.query.videoProjects.findFirst({ where: eq(videoProjects.id, projectId) });
+    if (project?.status !== "STORYBOARD_APPROVED") {
+      return Response.json({ error: "Storyboard gate must pass before export" }, { status: 409 });
+    }
+    const pkg = await buildPackage(projectId);
+    return Response.json({ ok: true, package: pkg });
+  }
+
+  return ownerFailure("OWNER_WRITE_ACTION_FORBIDDEN", 403);
+}
+
+async function runAuditedProductionOwnerAction(
+  db: WriteCommandAuditDatabase,
+  identity: WriteCommandAuditIdentity,
+  execute: () => Promise<Response>,
+) {
+  await appendWriteCommandAudit(db, identity, "AUTHORIZED", null);
+
+  let response: Response;
+  try {
+    response = await execute();
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+
+  if (!response.ok) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    return response;
+  }
+
+  try {
+    await appendWriteCommandAudit(db, identity, "SUCCEEDED", null);
+    return response;
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+}
+
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
+    const authorization = await authorizeProductionOwnerWrite(request);
+    if (authorization instanceof Response) return authorization;
+
+    const body = await readBoundedProductionOwnerBody(request);
+    if (body instanceof Response) return body;
+
     const { id } = await context.params;
-    await ensureProductionSchema();
-    await seedProduction(id);
-    const db = await getDb();
-    const payload = await request.json() as { action?: "APPROVE_SCENE" | "PASS_STORYBOARD_GATE" | "BUILD_EXPORT"; sceneId?: string };
-    if (payload.action === "APPROVE_SCENE") {
-      if (!payload.sceneId) return Response.json({ error: "sceneId is required" }, { status: 400 });
-      const [scene] = await db.select().from(sceneManifest).where(eq(sceneManifest.id, payload.sceneId)).limit(1);
-      if (!scene || scene.projectId !== id) return Response.json({ error: "Scene not found" }, { status: 404 });
-      await db.update(sceneManifest).set({ sceneStatus: "APPROVED", updatedAt: new Date().toISOString() }).where(eq(sceneManifest.id, scene.id));
-      return Response.json({ ok: true });
-    }
-    if (payload.action === "PASS_STORYBOARD_GATE") {
-      const scenes = await db.select().from(sceneManifest).where(eq(sceneManifest.projectId, id));
-      if (!scenes.length || scenes.some((scene) => scene.sceneStatus !== "APPROVED")) return Response.json({ error: "Approve every scene before passing the storyboard gate" }, { status: 409 });
-      await db.update(videoProjects).set({ status: "PRODUCTION_PREP", progress: 78, nextAction: "Source licensed media and build export", updatedAt: new Date().toISOString() }).where(eq(videoProjects.id, id));
-      const events = await db.select().from(workflowEvents).where(eq(workflowEvents.projectId, id));
-      if (!events.some((event) => event.eventType === "STORYBOARD_GATE_PASSED")) await db.insert(workflowEvents).values({ projectId: id, fromStatus: "STORYBOARDING", toStatus: "PRODUCTION_PREP", eventType: "STORYBOARD_GATE_PASSED", summary: `${scenes.length} scene briefs approved; media sourcing and export unlocked` });
-      return Response.json({ ok: true });
-    }
-    if (payload.action === "BUILD_EXPORT") {
-      const result = await buildPackage(id);
-      return Response.json({ ok: true, ...result });
-    }
-    return Response.json({ error: "Unknown action" }, { status: 400 });
+    // Actor separation for APPROVE_SCENE remains intentionally tracked for M1-06.
+    const authorizedPayload: ProductionOwnerPayload = body.payload.action === "APPROVE_SCENE"
+      ? { ...body.payload, action: "APPROVE_SCENE" }
+      : body.payload;
+    const auditIdentity = await productionOwnerAuditIdentity(
+      request,
+      id,
+      authorization.normalizedEmail,
+      authorizedPayload.action,
+      body.bodySha256,
+    );
+
+    return await runAuditedProductionOwnerAction(
+      authorization.env.DB as WriteCommandAuditDatabase,
+      auditIdentity,
+      () => executeProductionOwnerAction(id, authorizedPayload),
+    );
   } catch (error) {
-    console.error("Production workspace POST failed", error);
+    console.error("Production action failed", error);
     return Response.json({ error: "Production action could not be completed", code: "PRODUCTION_ACTION_FAILED" }, { status: 500 });
   }
 }
