@@ -416,21 +416,6 @@
       ]
     },
     {
-      "identity": "app/api/factory/storage/google-drive/route.ts#POST",
-      "route": "/api/factory/storage/google-drive",
-      "method": "POST",
-      "sourceFile": "app/api/factory/storage/google-drive/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/factory/story-architecture/route.ts#GET",
       "route": "/api/factory/story-architecture",
       "method": "GET",

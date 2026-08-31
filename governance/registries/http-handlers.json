@@ -913,12 +913,12 @@
       "routePath": "/api/factory/storage/google-drive",
       "method": "POST",
       "readWrite": "WRITE",
-      "actor": "UNCLASSIFIED",
-      "authentication": "NONE",
-      "authorization": "NONE",
-      "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
-      "remediationWp": "M1-03"
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST_AND_SAME_ORIGIN_AND_EXACT_ACTION",
+      "audit": "IMMUTABLE_WRITE_COMMAND_AUDIT",
+      "status": "PROTECTED",
+      "remediationWp": "NONE"
     },
     {
       "identity": "app/api/factory/story-architecture/route.ts#GET",
