@@ -1,7 +1,8 @@
 {
   "version": 1,
   "identityKey": "path+sha256",
-  "maxNumericId": 128,
+  "maxNumericId": 131,
+  "sourceHeadNumericId": 132,
   "appliedMigrations": [
     {
       "path": "drizzle/0000_premium_dracula.sql",
@@ -782,6 +783,24 @@
       "numericId": 128,
       "logicalId": "factory_assurance_audio_paid_dispatch_authorization",
       "sha256": "fad99cafeaed36f11cdab612c430a0f4912ecbe0dbd9996a8e6e27b99db3f8e1"
+    },
+    {
+      "path": "drizzle/0129_exact_tree_deployment_receipts.sql",
+      "numericId": 129,
+      "logicalId": "exact_tree_deployment_receipts",
+      "sha256": "ffe1b3eaa00078f477afd043cbeb8662cd4ae1e305f5082b089f0b0e501ecea4"
+    },
+    {
+      "path": "drizzle/0130_scoped_deployment_receipt_writer.sql",
+      "numericId": 130,
+      "logicalId": "scoped_deployment_receipt_writer",
+      "sha256": "113fb6178656a057e2e63b6cef24b018da92beab3f915b1c7a11cd690af0ad9e"
+    },
+    {
+      "path": "drizzle/0131_owner_deployment_receipt_finalization.sql",
+      "numericId": 131,
+      "logicalId": "owner_deployment_receipt_finalization",
+      "sha256": "2683d493076d2f47149a33a592ddd9ba30d3c6444e343c77549cc9fd2167de84"
     }
   ],
   "duplicateDebt": [

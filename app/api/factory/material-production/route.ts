@@ -1,5 +1,7 @@
 import { AI_USAGE_TABLE_SQL, recordOpenAIUsage } from "../../../../lib/ai-usage";
-import { storeDriveBinaryArtifact, storeDriveJsonArtifact } from "../../../../lib/google-drive";
+import { storeDriveJsonArtifact } from "../../../../lib/google-drive";
+import { storeMaterial, type MaterialRole } from "../../../../lib/material-production-storage";
+import { INTERNAL_EXECUTOR_ACTIONS } from "../../../../lib/material-production-executor";
 import { CANONICAL_PILOT_MANIFEST_VERSION, deriveCanonicalPilotManifest } from "../../../../lib/canonical-pilot-manifest.mjs";
 import { CONTROLLED_RELEASE_POLICY, evaluateControlledRelease } from "../../../../lib/controlled-release-policy.mjs";
 import { WAVE_9_SCALE_READINESS_POLICY, providerRecoveryDecision, qualifyWave9ScaleReadiness } from "../../../../lib/wave9-scale-readiness.mjs";
@@ -272,23 +274,6 @@ async function secretMatches(provided: string, expected: string) {
   if (!provided || !expected) return false;
   const [left, right] = await Promise.all([sha(provided), sha(expected)]);
   return left === right;
-}
-
-function decodeBase64(value: string) {
-  const normalized = value.replace(/^data:[^;]+;base64,/, "");
-  const binary = atob(normalized), bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return bytes;
-}
-
-function validImage(bytes: Uint8Array, mimeType: string) {
-  if (mimeType === "image/png") return bytes.length > 8 && bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71;
-  if (mimeType === "image/jpeg") return bytes.length > 4 && bytes[0] === 255 && bytes[1] === 216 && bytes.at(-2) === 255 && bytes.at(-1) === 217;
-  return false;
-}
-
-function validWebm(bytes: Uint8Array) {
-  return bytes.length > 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
 }
 
 async function runtime() {
@@ -3436,20 +3421,6 @@ function abstractMechanismPngV2(state: 0 | 1 | 2) {
   for(let y=0;y<height;y++){const row=y*(1+width*4);raw[row]=0;raw.set(pixels.subarray(y*width*4,(y+1)*width*4),row+1);}const ihdr=new Uint8Array(13);ihdr.set(u32(width),0);ihdr.set(u32(height),4);ihdr.set([8,6,0,0,0],8);return joinBytes([new Uint8Array([137,80,78,71,13,10,26,10]),pngChunk("IHDR",ihdr),pngChunk("IDAT",deflateStored(raw)),pngChunk("IEND",new Uint8Array())]);
 }
 
-type MaterialRole = "PRIMARY" | "OVERLAY" | "QA_PROXY" | "QA_ENTRY" | "QA_MIDPOINT" | "QA_EXIT" | "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT" | "COMPOSITE_A_ENTRY" | "COMPOSITE_A_MIDPOINT" | "COMPOSITE_A_EXIT" | "COMPOSITE_B_ENTRY" | "COMPOSITE_B_MIDPOINT" | "COMPOSITE_B_EXIT" | "COMPOSITE_C_ENTRY" | "COMPOSITE_C_MIDPOINT" | "COMPOSITE_C_EXIT" | "MOTION_PROOF" | "MOTION_ENTRY" | "MOTION_MIDPOINT" | "MOTION_EXIT" | "SEQUENCE_PROOF" | `SEQUENCE_SAMPLE_${number}` | "SEQUENCE_PRODUCT" | `SEQUENCE_PRODUCT_SAMPLE_${number}` | "CERT_ENTRY" | "CERT_MIDPOINT" | "CERT_EXIT";
-async function storeMaterial(env: Env, db: DB, authorization: Row, briefRow: Row, options: { role: MaterialRole; identity?: string; bytes: Uint8Array; mimeType: string; extension: string; sourceType: string; provider: string; providerAssetId?: string; sourceUrl?: string; landingUrl?: string; licenseCode: string; width: number; height: number; duration?: number; thumbnailUrl?: string; runtimeScope?: string; archiveFolder?: string }) {
-  if (!env.BUCKET) throw new Error("R2 material storage is unavailable");
-  const identity = clean(options.identity).replace(/[^a-zA-Z0-9_-]/g, "").slice(-48), suffix = identity ? `${identity}-` : "";
-  const runtimeScope = clean(options.runtimeScope || "pilot").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64) || "pilot";
-  const archiveFolder = clean(options.archiveFolder || "Pilot 10").replace(/[\\/]/g, "-").slice(0, 96) || "Pilot 10";
-  const id = `${briefRow.id}-${suffix}${options.role}`, hash = await shaBytes(options.bytes), key = `v7/material-production/${authorization.run_id}/${runtimeScope}/${clean(briefRow.id).split("-").at(-1)}-${suffix}${options.role.toLowerCase()}.${options.extension}`;
-  await env.BUCKET.put(key, options.bytes, { httpMetadata: { contentType: options.mimeType }, customMetadata: { sha256: hash, briefId: String(briefRow.id), role: options.role, provider: options.provider, licenseCode: options.licenseCode } });
-  if (!(await env.BUCKET.head(key))) throw new Error("R2_MATERIAL_READ_BACK_FAILED");
-  const drive = await storeDriveBinaryArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Material Production", archiveFolder], fileName: `${clean(briefRow.id).split("-").at(-1)}-${suffix}${options.role.toLowerCase()}.${options.extension}`, content: options.bytes, mimeType: options.mimeType, artifactId: id, contentHash: hash });
-  await db.prepare("INSERT INTO v7_material_files (id,program_id,run_id,authorization_id,brief_id,asset_role,source_type,provider,provider_asset_id,source_url,landing_url,license_code,mime_type,width,height,duration_seconds,byte_size,content_hash,runtime_key,drive_file_id,thumbnail_url,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'STORED_VERIFIED') ON CONFLICT(id) DO UPDATE SET source_type=excluded.source_type,provider=excluded.provider,provider_asset_id=excluded.provider_asset_id,source_url=excluded.source_url,landing_url=excluded.landing_url,license_code=excluded.license_code,mime_type=excluded.mime_type,width=excluded.width,height=excluded.height,duration_seconds=excluded.duration_seconds,byte_size=excluded.byte_size,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id,thumbnail_url=excluded.thumbnail_url,status='STORED_VERIFIED'").bind(id, PROGRAM_ID, authorization.run_id, authorization.id, briefRow.id, options.role, options.sourceType, options.provider, options.providerAssetId || null, options.sourceUrl || null, options.landingUrl || null, options.licenseCode, options.mimeType, options.width, options.height, options.duration || 0, options.bytes.byteLength, hash, key, drive.id, options.thumbnailUrl || null).run();
-  return id;
-}
-
 async function materializeOne(env: Env, db: DB, authorization: Row, briefRow: Row) {
   const brief = JSON.parse(String(briefRow.content_json)) as Row, route = clean(brief.route);
   if (route === "MAKE") {
@@ -4399,50 +4370,9 @@ async function issueMotionExecutorBootstrap() {
   return { ...(await snapshot()), executorBootstrap: { jobId: job.id, token, expiresAt, scope: "CLAIM_EXACT_MOTION_JOB_ONCE" } };
 }
 
-function claimedJobPayload(claimed: Row, leaseToken: string) {
-  const contract = rec(JSON.parse(String(claimed.contract_json)));
-  const sourceDownloadUrls = arr(contract.sources).map(rec).map((source) => ({ state: clean(source.state), logicalId: clean(source.logicalId), fileId: clean(source.fileId), sha256: clean(source.sha256), url: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}&fileId=${encodeURIComponent(clean(source.fileId))}` }));
-  return { id: claimed.id, type: claimed.job_type, briefId: claimed.brief_id, attempt: Number(claimed.attempt), maxAttempts: Number(claimed.max_attempts), leaseExpiresAt: claimed.lease_expires_at, leaseToken, sourceDownloadUrl: `/api/factory/material-production?executionSource=${encodeURIComponent(clean(claimed.id))}&leaseToken=${encodeURIComponent(leaseToken)}`, sourceDownloadUrls, contract };
-}
-
-async function claimMotionJobBootstrap(body: Row) {
-  const env = await runtime(), db = env.DB!, jobId = clean(body.jobId), token = clean(body.bootstrapToken), owner = clean(body.executorId) || "motion-bootstrap-executor", now = new Date().toISOString();
-  const job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND job_type='MOTION_PROOF_RENDER' AND status='QUEUED' AND attempt<max_attempts").bind(jobId).first<Row>();
-  if (!job || !token) throw new Error("MOTION_BOOTSTRAP_UNAUTHORIZED");
-  const contract = rec(JSON.parse(String(job.contract_json))), bootstrap = rec(contract.bootstrap);
-  if (!clean(bootstrap.tokenHash) || await sha(token) !== clean(bootstrap.tokenHash) || new Date(clean(bootstrap.expiresAt)).getTime() < Date.now()) throw new Error("MOTION_BOOTSTRAP_UNAUTHORIZED");
-  const leaseToken = crypto.randomUUID(), tokenHash = await sha(leaseToken), expiry = new Date(Date.now() + 10 * 60_000).toISOString();
-  delete contract.bootstrap;
-  await db.prepare("UPDATE v7_media_jobs SET status='LEASED',attempt=attempt+1,lease_owner=?,lease_token_hash=?,lease_expires_at=?,contract_json=?,updated_at=? WHERE id=? AND status='QUEUED'").bind(`bootstrap:${owner}`, tokenHash, expiry, JSON.stringify(contract), now, job.id).run();
-  const claimed = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(job.id).first<Row>();
-  if (!claimed) throw new Error("MOTION_BOOTSTRAP_CLAIM_CONFLICT");
-  return Response.json({ status: "LEASED", job: claimedJobPayload(claimed, leaseToken) });
-}
-
 async function requireExecutor(request: Request, env: Env) {
   const supplied = clean(request.headers.get("x-frameflow-executor-key"));
   if (!env.MEDIA_EXECUTOR_SHARED_SECRET || !(await secretMatches(supplied, env.MEDIA_EXECUTOR_SHARED_SECRET))) throw new Error("MEDIA_EXECUTOR_UNAUTHORIZED");
-}
-
-async function executorHeartbeat(request: Request, body: Row) {
-  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
-  const id = clean(body.executorId) || "default-media-executor", version = clean(body.version) || "unknown", capabilities = arr(body.capabilities).map(clean).filter(Boolean).slice(0, 20), now = new Date().toISOString();
-  await db.prepare("INSERT INTO v7_media_executors (id,program_id,status,version,capabilities_json,last_seen_at,created_at,updated_at) VALUES (?,?,'ONLINE',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='ONLINE',version=excluded.version,capabilities_json=excluded.capabilities_json,last_seen_at=excluded.last_seen_at,updated_at=excluded.updated_at").bind(id, PROGRAM_ID, version, JSON.stringify(capabilities), now, now, now).run();
-  return Response.json({ status: "READY", executorId: id, serverTime: now });
-}
-
-async function claimMediaJob(request: Request, body: Row) {
-  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
-  const owner = clean(body.executorId) || "default-media-executor", now = new Date().toISOString(), expiry = new Date(Date.now() + 10 * 60_000).toISOString();
-  await db.prepare("UPDATE v7_media_jobs SET status='QUEUED',lease_owner=NULL,lease_token_hash=NULL,lease_expires_at=NULL,updated_at=? WHERE program_id=? AND status='LEASED' AND lease_expires_at<? AND attempt<max_attempts").bind(now, PROGRAM_ID, now).run();
-  await db.prepare("UPDATE v7_media_jobs SET status='FAILED',error='LEASE_EXHAUSTED',updated_at=? WHERE program_id=? AND status='LEASED' AND lease_expires_at<? AND attempt>=max_attempts").bind(now, PROGRAM_ID, now).run();
-  const job = await db.prepare("SELECT * FROM v7_media_jobs WHERE program_id=? AND status='QUEUED' AND attempt<max_attempts ORDER BY priority DESC,created_at ASC LIMIT 1").bind(PROGRAM_ID).first<Row>();
-  if (!job) return Response.json({ status: "IDLE", retryAfterSeconds: 15 });
-  const leaseToken = crypto.randomUUID(), tokenHash = await sha(leaseToken);
-  await db.prepare("UPDATE v7_media_jobs SET status='LEASED',attempt=attempt+1,lease_owner=?,lease_token_hash=?,lease_expires_at=?,updated_at=? WHERE id=? AND status='QUEUED'").bind(owner, tokenHash, expiry, now, job.id).run();
-  const claimed = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED' AND lease_owner=?").bind(job.id, owner).first<Row>();
-  if (!claimed) return Response.json({ status: "RETRY", retryAfterSeconds: 2 }, { status: 409 });
-  return Response.json({ status: "LEASED", job: claimedJobPayload(claimed, leaseToken) });
 }
 
 async function executionSource(request: Request) {
@@ -4459,168 +4389,6 @@ async function executionSource(request: Request) {
   if (!file) throw new Error("MEDIA_SOURCE_FILE_NOT_FOUND");
   const object = await env.BUCKET.get(clean(file.runtime_key)); if (!object) throw new Error("MEDIA_SOURCE_BYTES_NOT_FOUND");
   return new Response(object.body, { headers: { "content-type": clean(file.mime_type), "x-content-sha256": clean(file.content_hash), "cache-control": "private, no-store" } });
-}
-
-async function completeMediaJob(request: Request, body: Row) {
-  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
-  if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
-  const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(jobId).first<Row>();
-  if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
-  const source = await db.prepare("SELECT * FROM v7_material_files WHERE id=?").bind(job.source_file_id).first<Row>(), brief = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(job.brief_id).first<Row>(), authorization = await db.prepare("SELECT * FROM v7_material_authorizations WHERE id=?").bind(job.authorization_id).first<Row>();
-  if (!source || !brief || !authorization) throw new Error("MEDIA_JOB_LINEAGE_MISSING");
-  const probe = rec(body.probe), frames = arr(body.frames).map(rec), contract = rec(JSON.parse(String(job.contract_json))), expected = rec(contract.output), requiredRoles = ["ENTRY", "MIDPOINT", "EXIT"];
-  if (clean(body.sourceHash) !== clean(source.content_hash)) throw new Error("MEDIA_SOURCE_HASH_MISMATCH");
-  if (frames.length !== 3 || !requiredRoles.every((role) => frames.filter((frame) => clean(frame.role) === role).length === 1)) throw new Error("MEDIA_FRAME_SET_INVALID");
-  if (Math.abs(Number(probe.durationSeconds) - Number(source.duration_seconds || 0)) > 0.25) throw new Error("MEDIA_DURATION_MISMATCH");
-  const storedFrameIds: string[] = [];
-  for (const frame of frames) {
-    const role = clean(frame.role), mimeType = clean(frame.mimeType), bytes = decodeBase64(clean(frame.base64));
-    if (Number(frame.width) !== Number(expected.width) || Number(frame.height) !== Number(expected.height) || !validImage(bytes, mimeType) || bytes.byteLength < 20_000 || bytes.byteLength > 2_500_000) throw new Error(`MEDIA_FRAME_INVALID · ${role}`);
-    const storedRole = (`SOURCE_${role}`) as "SOURCE_ENTRY" | "SOURCE_MIDPOINT" | "SOURCE_EXIT";
-    storedFrameIds.push(await storeMaterial(env, db, authorization, brief, { role: storedRole, identity: clean(jobId).split("-SOURCE-FRAMES-").at(-1), bytes, mimeType, extension: mimeType === "image/png" ? "png" : "jpg", sourceType: "DECODED_SOURCE_FRAME", provider: "MEDIA_EXECUTOR", providerAssetId: clean(source.provider_asset_id), sourceUrl: clean(source.source_url), landingUrl: clean(source.landing_url), licenseCode: clean(source.license_code), width: Number(frame.width), height: Number(frame.height), duration: Number(frame.timestampSeconds) }));
-  }
-  const evidence = { version: "SOURCE_FRAME_EVIDENCE_V1", jobId, briefId: job.brief_id, sourceFileId: source.id, sourceHash: source.content_hash, probe, frames: frames.map((frame, index) => ({ role: clean(frame.role), timestampSeconds: Number(frame.timestampSeconds), width: Number(frame.width), height: Number(frame.height), mimeType: clean(frame.mimeType), fileId: storedFrameIds[index] })), completedAt: new Date().toISOString() };
-  const json = JSON.stringify(evidence, null, 2), hash = await sha(json), key = `v7/material-production/${job.run_id}/execution/${jobId}-evidence.json`;
-  await env.BUCKET.put(key, json, { httpMetadata: { contentType: "application/json" }, customMetadata: { contentHash: hash, jobId, briefId: clean(job.brief_id) } });
-  const drive = await storeDriveJsonArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Material Production", "Execution Evidence"], fileName: `${jobId}-evidence.json`, content: json, artifactId: `${jobId}-EVIDENCE`, contentHash: hash });
-  const now = new Date().toISOString();
-  await db.batch([
-    db.prepare("INSERT INTO v7_media_evidence (id,program_id,run_id,authorization_id,brief_id,job_id,evidence_type,status,content_json,content_hash,runtime_key,drive_file_id,created_at) VALUES (?,?,?,?,?,?,'SOURCE_FRAME_SET','TECHNICALLY_VERIFIED',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='TECHNICALLY_VERIFIED',content_json=excluded.content_json,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id").bind(`${jobId}-EVIDENCE`, PROGRAM_ID, job.run_id, job.authorization_id, job.brief_id, jobId, json, hash, key, drive.id, now),
-    db.prepare("UPDATE v7_media_jobs SET status='COMPLETE',output_json=?,error=NULL,completed_at=?,updated_at=?,lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?").bind(JSON.stringify({ evidenceId: `${jobId}-EVIDENCE`, frameFileIds: storedFrameIds }), now, now, jobId),
-    db.prepare("UPDATE v7_stage_states SET blocker='SOURCE_FRAME_QA_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`${job.brief_id} source bytes and decoded frames technically verified · semantic acceptance pending`, now, STAGE_ID),
-  ]);
-  return Response.json({ status: "COMPLETE", jobId, evidenceId: `${jobId}-EVIDENCE`, frameFileIds: storedFrameIds });
-}
-
-async function completeSequenceProduct(request: Request, body: Row) {
-  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
-  if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
-  const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED' AND job_type='INTEGRATED_SEQUENCE_RENDER'").bind(jobId).first<Row>();
-  if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
-  const contract = rec(JSON.parse(String(job.contract_json))), product = await db.prepare("SELECT * FROM v7_sequence_products WHERE id=? AND status='PRODUCING'").bind(contract.productId).first<Row>(), authorization = await db.prepare("SELECT * FROM v7_material_authorizations WHERE id=?").bind(job.authorization_id).first<Row>();
-  if (!product || !authorization || clean(product.specification_hash) !== clean(await sha(JSON.stringify(contract.specification)))) throw new Error("SEQUENCE_PRODUCT_LINEAGE_MISSING");
-  const expectedSources = arr(contract.sources).map(rec), returnedHashes = arr(body.sourceHashes).map(rec);
-  if (expectedSources.length !== 30 || returnedHashes.length !== 30 || !expectedSources.every((source) => returnedHashes.some((item) => clean(item.fileId) === clean(source.fileId) && clean(item.sha256) === clean(source.sha256)))) throw new Error("SEQUENCE_PRODUCT_SOURCE_HASH_MISMATCH");
-  const render = rec(body.render), videoBytes = decodeBase64(clean(render.base64)), durationSeconds = Number(render.durationSeconds), fps = Number(render.fps), expectedOutput = rec(contract.output), measurements = rec(body.measurements), corrections = arr(body.corrections).map(rec), iterations = Number(body.iterations);
-  if (clean(render.mimeType) !== "video/webm" || !validWebm(videoBytes) || videoBytes.byteLength < 100_000 || videoBytes.byteLength > 60_000_000) throw new Error("SEQUENCE_PRODUCT_RENDER_INVALID");
-  const contractFit = Number(render.width) === Number(expectedOutput.width) && Number(render.height) === Number(expectedOutput.height) && Math.abs(durationSeconds - 30) <= 0.08 && Math.abs(fps - 30) <= 0.2;
-  const productionComplete = contractFit
-    && iterations >= 1 && iterations <= Number(product.max_iterations)
-    && measurements.sourceHashMatch === true
-    && measurements.noCrop === true
-    && measurements.mobileSafe === true
-    && measurements.fullFrameScan === true
-    && Number(measurements.framesScanned) >= 890
-    && Number(measurements.continuityEdges) === 9
-    && Number(measurements.adjacentTreatmentDuplicates) === 0
-    && Number(measurements.blackFrameSeconds) <= 0.04
-    && Number(measurements.maxFrozenFrameSeconds) <= 1.7;
-  const now = new Date().toISOString();
-  if (!productionComplete) {
-    await db.batch([
-      db.prepare("UPDATE v7_sequence_products SET status='PRODUCTION_BLOCKED',iteration=?,measurements_json=?,corrections_json=?,updated_at=? WHERE id=?").bind(iterations, JSON.stringify(measurements), JSON.stringify(corrections), now, product.id),
-      db.prepare("UPDATE v7_media_jobs SET status='COMPLETE',output_json=?,error='PRODUCTION_DOD_NOT_MET',completed_at=?,updated_at=?,lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?").bind(JSON.stringify({ productId: product.id, productionComplete: false, measurements, corrections }), now, now, jobId),
-      db.prepare("UPDATE v7_stage_states SET status='PRODUCTION_BLOCKED',blocker='SEQUENCE_COMPOSER_DID_NOT_CONVERGE',evidence_summary=?,updated_at=? WHERE id=?").bind(`Integrated composer stopped after ${iterations}/${Number(product.max_iterations)} internal iterations · PRODUCT_COMPLETE not declared · QA requests 0 · scale locked`, now, STAGE_ID),
-    ]);
-    return Response.json({ status: "PRODUCTION_BLOCKED", productId: product.id, measurements, corrections });
-  }
-  const frames = arr(body.frames).map(rec), expectedSamples = arr(contract.samplePositions).map(rec);
-  if (frames.length !== 10 || !expectedSamples.every((sample) => frames.some((frame) => clean(frame.role) === clean(sample.role) && clean(frame.logicalId) === clean(sample.logicalId)))) throw new Error("SEQUENCE_PRODUCT_SAMPLE_SET_INVALID");
-  const brief = { id: "SEQUENCE-PRODUCT-V2" } as Row, identity = clean(product.specification_hash).slice(0, 16);
-  const productFileId = await storeMaterial(env, db, authorization, brief, { role: "SEQUENCE_PRODUCT", identity, bytes: videoBytes, mimeType: "video/webm", extension: "webm", sourceType: INTEGRATED_SEQUENCE_COMPOSER_VERSION, provider: "FRAMEFLOW_EXECUTOR", providerAssetId: product.id, sourceUrl: product.id, landingUrl: product.id, licenseCode: "CHANNEL_OWNED", width: Number(render.width), height: Number(render.height), duration: durationSeconds });
-  const storedFrames: Row[] = [];
-  for (let index = 0; index < frames.length; index++) {
-    const frame = frames[index], bytes = decodeBase64(clean(frame.base64)), mimeType = clean(frame.mimeType), role = clean(frame.role), logicalId = clean(frame.logicalId);
-    if (Number(frame.width) !== 960 || Number(frame.height) !== 540 || !validImage(bytes, mimeType) || bytes.byteLength < 20_000 || bytes.byteLength > 2_500_000) throw new Error(`SEQUENCE_PRODUCT_SAMPLE_INVALID · ${logicalId}`);
-    const fileId = await storeMaterial(env, db, authorization, brief, { role: `SEQUENCE_PRODUCT_SAMPLE_${index + 1}` as MaterialRole, identity, bytes, mimeType, extension: mimeType === "image/png" ? "png" : "jpg", sourceType: `${INTEGRATED_SEQUENCE_COMPOSER_VERSION}_SAMPLE`, provider: "FRAMEFLOW_EXECUTOR", providerAssetId: productFileId, sourceUrl: productFileId, landingUrl: product.id, licenseCode: "CHANNEL_OWNED", width: 960, height: 540, duration: Number(frame.timestampSeconds) });
-    storedFrames.push({ role, logicalId, timestampSeconds: Number(frame.timestampSeconds), fileId, sha256: await shaBytes(bytes) });
-  }
-  const renderHash = await shaBytes(videoBytes), evidence = { version: "SEQUENCE_PRODUCT_EVIDENCE_V2", productId: product.id, sourceProofId: product.source_proof_id, jobId, composer: product.composer_version, specificationHash: product.specification_hash, sourceManifestHash: product.source_manifest_hash, lifecycleState: "PRODUCT_COMPLETE", iterations, corrections, measurements, render: { mimeType: "video/webm", codec: clean(render.codec), width: Number(render.width), height: Number(render.height), durationSeconds, fps, audio: "NONE", sha256: renderHash }, sourceHashes: returnedHashes, frames: storedFrames, completedAt: now };
-  const json = JSON.stringify(evidence, null, 2), evidenceHash = await sha(json), key = `v7/material-production/${job.run_id}/sequence-products/${product.id}-evidence.json`;
-  await env.BUCKET.put(key, json, { httpMetadata: { contentType: "application/json" }, customMetadata: { contentHash: evidenceHash, productId: clean(product.id), lifecycleState: "PRODUCT_COMPLETE" } });
-  const drive = await storeDriveJsonArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Material Production", "Sequence Products"], fileName: `${product.id}-evidence.json`, content: json, artifactId: `${product.id}-EVIDENCE`, contentHash: evidenceHash });
-  await db.batch([
-    db.prepare("INSERT INTO v7_media_evidence (id,program_id,run_id,authorization_id,brief_id,job_id,evidence_type,status,content_json,content_hash,runtime_key,drive_file_id,created_at) VALUES (?,?,?,?,?,?,'SEQUENCE_PRODUCT','PRODUCT_COMPLETE',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='PRODUCT_COMPLETE',content_json=excluded.content_json,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id").bind(`${product.id}-EVIDENCE`, PROGRAM_ID, job.run_id, job.authorization_id, "SEQUENCE-PRODUCT-V2", jobId, json, evidenceHash, key, drive.id, now),
-    db.prepare("UPDATE v7_sequence_products SET status='PRODUCT_COMPLETE',iteration=?,product_file_id=?,evidence_id=?,measurements_json=?,corrections_json=?,content_hash=?,updated_at=?,completed_at=? WHERE id=?").bind(iterations, productFileId, `${product.id}-EVIDENCE`, JSON.stringify(measurements), JSON.stringify(corrections), renderHash, now, now, product.id),
-    db.prepare("UPDATE v7_media_jobs SET status='COMPLETE',output_json=?,error=NULL,completed_at=?,updated_at=?,lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?").bind(JSON.stringify({ productId: product.id, productComplete: true, evidenceId: `${product.id}-EVIDENCE`, productFileId, frameFileIds: storedFrames.map((frame) => frame.fileId) }), now, now, jobId),
-    db.prepare("UPDATE v7_stage_states SET status='PRODUCT_COMPLETE',blocker='INDEPENDENT_RELEASE_AUDIT_NOT_STARTED',evidence_summary=?,updated_at=? WHERE id=?").bind(`30-second product complete after ${iterations} integrated production iteration(s) · full-file deterministic Definition of Done passed · QA requests 0 · independent audit not started`, now, STAGE_ID),
-  ]);
-  return Response.json({ status: "PRODUCT_COMPLETE", productId: product.id, evidenceId: `${product.id}-EVIDENCE`, productFileId, frameFileIds: storedFrames.map((frame) => frame.fileId), measurements, corrections });
-}
-
-async function completeSequenceProof(request: Request, body: Row) {
-  const env = await runtime(), db = env.DB!; await requireExecutor(request, env);
-  if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
-  const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED' AND job_type='SEQUENCE_PROOF_RENDER'").bind(jobId).first<Row>();
-  if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
-  const contract = rec(JSON.parse(String(job.contract_json))), proof = await db.prepare("SELECT * FROM v7_sequence_proofs WHERE id=?").bind(contract.proofId).first<Row>(), authorization = await db.prepare("SELECT * FROM v7_material_authorizations WHERE id=?").bind(job.authorization_id).first<Row>();
-  if (!proof || !authorization) throw new Error("SEQUENCE_PROOF_LINEAGE_MISSING");
-  const expectedSources = arr(contract.sources).map(rec), returnedHashes = arr(body.sourceHashes).map(rec);
-  if (expectedSources.length !== 30 || returnedHashes.length !== 30 || !expectedSources.every((source) => returnedHashes.some((item) => clean(item.fileId) === clean(source.fileId) && clean(item.sha256) === clean(source.sha256)))) throw new Error("SEQUENCE_SOURCE_HASH_MISMATCH");
-  const render = rec(body.render), videoBytes = decodeBase64(clean(render.base64)), durationSeconds = Number(render.durationSeconds), fps = Number(render.fps), expectedOutput = rec(contract.output);
-  if (clean(render.mimeType) !== "video/webm" || !validWebm(videoBytes) || videoBytes.byteLength < 100_000 || videoBytes.byteLength > 60_000_000) throw new Error("SEQUENCE_RENDER_INVALID");
-  if (Number(render.width) !== Number(expectedOutput.width) || Number(render.height) !== Number(expectedOutput.height) || Math.abs(durationSeconds - 30) > 0.08 || Math.abs(fps - 30) > 0.2) throw new Error("SEQUENCE_RENDER_CONTRACT_MISMATCH");
-  const frames = arr(body.frames).map(rec), expectedSamples = arr(contract.samplePositions).map(rec);
-  if (frames.length !== 10 || !expectedSamples.every((sample) => frames.some((frame) => clean(frame.role) === clean(sample.role) && clean(frame.logicalId) === clean(sample.logicalId)))) throw new Error("SEQUENCE_SAMPLE_SET_INVALID");
-  const brief = { id: "SEQUENCE-10MP" } as Row, identity = clean(proof.content_hash).slice(0, 16);
-  const sequenceFileId = await storeMaterial(env, db, authorization, brief, { role: "SEQUENCE_PROOF", identity, bytes: videoBytes, mimeType: "video/webm", extension: "webm", sourceType: SEQUENCE_RENDERER_VERSION, provider: "FRAMEFLOW_EXECUTOR", providerAssetId: proof.id, sourceUrl: proof.id, landingUrl: proof.id, licenseCode: "CHANNEL_OWNED", width: Number(render.width), height: Number(render.height), duration: durationSeconds });
-  const storedFrames: Row[] = [];
-  for (let index = 0; index < frames.length; index++) {
-    const frame = frames[index], bytes = decodeBase64(clean(frame.base64)), mimeType = clean(frame.mimeType), role = clean(frame.role), logicalId = clean(frame.logicalId);
-    if (Number(frame.width) !== 960 || Number(frame.height) !== 540 || !validImage(bytes, mimeType) || bytes.byteLength < 20_000 || bytes.byteLength > 2_500_000) throw new Error(`SEQUENCE_SAMPLE_INVALID · ${logicalId}`);
-    const fileId = await storeMaterial(env, db, authorization, brief, { role: `SEQUENCE_SAMPLE_${index + 1}` as MaterialRole, identity, bytes, mimeType, extension: mimeType === "image/png" ? "png" : "jpg", sourceType: `${SEQUENCE_RENDERER_VERSION}_SAMPLE`, provider: "FRAMEFLOW_EXECUTOR", providerAssetId: sequenceFileId, sourceUrl: sequenceFileId, landingUrl: proof.id, licenseCode: "CHANNEL_OWNED", width: 960, height: 540, duration: Number(frame.timestampSeconds) });
-    storedFrames.push({ role, logicalId, timestampSeconds: Number(frame.timestampSeconds), fileId, sha256: await shaBytes(bytes) });
-  }
-  const evidence = { version: "SEQUENCE_PROOF_EVIDENCE_V1", proofId: proof.id, jobId, renderer: proof.version, sequenceFileId, render: { mimeType: "video/webm", codec: clean(render.codec), width: Number(render.width), height: Number(render.height), durationSeconds, fps, audio: "NONE", sha256: await shaBytes(videoBytes) }, sourceHashes: returnedHashes, frames: storedFrames, completedAt: new Date().toISOString() };
-  const json = JSON.stringify(evidence, null, 2), evidenceHash = await sha(json), key = `v7/material-production/${job.run_id}/sequence/${proof.id}-evidence.json`;
-  await env.BUCKET.put(key, json, { httpMetadata: { contentType: "application/json" }, customMetadata: { contentHash: evidenceHash, proofId: clean(proof.id) } });
-  if (!(await env.BUCKET.head(key))) throw new Error("SEQUENCE_EVIDENCE_READ_BACK_FAILED");
-  const drive = await storeDriveJsonArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Material Production", "Sequence Proof"], fileName: `${proof.id}-evidence.json`, content: json, artifactId: `${proof.id}-EVIDENCE`, contentHash: evidenceHash });
-  const now = new Date().toISOString();
-  await db.batch([
-    db.prepare("INSERT INTO v7_media_evidence (id,program_id,run_id,authorization_id,brief_id,job_id,evidence_type,status,content_json,content_hash,runtime_key,drive_file_id,created_at) VALUES (?,?,?,?,?,?,'SEQUENCE_PROOF','TECHNICALLY_VERIFIED',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='TECHNICALLY_VERIFIED',content_json=excluded.content_json,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id").bind(`${proof.id}-EVIDENCE`, PROGRAM_ID, job.run_id, job.authorization_id, "SEQUENCE-10MP", jobId, json, evidenceHash, key, drive.id, now),
-    db.prepare("UPDATE v7_sequence_proofs SET status='QA_REQUIRED',sequence_file_id=?,evidence_id=?,content_hash=?,updated_at=? WHERE id=?").bind(sequenceFileId, `${proof.id}-EVIDENCE`, evidenceHash, now, proof.id),
-    db.prepare("UPDATE v7_media_jobs SET status='COMPLETE',output_json=?,error=NULL,completed_at=?,updated_at=?,lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?").bind(JSON.stringify({ proofId: proof.id, evidenceId: `${proof.id}-EVIDENCE`, sequenceFileId, frameFileIds: storedFrames.map((frame) => frame.fileId) }), now, now, jobId),
-    db.prepare("UPDATE v7_stage_states SET status='SEQUENCE_QA_REQUIRED',blocker='SEQUENCE_PERCEPTUAL_QA_REQUIRED',evidence_summary='30-second WebM stored · 10/10 unit samples verified · sequence QA required · scale locked',updated_at=? WHERE id=?").bind(now, STAGE_ID),
-  ]);
-  return Response.json({ status: "COMPLETE", proofId: proof.id, evidenceId: `${proof.id}-EVIDENCE`, sequenceFileId, frameFileIds: storedFrames.map((frame) => frame.fileId) });
-}
-
-async function completeMotionProof(request: Request, body: Row) {
-  const env = await runtime(), db = env.DB!;
-  if (!env.BUCKET) throw new Error("R2_MATERIAL_STORAGE_REQUIRED");
-  const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED' AND job_type='MOTION_PROOF_RENDER'").bind(jobId).first<Row>();
-  if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash) || new Date(clean(job.lease_expires_at)).getTime() < Date.now()) throw new Error("MEDIA_JOB_LEASE_INVALID");
-  const contract = rec(JSON.parse(String(job.contract_json))), proof = await db.prepare("SELECT * FROM v7_motion_proofs WHERE id=?").bind(contract.proofId).first<Row>(), brief = await db.prepare("SELECT * FROM v7_material_briefs WHERE id=?").bind(job.brief_id).first<Row>(), authorization = await db.prepare("SELECT * FROM v7_material_authorizations WHERE id=?").bind(job.authorization_id).first<Row>();
-  if (!proof || !brief || !authorization || proof.champion !== "C") throw new Error("MOTION_PROOF_LINEAGE_MISSING");
-  const expectedSources = arr(contract.sources).map(rec), returnedHashes = arr(body.sourceHashes).map(rec);
-  if (expectedSources.length !== 3 || returnedHashes.length !== 3 || !expectedSources.every((source) => returnedHashes.some((item) => clean(item.fileId) === clean(source.fileId) && clean(item.sha256) === clean(source.sha256)))) throw new Error("MOTION_SOURCE_HASH_MISMATCH");
-  const render = rec(body.render), videoBytes = decodeBase64(clean(render.base64)), durationSeconds = Number(render.durationSeconds), fps = Number(render.fps);
-  if (clean(render.mimeType) !== "video/webm" || !validWebm(videoBytes) || videoBytes.byteLength < 40_000 || videoBytes.byteLength > 12_000_000) throw new Error("MOTION_RENDER_INVALID");
-  if (Number(render.width) !== Number(rec(contract.output).width) || Number(render.height) !== Number(rec(contract.output).height) || Math.abs(durationSeconds - Number(contract.durationSeconds)) > Number(rec(contract.acceptance).durationToleranceSeconds || 0.08) || Math.abs(fps - Number(contract.fps)) > 0.2) throw new Error("MOTION_RENDER_CONTRACT_MISMATCH");
-  const frames = arr(body.frames).map(rec), roles = ["ENTRY", "MIDPOINT", "EXIT"];
-  if (frames.length !== 3 || !roles.every((role) => frames.filter((frame) => clean(frame.role) === role).length === 1)) throw new Error("MOTION_SAMPLE_SET_INVALID");
-  const motionFileId = await storeMaterial(env, db, authorization, brief, { role: "MOTION_PROOF", identity: clean(proof.id).split("-MOTION-").at(-1), bytes: videoBytes, mimeType: "video/webm", extension: "webm", sourceType: MOTION_RENDERER_VERSION, provider: "FRAMEFLOW_EXECUTOR", providerAssetId: proof.id, sourceUrl: proof.id, landingUrl: proof.id, licenseCode: "CHANNEL_OWNED", width: Number(render.width), height: Number(render.height), duration: durationSeconds });
-  const storedFrames: Array<{ role: string; timestampSeconds: number; fileId: string; sha256: string }> = [];
-  for (const frame of frames) {
-    const role = clean(frame.role), bytes = decodeBase64(clean(frame.base64)), mimeType = clean(frame.mimeType);
-    if (Number(frame.width) !== 960 || Number(frame.height) !== 540 || !validImage(bytes, mimeType) || bytes.byteLength < 20_000 || bytes.byteLength > 2_500_000) throw new Error(`MOTION_SAMPLE_INVALID · ${role}`);
-    const fileId = await storeMaterial(env, db, authorization, brief, { role: `MOTION_${role}` as MaterialRole, identity: clean(proof.id).split("-MOTION-").at(-1), bytes, mimeType, extension: mimeType === "image/png" ? "png" : "jpg", sourceType: `${MOTION_RENDERER_VERSION}_SAMPLE`, provider: "FRAMEFLOW_EXECUTOR", providerAssetId: motionFileId, sourceUrl: motionFileId, landingUrl: proof.id, licenseCode: "CHANNEL_OWNED", width: 960, height: 540, duration: Number(frame.timestampSeconds) });
-    storedFrames.push({ role, timestampSeconds: Number(frame.timestampSeconds), fileId, sha256: await shaBytes(bytes) });
-  }
-  const evidence = { version: "MOTION_PROOF_EVIDENCE_V1", proofId: proof.id, jobId, champion: "C", compositeRubric: proof.composite_rubric, renderer: proof.renderer_version, motionFileId, render: { mimeType: "video/webm", codec: clean(render.codec), width: Number(render.width), height: Number(render.height), durationSeconds, fps, audio: "NONE", sha256: await shaBytes(videoBytes) }, sourceHashes: returnedHashes, frames: storedFrames, completedAt: new Date().toISOString() };
-  const json = JSON.stringify(evidence, null, 2), evidenceHash = await sha(json), key = `v7/material-production/${job.run_id}/motion/${proof.id}-evidence.json`;
-  await env.BUCKET.put(key, json, { httpMetadata: { contentType: "application/json" }, customMetadata: { contentHash: evidenceHash, proofId: clean(proof.id) } });
-  if (!(await env.BUCKET.head(key))) throw new Error("MOTION_EVIDENCE_READ_BACK_FAILED");
-  const drive = await storeDriveJsonArtifact({ folderPath: ["Channels", "Hidden Systems", "Projects", "V7 Greenfield Pilot", "Material Production", "Motion Proof"], fileName: `${proof.id}-evidence.json`, content: json, artifactId: `${proof.id}-EVIDENCE`, contentHash: evidenceHash });
-  const now = new Date().toISOString();
-  await db.batch([
-    db.prepare("INSERT INTO v7_media_evidence (id,program_id,run_id,authorization_id,brief_id,job_id,evidence_type,status,content_json,content_hash,runtime_key,drive_file_id,created_at) VALUES (?,?,?,?,?,?,'MOTION_PROOF','TECHNICALLY_VERIFIED',?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status='TECHNICALLY_VERIFIED',content_json=excluded.content_json,content_hash=excluded.content_hash,runtime_key=excluded.runtime_key,drive_file_id=excluded.drive_file_id").bind(`${proof.id}-EVIDENCE`, PROGRAM_ID, job.run_id, job.authorization_id, job.brief_id, jobId, json, evidenceHash, key, drive.id, now),
-    db.prepare("UPDATE v7_motion_proofs SET status='QA_REQUIRED',motion_file_id=?,evidence_id=?,content_hash=?,updated_at=? WHERE id=?").bind(motionFileId, `${proof.id}-EVIDENCE`, evidenceHash, now, proof.id),
-    db.prepare("UPDATE v7_media_jobs SET status='COMPLETE',output_json=?,error=NULL,completed_at=?,updated_at=?,lease_token_hash=NULL,lease_expires_at=NULL WHERE id=?").bind(JSON.stringify({ proofId: proof.id, evidenceId: `${proof.id}-EVIDENCE`, motionFileId, frameFileIds: storedFrames.map((frame) => frame.fileId) }), now, now, jobId),
-    db.prepare("UPDATE v7_stage_states SET status='MOTION_QA_REQUIRED',blocker='MOTION_PERCEPTUAL_QA_REQUIRED',evidence_summary=?,updated_at=? WHERE id=?").bind(`Champion C WebM stored and sampled · ${durationSeconds.toFixed(2)}s · ${fps.toFixed(2)}fps · motion QA required`, now, STAGE_ID),
-  ]);
-  return Response.json({ status: "COMPLETE", proofId: proof.id, evidenceId: `${proof.id}-EVIDENCE`, motionFileId, frameFileIds: storedFrames.map((frame) => frame.fileId) });
 }
 
 async function motionRightsBundle(db: DB, proof: Row) {
@@ -6917,16 +6685,6 @@ async function reconcileWaveBatch1AuditTransport() {
   return snapshot();
 }
 
-async function failMediaJob(request: Request, body: Row) {
-  const env = await runtime(), db = env.DB!;
-  const jobId = clean(body.jobId), leaseToken = clean(body.leaseToken), job = await db.prepare("SELECT * FROM v7_media_jobs WHERE id=? AND status='LEASED'").bind(jobId).first<Row>();
-  if (job?.job_type !== "MOTION_PROOF_RENDER") await requireExecutor(request, env);
-  if (!job || !leaseToken || await sha(leaseToken) !== clean(job.lease_token_hash)) throw new Error("MEDIA_JOB_LEASE_INVALID");
-  const retry = Number(job.attempt) < Number(job.max_attempts), now = new Date().toISOString();
-  await db.prepare("UPDATE v7_media_jobs SET status=?,error=?,lease_owner=NULL,lease_token_hash=NULL,lease_expires_at=NULL,updated_at=? WHERE id=?").bind(retry ? "QUEUED" : "FAILED", short(body.error, 300) || "MEDIA_EXECUTION_FAILED", now, jobId).run();
-  return Response.json({ status: retry ? "QUEUED" : "FAILED", jobId, retryRemaining: Math.max(0, Number(job.max_attempts) - Number(job.attempt)) });
-}
-
 async function materialFile(request: Request) {
   const env = await runtime(), db = env.DB!, id = new URL(request.url).searchParams.get("file");
   if (!id || !env.BUCKET) return Response.json({ error: "Material file not found" }, { status: 404 });
@@ -7010,6 +6768,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as Row;
     action = clean(body.action);
+    if (INTERNAL_EXECUTOR_ACTIONS.has(action)) return Response.json({ error: "INTERNAL_EXECUTOR_ROUTE_REQUIRED" }, { status: 403 });
     await assertLegacyIsolation(action);
     if (body.action === "QUALIFY_RELIABILITY_BASELINE") return Response.json(await qualifyReliabilityBaseline(), { status: 201 });
     if (body.action === "BUILD_HARDEST_ARCHETYPE_CERTIFICATION") return Response.json(await buildHardestArchetypeCertification(), { status: 201 });
@@ -7112,14 +6871,6 @@ export async function POST(request: Request) {
     if (body.action === "RECONCILE_COST_GOVERNANCE") return Response.json(await reconcileCostGovernance(), { status: 200 });
     if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
-    if (body.action === "EXECUTOR_HEARTBEAT") return await executorHeartbeat(request, body);
-    if (body.action === "CLAIM_MEDIA_JOB") return await claimMediaJob(request, body);
-    if (body.action === "CLAIM_MOTION_JOB") return await claimMotionJobBootstrap(body);
-    if (body.action === "COMPLETE_MEDIA_JOB") return await completeMediaJob(request, body);
-    if (body.action === "COMPLETE_MOTION_PROOF") return await completeMotionProof(request, body);
-    if (body.action === "COMPLETE_SEQUENCE_PROOF") return await completeSequenceProof(request, body);
-    if (body.action === "COMPLETE_SEQUENCE_PRODUCT") return await completeSequenceProduct(request, body);
-    if (body.action === "FAIL_MEDIA_JOB") return await failMediaJob(request, body);
     return Response.json({ error: "Unsupported Stage 09 action" }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Stage 09 failed";

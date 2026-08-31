@@ -13,14 +13,14 @@ const executorId = String(process.env.MEDIA_EXECUTOR_ID || `media-executor-${ran
 const once = process.argv.includes("--once");
 if (!baseUrl || (!secret && !(motionBootstrapToken && motionJobId))) throw new Error("FACTORY_BASE_URL plus either shared-secret or one-time motion capability is required");
 
-const endpoint = `${baseUrl}/api/factory/material-production`;
+const endpoint = `${baseUrl}/api/factory/material-production/executor`;
 const transportHeaders = siteAuthToken ? { "OAI-Sites-Authorization": `Bearer ${siteAuthToken}` } : {};
 const headers = { "content-type": "application/json", "x-frameflow-executor-key": secret, ...transportHeaders };
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function post(action, payload = {}) {
-  const response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify({ action, ...payload }) });
+  const response = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify({ action, executorId, ...payload }) });
   const body = await response.json();
   if (!response.ok) throw new Error(`${action} ${response.status} · ${body.error || "request failed"}`);
   return body;

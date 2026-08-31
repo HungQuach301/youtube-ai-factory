@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const route = await readFile(new URL("../app/api/factory/material-production/route.ts", import.meta.url), "utf8");
+const materialExecutor = await readFile(new URL("../lib/material-production-executor.ts", import.meta.url), "utf8");
 const executor = await readFile(new URL("../scripts/media-executor.mjs", import.meta.url), "utf8");
 const migration = await readFile(new URL("../drizzle/0020_goofy_chimera.sql", import.meta.url), "utf8");
 const rightsMigration = await readFile(new URL("../drizzle/0021_material_gateway.sql", import.meta.url), "utf8");
@@ -25,8 +26,8 @@ test("motion renderer uses exact immutable sources and no audio", () => {
 
 test("chat-run executor uses a one-time exact-job capability", () => {
   assert.match(route, /CLAIM_EXACT_MOTION_JOB_ONCE/);
-  assert.match(route, /MOTION_BOOTSTRAP_UNAUTHORIZED/);
-  assert.match(route, /delete contract\.bootstrap/);
+  assert.match(materialExecutor, /MOTION_BOOTSTRAP_UNAUTHORIZED/);
+  assert.match(materialExecutor, /delete contract\.bootstrap/);
   assert.match(executor, /MOTION_EXECUTOR_BOOTSTRAP_TOKEN/);
   assert.match(executor, /CLAIM_MOTION_JOB/);
 });

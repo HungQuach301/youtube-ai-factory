@@ -81,7 +81,7 @@ function command(overrides = {}) {
 }
 
 test("migration 0107 installs guarded writer, lease, stale projection and replay receipts", () => {
-  assert.equal(migrations.at(-1), "0131_owner_deployment_receipt_finalization.sql");
+  assert.equal(migrations.at(-1), "0132_factory_write_command_audit.sql");
   const migration = read("drizzle/0107_factory_runtime_writer_and_replay.sql");
   for (const table of [
     "factory_runtime_streams", "factory_runtime_fence_counters", "factory_runtime_leases", "factory_runtime_projection_checkpoints",
