@@ -90,8 +90,8 @@ test("registry classifies exactly 100 handlers and protects the INTERNAL_SYSTEM 
   const executor = byIdentity.get(`${executorRoutePath}#POST`);
   const owner = byIdentity.get(`${ownerRoutePath}#POST`);
   assert.equal(registry.handlers.length, 100);
-  assert.equal(baseline.uncoveredHandlers.length, 52);
-  assert.equal(registry.handlers.filter((entry) => entry.status === "GAP_UNAUTHENTICATED_WRITE").length, 32);
+  assert.equal(baseline.uncoveredHandlers.length, 51);
+  assert.equal(registry.handlers.filter((entry) => entry.status === "GAP_UNAUTHENTICATED_WRITE").length, 31);
   assert.deepEqual({ actor: executor.actor, authentication: executor.authentication, authorization: executor.authorization, audit: executor.audit, status: executor.status }, {
     actor: "INTERNAL_SYSTEM",
     authentication: "INTERNAL_EXECUTOR_SECRET_OR_ONE_TIME_MOTION_CAPABILITY",
@@ -100,10 +100,10 @@ test("registry classifies exactly 100 handlers and protects the INTERNAL_SYSTEM 
     status: "PROTECTED",
   });
   assert.equal(owner.actor, "CHATGPT_OWNER");
-  assert.equal(owner.status, "GAP_UNAUTHENTICATED_WRITE");
-  assert.equal(owner.remediationWp, "M1-03B");
+  assert.equal(owner.status, "PROTECTED");
+  assert.equal(owner.remediationWp, "NONE");
   assert.equal(baseline.uncoveredHandlers.some((entry) => entry.identity === `${executorRoutePath}#POST`), false);
-  assert.equal(baseline.uncoveredHandlers.some((entry) => entry.identity === `${ownerRoutePath}#POST`), true);
+  assert.equal(baseline.uncoveredHandlers.some((entry) => entry.identity === `${ownerRoutePath}#POST`), false);
 });
 
 test("new route is structurally protected and exposes only the eight exact executor actions", () => {

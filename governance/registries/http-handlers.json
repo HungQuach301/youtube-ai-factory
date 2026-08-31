@@ -329,11 +329,11 @@
       "method": "POST",
       "readWrite": "WRITE",
       "actor": "CHATGPT_OWNER",
-      "authentication": "NONE",
-      "authorization": "NONE",
-      "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
-      "remediationWp": "M1-03B"
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST",
+      "audit": "IMMUTABLE_WRITE_COMMAND_AUDIT_AND_DOMAIN_RECEIPT",
+      "status": "PROTECTED",
+      "remediationWp": "NONE"
     },
     {
       "identity": "app/api/factory/niche-decisions/route.ts#POST",
