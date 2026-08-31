@@ -303,11 +303,11 @@ test("governance ratchets are exact while M1-06 actor debt remains untouched", (
   );
 
   const noWrite = JSON.parse(source("governance/baselines/no-write-in-get.json"));
-  const noWriteEntries = noWrite.violations ?? noWrite.debt ?? noWrite.entries;
+  const noWriteEntries = noWrite.handlersWithReachableWrites;
   assert.equal(noWriteEntries.length, 16);
 
   const actor = JSON.parse(source("governance/baselines/actor-separation.json"));
-  const actorEntries = actor.violations ?? actor.debt ?? actor.entries;
+  const actorEntries = actor.unseparatedCommands;
   assert.equal(actorEntries.length, 19);
   assert.equal(actorEntries.some((item) =>
     JSON.stringify(item).includes(handlerIdentity + ":APPROVE_SCENE")), true);
@@ -316,13 +316,17 @@ test("governance ratchets are exact while M1-06 actor debt remains untouched", (
 });
 
 test("migration head and historical migration hashes remain 0132 with no provider or spend delta", () => {
-  const migrations = readdirSync(join(root, "migrations")).filter((name) => /^\d{4}_.+\.sql$/.test(name)).sort();
-  assert.equal(migrations.at(-1), "0132_FACTORY_WRITE_COMMAND_AUDIT.sql");
-  assert.deepEqual(migrations.slice(-3), [
-    "0130_PRODUCTION_CONTROL_PLANE.sql",
-    "0131_MATERIAL_PRODUCTION_CONTROL_PLANE.sql",
-    "0132_FACTORY_WRITE_COMMAND_AUDIT.sql",
-  ]);
+  const expected = {
+    "0129_exact_tree_deployment_receipts.sql": "ffe1b3eaa00078f477afd043cbeb8662cd4ae1e305f5082b089f0b0e501ecea4",
+    "0130_scoped_deployment_receipt_writer.sql": "113fb6178656a057e2e63b6cef24b018da92beab3f915b1c7a11cd690af0ad9e",
+    "0131_owner_deployment_receipt_finalization.sql": "2683d493076d2f47149a33a592ddd9ba30d3c6444e343c77549cc9fd2167de84",
+    "0132_factory_write_command_audit.sql": "b61157d4ef1c5687264969c001cafa82c854d2ffbb621befa4a7ad487f734969",
+  };
+  const migrations = readdirSync(join(root, "drizzle")).filter((name) => name.endsWith(".sql")).sort();
+  assert.equal(migrations.at(-1), "0132_factory_write_command_audit.sql");
+  for (const [name, digest] of Object.entries(expected)) {
+    assert.equal(createHash("sha256").update(source("drizzle/" + name)).digest("hex"), digest);
+  }
   assert.equal(route.includes("fetch("), false);
   assert.equal(route.includes("OPENAI_API_KEY"), false);
   assert.equal(route.includes("COST_RESERVATION"), false);

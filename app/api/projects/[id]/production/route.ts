@@ -393,18 +393,22 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (body instanceof Response) return body;
 
     const { id } = await context.params;
+    // Actor separation for APPROVE_SCENE remains intentionally tracked for M1-06.
+    const authorizedPayload: ProductionOwnerPayload = body.payload.action === "APPROVE_SCENE"
+      ? { ...body.payload, action: "APPROVE_SCENE" }
+      : body.payload;
     const auditIdentity = await productionOwnerAuditIdentity(
       request,
       id,
       authorization.normalizedEmail,
-      body.payload.action,
+      authorizedPayload.action,
       body.bodySha256,
     );
 
     return await runAuditedProductionOwnerAction(
       authorization.env.DB as WriteCommandAuditDatabase,
       auditIdentity,
-      () => executeProductionOwnerAction(id, body.payload),
+      () => executeProductionOwnerAction(id, authorizedPayload),
     );
   } catch (error) {
     console.error("Production action failed", error);
