@@ -123,7 +123,7 @@ function seedTerminalRecoveryEvidence(database, provider, master) {
 }
 
 test("migrations 0118 through 0129 install append-only fail-closed remediation, audio authorization and deployment receipts", () => {
-  assert.equal(migrations.at(-1), "0131_owner_deployment_receipt_finalization.sql");
+  assert.equal(migrations.at(-1), "0132_factory_write_command_audit.sql");
   const migration = read("drizzle/0118_factory_assurance_corpus_remediation_evidence.sql");
   for (const table of ["factory_assurance_corpus_remediation_evidence_runs", "factory_assurance_corpus_remediation_evidence_receipts"]) assert.ok(migration.includes(`CREATE TABLE \`${table}\``));
   for (const lock of ["count_eligible", "qualification_authority", "pass_authority", "provider_dispatch_authority", "r22_authority", "master_authority", "release_authority", "publication_authority", "provider_requests", "spend_micros"]) assert.match(migration, new RegExp(`${lock}[^;]+CHECK \\(`, "s"));
