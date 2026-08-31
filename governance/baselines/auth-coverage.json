@@ -203,21 +203,6 @@
       ]
     },
     {
-      "identity": "app/api/factory/material-production/route.ts#POST",
-      "route": "/api/factory/material-production",
-      "method": "POST",
-      "sourceFile": "app/api/factory/material-production/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/factory/niche-portfolio/route.ts#GET",
       "route": "/api/factory/niche-portfolio",
       "method": "GET",

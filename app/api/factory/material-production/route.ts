@@ -1,7 +1,9 @@
+import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { AI_USAGE_TABLE_SQL, recordOpenAIUsage } from "../../../../lib/ai-usage";
 import { storeDriveJsonArtifact } from "../../../../lib/google-drive";
 import { storeMaterial, type MaterialRole } from "../../../../lib/material-production-storage";
 import { INTERNAL_EXECUTOR_ACTIONS } from "../../../../lib/material-production-executor";
+import { appendWriteCommandAudit, hashActorSubject, sha256Text, type WriteCommandAuditIdentity } from "../../../../lib/write-command-audit";
 import { CANONICAL_PILOT_MANIFEST_VERSION, deriveCanonicalPilotManifest } from "../../../../lib/canonical-pilot-manifest.mjs";
 import { CONTROLLED_RELEASE_POLICY, evaluateControlledRelease } from "../../../../lib/controlled-release-policy.mjs";
 import { WAVE_9_SCALE_READINESS_POLICY, providerRecoveryDecision, qualifyWave9ScaleReadiness } from "../../../../lib/wave9-scale-readiness.mjs";
@@ -12,6 +14,8 @@ import jpeg from "jpeg-js";
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
 const STAGE = "09";
 const STAGE_ID = `${PROGRAM_ID}-STAGE-${STAGE}`;
+const OWNER_HANDLER_IDENTITY = "app/api/factory/material-production/route.ts#POST";
+const OWNER_RESOURCE_SCOPE = `program:${PROGRAM_ID}:stage:${STAGE}`;
 const THRESHOLD = 92;
 const DEFAULT_MODEL = "gpt-5.6-sol";
 const SOURCE_QA_RUBRIC = "SOURCE_LAYER_QA_V2";
@@ -151,7 +155,7 @@ type Statement = { bind: (...values: unknown[]) => Statement; run: () => Promise
 type DB = { prepare: (query: string) => Statement; batch: (statements: Statement[]) => Promise<unknown> };
 type BucketObject = { body: ReadableStream; httpMetadata?: { contentType?: string } };
 type Bucket = { put: (key: string, value: string | ArrayBuffer | Uint8Array, options?: Record<string, unknown>) => Promise<unknown>; head: (key: string) => Promise<unknown>; get: (key: string) => Promise<BucketObject | null> };
-type Env = { DB?: DB; BUCKET?: Bucket; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?: string; PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string; SHUTTERSTOCK_CONSUMER_KEY?: string; MEDIA_EXECUTOR_SHARED_SECRET?: string };
+type Env = { DB?: DB; BUCKET?: Bucket; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?: string; PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string; SHUTTERSTOCK_CONSUMER_KEY?: string; MEDIA_EXECUTOR_SHARED_SECRET?: string; FACTORY_EXPERT_EMAILS?: string };
 type Row = Record<string, unknown>;
 type Candidate = { id: string; provider: string; title: string; sourceUrl: string; assetUrl: string; thumbnailUrl: string; licenseCode: string; licenseUrl: string; width: number; height: number; duration: number; score: number };
 
@@ -274,6 +278,39 @@ async function secretMatches(provided: string, expected: string) {
   if (!provided || !expected) return false;
   const [left, right] = await Promise.all([sha(provided), sha(expected)]);
   return left === right;
+}
+
+async function runtimeEnv() {
+  const { env } = await import("cloudflare:workers");
+  return env as unknown as Env;
+}
+
+async function authorizeWriteAccess() {
+  const user = await getChatGPTUser();
+  if (!user) return Response.json({ error: "SIWC_AUTHENTICATION_REQUIRED" }, { status: 401 });
+  const env = await runtimeEnv();
+  const owners = new Set(String(env.FACTORY_EXPERT_EMAILS || "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean));
+  if (!owners.size) return Response.json({ error: "OWNER_WRITE_ALLOWLIST_UNCONFIGURED" }, { status: 503 });
+  const ownerIdentity = user.email.trim().toLowerCase();
+  if (!owners.has(ownerIdentity)) return Response.json({ error: "OWNER_WRITE_AUTHORIZATION_REQUIRED" }, { status: 403 });
+  return { user, env, ownerIdentity };
+}
+
+function ownerCorrelationId(request: Request) {
+  const supplied = clean(request.headers.get("x-correlation-id"));
+  return /^[A-Za-z0-9._:-]{8,200}$/.test(supplied) ? supplied : `material-owner:${crypto.randomUUID()}`;
+}
+
+async function ownerAuditIdentity(request: Request, rawBody: string, action: string, ownerIdentity: string): Promise<WriteCommandAuditIdentity> {
+  return {
+    handlerIdentity: OWNER_HANDLER_IDENTITY,
+    actorType: "CHATGPT_OWNER",
+    actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", ownerIdentity),
+    action,
+    resourceScope: OWNER_RESOURCE_SCOPE,
+    correlationId: ownerCorrelationId(request),
+    requestHash: await sha256Text(rawBody),
+  };
 }
 
 async function runtime() {
@@ -6766,10 +6803,19 @@ async function persistStabilizationTerminalFailure(message: string) {
 export async function POST(request: Request) {
   let action = "UNKNOWN";
   try {
-    const body = await request.json() as Row;
+    const authorization = await authorizeWriteAccess();
+    if (authorization instanceof Response) return authorization;
+    const rawBody = await request.text();
+    const body = JSON.parse(rawBody) as Row;
     action = clean(body.action);
     if (INTERNAL_EXECUTOR_ACTIONS.has(action)) return Response.json({ error: "INTERNAL_EXECUTOR_ROUTE_REQUIRED" }, { status: 403 });
-    await assertLegacyIsolation(action);
+    const db = authorization.env.DB;
+    if (!db) throw new Error("Stage 09 database is unavailable");
+    const auditIdentity = await ownerAuditIdentity(request, rawBody, action, authorization.ownerIdentity);
+    await appendWriteCommandAudit(db, auditIdentity, "AUTHORIZED", OWNER_RESOURCE_SCOPE);
+    let businessFailed = false;
+    try {
+      await assertLegacyIsolation(action);
     if (body.action === "QUALIFY_RELIABILITY_BASELINE") return Response.json(await qualifyReliabilityBaseline(), { status: 201 });
     if (body.action === "BUILD_HARDEST_ARCHETYPE_CERTIFICATION") return Response.json(await buildHardestArchetypeCertification(), { status: 201 });
     if (body.action === "REPAIR_HARDEST_ARCHETYPE_CERTIFICATION") return Response.json(await repairHardestArchetypeCertification(), { status: 201 });
@@ -6871,7 +6917,22 @@ export async function POST(request: Request) {
     if (body.action === "RECONCILE_COST_GOVERNANCE") return Response.json(await reconcileCostGovernance(), { status: 200 });
     if (body.action === "PREPARE_MOTION_RIGHTS_REPAIR") return Response.json(await prepareMotionRightsRepair());
     if (body.action === "REPLACE_SOURCE_CANDIDATE") return Response.json(await replaceSourceCandidate(), { status: 202 });
-    return Response.json({ error: "Unsupported Stage 09 action" }, { status: 400 });
+      return Response.json({ error: "Unsupported Stage 09 action" }, { status: 400 });
+    } catch (error) {
+      businessFailed = true;
+      throw error;
+    } finally {
+      if (businessFailed) {
+        await appendWriteCommandAudit(db, auditIdentity, "FAILED", OWNER_RESOURCE_SCOPE);
+      } else {
+        try {
+          await appendWriteCommandAudit(db, auditIdentity, "SUCCEEDED", OWNER_RESOURCE_SCOPE);
+        } catch (error) {
+          await appendWriteCommandAudit(db, auditIdentity, "FAILED", OWNER_RESOURCE_SCOPE);
+          throw error;
+        }
+      }
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Stage 09 failed";
     console.error(JSON.stringify({ event: "STAGE_09_ACTION_FAILED", action, message, at: new Date().toISOString() }));
