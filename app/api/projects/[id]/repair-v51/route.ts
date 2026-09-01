@@ -1,15 +1,35 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
+import { getChatGPTUser } from "../../../../chatgpt-auth";
+import {
+  appendWriteCommandAudit,
+  hashActorSubject,
+  type WriteCommandAuditDatabase,
+  type WriteCommandAuditIdentity,
+} from "../../../../../lib/write-command-audit";
 import { evidenceBindings, evidenceRecords, mediaAssets, researchClaims, workflowEvents } from "../../../../../db/schema";
 
-type RuntimeStatement = { bind(...values: unknown[]): RuntimeStatement };
+type RuntimeStatement = { bind(...values: unknown[]): RuntimeStatement; run(): Promise<unknown> };
 type RuntimeEnv = {
   BUCKET?: { put(key: string, value: ArrayBuffer | Uint8Array | string, options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<unknown> };
   DB?: { prepare(sql: string): RuntimeStatement; batch(statements: RuntimeStatement[]): Promise<unknown> };
   PEXELS_API_KEY?: string;
   PIXABAY_API_KEY?: string;
 };
+type RepairV51OwnerRuntimeEnv = {
+  DB?: WriteCommandAuditDatabase;
+  FACTORY_EXPERT_EMAILS?: string;
+};
+type RepairV51OwnerAction = "PLAN_V51" | "MATERIALIZE_V51_BATCH";
+type RepairV51OwnerResult = {
+  response: Response;
+  domainReceiptReference: string | null;
+};
 
+const OWNER_HANDLER_IDENTITY = "app/api/projects/[id]/repair-v51/route.ts#POST";
+const OWNER_ACTIONS = new Set(["PLAN_V51", "MATERIALIZE_V51_BATCH"]);
+const MAX_OWNER_BODY_BYTES = 16 * 1024;
+const CORRELATION_ID_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
 const VERSION = 51;
 const SHOTS = 144;
 const ASSETS = 120;
@@ -19,6 +39,108 @@ const FAMILIES = [
   "BEFORE_AFTER", "VISUAL_METAPHOR", "DOCUMENTARY_ARCHIVE", "ICON_EXPLAINER", "GEOGRAPHIC_MAP", "NETWORK_GRAPH",
 ] as const;
 const STOCK_FAMILIES = new Set(["MACRO_REALITY", "DOCUMENTARY_ARCHIVE", "EDITORIAL_COLLAGE", "VISUAL_METAPHOR"]);
+
+function ownerFailure(error: string, status: number) {
+  return Response.json({ error }, { status });
+}
+
+function repairV51OwnerSameOrigin(request: Request) {
+  const url = new URL(request.url);
+  return request.method === "POST"
+    && /^\/api\/projects\/[^/]+\/repair-v51$/.test(url.pathname)
+    && url.search === ""
+    && request.headers.get("origin") === url.origin
+    && request.headers.get("sec-fetch-site") === "same-origin";
+}
+
+async function repairV51OwnerRuntimeEnv(): Promise<RepairV51OwnerRuntimeEnv> {
+  const { env } = await import("cloudflare:workers");
+  return env as unknown as RepairV51OwnerRuntimeEnv;
+}
+
+async function authorizeRepairV51OwnerWrite(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user?.email) return ownerFailure("SIWC_AUTHENTICATION_REQUIRED", 401);
+
+  const env = await repairV51OwnerRuntimeEnv();
+  const normalizedEmail = user.email.trim().toLowerCase();
+  const owners = String(env.FACTORY_EXPERT_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (owners.length === 0) return ownerFailure("OWNER_WRITE_ALLOWLIST_UNCONFIGURED", 503);
+  if (!owners.includes(normalizedEmail)) return ownerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+  if (!repairV51OwnerSameOrigin(request)) return ownerFailure("OWNER_WRITE_SAME_ORIGIN_REQUIRED", 403);
+  if (!env.DB) return ownerFailure("CANONICAL_DATABASE_UNAVAILABLE", 503);
+
+  return { db: env.DB, normalizedEmail };
+}
+
+async function sha256RawBody(bytes: ArrayBuffer) {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return [...digest].map((item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+async function readBoundedRepairV51OwnerBody(request: Request) {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") return ownerFailure("JSON_CONTENT_TYPE_REQUIRED", 415);
+
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_OWNER_BODY_BYTES) {
+    return ownerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+  }
+
+  const bytes = await request.arrayBuffer();
+  if (bytes.byteLength > MAX_OWNER_BODY_BYTES) return ownerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+
+  let parsed: unknown;
+  try {
+    const rawBody = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+    parsed = JSON.parse(rawBody);
+  } catch {
+    return ownerFailure("OWNER_WRITE_JSON_INVALID", 400);
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return ownerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  }
+
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.action !== "string") return ownerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  if (Object.keys(record).some((key) => key !== "action")) {
+    return ownerFailure("OWNER_WRITE_COMMAND_FIELD_FORBIDDEN", 400);
+  }
+  if (!OWNER_ACTIONS.has(record.action)) return ownerFailure("OWNER_WRITE_ACTION_FORBIDDEN", 403);
+
+  return {
+    action: record.action as RepairV51OwnerAction,
+    bodySha256: await sha256RawBody(bytes),
+  };
+}
+
+function repairV51OwnerCorrelationId(request: Request) {
+  const supplied = request.headers.get("x-correlation-id")?.trim() ?? "";
+  return CORRELATION_ID_PATTERN.test(supplied) ? supplied : `repair-v51-owner:${crypto.randomUUID()}`;
+}
+
+async function repairV51OwnerAuditIdentity(
+  request: Request,
+  projectId: string,
+  normalizedEmail: string,
+  action: RepairV51OwnerAction,
+  bodySha256: string,
+): Promise<WriteCommandAuditIdentity> {
+  return {
+    handlerIdentity: OWNER_HANDLER_IDENTITY,
+    actorType: "CHATGPT_OWNER",
+    actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", normalizedEmail),
+    action,
+    resourceScope: `project:${projectId}:repair-v51`,
+    correlationId: repairV51OwnerCorrelationId(request),
+    requestHash: bodySha256,
+  };
+}
 
 async function runtimeEnv() { const { env } = await import("cloudflare:workers"); return env as unknown as RuntimeEnv; }
 function parse(value: string | null) { try { return value ? JSON.parse(value) as Record<string, unknown> : {}; } catch { return {}; } }
@@ -102,5 +224,71 @@ async function materialize(projectId: string, batchSize = 4) {
   return { ...current, completedThisWave:completed,remaining:Math.max(0,ASSETS-current.materialized),complete:current.materialized===ASSETS&&current.boundShots===SHOTS,failures };
 }
 
+function repairV51DomainReceiptReference(projectId: string, action: RepairV51OwnerAction, repair: Record<string, unknown>) {
+  return `repair-v51:${projectId}:${action}:${String(repair.version)}:${String(repair.status)}:${String(repair.materialized)}:${String(repair.boundShots)}`;
+}
+
+async function executeRepairV51OwnerAction(projectId: string, action: RepairV51OwnerAction): Promise<RepairV51OwnerResult> {
+  const repair = action === "PLAN_V51" ? await plan(projectId) : await materialize(projectId);
+  return {
+    response: Response.json({ ok: true, repair }),
+    domainReceiptReference: repairV51DomainReceiptReference(projectId, action, repair as Record<string, unknown>),
+  };
+}
+
+async function runAuditedRepairV51OwnerAction(
+  db: WriteCommandAuditDatabase,
+  identity: WriteCommandAuditIdentity,
+  execute: () => Promise<RepairV51OwnerResult>,
+) {
+  await appendWriteCommandAudit(db, identity, "AUTHORIZED", null);
+
+  let result: RepairV51OwnerResult;
+  try {
+    result = await execute();
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+
+  if (!result.response.ok) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    return result.response;
+  }
+
+  try {
+    await appendWriteCommandAudit(db, identity, "SUCCEEDED", result.domainReceiptReference);
+    return result.response;
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+}
+
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) { try { const { id } = await context.params; return Response.json(await status(id)); } catch { return Response.json({ error:"V5.1 repair status could not load" },{ status:500 }); } }
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) { try { const { id } = await context.params; const payload = await request.json() as { action?:"PLAN_V51"|"MATERIALIZE_V51_BATCH" }; if (payload.action==="PLAN_V51") return Response.json({ ok:true,repair:await plan(id) }); if (payload.action==="MATERIALIZE_V51_BATCH") return Response.json({ ok:true,repair:await materialize(id) }); return Response.json({ error:"Unknown V5.1 repair action" },{ status:400 }); } catch (error) { console.error("V5.1 repair failed",error); return Response.json({ error:error instanceof Error?error.message:"V5.1 repair stopped safely" },{ status:500 }); } }
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const authorization = await authorizeRepairV51OwnerWrite(request);
+    if (authorization instanceof Response) return authorization;
+
+    const body = await readBoundedRepairV51OwnerBody(request);
+    if (body instanceof Response) return body;
+
+    const { id } = await context.params;
+    const auditIdentity = await repairV51OwnerAuditIdentity(
+      request,
+      id,
+      authorization.normalizedEmail,
+      body.action,
+      body.bodySha256,
+    );
+    return await runAuditedRepairV51OwnerAction(
+      authorization.db,
+      auditIdentity,
+      () => executeRepairV51OwnerAction(id, body.action),
+    );
+  } catch (error) {
+    console.error("V5.1 repair failed", error);
+    return ownerFailure("REPAIR_V51_ACTION_FAILED", 500);
+  }
+}
