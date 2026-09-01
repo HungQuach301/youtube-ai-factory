@@ -146,12 +146,12 @@
       "routePath": "/api/factory/continuity",
       "method": "POST",
       "readWrite": "WRITE",
-      "actor": "UNCLASSIFIED",
-      "authentication": "NONE",
-      "authorization": "NONE",
-      "audit": "NONE_PROVEN",
-      "status": "GAP_UNAUTHENTICATED_WRITE",
-      "remediationWp": "M1-03"
+      "actor": "CHATGPT_OWNER",
+      "authentication": "CHATGPT_SIWC",
+      "authorization": "FACTORY_EXPERT_EMAILS_ALLOWLIST_AND_SAME_ORIGIN_AND_EXACT_ACTION",
+      "audit": "IMMUTABLE_WRITE_COMMAND_AUDIT_AND_CONTINUITY_SNAPSHOT",
+      "status": "PROTECTED",
+      "remediationWp": "NONE"
     },
     {
       "identity": "app/api/factory/control-plane/route.ts#GET",

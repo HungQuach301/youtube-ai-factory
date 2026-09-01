@@ -73,21 +73,6 @@
       ]
     },
     {
-      "identity": "app/api/factory/continuity/route.ts#POST",
-      "route": "/api/factory/continuity",
-      "method": "POST",
-      "sourceFile": "app/api/factory/continuity/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/factory/control-plane/route.ts#GET",
       "route": "/api/factory/control-plane",
       "method": "GET",

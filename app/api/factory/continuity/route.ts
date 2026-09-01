@@ -1,21 +1,41 @@
+import { getChatGPTUser } from "../../../chatgpt-auth";
+import {
+  appendWriteCommandAudit,
+  hashActorSubject,
+  type WriteCommandAuditIdentity,
+} from "../../../../lib/write-command-audit";
+
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
 const FORWARD_IDEMPOTENCY_MARKER = ":request:";
 const TERMINAL = new Set(["COMPLETED", "COMPLETE", "FAILED", "CANCELLED", "CANCELED", "BLOCKED_INCOMPLETE", "STOPPED"]);
 const COMPOSITE_ROLES = ["A_ENTRY", "A_MIDPOINT", "A_EXIT", "B_ENTRY", "B_MIDPOINT", "B_EXIT", "C_ENTRY", "C_MIDPOINT", "C_EXIT"];
+const OWNER_HANDLER_IDENTITY = "app/api/factory/continuity/route.ts#POST";
+const OWNER_RESOURCE_SCOPE = "factory:continuity:checkpoint";
+const OWNER_ACTIONS = new Set(["CAPTURE_CHECKPOINT"]);
+const MAX_OWNER_BODY_BYTES = 16 * 1024;
+const CORRELATION_ID_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
 
 type Statement = { bind: (...values: unknown[]) => Statement; run: () => Promise<unknown>; all: <T>() => Promise<{ results?: T[] }>; first: <T>() => Promise<T | null> };
 type DB = { prepare: (query: string) => Statement; batch: (statements: Statement[]) => Promise<unknown> };
-type Env = { DB?: DB };
+type Env = { DB?: DB; FACTORY_EXPERT_EMAILS?: string };
+type ContinuityOwnerAction = "CAPTURE_CHECKPOINT";
+type ContinuityOwnerActionResult = {
+  response: Response;
+  domainReceiptReference: string | null;
+};
 type Row = Record<string, unknown>;
 
 const continuitySchema = `CREATE TABLE IF NOT EXISTS v7_continuity_snapshots (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,checkpoint_code text NOT NULL,lifecycle_state text DEFAULT 'MATERIALIZED' NOT NULL,content_json text NOT NULL,content_hash text NOT NULL,blocker_count integer DEFAULT 0 NOT NULL,active_request_count integer DEFAULT 0 NOT NULL,created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`;
 
-async function runtime() {
-  const { env } = await import("cloudflare:workers");
-  const value = env as unknown as Env;
-  if (!value.DB) throw new Error("Continuity database is unavailable");
-  await value.DB.prepare(continuitySchema).run();
-  return value.DB;
+async function runtime(database?: DB) {
+  let db = database;
+  if (!db) {
+    const { env } = await import("cloudflare:workers");
+    db = (env as unknown as Env).DB;
+  }
+  if (!db) throw new Error("Continuity database is unavailable");
+  await db.prepare(continuitySchema).run();
+  return db;
 }
 async function rows(db: DB, query: string, ...values: unknown[]) { return (await db.prepare(query).bind(...values).all<Row>()).results || []; }
 async function safeRows(db: DB, query: string, ...values: unknown[]) { try { return await rows(db, query, ...values); } catch (error) { if (/no such table/i.test(error instanceof Error ? error.message : String(error))) return []; throw error; } }
@@ -104,14 +124,212 @@ export async function GET(request: Request) {
   try { const db = await runtime(); const snapshot = await buildSnapshot(db); if (new URL(request.url).searchParams.get("format") === "md") return new Response(markdown(snapshot), { headers: { "content-type": "text/markdown; charset=utf-8", "content-disposition": "attachment; filename=AI_FACTORY_CONTINUATION_PACK.md" } }); return Response.json(snapshot); }
   catch (error) { return Response.json({ error: error instanceof Error ? error.message : "Continuity control could not load" }, { status: 500 }); }
 }
+function ownerFailure(error: string, status: number) {
+  return Response.json({ error }, { status });
+}
+
+function continuityOwnerSameOrigin(request: Request) {
+  const url = new URL(request.url);
+  return request.method === "POST"
+    && url.pathname === "/api/factory/continuity"
+    && url.search === ""
+    && request.headers.get("origin") === url.origin
+    && request.headers.get("sec-fetch-site") === "same-origin";
+}
+
+async function continuityOwnerRuntimeEnv(): Promise<Env> {
+  const { env } = await import("cloudflare:workers");
+  return env as unknown as Env;
+}
+
+async function authorizeContinuityOwnerWrite(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user?.email) return ownerFailure("SIWC_AUTHENTICATION_REQUIRED", 401);
+
+  const env = await continuityOwnerRuntimeEnv();
+  const normalizedEmail = user.email.trim().toLowerCase();
+  const owners = String(env.FACTORY_EXPERT_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (owners.length === 0) return ownerFailure("OWNER_WRITE_ALLOWLIST_UNCONFIGURED", 503);
+  if (!owners.includes(normalizedEmail)) return ownerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+  if (!continuityOwnerSameOrigin(request)) return ownerFailure("OWNER_WRITE_SAME_ORIGIN_REQUIRED", 403);
+  if (!env.DB) return ownerFailure("CANONICAL_DATABASE_UNAVAILABLE", 503);
+
+  return { db: env.DB, normalizedEmail };
+}
+
+async function sha256RawBody(bytes: ArrayBuffer) {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return [...digest].map((item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+async function readBoundedContinuityOwnerBody(request: Request) {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") return ownerFailure("JSON_CONTENT_TYPE_REQUIRED", 415);
+
+  const contentLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > MAX_OWNER_BODY_BYTES) {
+    return ownerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+  }
+
+  const bytes = await request.arrayBuffer();
+  if (bytes.byteLength > MAX_OWNER_BODY_BYTES) return ownerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+
+  let parsed: unknown;
+  try {
+    const rawBody = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
+    parsed = JSON.parse(rawBody);
+  } catch {
+    return ownerFailure("OWNER_WRITE_JSON_INVALID", 400);
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return ownerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  }
+
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.action !== "string") return ownerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  if (Object.keys(record).some((key) => key !== "action")) {
+    return ownerFailure("OWNER_WRITE_COMMAND_FIELD_FORBIDDEN", 400);
+  }
+  if (!OWNER_ACTIONS.has(record.action)) return ownerFailure("OWNER_WRITE_ACTION_FORBIDDEN", 403);
+
+  return {
+    action: record.action as ContinuityOwnerAction,
+    bodySha256: await sha256RawBody(bytes),
+  };
+}
+
+function continuityOwnerCorrelationId(request: Request) {
+  const supplied = request.headers.get("x-correlation-id")?.trim() ?? "";
+  return CORRELATION_ID_PATTERN.test(supplied) ? supplied : `continuity-owner:${crypto.randomUUID()}`;
+}
+
+async function continuityOwnerAuditIdentity(
+  request: Request,
+  normalizedEmail: string,
+  action: ContinuityOwnerAction,
+  bodySha256: string,
+): Promise<WriteCommandAuditIdentity> {
+  return {
+    handlerIdentity: OWNER_HANDLER_IDENTITY,
+    actorType: "CHATGPT_OWNER",
+    actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", normalizedEmail),
+    action,
+    resourceScope: OWNER_RESOURCE_SCOPE,
+    correlationId: continuityOwnerCorrelationId(request),
+    requestHash: bodySha256,
+  };
+}
+
+async function executeContinuityOwnerAction(
+  dbBinding: DB,
+  action: ContinuityOwnerAction,
+): Promise<ContinuityOwnerActionResult> {
+  if (action !== "CAPTURE_CHECKPOINT") {
+    return {
+      response: ownerFailure("OWNER_WRITE_ACTION_FORBIDDEN", 403),
+      domainReceiptReference: null,
+    };
+  }
+
+  const db = await runtime(dbBinding);
+  const snapshot = await buildSnapshot(db);
+  if (snapshot.ledger.activeRequests > 0) {
+    return {
+      response: Response.json(
+        { error: "Checkpoint capture is blocked while provider requests are active" },
+        { status: 409 },
+      ),
+      domainReceiptReference: null,
+    };
+  }
+
+  const contentJson = JSON.stringify(snapshot);
+  const contentHash = await sha(contentJson);
+  const id = `${PROGRAM_ID}-CONTINUITY-${contentHash.slice(0, 16)}`;
+  const lifecycleState = snapshot.blockers.length === 0 ? "FROZEN" : "MATERIALIZED_WITH_BLOCKERS";
+  await db.prepare("INSERT INTO v7_continuity_snapshots (id,program_id,checkpoint_code,lifecycle_state,content_json,content_hash,blocker_count,active_request_count,created_at) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING")
+    .bind(
+      id,
+      PROGRAM_ID,
+      snapshot.state.checkpoint,
+      lifecycleState,
+      contentJson,
+      contentHash,
+      snapshot.blockers.length,
+      snapshot.ledger.activeRequests,
+      snapshot.generatedAt,
+    )
+    .run();
+
+  return {
+    response: Response.json({
+      ...(await buildSnapshot(db)),
+      captured: { id, lifecycleState, contentHash },
+    }),
+    domainReceiptReference: id,
+  };
+}
+
+async function runAuditedContinuityOwnerAction(
+  db: DB,
+  identity: WriteCommandAuditIdentity,
+  execute: () => Promise<ContinuityOwnerActionResult>,
+) {
+  await appendWriteCommandAudit(db, identity, "AUTHORIZED", null);
+
+  let result: ContinuityOwnerActionResult;
+  try {
+    result = await execute();
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+
+  if (!result.response.ok) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    return result.response;
+  }
+
+  try {
+    await appendWriteCommandAudit(
+      db,
+      identity,
+      "SUCCEEDED",
+      result.domainReceiptReference,
+    );
+    return result.response;
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+}
+
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { action?: string };
-    if (body.action !== "CAPTURE_CHECKPOINT") return Response.json({ error: "Unsupported continuity action" }, { status: 400 });
-    const db = await runtime(); const snapshot = await buildSnapshot(db);
-    if (snapshot.ledger.activeRequests > 0) return Response.json({ error: "Checkpoint capture is blocked while provider requests are active" }, { status: 409 });
-    const contentJson = JSON.stringify(snapshot); const contentHash = await sha(contentJson); const id = `${PROGRAM_ID}-CONTINUITY-${contentHash.slice(0, 16)}`; const lifecycleState = snapshot.blockers.length === 0 ? "FROZEN" : "MATERIALIZED_WITH_BLOCKERS";
-    await db.prepare("INSERT INTO v7_continuity_snapshots (id,program_id,checkpoint_code,lifecycle_state,content_json,content_hash,blocker_count,active_request_count,created_at) VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING").bind(id, PROGRAM_ID, snapshot.state.checkpoint, lifecycleState, contentJson, contentHash, snapshot.blockers.length, snapshot.ledger.activeRequests, snapshot.generatedAt).run();
-    return Response.json({ ...(await buildSnapshot(db)), captured: { id, lifecycleState, contentHash } });
-  } catch (error) { return Response.json({ error: error instanceof Error ? error.message : "Checkpoint capture failed" }, { status: 500 }); }
+    const authorization = await authorizeContinuityOwnerWrite(request);
+    if (authorization instanceof Response) return authorization;
+
+    const body = await readBoundedContinuityOwnerBody(request);
+    if (body instanceof Response) return body;
+
+    const auditIdentity = await continuityOwnerAuditIdentity(
+      request,
+      authorization.normalizedEmail,
+      body.action,
+      body.bodySha256,
+    );
+    return await runAuditedContinuityOwnerAction(
+      authorization.db,
+      auditIdentity,
+      () => executeContinuityOwnerAction(authorization.db, body.action),
+    );
+  } catch (error) {
+    console.error("Continuity checkpoint failed", error);
+    return ownerFailure("CONTINUITY_CHECKPOINT_FAILED", 500);
+  }
 }
