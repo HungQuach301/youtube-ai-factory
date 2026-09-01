@@ -519,18 +519,6 @@
       "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
-      "identity": "app/api/projects/[id]/render/route.ts#POST",
-      "route": "/api/projects/[id]/render",
-      "method": "POST",
-      "sourceFile": "app/api/projects/[id]/render/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
-    },
-    {
       "identity": "app/api/projects/[id]/repair-v51/route.ts#GET",
       "route": "/api/projects/[id]/repair-v51",
       "method": "GET",

@@ -285,21 +285,21 @@ test("governance ratchets are exact while M1-06 actor debt remains untouched", (
     remediationWp: "NONE",
   });
   assert.equal(handlers.length, 100);
-  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 18);
-  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 24);
-  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 69);
-  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 27);
+  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 19);
+  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 25);
+  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 68);
+  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 26);
   assert.deepEqual(
     ["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length),
-    [13, 14],
+    [13, 13],
   );
 
   const auth = JSON.parse(source("governance/baselines/auth-coverage.json")).uncoveredHandlers;
-  assert.equal(auth.length, 47);
+  assert.equal(auth.length, 46);
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
   assert.deepEqual(
     ["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length),
-    [32, 14, 1],
+    [32, 13, 1],
   );
 
   const noWrite = JSON.parse(source("governance/baselines/no-write-in-get.json"));
