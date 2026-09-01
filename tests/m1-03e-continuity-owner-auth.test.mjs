@@ -9,8 +9,8 @@ import { appendWriteCommandAudit, hashActorSubject } from "../lib/write-command-
 import { analyzeAuthSource } from "../scripts/lib/candidate-ci-policy.mjs";
 
 const root = process.cwd();
-const routePath = "app/api/factory/storage/google-drive/route.ts";
-const callbackPath = "app/api/factory/storage/google-drive/callback/route.ts";
+const routePath = "app/api/factory/continuity/route.ts";
+const pagePath = "app/continuity/page.tsx";
 const handlerIdentity = routePath + "#POST";
 const source = (path) => readFileSync(join(root, path), "utf8");
 const route = source(routePath);
@@ -30,7 +30,7 @@ function transpile(names) {
   }).outputText;
 }
 
-function sideEffectCounters() {
+function counters() {
   return {
     body: 0,
     databasePrepare: 0,
@@ -49,71 +49,13 @@ function guardedEnv(allowlist, observed, db) {
   return new Proxy({ FACTORY_EXPERT_EMAILS: allowlist, DB: db }, {
     get(target, property, receiver) {
       if (property === "BUCKET") observed.r2 += 1;
-      if (["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_DRIVE_REFRESH_TOKEN"].includes(String(property))) {
-        observed.provider += 1;
-      }
+      if (String(property).includes("API_KEY") || String(property).includes("PROVIDER")) observed.provider += 1;
       if (String(property).includes("TOKEN")) observed.token += 1;
       if (String(property).includes("RESERVATION")) observed.reservation += 1;
       if (String(property).includes("SPEND")) observed.spend += 1;
       return Reflect.get(target, property, receiver);
     },
   });
-}
-
-async function executeGuard({ user, allowlist, url, method = "POST", headers = {}, db }) {
-  const observed = sideEffectCounters();
-  const request = new Request(url ?? "https://factory.invalid/api/factory/storage/google-drive", {
-    method,
-    headers: {
-      origin: "https://factory.invalid",
-      "sec-fetch-site": "same-origin",
-      ...headers,
-    },
-  });
-  request.arrayBuffer = async () => {
-    observed.body += 1;
-    return new ArrayBuffer(0);
-  };
-  const env = guardedEnv(allowlist, observed, db);
-  const context = {
-    Request,
-    Response,
-    URL,
-    Set,
-    request,
-    getChatGPTUser: async () => user,
-    googleDriveOwnerRuntimeEnv: async () => env,
-  };
-  const result = await vm.runInNewContext(
-    transpile(["ownerFailure", "googleDriveOwnerSameOrigin", "authorizeGoogleDriveOwnerWrite"])
-      + "\nauthorizeGoogleDriveOwnerWrite(request);",
-    context,
-  );
-  return { result, observed };
-}
-
-async function executeBody(rawBody, headers = {}) {
-  const request = new Request("https://factory.invalid/api/factory/storage/google-drive", {
-    method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: rawBody,
-  });
-  const context = {
-    Request,
-    Response,
-    Set,
-    TextDecoder,
-    Uint8Array,
-    crypto,
-    request,
-    MAX_OWNER_BODY_BYTES: 16 * 1024,
-    OWNER_ACTIONS: new Set(["VERIFY", "DISCONNECT"]),
-  };
-  return vm.runInNewContext(
-    transpile(["ownerFailure", "sha256RawBody", "readBoundedGoogleDriveOwnerBody"])
-      + "\nreadBoundedGoogleDriveOwnerBody(request);",
-    context,
-  );
 }
 
 function recordingDb(events, options = {}) {
@@ -130,9 +72,73 @@ function recordingDb(events, options = {}) {
           events.push({ sql, values });
           return {};
         },
+        async all() {
+          return { results: [] };
+        },
+        async first() {
+          return null;
+        },
       };
     },
+    async batch() {
+      return [];
+    },
   };
+}
+
+async function executeGuard({ user, allowlist, url, method = "POST", headers = {}, db }) {
+  const observed = counters();
+  const request = new Request(url ?? "https://factory.invalid/api/factory/continuity", {
+    method,
+    headers: {
+      origin: "https://factory.invalid",
+      "sec-fetch-site": "same-origin",
+      ...headers,
+    },
+  });
+  request.arrayBuffer = async () => {
+    observed.body += 1;
+    return new ArrayBuffer(0);
+  };
+  const env = guardedEnv(allowlist, observed, db);
+  const context = {
+    Request,
+    Response,
+    URL,
+    request,
+    getChatGPTUser: async () => user,
+    continuityOwnerRuntimeEnv: async () => env,
+  };
+  const result = await vm.runInNewContext(
+    transpile(["ownerFailure", "continuityOwnerSameOrigin", "authorizeContinuityOwnerWrite"])
+      + "\nauthorizeContinuityOwnerWrite(request);",
+    context,
+  );
+  return { result, observed };
+}
+
+async function executeBody(rawBody, headers = {}) {
+  const request = new Request("https://factory.invalid/api/factory/continuity", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: rawBody,
+  });
+  const context = {
+    Request,
+    Response,
+    Set,
+    TextDecoder,
+    Uint8Array,
+    crypto,
+    request,
+    MAX_OWNER_BODY_BYTES: 16 * 1024,
+    OWNER_ACTIONS: new Set(["CAPTURE_CHECKPOINT"]),
+  };
+  return vm.runInNewContext(
+    transpile(["ownerFailure", "sha256RawBody", "readBoundedContinuityOwnerBody"])
+      + "\nreadBoundedContinuityOwnerBody(request);",
+    context,
+  );
 }
 
 async function executeAudited(responseFactory, options = {}) {
@@ -142,62 +148,65 @@ async function executeAudited(responseFactory, options = {}) {
     handlerIdentity,
     actorType: "CHATGPT_OWNER",
     actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", "owner@example.com"),
-    action: "VERIFY",
-    resourceScope: "factory:storage:google-drive",
+    action: "CAPTURE_CHECKPOINT",
+    resourceScope: "factory:continuity:checkpoint",
     correlationId: "test:correlation",
     requestHash: "a".repeat(64),
   };
   const context = { Response, appendWriteCommandAudit, db, identity, responseFactory };
   const result = await vm.runInNewContext(
-    transpile(["runAuditedGoogleDriveOwnerAction"])
-      + "\nrunAuditedGoogleDriveOwnerAction(db, identity, responseFactory);",
+    transpile(["runAuditedContinuityOwnerAction"])
+      + "\nrunAuditedContinuityOwnerAction(db, identity, responseFactory);",
     context,
   );
   return { result, events };
 }
 
-test("M1-03D protects exactly Google Drive POST before body and preserves GET/callback", () => {
+test("M1-03E protects exactly continuity POST before body and existing business execution", () => {
   const [analysis] = analyzeAuthSource(route, routePath).filter((item) => item.method === "POST");
   assert.equal(analysis.covered, true);
-  assert.equal(analysis.authenticationGuard, "authorizeGoogleDriveOwnerWrite");
-  assert.equal(analysis.authorizationGuard, "authorizeGoogleDriveOwnerWrite");
+  assert.equal(analysis.authenticationGuard, "authorizeContinuityOwnerWrite");
+  assert.equal(analysis.authorizationGuard, "authorizeContinuityOwnerWrite");
 
   const post = declarationSource("POST");
-  const guard = post.indexOf("await authorizeGoogleDriveOwnerWrite(request)");
-  const body = post.indexOf("await readBoundedGoogleDriveOwnerBody(request)");
-  const identity = post.indexOf("await googleDriveOwnerAuditIdentity(");
-  const audited = post.indexOf("await runAuditedGoogleDriveOwnerAction(");
-  const action = post.indexOf("executeGoogleDriveOwnerAction(request, body.action)");
+  const guard = post.indexOf("await authorizeContinuityOwnerWrite(request)");
+  const body = post.indexOf("await readBoundedContinuityOwnerBody(request)");
+  const identity = post.indexOf("await continuityOwnerAuditIdentity(");
+  const audited = post.indexOf("await runAuditedContinuityOwnerAction(");
+  const action = post.indexOf("executeContinuityOwnerAction(authorization.db, body.action)");
   assert.ok(guard >= 0 && guard < body && body < identity && identity < audited && audited < action);
   assert.equal(post.includes("request.json()"), false);
-  assert.ok(post.includes('ownerFailure("GOOGLE_DRIVE_ACTION_FAILED", 500)'));
+  assert.ok(post.includes('ownerFailure("CONTINUITY_CHECKPOINT_FAILED", 500)'));
 
-  assert.equal(createHash("sha256").update(declarationSource("GET")).digest("hex"), "65ab34bd41527229752eef64677babbb9f1e4516e1cb1757f5d013c328eb063d");
-  assert.equal(createHash("sha256").update(source(callbackPath)).digest("hex"), "7507e589e7175ff6ee3ca428bb6f42cbde660ac8e73a0096351d7d0a681b87c4");
-  assert.equal(createHash("sha256").update(source("lib/google-drive.ts")).digest("hex"), "6b87c8c7d1f19fafc0f4d9d84ed5b52fdf34e621bcd6eebf1462bce99c77c75e");
+  const page = source(pagePath);
+  assert.ok(page.includes('fetch("/api/factory/continuity", { method: "POST"'));
+  assert.ok(page.includes('JSON.stringify({ action: "CAPTURE_CHECKPOINT" })'));
+  assert.ok(page.includes("Capture verified checkpoint"));
 });
 
-test("authentication, allowlist, origin, and database denials are exact with zero side effects", async () => {
+test("authentication, allowlist, origin, path, query, and database denials are exact and side-effect free", async () => {
   const db = recordingDb([]);
   const cases = [
     { user: null, allowlist: "owner@example.com", db, status: 401, code: "SIWC_AUTHENTICATION_REQUIRED" },
     { user: { email: "owner@example.com" }, allowlist: "", db, status: 503, code: "OWNER_WRITE_ALLOWLIST_UNCONFIGURED" },
     { user: { email: "intruder@example.com" }, allowlist: "owner@example.com", db, status: 403, code: "OWNER_WRITE_AUTHORIZATION_REQUIRED" },
     { user: { email: "owner@example.com" }, allowlist: "owner@example.com", db, headers: { origin: "https://evil.invalid" }, status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED" },
-    { user: { email: "owner@example.com" }, allowlist: "owner@example.com", db, url: "https://factory.invalid/api/factory/storage/google-drive?x=1", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED" },
+    { user: { email: "owner@example.com" }, allowlist: "owner@example.com", db, headers: { "sec-fetch-site": "cross-site" }, status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED" },
+    { user: { email: "owner@example.com" }, allowlist: "owner@example.com", db, url: "https://factory.invalid/api/factory/continuity?x=1", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED" },
+    { user: { email: "owner@example.com" }, allowlist: "owner@example.com", db, url: "https://factory.invalid/api/factory/continuity/extra", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED" },
+    { user: { email: "owner@example.com" }, allowlist: "owner@example.com", db, method: "PUT", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED" },
     { user: { email: "owner@example.com" }, allowlist: "owner@example.com", db: undefined, status: 503, code: "CANONICAL_DATABASE_UNAVAILABLE" },
   ];
-
   for (const item of cases) {
     const { result, observed } = await executeGuard(item);
     assert.ok(result instanceof Response);
     assert.equal(result.status, item.status);
     assert.deepEqual(await result.json(), { error: item.code });
-    assert.deepEqual(observed, sideEffectCounters());
+    assert.deepEqual(observed, counters());
   }
 });
 
-test("owner guard normalizes SIWC email and requires exact allowlist membership", async () => {
+test("owner identity is normalized and matched as an exact allowlist member", async () => {
   const db = recordingDb([]);
   const allowed = await executeGuard({
     user: { email: " Owner@Example.COM " },
@@ -207,16 +216,16 @@ test("owner guard normalizes SIWC email and requires exact allowlist membership"
   assert.equal(allowed.result.normalizedEmail, "owner@example.com");
   assert.equal(allowed.result.db, db);
 
-  const notSubstring = await executeGuard({
+  const denied = await executeGuard({
     user: { email: "owner@example.com.evil" },
     allowlist: "owner@example.com",
     db,
   });
-  assert.equal(notSubstring.result.status, 403);
-  assert.deepEqual(await notSubstring.result.json(), { error: "OWNER_WRITE_AUTHORIZATION_REQUIRED" });
+  assert.equal(denied.result.status, 403);
+  assert.deepEqual(await denied.result.json(), { error: "OWNER_WRITE_AUTHORIZATION_REQUIRED" });
 });
 
-test("body reader enforces content type, byte ceiling, UTF-8 JSON object, action, and fields", async () => {
+test("body reader enforces content type, byte ceiling, fatal UTF-8, object, exact field, and action", async () => {
   const cases = [
     { raw: "{}", headers: { "content-type": "text/plain" }, status: 415, code: "JSON_CONTENT_TYPE_REQUIRED" },
     { raw: "{}", headers: { "content-length": String(16 * 1024 + 1) }, status: 413, code: "OWNER_WRITE_BODY_TOO_LARGE" },
@@ -226,8 +235,8 @@ test("body reader enforces content type, byte ceiling, UTF-8 JSON object, action
     { raw: "null", status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
     { raw: "[]", status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
     { raw: "{}", status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
-    { raw: JSON.stringify({ action: "VERIFY", extra: true }), status: 400, code: "OWNER_WRITE_COMMAND_FIELD_FORBIDDEN" },
-    { raw: JSON.stringify({ action: "CONNECT" }), status: 403, code: "OWNER_WRITE_ACTION_FORBIDDEN" },
+    { raw: JSON.stringify({ action: "CAPTURE_CHECKPOINT", extra: true }), status: 400, code: "OWNER_WRITE_COMMAND_FIELD_FORBIDDEN" },
+    { raw: JSON.stringify({ action: "RUN" }), status: 403, code: "OWNER_WRITE_ACTION_FORBIDDEN" },
   ];
   for (const item of cases) {
     const result = await executeBody(item.raw, item.headers);
@@ -237,19 +246,17 @@ test("body reader enforces content type, byte ceiling, UTF-8 JSON object, action
   }
 });
 
-test("valid VERIFY and DISCONNECT commands hash the exact raw bytes", async () => {
-  for (const action of ["VERIFY", "DISCONNECT"]) {
-    const raw = ` { "action" : "${action}" } `;
-    const result = await executeBody(raw);
-    assert.equal(result.action, action);
-    assert.equal(result.bodySha256, createHash("sha256").update(Buffer.from(raw)).digest("hex"));
-  }
+test("valid action hashes exact raw bytes", async () => {
+  const raw = ' { "action" : "CAPTURE_CHECKPOINT" } ';
+  const result = await executeBody(raw);
+  assert.equal(result.action, "CAPTURE_CHECKPOINT");
+  assert.equal(result.bodySha256, createHash("sha256").update(Buffer.from(raw)).digest("hex"));
 });
 
 test("audit identity hashes normalized subject and validates or generates correlation id", async () => {
-  const raw = JSON.stringify({ action: "VERIFY" });
+  const raw = JSON.stringify({ action: "CAPTURE_CHECKPOINT" });
   const body = await executeBody(raw);
-  const validRequest = new Request("https://factory.invalid/api/factory/storage/google-drive", {
+  const validRequest = new Request("https://factory.invalid/api/factory/continuity", {
     method: "POST",
     headers: { "x-correlation-id": "valid:correlation-123" },
   });
@@ -257,50 +264,68 @@ test("audit identity hashes normalized subject and validates or generates correl
     Request,
     crypto,
     request: validRequest,
-    body,
     hashActorSubject,
     OWNER_HANDLER_IDENTITY: handlerIdentity,
+    OWNER_RESOURCE_SCOPE: "factory:continuity:checkpoint",
     CORRELATION_ID_PATTERN: /^[A-Za-z0-9._:-]{8,200}$/,
   };
   const identity = await vm.runInNewContext(
-    transpile(["googleDriveOwnerCorrelationId", "googleDriveOwnerAuditIdentity"])
-      + '\ngoogleDriveOwnerAuditIdentity(request, "owner@example.com", "VERIFY", body.bodySha256);',
+    transpile(["continuityOwnerCorrelationId", "continuityOwnerAuditIdentity"])
+      + '\ncontinuityOwnerAuditIdentity(request, "owner@example.com", "CAPTURE_CHECKPOINT", "' + body.bodySha256 + '");',
     context,
   );
   assert.deepEqual({ ...identity }, {
     handlerIdentity,
     actorType: "CHATGPT_OWNER",
     actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", "owner@example.com"),
-    action: "VERIFY",
-    resourceScope: "factory:storage:google-drive",
+    action: "CAPTURE_CHECKPOINT",
+    resourceScope: "factory:continuity:checkpoint",
     correlationId: "valid:correlation-123",
     requestHash: createHash("sha256").update(Buffer.from(raw)).digest("hex"),
   });
 
-  context.request = new Request("https://factory.invalid/api/factory/storage/google-drive", {
+  context.request = new Request("https://factory.invalid/api/factory/continuity", {
     method: "POST",
     headers: { "x-correlation-id": "bad id" },
   });
   const generated = await vm.runInNewContext(
-    transpile(["googleDriveOwnerCorrelationId"])
-      + "\ngoogleDriveOwnerCorrelationId(request);",
+    transpile(["continuityOwnerCorrelationId"]) + "\ncontinuityOwnerCorrelationId(request);",
     context,
   );
-  assert.match(generated, /^google-drive-owner:[0-9a-f-]{36}$/);
+  assert.match(generated, /^continuity-owner:[0-9a-f-]{36}$/);
   assert.equal(route.includes("rawBody:"), false);
   assert.equal(route.includes("user.email,"), false);
 });
 
-test("immutable audit writes AUTHORIZED before execution and exactly one terminal outcome", async () => {
-  const success = await executeAudited(async () => Response.json({ ok: true }));
+test("immutable audit is AUTHORIZED then SUCCEEDED with captured snapshot reference", async () => {
+  const success = await executeAudited(async () => ({
+    response: Response.json({ ok: true }),
+    domainReceiptReference: "YTAF-V7-GREENFIELD-CONTINUITY-0123456789abcdef",
+  }));
   assert.equal(success.result.status, 200);
   assert.deepEqual(success.events.map((item) => item.values[8]), ["AUTHORIZED", "SUCCEEDED"]);
-  assert.deepEqual(success.events.map((item) => item.values[9]), [null, null]);
+  assert.deepEqual(success.events.map((item) => item.values[9]), [
+    null,
+    "YTAF-V7-GREENFIELD-CONTINUITY-0123456789abcdef",
+  ]);
+});
 
-  const rejected = await executeAudited(async () => Response.json({ error: "blocked" }, { status: 409 }));
+test("non-success and business exceptions audit FAILED with no domain reference", async () => {
+  const rejected = await executeAudited(async () => ({
+    response: Response.json({ error: "blocked" }, { status: 409 }),
+    domainReceiptReference: null,
+  }));
   assert.equal(rejected.result.status, 409);
   assert.deepEqual(rejected.events.map((item) => item.values[8]), ["AUTHORIZED", "FAILED"]);
+  assert.deepEqual(rejected.events.map((item) => item.values[9]), [null, null]);
 
+  await assert.rejects(
+    () => executeAudited(async () => { throw new Error("BUSINESS_SENTINEL"); }),
+    /BUSINESS_SENTINEL/,
+  );
+});
+
+test("failed AUTHORIZED prevents execution and failed SUCCEEDED records FAILED", async () => {
   const events = [];
   let executions = 0;
   const db = recordingDb(events, { failPhase: "AUTHORIZED" });
@@ -308,84 +333,127 @@ test("immutable audit writes AUTHORIZED before execution and exactly one termina
     handlerIdentity,
     actorType: "CHATGPT_OWNER",
     actorSubjectHash: "b".repeat(64),
-    action: "VERIFY",
-    resourceScope: "factory:storage:google-drive",
+    action: "CAPTURE_CHECKPOINT",
+    resourceScope: "factory:continuity:checkpoint",
     correlationId: "test:correlation",
     requestHash: "a".repeat(64),
   };
   await assert.rejects(
     () => vm.runInNewContext(
-      transpile(["runAuditedGoogleDriveOwnerAction"])
-        + "\nrunAuditedGoogleDriveOwnerAction(db, identity, execute);",
-      { Response, appendWriteCommandAudit, db, identity, execute: async () => { executions += 1; return Response.json({ ok: true }); } },
+      transpile(["runAuditedContinuityOwnerAction"])
+        + "\nrunAuditedContinuityOwnerAction(db, identity, execute);",
+      {
+        Response,
+        appendWriteCommandAudit,
+        db,
+        identity,
+        execute: async () => {
+          executions += 1;
+          return { response: Response.json({ ok: true }), domainReceiptReference: "snapshot" };
+        },
+      },
     ),
     /AUDIT_AUTHORIZED_FAILED/,
   );
   assert.equal(executions, 0);
   assert.deepEqual(events, []);
-});
 
-test("audit and business exceptions reach FAILED and surface only through the generic POST catch", async () => {
+  const terminalEvents = [];
+  const terminalDb = recordingDb(terminalEvents, { failPhase: "SUCCEEDED" });
   await assert.rejects(
-    () => executeAudited(async () => { throw new Error("BUSINESS_SECRET_SENTINEL"); }),
-    /BUSINESS_SECRET_SENTINEL/,
-  );
-  await assert.rejects(
-    () => executeAudited(async () => Response.json({ ok: true }), { failPhase: "SUCCEEDED" }),
+    () => vm.runInNewContext(
+      transpile(["runAuditedContinuityOwnerAction"])
+        + "\nrunAuditedContinuityOwnerAction(db, identity, execute);",
+      {
+        Response,
+        appendWriteCommandAudit,
+        db: terminalDb,
+        identity,
+        execute: async () => ({
+          response: Response.json({ ok: true }),
+          domainReceiptReference: "snapshot",
+        }),
+      },
+    ),
     /AUDIT_SUCCEEDED_FAILED/,
   );
-  const post = declarationSource("POST");
-  assert.ok(post.includes('ownerFailure("GOOGLE_DRIVE_ACTION_FAILED", 500)'));
-  assert.equal(post.includes("error.message"), false);
-  assert.equal(post.includes("response.text"), false);
-  assert.equal(post.includes("response.json"), false);
+  assert.deepEqual(terminalEvents.map((item) => item.values[8]), ["AUTHORIZED", "FAILED"]);
+  assert.deepEqual(terminalEvents.map((item) => item.values[9]), [null, null]);
 });
 
-test("authorized VERIFY and DISCONNECT invoke only their existing helper once", async () => {
-  for (const action of ["VERIFY", "DISCONNECT"]) {
-    const calls = { verify: 0, disconnect: 0, status: 0, origin: null };
-    const request = new Request("https://factory.invalid/api/factory/storage/google-drive", {
-      method: "POST",
-      headers: { "x-forwarded-host": "factory.example", "x-forwarded-proto": "https" },
-    });
-    const context = {
-      Request,
-      Response,
-      URL,
-      request,
-      action,
-      verifyDriveConnection: async () => { calls.verify += 1; },
-      disconnectDrive: async () => { calls.disconnect += 1; },
-      driveStatus: async (origin) => { calls.status += 1; calls.origin = origin; return { connected: action === "VERIFY" }; },
-    };
-    const response = await vm.runInNewContext(
-      transpile(["ownerFailure", "requestOrigin", "executeGoogleDriveOwnerAction"])
-        + "\nexecuteGoogleDriveOwnerAction(request, action);",
-      context,
-    );
-    assert.equal(response.status, 200);
-    assert.deepEqual(calls, {
-      verify: action === "VERIFY" ? 1 : 0,
-      disconnect: action === "DISCONNECT" ? 1 : 0,
-      status: 1,
-      origin: "https://factory.example",
-    });
-  }
+test("CAPTURE_CHECKPOINT preserves success and active-provider business behavior", async () => {
+  const statements = [];
+  const db = {
+    prepare(sql) {
+      statements.push(sql);
+      return {
+        bind() { return this; },
+        async run() { return {}; },
+      };
+    },
+  };
+  const base = {
+    generatedAt: "2026-09-01T00:00:00.000Z",
+    state: { checkpoint: "CONTINUITY_HARDENING_01" },
+    ledger: { activeRequests: 0 },
+    blockers: [],
+  };
+  const context = {
+    Response,
+    PROGRAM_ID: "YTAF-V7-GREENFIELD",
+    runtime: async (value) => {
+      assert.equal(value, db);
+      return db;
+    },
+    buildSnapshot: async () => base,
+    sha: async () => "0123456789abcdef" + "0".repeat(48),
+    db,
+  };
+  const success = await vm.runInNewContext(
+    transpile(["ownerFailure", "executeContinuityOwnerAction"])
+      + '\nexecuteContinuityOwnerAction(db, "CAPTURE_CHECKPOINT");',
+    context,
+  );
+  assert.equal(success.response.status, 200);
+  assert.equal(success.domainReceiptReference, "YTAF-V7-GREENFIELD-CONTINUITY-0123456789abcdef");
+  const payload = await success.response.json();
+  assert.deepEqual(payload.captured, {
+    id: "YTAF-V7-GREENFIELD-CONTINUITY-0123456789abcdef",
+    lifecycleState: "FROZEN",
+    contentHash: "0123456789abcdef" + "0".repeat(48),
+  });
+  assert.equal(statements.length, 1);
+  assert.match(statements[0], /INSERT INTO v7_continuity_snapshots/);
+  assert.match(statements[0], /ON CONFLICT\(id\) DO NOTHING/);
+
+  statements.length = 0;
+  context.buildSnapshot = async () => ({ ...base, ledger: { activeRequests: 1 } });
+  const blocked = await vm.runInNewContext(
+    transpile(["ownerFailure", "executeContinuityOwnerAction"])
+      + '\nexecuteContinuityOwnerAction(db, "CAPTURE_CHECKPOINT");',
+    context,
+  );
+  assert.equal(blocked.response.status, 409);
+  assert.deepEqual(await blocked.response.json(), {
+    error: "Checkpoint capture is blocked while provider requests are active",
+  });
+  assert.equal(blocked.domainReceiptReference, null);
+  assert.deepEqual(statements, []);
 });
 
-test("registry, ratchets, migrations, and no-new-side-effect boundaries are exact", () => {
+test("registry and ratchets move exactly one POST without new gaps", () => {
   const registry = JSON.parse(source("governance/registries/http-handlers.json"));
   const handlers = registry.handlers;
   assert.deepEqual(handlers.find((item) => item.identity === handlerIdentity), {
     identity: handlerIdentity,
     sourceFile: routePath,
-    routePath: "/api/factory/storage/google-drive",
+    routePath: "/api/factory/continuity",
     method: "POST",
     readWrite: "WRITE",
     actor: "CHATGPT_OWNER",
     authentication: "CHATGPT_SIWC",
     authorization: "FACTORY_EXPERT_EMAILS_ALLOWLIST_AND_SAME_ORIGIN_AND_EXACT_ACTION",
-    audit: "IMMUTABLE_WRITE_COMMAND_AUDIT",
+    audit: "IMMUTABLE_WRITE_COMMAND_AUDIT_AND_CONTINUITY_SNAPSHOT",
     status: "PROTECTED",
     remediationWp: "NONE",
   });
@@ -393,7 +461,8 @@ test("registry, ratchets, migrations, and no-new-side-effect boundaries are exac
   assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 17);
   assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 28);
   assert.deepEqual(
-    ["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length),
+    ["GET", "POST"].map((method) => handlers.filter((item) =>
+      item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length),
     [13, 15],
   );
   assert.deepEqual(Object.fromEntries(
@@ -407,34 +476,6 @@ test("registry, ratchets, migrations, and no-new-side-effect boundaries are exac
     UNCLASSIFIED: 70,
   });
 
-  const callback = handlers.find((item) => item.identity === callbackPath + "#GET");
-  assert.deepEqual(callback, {
-    identity: callbackPath + "#GET",
-    sourceFile: callbackPath,
-    routePath: "/api/factory/storage/google-drive/callback",
-    method: "GET",
-    readWrite: "READ",
-    actor: "PROVIDER_CALLBACK",
-    authentication: "OAUTH_STATE",
-    authorization: "OAUTH_STATE_BINDING",
-    audit: "DRIVE_CONNECTION_STATE_UPDATE",
-    status: "PARTIAL_CALLBACK_STATE_ONLY",
-    remediationWp: "M1-09",
-  });
-  assert.deepEqual(handlers.find((item) => item.identity === routePath + "#GET"), {
-    identity: routePath + "#GET",
-    sourceFile: routePath,
-    routePath: "/api/factory/storage/google-drive",
-    method: "GET",
-    readWrite: "READ",
-    actor: "UNCLASSIFIED",
-    authentication: "NONE",
-    authorization: "NONE",
-    audit: "NOT_APPLICABLE_READ_ONLY",
-    status: "GAP_UNAUTHENTICATED_READ",
-    remediationWp: "M1-04",
-  });
-
   const auth = JSON.parse(source("governance/baselines/auth-coverage.json")).uncoveredHandlers;
   assert.equal(auth.length, 48);
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
@@ -442,8 +483,12 @@ test("registry, ratchets, migrations, and no-new-side-effect boundaries are exac
     ["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length),
     [32, 15, 1],
   );
+  assert.equal(JSON.parse(source("governance/baselines/no-write-in-get.json")).handlersWithReachableWrites.length, 16);
+  assert.equal(JSON.parse(source("governance/baselines/actor-separation.json")).unseparatedCommands.length, 19);
+});
 
-  const expectedMigrations = {
+test("migration head remains 0132 and migrations 0129 through 0132 are byte-identical", () => {
+  const expected = {
     "0129_exact_tree_deployment_receipts.sql": "ffe1b3eaa00078f477afd043cbeb8662cd4ae1e305f5082b089f0b0e501ecea4",
     "0130_scoped_deployment_receipt_writer.sql": "113fb6178656a057e2e63b6cef24b018da92beab3f915b1c7a11cd690af0ad9e",
     "0131_owner_deployment_receipt_finalization.sql": "2683d493076d2f47149a33a592ddd9ba30d3c6444e343c77549cc9fd2167de84",
@@ -451,11 +496,7 @@ test("registry, ratchets, migrations, and no-new-side-effect boundaries are exac
   };
   const migrations = readdirSync(join(root, "drizzle")).filter((name) => name.endsWith(".sql")).sort();
   assert.equal(migrations.at(-1), "0132_factory_write_command_audit.sql");
-  for (const [name, digest] of Object.entries(expectedMigrations)) {
+  for (const [name, digest] of Object.entries(expected)) {
     assert.equal(createHash("sha256").update(source("drizzle/" + name)).digest("hex"), digest);
-  }
-
-  for (const forbidden of ["fetch(", "BUCKET", "R2Bucket", "COST_RESERVATION", "ACTUAL_SPEND", "decrypt", "revokeToken"] ) {
-    assert.equal(route.includes(forbidden), false);
   }
 });
