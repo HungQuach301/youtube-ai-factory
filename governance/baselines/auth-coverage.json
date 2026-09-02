@@ -472,21 +472,6 @@
       ]
     },
     {
-      "identity": "app/api/projects/[id]/media/route.ts#POST",
-      "route": "/api/projects/[id]/media",
-      "method": "POST",
-      "sourceFile": "app/api/projects/[id]/media/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/projects/[id]/optimization/route.ts#GET",
       "route": "/api/projects/[id]/optimization",
       "method": "GET",

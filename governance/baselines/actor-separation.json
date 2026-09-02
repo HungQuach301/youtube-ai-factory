@@ -89,12 +89,6 @@
       "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
     },
     {
-      "identity": "app/api/projects/[id]/media/route.ts#POST:APPROVE_ASSET",
-      "handler": "app/api/projects/[id]/media/route.ts#POST",
-      "command": "APPROVE_ASSET",
-      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
-    },
-    {
       "identity": "app/api/projects/[id]/optimization/route.ts#POST:APPROVE_HANDOFF",
       "handler": "app/api/projects/[id]/optimization/route.ts#POST",
       "command": "APPROVE_HANDOFF",

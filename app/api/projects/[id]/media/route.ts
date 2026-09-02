@@ -1,8 +1,16 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
+import { getChatGPTUser } from "../../../../chatgpt-auth";
+import {
+  appendWriteCommandAudit,
+  hashActorSubject,
+  type WriteCommandAuditDatabase,
+  type WriteCommandAuditIdentity,
+} from "../../../../../lib/write-command-audit";
 import { assemblyRuns, mediaAssets, mediaAutomationSettings, narrationSegments, optimizationArtifacts, productionProfiles, sceneManifest, videoProjects, voiceProfiles, workflowEvents } from "../../../../../db/schema";
 
-type RuntimeD1 = { prepare(sql: string): { run(): Promise<unknown> } };
+type RuntimeStatement = { bind(...values: unknown[]): RuntimeStatement; run(): Promise<unknown> };
+type RuntimeD1 = WriteCommandAuditDatabase & { prepare(sql: string): RuntimeStatement };
 type RuntimeBucket = {
   put(key: string, value: ArrayBuffer | Uint8Array, options?: { httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<unknown>;
   delete(keys: string | string[]): Promise<unknown>;
@@ -13,6 +21,7 @@ type RuntimeEnv = {
   DB?: RuntimeD1; BUCKET?: RuntimeBucket; PEXELS_API_KEY?: string; PIXABAY_API_KEY?: string;
   SHUTTERSTOCK_CONSUMER_KEY?: string; SHUTTERSTOCK_CONSUMER_SECRET?: string;
   GOOGLE_DRIVE_CLIENT_ID?: string;
+  FACTORY_EXPERT_EMAILS?: string;
 };
 
 type DiscoveryCandidate = {
@@ -21,6 +30,83 @@ type DiscoveryCandidate = {
   landingUrl: string; licenseType: string; licenseUrl: string | null; creator: string | null;
   sourceAssetId?: string; score: number;
 };
+
+type MediaOwnerJsonAction =
+  | "PREPARE_VISUAL_COMPOSITION_V2"
+  | "REPAIR_OPTIMIZED_WAVE"
+  | "MATERIALIZE_OPTIMIZED_WAVE"
+  | "FINALIZE_MOTION_UPLOAD"
+  | "SET_AUTOMATION_MODE"
+  | "AUTO_SOURCE_ALL"
+  | "GENERATE_DIAGRAMS"
+  | "GENERATE_MOTION_VISUALS"
+  | "REGISTER_LINK"
+  | "SELECT_DISCOVERY"
+  | "VERIFY_RIGHTS"
+  | "APPROVE_ASSET"
+  | "BUILD_ASSEMBLY";
+
+type MediaOwnerJsonPayload = {
+  action: MediaOwnerJsonAction;
+  batchSize?: number;
+  repairCycle?: number;
+  sceneId?: string;
+  assetId?: string;
+  parentAssetId?: string;
+  uploadId?: string;
+  chunkCount?: number;
+  fileName?: string;
+  sizeBytes?: number;
+  sourceUrl?: string;
+  licenseType?: string;
+  licenseProof?: string;
+  candidate?: DiscoveryCandidate;
+  verificationMode?: "AUTOPILOT" | "REVIEW";
+};
+
+type MediaOwnerCommand =
+  | { kind: "JSON"; action: MediaOwnerJsonAction; payload: MediaOwnerJsonPayload; requestHash: string }
+  | { kind: "FORM_UPLOAD"; action: "UPLOAD_MEDIA_ASSET"; generatedMotion: boolean; sceneId: string; requestHash: string }
+  | { kind: "UPLOAD_PART"; action: "UPLOAD_MOTION_PART"; uploadId: string; part: number; bytes: Uint8Array; requestHash: string };
+
+const MEDIA_OWNER_HANDLER_IDENTITY = "app/api/projects/[id]/media/route.ts#POST";
+const MEDIA_OWNER_ACTIONS = new Set<MediaOwnerJsonAction>([
+  "PREPARE_VISUAL_COMPOSITION_V2",
+  "REPAIR_OPTIMIZED_WAVE",
+  "MATERIALIZE_OPTIMIZED_WAVE",
+  "FINALIZE_MOTION_UPLOAD",
+  "SET_AUTOMATION_MODE",
+  "AUTO_SOURCE_ALL",
+  "GENERATE_DIAGRAMS",
+  "GENERATE_MOTION_VISUALS",
+  "REGISTER_LINK",
+  "SELECT_DISCOVERY",
+  "VERIFY_RIGHTS",
+  "APPROVE_ASSET",
+  "BUILD_ASSEMBLY",
+]);
+const MEDIA_OWNER_FIELDS: Record<MediaOwnerJsonAction, ReadonlySet<string>> = {
+  PREPARE_VISUAL_COMPOSITION_V2: new Set(["action", "repairCycle"]),
+  REPAIR_OPTIMIZED_WAVE: new Set(["action", "batchSize", "repairCycle"]),
+  MATERIALIZE_OPTIMIZED_WAVE: new Set(["action", "batchSize"]),
+  FINALIZE_MOTION_UPLOAD: new Set(["action", "uploadId", "chunkCount", "sceneId", "parentAssetId", "fileName", "sizeBytes"]),
+  SET_AUTOMATION_MODE: new Set(["action", "verificationMode"]),
+  AUTO_SOURCE_ALL: new Set(["action"]),
+  GENERATE_DIAGRAMS: new Set(["action"]),
+  GENERATE_MOTION_VISUALS: new Set(["action"]),
+  REGISTER_LINK: new Set(["action", "sceneId", "sourceUrl", "licenseType", "licenseProof"]),
+  SELECT_DISCOVERY: new Set(["action", "sceneId", "candidate"]),
+  VERIFY_RIGHTS: new Set(["action", "assetId", "licenseProof"]),
+  APPROVE_ASSET: new Set(["action", "assetId"]),
+  BUILD_ASSEMBLY: new Set(["action"]),
+};
+const MEDIA_OWNER_FORM_FIELDS = new Set(["file", "sceneId", "generatedMotion", "parentAssetId", "licenseType", "licenseProof"]);
+const MEDIA_OWNER_CANDIDATE_FIELDS = new Set(["id", "provider", "category", "title", "mediaType", "thumbnailUrl", "assetUrl", "landingUrl", "licenseType", "licenseUrl", "creator", "sourceAssetId", "score"]);
+const MAX_MEDIA_OWNER_JSON_BYTES = 32 * 1024;
+const MAX_MEDIA_OWNER_FORM_BYTES = 52 * 1024 * 1024;
+const MAX_MEDIA_OWNER_UPLOAD_PART_BYTES = 700 * 1024;
+const MEDIA_OWNER_CORRELATION_ID_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
+const MEDIA_OWNER_AUDIT_COMPONENT_PATTERN = /[^A-Za-z0-9._:-]/g;
 
 type MaterializationBeat = OptimizedVisualBeat & {
   assetKey: string;
@@ -51,6 +137,262 @@ let mediaSchemaReady: Promise<void> | null = null;
 async function runtimeEnv() {
   const { env } = await import("cloudflare:workers");
   return env as unknown as RuntimeEnv;
+}
+
+function mediaOwnerFailure(error: string, status: number) {
+  return Response.json({ error }, { status });
+}
+
+function mediaOwnerSameOrigin(request: Request) {
+  const url = new URL(request.url);
+  return request.method === "POST"
+    && /^\/api\/projects\/[^/]+\/media$/.test(url.pathname)
+    && request.headers.get("origin") === url.origin
+    && request.headers.get("sec-fetch-site") === "same-origin";
+}
+
+async function mediaOwnerRuntimeEnv(): Promise<RuntimeEnv> {
+  const { env } = await import("cloudflare:workers");
+  return env as unknown as RuntimeEnv;
+}
+
+async function authorizeMediaOwnerWrite(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user?.email) return mediaOwnerFailure("SIWC_AUTHENTICATION_REQUIRED", 401);
+  if (!mediaOwnerSameOrigin(request)) return mediaOwnerFailure("OWNER_WRITE_SAME_ORIGIN_REQUIRED", 403);
+
+  const env = await mediaOwnerRuntimeEnv();
+  const normalizedEmail = user.email.trim().toLowerCase();
+  const owners = String(env.FACTORY_EXPERT_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (owners.length === 0) return mediaOwnerFailure("OWNER_WRITE_ALLOWLIST_UNCONFIGURED", 503);
+  if (!owners.includes(normalizedEmail)) return mediaOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+  if (!env.DB) return mediaOwnerFailure("CANONICAL_DATABASE_UNAVAILABLE", 503);
+  return { db: env.DB, normalizedEmail, actorType: "CHATGPT_OWNER" as const };
+}
+
+function requireOwnerAuthority(actorType: string) {
+  if (actorType === "AGENT") return mediaOwnerFailure("AGENT_OWNER_COMMAND_FORBIDDEN", 403);
+  return actorType === "CHATGPT_OWNER" ? null : mediaOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+}
+
+async function mediaOwnerSha256RawBytes(bytes: ArrayBuffer | Uint8Array) {
+  const value = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", value));
+  return [...digest].map((item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+function mediaOwnerBoundedString(value: unknown, maximum = 500): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= maximum;
+}
+
+function mediaOwnerAllowedKeys(value: Record<string, unknown>, allowed: ReadonlySet<string>) {
+  const keys = Object.keys(value);
+  return keys.includes("action") && keys.every((key) => allowed.has(key));
+}
+
+function mediaOwnerExactQueryKeys(url: URL, expected: readonly string[]) {
+  const keys = [...url.searchParams.keys()];
+  return keys.length === expected.length
+    && expected.every((key) => url.searchParams.getAll(key).length === 1)
+    && keys.every((key) => expected.includes(key));
+}
+
+function mediaOwnerFiniteInteger(value: unknown, minimum: number, maximum: number) {
+  return typeof value === "number" && Number.isInteger(value) && value >= minimum && value <= maximum;
+}
+
+function mediaOwnerCandidateValid(value: unknown): value is DiscoveryCandidate {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  if (Object.keys(candidate).some((key) => !MEDIA_OWNER_CANDIDATE_FIELDS.has(key))) return false;
+  return mediaOwnerBoundedString(candidate.id, 200)
+    && mediaOwnerBoundedString(candidate.provider, 100)
+    && ["FREE", "PAID", "INTERNAL"].includes(String(candidate.category))
+    && mediaOwnerBoundedString(candidate.title, 500)
+    && ["IMAGE", "VIDEO", "CATALOG"].includes(String(candidate.mediaType))
+    && (candidate.thumbnailUrl === null || candidate.thumbnailUrl === undefined || mediaOwnerBoundedString(candidate.thumbnailUrl, 2048))
+    && (candidate.assetUrl === null || candidate.assetUrl === undefined || mediaOwnerBoundedString(candidate.assetUrl, 2048))
+    && mediaOwnerBoundedString(candidate.landingUrl, 2048)
+    && mediaOwnerBoundedString(candidate.licenseType, 200)
+    && (candidate.licenseUrl === null || candidate.licenseUrl === undefined || mediaOwnerBoundedString(candidate.licenseUrl, 2048))
+    && (candidate.creator === null || candidate.creator === undefined || mediaOwnerBoundedString(candidate.creator, 500))
+    && (candidate.sourceAssetId === undefined || mediaOwnerBoundedString(candidate.sourceAssetId, 300))
+    && typeof candidate.score === "number"
+    && Number.isFinite(candidate.score);
+}
+
+function mediaOwnerJsonPayloadValid(payload: MediaOwnerJsonPayload) {
+  if (!mediaOwnerAllowedKeys(payload as unknown as Record<string, unknown>, MEDIA_OWNER_FIELDS[payload.action])) return false;
+  if (payload.action === "PREPARE_VISUAL_COMPOSITION_V2") return payload.repairCycle === undefined || mediaOwnerFiniteInteger(payload.repairCycle, 1, 2);
+  if (payload.action === "REPAIR_OPTIMIZED_WAVE") {
+    return (payload.batchSize === undefined || mediaOwnerFiniteInteger(payload.batchSize, 1, 10))
+      && (payload.repairCycle === undefined || mediaOwnerFiniteInteger(payload.repairCycle, 1, 2));
+  }
+  if (payload.action === "MATERIALIZE_OPTIMIZED_WAVE") return payload.batchSize === undefined || mediaOwnerFiniteInteger(payload.batchSize, 1, 10);
+  if (payload.action === "FINALIZE_MOTION_UPLOAD") {
+    return mediaOwnerBoundedString(payload.uploadId, 80)
+      && safeUploadId(payload.uploadId)
+      && mediaOwnerFiniteInteger(payload.chunkCount, 1, 200)
+      && mediaOwnerBoundedString(payload.sceneId, 300)
+      && mediaOwnerBoundedString(payload.parentAssetId, 300)
+      && (payload.fileName === undefined || mediaOwnerBoundedString(payload.fileName, 100))
+      && (payload.sizeBytes === undefined || mediaOwnerFiniteInteger(payload.sizeBytes, 1, 50 * 1024 * 1024));
+  }
+  if (payload.action === "SET_AUTOMATION_MODE") return payload.verificationMode === "AUTOPILOT" || payload.verificationMode === "REVIEW";
+  if (payload.action === "REGISTER_LINK") {
+    return mediaOwnerBoundedString(payload.sceneId, 300)
+      && mediaOwnerBoundedString(payload.sourceUrl, 2048)
+      && /^https?:\/\//.test(payload.sourceUrl)
+      && (payload.licenseType === undefined || mediaOwnerBoundedString(payload.licenseType, 200))
+      && (payload.licenseProof === undefined || mediaOwnerBoundedString(payload.licenseProof, 2000));
+  }
+  if (payload.action === "SELECT_DISCOVERY") return mediaOwnerBoundedString(payload.sceneId, 300) && mediaOwnerCandidateValid(payload.candidate);
+  if (payload.action === "VERIFY_RIGHTS") {
+    return mediaOwnerBoundedString(payload.assetId, 300)
+      && (payload.licenseProof === undefined || mediaOwnerBoundedString(payload.licenseProof, 2000));
+  }
+  if (payload.action === "APPROVE_ASSET") return mediaOwnerBoundedString(payload.assetId, 300);
+  return Object.keys(payload).length === 1;
+}
+
+async function readMediaOwnerCommand(request: Request): Promise<MediaOwnerCommand | Response> {
+  const url = new URL(request.url);
+  if (url.search) {
+    if (!mediaOwnerExactQueryKeys(url, ["motionUpload", "uploadId", "part"]) || url.searchParams.get("motionUpload") !== "part") {
+      return mediaOwnerFailure("OWNER_WRITE_QUERY_INVALID", 400);
+    }
+    const uploadId = url.searchParams.get("uploadId") ?? "";
+    const partText = url.searchParams.get("part") ?? "";
+    if (!safeUploadId(uploadId) || !/^(0|[1-9]\d*)$/.test(partText)) return mediaOwnerFailure("OWNER_WRITE_QUERY_INVALID", 400);
+    const part = Number(partText);
+    if (!Number.isInteger(part) || part < 0 || part > 200) return mediaOwnerFailure("OWNER_WRITE_QUERY_INVALID", 400);
+    const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+    if (contentType !== "application/octet-stream") return mediaOwnerFailure("BINARY_CONTENT_TYPE_REQUIRED", 415);
+    const lengthHeader = request.headers.get("content-length");
+    const contentLength = lengthHeader === null ? null : Number(lengthHeader);
+    if (contentLength !== null && (!Number.isFinite(contentLength) || contentLength < 0)) return mediaOwnerFailure("OWNER_WRITE_CONTENT_LENGTH_INVALID", 400);
+    if (contentLength !== null && contentLength > MAX_MEDIA_OWNER_UPLOAD_PART_BYTES) return mediaOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+    const raw = await request.arrayBuffer();
+    if (!raw.byteLength || raw.byteLength > MAX_MEDIA_OWNER_UPLOAD_PART_BYTES) return mediaOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+    const bytes = new Uint8Array(raw);
+    return { kind: "UPLOAD_PART", action: "UPLOAD_MOTION_PART", uploadId, part, bytes, requestHash: await mediaOwnerSha256RawBytes(bytes) };
+  }
+
+  const rawContentType = request.headers.get("content-type") ?? "";
+  const contentType = rawContentType.split(";", 1)[0]?.trim().toLowerCase();
+  const lengthHeader = request.headers.get("content-length");
+  const contentLength = lengthHeader === null ? null : Number(lengthHeader);
+  if (contentLength !== null && (!Number.isFinite(contentLength) || contentLength < 0)) return mediaOwnerFailure("OWNER_WRITE_CONTENT_LENGTH_INVALID", 400);
+
+  if (contentType === "multipart/form-data") {
+    if (contentLength !== null && contentLength > MAX_MEDIA_OWNER_FORM_BYTES) return mediaOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+    const raw = await request.arrayBuffer();
+    if (!raw.byteLength || raw.byteLength > MAX_MEDIA_OWNER_FORM_BYTES) return mediaOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+    let form: FormData;
+    try {
+      form = await new Request(request.url, { method: "POST", headers: request.headers, body: raw }).formData();
+    } catch {
+      return mediaOwnerFailure("OWNER_WRITE_FORM_INVALID", 400);
+    }
+    const keys = [...form.keys()];
+    if (keys.some((key) => !MEDIA_OWNER_FORM_FIELDS.has(key)) || keys.some((key) => form.getAll(key).length !== 1)) {
+      return mediaOwnerFailure("OWNER_WRITE_COMMAND_FIELD_FORBIDDEN", 400);
+    }
+    const file = form.get("file");
+    const sceneId = String(form.get("sceneId") ?? "");
+    const generatedMotion = String(form.get("generatedMotion") ?? "") === "true";
+    const parentAssetId = String(form.get("parentAssetId") ?? "");
+    if (!(file instanceof File) || !mediaOwnerBoundedString(sceneId, 300)) return mediaOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return mediaOwnerFailure("OWNER_WRITE_MEDIA_TYPE_INVALID", 415);
+    if (!file.size || file.size > 50 * 1024 * 1024) return mediaOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+    if (generatedMotion && (!mediaOwnerBoundedString(parentAssetId, 300) || file.type !== "video/webm")) return mediaOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+    return { kind: "FORM_UPLOAD", action: "UPLOAD_MEDIA_ASSET", generatedMotion, sceneId, requestHash: await mediaOwnerSha256RawBytes(raw) };
+  }
+
+  if (contentType !== "application/json") return mediaOwnerFailure("JSON_CONTENT_TYPE_REQUIRED", 415);
+  if (contentLength !== null && contentLength > MAX_MEDIA_OWNER_JSON_BYTES) return mediaOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+  const raw = await request.arrayBuffer();
+  if (!raw.byteLength || raw.byteLength > MAX_MEDIA_OWNER_JSON_BYTES) return mediaOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(raw));
+  } catch {
+    return mediaOwnerFailure("OWNER_WRITE_JSON_INVALID", 400);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return mediaOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.action !== "string") return mediaOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  if (!MEDIA_OWNER_ACTIONS.has(record.action as MediaOwnerJsonAction)) return mediaOwnerFailure("MEDIA_OWNER_ACTION_FORBIDDEN", 403);
+  const payload = record as MediaOwnerJsonPayload;
+  if (!mediaOwnerJsonPayloadValid(payload)) return mediaOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  return { kind: "JSON", action: payload.action, payload, requestHash: await mediaOwnerSha256RawBytes(raw) };
+}
+
+function mediaOwnerBoundedAuditComponent(value: string) {
+  return value.replace(MEDIA_OWNER_AUDIT_COMPONENT_PATTERN, "_").slice(0, 200) || "unknown";
+}
+
+function mediaOwnerResourceScope(projectId: string, command: MediaOwnerCommand) {
+  const project = mediaOwnerBoundedAuditComponent(projectId);
+  if (command.kind === "UPLOAD_PART") return `project:${project}:media-upload:${mediaOwnerBoundedAuditComponent(command.uploadId)}:part:${command.part}`;
+  if (command.kind === "FORM_UPLOAD") return `project:${project}:media:scene:${mediaOwnerBoundedAuditComponent(command.sceneId)}:upload`;
+  const resource = command.payload.assetId ?? command.payload.sceneId ?? command.payload.uploadId ?? command.action;
+  return `project:${project}:media:${mediaOwnerBoundedAuditComponent(String(resource))}`;
+}
+
+function mediaOwnerCorrelationId(request: Request) {
+  const supplied = request.headers.get("x-correlation-id")?.trim() ?? "";
+  return MEDIA_OWNER_CORRELATION_ID_PATTERN.test(supplied) ? supplied : `media-owner:${crypto.randomUUID()}`;
+}
+
+async function mediaOwnerAuditIdentity(request: Request, projectId: string, normalizedEmail: string, command: MediaOwnerCommand): Promise<WriteCommandAuditIdentity> {
+  return {
+    handlerIdentity: MEDIA_OWNER_HANDLER_IDENTITY,
+    actorType: "CHATGPT_OWNER",
+    actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", normalizedEmail),
+    action: command.action,
+    resourceScope: mediaOwnerResourceScope(projectId, command),
+    correlationId: mediaOwnerCorrelationId(request),
+    requestHash: command.requestHash,
+  };
+}
+
+async function mediaOwnerDomainReceipt(projectId: string, command: MediaOwnerCommand, response: Response) {
+  if (command.kind === "UPLOAD_PART") return `media-upload:${mediaOwnerBoundedAuditComponent(projectId)}:${mediaOwnerBoundedAuditComponent(command.uploadId)}:${command.part}:${command.requestHash}`;
+  const payload = await response.clone().json().catch(() => ({})) as Record<string, unknown>;
+  const reference = payload.assetId ?? payload.part ?? payload.version ?? payload.created ?? payload.verificationMode ?? payload.status ?? command.requestHash;
+  return `media:${mediaOwnerBoundedAuditComponent(projectId)}:${mediaOwnerBoundedAuditComponent(command.action)}:${mediaOwnerBoundedAuditComponent(String(reference))}`;
+}
+
+async function runAuditedMediaOwnerCommand(
+  db: WriteCommandAuditDatabase,
+  identity: WriteCommandAuditIdentity,
+  projectId: string,
+  command: MediaOwnerCommand,
+  execute: () => Promise<Response>,
+) {
+  await appendWriteCommandAudit(db, identity, "AUTHORIZED", null);
+  let response: Response;
+  try {
+    response = await execute();
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+  if (!response.ok) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    return response;
+  }
+  try {
+    await appendWriteCommandAudit(db, identity, "SUCCEEDED", await mediaOwnerDomainReceipt(projectId, command, response));
+    return response;
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
 }
 
 async function ensureMediaSchema() {
@@ -672,11 +1014,12 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   }
 }
 
-export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+async function executeMediaOwnerCommand(request: Request, id: string) {
   try {
-    const { id } = await context.params;
     await ensureMediaSchema();
     const db = await getDb();
+    const [project] = await db.select().from(videoProjects).where(eq(videoProjects.id, id)).limit(1);
+    if (!project) return Response.json({ error: "Project not found" }, { status: 404 });
     const requestUrl = new URL(request.url);
     if (requestUrl.searchParams.get("motionUpload") === "part") {
       const uploadId = requestUrl.searchParams.get("uploadId") || "";
@@ -732,6 +1075,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (payload.action === "FINALIZE_MOTION_UPLOAD") {
       const uploadId = payload.uploadId || ""; const chunkCount = Number(payload.chunkCount); const sceneId = payload.sceneId || ""; const parentAssetId = payload.parentAssetId || "";
       if (!safeUploadId(uploadId) || !Number.isInteger(chunkCount) || chunkCount < 1 || chunkCount > 200 || !sceneId || !parentAssetId) return Response.json({ error: "Invalid motion upload manifest" }, { status: 400 });
+      const [[scene], [parentAsset]] = await Promise.all([
+        db.select().from(sceneManifest).where(eq(sceneManifest.id, sceneId)).limit(1),
+        db.select().from(mediaAssets).where(eq(mediaAssets.id, parentAssetId)).limit(1),
+      ]);
+      if (!scene || scene.projectId !== id) return Response.json({ error: "Scene not found" }, { status: 404 });
+      if (!parentAsset || parentAsset.projectId !== id || parentAsset.sceneId !== sceneId || !parentAsset.sourceType.startsWith("ORIGINAL_MOTION_") && !parentAsset.sourceType.startsWith("OPTIMIZED_MOTION_SOURCE_") || parentAsset.rightsStatus !== "VERIFIED") return Response.json({ error: "Verified motion source not found" }, { status: 409 });
       const env = await runtimeEnv(); if (!env.BUCKET) return Response.json({ error: "Media storage is unavailable" }, { status: 424 });
       const parts: Uint8Array[] = []; let total = 0; const partKeys: string[] = [];
       for (let part = 0; part < chunkCount; part++) {
@@ -743,8 +1092,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (payload.sizeBytes && total !== payload.sizeBytes) return Response.json({ error: "Motion upload size check failed" }, { status: 409 });
       if (total > 50 * 1024 * 1024) return Response.json({ error: "Rendered clip exceeds the 50 MB MVP limit" }, { status: 413 });
       const joined = new Uint8Array(total); let offset = 0; for (const part of parts) { joined.set(part, offset); offset += part.byteLength; }
-      const [parentAsset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, parentAssetId)).limit(1);
-      const assetId = parentAsset?.sourceType.startsWith("OPTIMIZED_MOTION_SOURCE_") ? await storeOptimizedMotionRender(id, sceneId, parentAssetId, safeName(payload.fileName || "motion.webm"), joined) : await storeMotionRender(id, sceneId, parentAssetId, safeName(payload.fileName || "motion.webm"), joined);
+      const assetId = parentAsset.sourceType.startsWith("OPTIMIZED_MOTION_SOURCE_") ? await storeOptimizedMotionRender(id, sceneId, parentAssetId, safeName(payload.fileName || "motion.webm"), joined) : await storeMotionRender(id, sceneId, parentAssetId, safeName(payload.fileName || "motion.webm"), joined);
       await env.BUCKET.delete(partKeys);
       return Response.json({ ok: true, assetId, generatedMotion: true });
     }
@@ -812,7 +1160,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       if (candidate.category === "INTERNAL") {
         if (!candidate.sourceAssetId) return Response.json({ error: "Internal source is missing" }, { status: 400 });
         const [source] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, candidate.sourceAssetId)).limit(1);
-        if (!source || source.rightsStatus !== "VERIFIED") return Response.json({ error: "Internal asset is not rights-verified" }, { status: 409 });
+        if (!source || source.projectId !== id || source.rightsStatus !== "VERIFIED") return Response.json({ error: "Internal asset is not rights-verified" }, { status: 409 });
         sourceUrl = source.sourceUrl; storageKey = source.storageKey; rightsStatus = "VERIFIED";
       } else if (!sourceUrl || !/^https:\/\//.test(sourceUrl) || !candidate.landingUrl?.startsWith("https://")) return Response.json({ error: "Candidate source is invalid" }, { status: 400 });
       const assetId = `${id}-AST-${crypto.randomUUID()}`;
@@ -822,17 +1170,23 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     if (payload.action === "VERIFY_RIGHTS") {
       if (!payload.assetId) return Response.json({ error: "assetId is required" }, { status: 400 });
-      await db.update(mediaAssets).set({ rightsStatus: "VERIFIED", licenseProof: payload.licenseProof || "Human verification recorded", updatedAt: new Date().toISOString() }).where(eq(mediaAssets.id, payload.assetId));
-      return Response.json({ ok: true });
+      const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, payload.assetId)).limit(1);
+      if (!asset || asset.projectId !== id) return Response.json({ error: "Asset not found" }, { status: 404 });
+      const [scene] = await db.select().from(sceneManifest).where(eq(sceneManifest.id, asset.sceneId)).limit(1);
+      if (!scene || scene.projectId !== id) return Response.json({ error: "Scene not found" }, { status: 404 });
+      await db.update(mediaAssets).set({ rightsStatus: "VERIFIED", licenseProof: payload.licenseProof || "Human verification recorded", updatedAt: new Date().toISOString() }).where(eq(mediaAssets.id, asset.id));
+      return Response.json({ ok: true, assetId: asset.id });
     }
     if (payload.action === "APPROVE_ASSET") {
       if (!payload.assetId) return Response.json({ error: "assetId is required" }, { status: 400 });
       const [asset] = await db.select().from(mediaAssets).where(eq(mediaAssets.id, payload.assetId)).limit(1);
       if (!asset || asset.projectId !== id) return Response.json({ error: "Asset not found" }, { status: 404 });
+      const [scene] = await db.select().from(sceneManifest).where(eq(sceneManifest.id, asset.sceneId)).limit(1);
+      if (!scene || scene.projectId !== id) return Response.json({ error: "Scene not found" }, { status: 404 });
       if (asset.rightsStatus !== "VERIFIED") return Response.json({ error: "Verify usage rights before approval" }, { status: 409 });
       await db.update(mediaAssets).set({ status: "APPROVED", updatedAt: new Date().toISOString() }).where(eq(mediaAssets.id, asset.id));
       const assetUrl = asset.storageKey ? `/api/projects/${id}/media?asset=${encodeURIComponent(asset.id)}` : asset.sourceUrl;
-      await db.update(sceneManifest).set({ assetUrl, assetStatus: "READY", licenseStatus: "VERIFIED", updatedAt: new Date().toISOString() }).where(eq(sceneManifest.id, asset.sceneId));
+      await db.update(sceneManifest).set({ assetUrl, assetStatus: "READY", licenseStatus: "VERIFIED", updatedAt: new Date().toISOString() }).where(eq(sceneManifest.id, scene.id));
       return Response.json({ ok: true });
     }
     if (payload.action === "BUILD_ASSEMBLY") return Response.json({ ok: true, ...(await buildAssembly(id)) });
@@ -841,5 +1195,32 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     console.error("Media workspace POST failed", error);
     if (error instanceof Error && error.message.endsWith("_GATE_BLOCKED")) return Response.json({ error: error.message }, { status: 409 });
     return Response.json({ error: "Media action could not be completed" }, { status: 500 });
+  }
+}
+
+
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const authorization = await authorizeMediaOwnerWrite(request);
+    if (authorization instanceof Response) return authorization;
+    const actorDenial = requireOwnerAuthority(authorization.actorType);
+    if (actorDenial) return actorDenial;
+
+    const executionRequest = request.clone();
+    const command = await readMediaOwnerCommand(request);
+    if (command instanceof Response) return command;
+
+    const { id } = await context.params;
+    const identity = await mediaOwnerAuditIdentity(request, id, authorization.normalizedEmail, command);
+    return await runAuditedMediaOwnerCommand(
+      authorization.db,
+      identity,
+      id,
+      command,
+      () => executeMediaOwnerCommand(executionRequest, id),
+    );
+  } catch (error) {
+    console.error("Media workspace POST failed", error);
+    return mediaOwnerFailure("MEDIA_OWNER_ACTION_FAILED", 500);
   }
 }

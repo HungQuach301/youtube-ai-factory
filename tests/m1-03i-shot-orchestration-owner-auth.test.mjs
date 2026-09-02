@@ -334,17 +334,17 @@ test("registry and auth baseline move exactly one Stage 08 POST to M1-03I ratche
     remediationWp: "NONE",
   });
   assert.equal(handlers.length, 100);
-  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 21);
-  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 24);
-  assert.deepEqual(["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length), [13, 11]);
-  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 27);
-  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 66);
+  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 22);
+  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 23);
+  assert.deepEqual(["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length), [13, 10]);
+  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 28);
+  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 65);
   const auth = JSON.parse(source("governance/baselines/auth-coverage.json")).uncoveredHandlers;
-  assert.equal(auth.length, 44);
+  assert.equal(auth.length, 43);
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
-  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 11, 1]);
+  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 10, 1]);
   assert.equal(JSON.parse(source("governance/baselines/no-write-in-get.json")).handlersWithReachableWrites.length, 16);
-  assert.equal(JSON.parse(source("governance/baselines/actor-separation.json")).unseparatedCommands.length, 19);
+  assert.equal(JSON.parse(source("governance/baselines/actor-separation.json")).unseparatedCommands.length, 18);
 });
 
 test("migration head remains 0132 and migrations 0129 through 0132 are byte-identical", () => {
