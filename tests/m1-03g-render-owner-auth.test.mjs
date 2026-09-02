@@ -399,16 +399,16 @@ test("registry and auth baseline move exactly one POST and reach M1-03G ratchets
     remediationWp: "NONE",
   });
   assert.equal(handlers.length, 100);
-  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 19);
-  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 26);
-  assert.deepEqual(["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length), [13, 13]);
-  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 25);
-  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 68);
+  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 20);
+  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 25);
+  assert.deepEqual(["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length), [13, 12]);
+  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 26);
+  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 67);
 
   const auth = JSON.parse(source("governance/baselines/auth-coverage.json")).uncoveredHandlers;
-  assert.equal(auth.length, 46);
+  assert.equal(auth.length, 45);
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
-  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 13, 1]);
+  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 12, 1]);
   assert.equal(JSON.parse(source("governance/baselines/no-write-in-get.json")).handlersWithReachableWrites.length, 16);
   assert.equal(JSON.parse(source("governance/baselines/actor-separation.json")).unseparatedCommands.length, 19);
 });
