@@ -390,11 +390,11 @@ test("registry, ratchets, migrations, and no-new-side-effect boundaries are exac
     remediationWp: "NONE",
   });
   assert.equal(handlers.length, 100);
-  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 21);
-  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 24);
+  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 22);
+  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 23);
   assert.deepEqual(
     ["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length),
-    [13, 11],
+    [13, 10],
   );
   assert.deepEqual(Object.fromEntries(
     ["PUBLIC", "CHATGPT_OWNER", "AUTOMATION", "PROVIDER_CALLBACK", "INTERNAL_SYSTEM", "UNCLASSIFIED"]
@@ -436,7 +436,7 @@ test("registry, ratchets, migrations, and no-new-side-effect boundaries are exac
   });
 
   const auth = JSON.parse(source("governance/baselines/auth-coverage.json")).uncoveredHandlers;
-  assert.equal(auth.length, 44);
+  assert.equal(auth.length, 43);
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
   assert.deepEqual(
     ["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length),
