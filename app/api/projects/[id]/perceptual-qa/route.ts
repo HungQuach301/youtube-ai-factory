@@ -136,7 +136,7 @@ function perceptualQaAudioMetricsValid(value: unknown): value is PerceptualQaAud
   return perceptualQaFiniteNumber(audio.masterDurationSeconds, 1, 3600)
     && perceptualQaFiniteNumber(audio.decodedDurationSeconds, 1, 3600)
     && perceptualQaFiniteNumber(audio.sampleRate, 8000, 192000)
-    && Number.isInteger(audio.channels) && Number(audio.channels) >= 1 && Number(audio.channels) <= 8
+    && typeof audio.channels === "number" && Number.isInteger(audio.channels) && audio.channels >= 1 && audio.channels <= 8
     && perceptualQaFiniteNumber(audio.peakAmplitude, 0, 2)
     && perceptualQaFiniteNumber(audio.meanOneSecondRms, 0, 2)
     && perceptualQaFiniteNumber(audio.rmsVariation, 0, 2)
