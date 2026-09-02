@@ -175,7 +175,7 @@ function shotOrchestrationBoundedAuditComponent(value: string) {
 
 function shotOrchestrationOwnerCorrelationId(request: Request) {
   const supplied = request.headers.get("x-correlation-id")?.trim() ?? "";
-  return SHOT_ORCHESTRATION_CORRELATION_ID_PATTERN.test(supplied) ? supplied : `shot-orchestration-owner:\${crypto.randomUUID()}`;
+  return SHOT_ORCHESTRATION_CORRELATION_ID_PATTERN.test(supplied) ? supplied : `shot-orchestration-owner:${crypto.randomUUID()}`;
 }
 
 async function shotOrchestrationOwnerAuditIdentity(request: Request, normalizedEmail: string, command: ShotOrchestrationOwnerCommand): Promise<WriteCommandAuditIdentity> {
@@ -184,7 +184,7 @@ async function shotOrchestrationOwnerAuditIdentity(request: Request, normalizedE
     actorType: "CHATGPT_OWNER",
     actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", normalizedEmail),
     action: command.action,
-    resourceScope: `program:\${PROGRAM_ID}:stage:\${STAGE}`,
+    resourceScope: `program:${PROGRAM_ID}:stage:${STAGE}`,
     correlationId: shotOrchestrationOwnerCorrelationId(request),
     requestHash: command.requestHash,
   };
@@ -195,8 +195,8 @@ async function shotOrchestrationDomainReceipt(command: ShotOrchestrationOwnerCom
   const stage = payload.stage && typeof payload.stage === "object" ? payload.stage as Record<string, unknown> : {};
   const runs = Array.isArray(payload.runs) ? payload.runs : [];
   const latestRun = runs[0] && typeof runs[0] === "object" ? runs[0] as Record<string, unknown> : {};
-  const reference = String(latestRun.id ?? stage.status ?? `\${PROGRAM_ID}-STAGE-\${STAGE}`);
-  return `stage08:\${shotOrchestrationBoundedAuditComponent(command.action)}:\${shotOrchestrationBoundedAuditComponent(reference)}`;
+  const reference = String(latestRun.id ?? stage.status ?? `${PROGRAM_ID}-STAGE-${STAGE}`);
+  return `stage08:${shotOrchestrationBoundedAuditComponent(command.action)}:${shotOrchestrationBoundedAuditComponent(reference)}`;
 }
 
 async function runAuditedShotOrchestrationOwnerCommand(
