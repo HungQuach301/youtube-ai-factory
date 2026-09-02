@@ -294,7 +294,7 @@ test("immutable audit is AUTHORIZED before business with exactly one terminal ou
 test("Stage 08 cost, recovery, model-binding, retry, stop, and dispatch invariants remain behind the boundary", () => {
   const executor = functionSource("executeShotOrchestrationOwnerCommand");
   for (const action of actions) assert.ok(executor.includes('body.action === "' + action + '"'));
-  assert.ok(executor.includes('body.action === "POLL") return Response.json(await poll())');
+  assert.ok(executor.includes('body.action === "POLL") return Response.json(await poll())'));
   const authorization = functionSource("authorizeRecovery");
   assert.ok(authorization.includes("no request launched"));
   assert.ok(authorization.includes("maxSpendUsd>25"));
