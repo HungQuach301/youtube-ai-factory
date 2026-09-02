@@ -308,7 +308,7 @@ test("governance ratchets are exact while M1-06 actor debt remains untouched", (
 
   const actor = JSON.parse(source("governance/baselines/actor-separation.json"));
   const actorEntries = actor.unseparatedCommands;
-  assert.equal(actorEntries.length, 19);
+  assert.equal(actorEntries.length, 18);
   assert.equal(actorEntries.some((item) =>
     JSON.stringify(item).includes(handlerIdentity + ":APPROVE_SCENE")), true);
   assert.equal(analyzeActorSource(route, routePath).some((item) =>
