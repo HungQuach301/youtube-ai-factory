@@ -221,7 +221,7 @@ test("registry and auth baseline move exactly one POST to M1-03H ratchets", () =
   const auth = JSON.parse(source("governance/baselines/auth-coverage.json")).uncoveredHandlers;
   assert.equal(auth.length, 43);
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
-  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 11, 1]);
+  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 10, 1]);
   assert.equal(JSON.parse(source("governance/baselines/no-write-in-get.json")).handlersWithReachableWrites.length, 16);
   assert.equal(JSON.parse(source("governance/baselines/actor-separation.json")).unseparatedCommands.length, 18);
 });
