@@ -299,7 +299,7 @@ test("governance ratchets are exact while M1-06 actor debt remains untouched", (
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
   assert.deepEqual(
     ["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length),
-    [32, 11, 1],
+    [32, 10, 1],
   );
 
   const noWrite = JSON.parse(source("governance/baselines/no-write-in-get.json"));
