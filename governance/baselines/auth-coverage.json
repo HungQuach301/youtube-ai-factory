@@ -12,9 +12,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/channels/[id]/route.ts#GET",
@@ -26,9 +24,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/connections/route.ts#GET",
@@ -40,9 +36,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/content-autopilot/route.ts#GET",
@@ -54,9 +48,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/continuity/route.ts#GET",
@@ -68,9 +60,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/control-plane/route.ts#GET",
@@ -82,9 +72,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/control-plane/route.ts#POST",
@@ -96,10 +84,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/factory/creative-contract/route.ts#GET",
@@ -111,9 +96,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/creative-contract/route.ts#POST",
@@ -125,10 +108,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/factory/discovery/route.ts#GET",
@@ -140,9 +120,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/intelligence/route.ts#GET",
@@ -154,9 +132,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/intelligence/route.ts#POST",
@@ -168,10 +144,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/factory/material-production/route.ts#GET",
@@ -183,9 +156,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/niche-portfolio/route.ts#GET",
@@ -197,9 +168,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/portfolio/route.ts#GET",
@@ -211,9 +180,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/production-design/route.ts#GET",
@@ -225,9 +192,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/production-design/route.ts#POST",
@@ -239,10 +204,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/factory/production-v2/route.ts#GET",
@@ -254,9 +216,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/production-v2/route.ts#HEAD",
@@ -268,9 +228,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/script-development/route.ts#GET",
@@ -282,9 +240,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/script-development/route.ts#POST",
@@ -296,10 +252,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/factory/sequential-production/media/route.ts#GET",
@@ -311,9 +264,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/sequential-production/quality/route.ts#GET",
@@ -325,9 +276,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/sequential-production/route.ts#GET",
@@ -339,9 +288,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/shot-orchestration/route.ts#GET",
@@ -353,9 +300,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/shot-orchestration/route.ts#POST",
@@ -367,10 +312,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/factory/storage/google-drive/callback/route.ts#GET",
@@ -382,9 +324,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/storage/google-drive/route.ts#GET",
@@ -396,9 +336,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/story-architecture/route.ts#GET",
@@ -410,9 +348,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/factory/story-architecture/route.ts#POST",
@@ -424,10 +360,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/evidence/route.ts#GET",
@@ -439,9 +372,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/evidence/route.ts#POST",
@@ -453,10 +384,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/master-v5/route.ts#GET",
@@ -468,9 +396,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/media/route.ts#GET",
@@ -482,9 +408,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/media/route.ts#POST",
@@ -496,10 +420,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/optimization/route.ts#GET",
@@ -511,9 +432,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/optimization/route.ts#POST",
@@ -525,10 +444,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/perceptual-qa/route.ts#GET",
@@ -540,9 +456,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/production/route.ts#GET",
@@ -554,9 +468,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/references/route.ts#GET",
@@ -568,9 +480,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/references/route.ts#POST",
@@ -582,10 +492,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/render/route.ts#GET",
@@ -597,9 +504,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/repair-v51/route.ts#GET",
@@ -611,9 +516,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/workspace/route.ts#GET",
@@ -625,9 +528,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING"]
     },
     {
       "identity": "app/api/projects/[id]/workspace/route.ts#POST",
@@ -639,10 +540,7 @@
       "authenticationGuard": null,
       "authorizationGuard": null,
       "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
+      "reasons": ["AUTH_GUARD_MISSING", "WRITE_AUTHORIZATION_MISSING"]
     }
   ]
 }
