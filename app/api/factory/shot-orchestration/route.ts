@@ -1,12 +1,230 @@
 import { storeDriveJsonArtifact } from "../../../../lib/google-drive";
 import { AI_USAGE_TABLE_SQL, recordOpenAIUsage } from "../../../../lib/ai-usage";
 import { buildProgressDimensions, classifyRepairRoute } from "../../../../lib/factory-execution-kernel";
+import { getChatGPTUser } from "../../../chatgpt-auth";
+import {
+  appendWriteCommandAudit,
+  hashActorSubject,
+  type WriteCommandAuditDatabase,
+  type WriteCommandAuditIdentity,
+} from "../../../../lib/write-command-audit";
 
 const PROGRAM_ID="YTAF-V7-GREENFIELD",STAGE="08",THRESHOLD=92,MODEL="gpt-5.6-sol",MAX_SLOTS_PER_REQUEST=5,MAX_OUTPUT_TOKENS=12000,MAX_PARALLEL_REQUESTS=8,DEFAULT_PARALLEL_REQUESTS=4,MAX_SAFE_RETRIES=1,REQUEST_COST_STOP_USD=.5,WASTE_RATE_STOP=.2,REASONING_EFFORT="low",GUARD_VERSION="CG1";
 const MODEL_OPTIONS=[{id:"gpt-5.6-sol",label:"GPT-5.6 Sol",description:"Maximum quality"},{id:"gpt-5.6-terra",label:"GPT-5.6 Terra",description:"Balanced quality and speed"},{id:"gpt-5.6-luna",label:"GPT-5.6 Luna",description:"Lowest latency and cost"}] as const;
 const REASONING_OPTIONS=["low","medium","high"] as const;
 type Statement={bind:(...v:unknown[])=>Statement;run:()=>Promise<unknown>;all:<T>()=>Promise<{results?:T[]}>;first:<T>()=>Promise<T|null>};
 type DB={prepare:(q:string)=>Statement;batch:(s:Statement[])=>Promise<unknown>};type Bucket={put:(k:string,v:string,o?:Record<string,unknown>)=>Promise<unknown>;head:(k:string)=>Promise<unknown>};type Env={DB?:DB;BUCKET?:Bucket;OPENAI_API_KEY?:string;OPENAI_QA_MODEL?:string};type Gate={id:string;label:string;status:"PASS"|"FAIL";evidence:string};
+
+type ShotOrchestrationOwnerAction =
+  | "EMERGENCY_STOP"
+  | "AUTHORIZE_RECOVERY"
+  | "REVOKE_AUTHORIZATION"
+  | "RECLASSIFY_COST_GUARD_STOP"
+  | "RECONCILE_FROZEN_TRUTH"
+  | "NORMALIZE_AND_REAUDIT"
+  | "SET_MODEL"
+  | "RUN"
+  | "RECOVER"
+  | "POLL"
+  | "APPLY_COST_GUARD";
+type ShotOrchestrationOwnerPayload = {
+  action: ShotOrchestrationOwnerAction;
+  modelId?: string;
+  reasoningEffort?: string;
+  maxSpendUsd?: number;
+  retryBudget?: number;
+};
+type ShotOrchestrationOwnerCommand = {
+  action: ShotOrchestrationOwnerAction;
+  payload: ShotOrchestrationOwnerPayload;
+  requestHash: string;
+};
+
+const SHOT_ORCHESTRATION_OWNER_HANDLER_IDENTITY = "app/api/factory/shot-orchestration/route.ts#POST";
+const SHOT_ORCHESTRATION_OWNER_ACTIONS = new Set<ShotOrchestrationOwnerAction>([
+  "EMERGENCY_STOP",
+  "AUTHORIZE_RECOVERY",
+  "REVOKE_AUTHORIZATION",
+  "RECLASSIFY_COST_GUARD_STOP",
+  "RECONCILE_FROZEN_TRUTH",
+  "NORMALIZE_AND_REAUDIT",
+  "SET_MODEL",
+  "RUN",
+  "RECOVER",
+  "POLL",
+  "APPLY_COST_GUARD",
+]);
+const SHOT_ORCHESTRATION_OWNER_FIELDS: Record<ShotOrchestrationOwnerAction, ReadonlySet<string>> = {
+  EMERGENCY_STOP: new Set(["action"]),
+  AUTHORIZE_RECOVERY: new Set(["action", "maxSpendUsd", "retryBudget"]),
+  REVOKE_AUTHORIZATION: new Set(["action"]),
+  RECLASSIFY_COST_GUARD_STOP: new Set(["action"]),
+  RECONCILE_FROZEN_TRUTH: new Set(["action"]),
+  NORMALIZE_AND_REAUDIT: new Set(["action"]),
+  SET_MODEL: new Set(["action", "modelId", "reasoningEffort"]),
+  RUN: new Set(["action"]),
+  RECOVER: new Set(["action"]),
+  POLL: new Set(["action"]),
+  APPLY_COST_GUARD: new Set(["action"]),
+};
+const MAX_SHOT_ORCHESTRATION_OWNER_BODY_BYTES = 8 * 1024;
+const SHOT_ORCHESTRATION_CORRELATION_ID_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
+const SHOT_ORCHESTRATION_AUDIT_COMPONENT_PATTERN = /[^A-Za-z0-9._:-]/g;
+
+function shotOrchestrationOwnerFailure(error: string, status: number) {
+  return Response.json({ error }, { status });
+}
+
+function shotOrchestrationOwnerSameOrigin(request: Request) {
+  const url = new URL(request.url);
+  return request.method === "POST"
+    && url.pathname === "/api/factory/shot-orchestration"
+    && request.headers.get("origin") === url.origin
+    && request.headers.get("sec-fetch-site") === "same-origin";
+}
+
+async function shotOrchestrationOwnerEnvironment() {
+  const { env } = await import("cloudflare:workers");
+  return env as unknown as {
+    DB?: WriteCommandAuditDatabase;
+    FACTORY_EXPERT_EMAILS?: string;
+  };
+}
+
+async function authorizeShotOrchestrationOwnerWrite(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user?.email) return shotOrchestrationOwnerFailure("SIWC_AUTHENTICATION_REQUIRED", 401);
+  if (!shotOrchestrationOwnerSameOrigin(request)) return shotOrchestrationOwnerFailure("OWNER_WRITE_SAME_ORIGIN_REQUIRED", 403);
+
+  const env = await shotOrchestrationOwnerEnvironment();
+  const normalizedEmail = user.email.trim().toLowerCase();
+  const owners = String(env.FACTORY_EXPERT_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (owners.length === 0) return shotOrchestrationOwnerFailure("OWNER_WRITE_ALLOWLIST_UNCONFIGURED", 503);
+  if (!owners.includes(normalizedEmail)) return shotOrchestrationOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+  if (!env.DB) return shotOrchestrationOwnerFailure("CANONICAL_DATABASE_UNAVAILABLE", 503);
+  return { db: env.DB, normalizedEmail };
+}
+
+async function shotOrchestrationSha256RawBytes(bytes: ArrayBuffer | Uint8Array) {
+  const value = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", value));
+  return [...digest].map((item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+function shotOrchestrationExactKeys(value: Record<string, unknown>, expected: ReadonlySet<string>) {
+  const keys = Object.keys(value);
+  return keys.length === expected.size && keys.every((key) => expected.has(key));
+}
+
+function shotOrchestrationBoundedString(value: unknown, maximum: number) {
+  return typeof value === "string" && value.length > 0 && value.length <= maximum;
+}
+
+function shotOrchestrationOwnerPayloadValid(payload: ShotOrchestrationOwnerPayload) {
+  if (payload.action === "AUTHORIZE_RECOVERY") {
+    return typeof payload.maxSpendUsd === "number"
+      && Number.isFinite(payload.maxSpendUsd)
+      && payload.maxSpendUsd >= 0.1
+      && payload.maxSpendUsd <= 25
+      && typeof payload.retryBudget === "number"
+      && Number.isInteger(payload.retryBudget)
+      && payload.retryBudget >= 0
+      && payload.retryBudget <= 2;
+  }
+  if (payload.action === "SET_MODEL") {
+    return shotOrchestrationBoundedString(payload.modelId, 100)
+      && MODEL_OPTIONS.some((item) => item.id === payload.modelId)
+      && REASONING_OPTIONS.includes(payload.reasoningEffort as typeof REASONING_OPTIONS[number]);
+  }
+  return true;
+}
+
+async function readShotOrchestrationOwnerCommand(request: Request): Promise<ShotOrchestrationOwnerCommand | Response> {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") return shotOrchestrationOwnerFailure("JSON_CONTENT_TYPE_REQUIRED", 415);
+  const lengthHeader = request.headers.get("content-length");
+  const contentLength = lengthHeader === null ? null : Number(lengthHeader);
+  if (contentLength !== null && (!Number.isFinite(contentLength) || contentLength < 0)) return shotOrchestrationOwnerFailure("OWNER_WRITE_CONTENT_LENGTH_INVALID", 400);
+  if (contentLength !== null && contentLength > MAX_SHOT_ORCHESTRATION_OWNER_BODY_BYTES) return shotOrchestrationOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+  const raw = await request.arrayBuffer();
+  if (!raw.byteLength || raw.byteLength > MAX_SHOT_ORCHESTRATION_OWNER_BODY_BYTES) return shotOrchestrationOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(raw));
+  } catch {
+    return shotOrchestrationOwnerFailure("OWNER_WRITE_JSON_INVALID", 400);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return shotOrchestrationOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.action !== "string") return shotOrchestrationOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  if (!SHOT_ORCHESTRATION_OWNER_ACTIONS.has(record.action as ShotOrchestrationOwnerAction)) return shotOrchestrationOwnerFailure("STAGE08_OWNER_ACTION_FORBIDDEN", 403);
+  const action = record.action as ShotOrchestrationOwnerAction;
+  if (!shotOrchestrationExactKeys(record, SHOT_ORCHESTRATION_OWNER_FIELDS[action])) return shotOrchestrationOwnerFailure("OWNER_WRITE_COMMAND_FIELD_FORBIDDEN", 400);
+  const payload = record as ShotOrchestrationOwnerPayload;
+  if (!shotOrchestrationOwnerPayloadValid(payload)) return shotOrchestrationOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  return { action, payload, requestHash: await shotOrchestrationSha256RawBytes(raw) };
+}
+
+function shotOrchestrationBoundedAuditComponent(value: string) {
+  return value.replace(SHOT_ORCHESTRATION_AUDIT_COMPONENT_PATTERN, "_").slice(0, 200) || "unknown";
+}
+
+function shotOrchestrationOwnerCorrelationId(request: Request) {
+  const supplied = request.headers.get("x-correlation-id")?.trim() ?? "";
+  return SHOT_ORCHESTRATION_CORRELATION_ID_PATTERN.test(supplied) ? supplied : `shot-orchestration-owner:\${crypto.randomUUID()}`;
+}
+
+async function shotOrchestrationOwnerAuditIdentity(request: Request, normalizedEmail: string, command: ShotOrchestrationOwnerCommand): Promise<WriteCommandAuditIdentity> {
+  return {
+    handlerIdentity: SHOT_ORCHESTRATION_OWNER_HANDLER_IDENTITY,
+    actorType: "CHATGPT_OWNER",
+    actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", normalizedEmail),
+    action: command.action,
+    resourceScope: `program:\${PROGRAM_ID}:stage:\${STAGE}`,
+    correlationId: shotOrchestrationOwnerCorrelationId(request),
+    requestHash: command.requestHash,
+  };
+}
+
+async function shotOrchestrationDomainReceipt(command: ShotOrchestrationOwnerCommand, response: Response) {
+  const payload = await response.clone().json().catch(() => ({})) as Record<string, unknown>;
+  const stage = payload.stage && typeof payload.stage === "object" ? payload.stage as Record<string, unknown> : {};
+  const runs = Array.isArray(payload.runs) ? payload.runs : [];
+  const latestRun = runs[0] && typeof runs[0] === "object" ? runs[0] as Record<string, unknown> : {};
+  const reference = String(latestRun.id ?? stage.status ?? `\${PROGRAM_ID}-STAGE-\${STAGE}`);
+  return `stage08:\${shotOrchestrationBoundedAuditComponent(command.action)}:\${shotOrchestrationBoundedAuditComponent(reference)}`;
+}
+
+async function runAuditedShotOrchestrationOwnerCommand(
+  db: WriteCommandAuditDatabase,
+  identity: WriteCommandAuditIdentity,
+  command: ShotOrchestrationOwnerCommand,
+  execute: () => Promise<Response>,
+) {
+  await appendWriteCommandAudit(db, identity, "AUTHORIZED", null);
+  let response: Response;
+  try {
+    response = await execute();
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+  if (!response.ok) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    return response;
+  }
+  try {
+    await appendWriteCommandAudit(db, identity, "SUCCEEDED", await shotOrchestrationDomainReceipt(command, response));
+    return response;
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+}
 const tables=[AI_USAGE_TABLE_SQL,
 `CREATE TABLE IF NOT EXISTS v7_shot_runs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,attempt integer DEFAULT 1 NOT NULL,status text DEFAULT 'RUNNING' NOT NULL,score integer DEFAULT 0 NOT NULL,threshold integer DEFAULT 92 NOT NULL,total_batches integer DEFAULT 4 NOT NULL,completed_batches integer DEFAULT 0 NOT NULL,model_id text NOT NULL,gate_json text DEFAULT '[]' NOT NULL,started_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,completed_at text)`,
 `CREATE TABLE IF NOT EXISTS v7_shot_jobs (id text PRIMARY KEY NOT NULL,program_id text NOT NULL,run_id text NOT NULL,batch_index integer NOT NULL,provider_response_id text NOT NULL,provider_status text DEFAULT 'queued' NOT NULL,status text DEFAULT 'ACTIVE' NOT NULL,heartbeat_at text NOT NULL,started_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,finalized_at text,error text)`,
@@ -36,7 +254,7 @@ function schema(count:number){return{type:"object",additionalProperties:false,pr
 function batchInput(up:Awaited<ReturnType<typeof upstream>>,batchIndex:number){const plan=up.requestPlan[batchIndex];if(!plan)throw new Error(`CAPACITY_PLAN_FAILED · request ${batchIndex+1} is missing`);const sections=[plan.section],ids=new Set(sections.map(s=>String(s.id))),audioSections=arr(up.a.sectionContracts).filter(x=>ids.has(String(rec(x).sectionId))),routes=arr(up.v.sectionRouting).filter(x=>ids.has(String(rec(x).sectionId)));return{sections,audioSections,routes,visualFamilies:up.v.visualFamilies,musicCues:up.a.musicCues,ambienceZones:up.a.ambienceZones,sfxCues:up.a.sfxCues,technicalContract:up.v.technicalContract,slots:plan.batchSlots}}
 function prompt(input:ReturnType<typeof batchInput>,batchIndex:number,total:number){return`You are the semantic shot orchestrator for a maximum-quality US-English faceless YouTube documentary. This is batch ${batchIndex+1}/${total}. Fill every supplied immutable timeline slot exactly once, in order, with a production-binding shot contract. Never change slotId, sectionId or timing. Every shot must visualize the exact narration clause that is active in that interval; broad topic similarity, decorative placeholders and generic payment imagery are prohibited. Distinguish transaction mechanics, portfolio economics, reward obligations and downstream incidence. Use the frozen visual route and authored family grammar, but vary composition and state change; never repeat the same family more than twice consecutively. Use MAKE_ORIGINAL for invisible mechanisms, quantities and causality; SOURCE_PROVIDER only for literal physical reality; HYBRID when real context needs an exact explanatory overlay. Provider queries must name subject, action, context, camera and exclusions. Define materially different entry, motion and exit states, mobile-safe acceptance, factual acceptance, audio cue binding and anti-repeat control. Be concise without becoming generic: every text field must be one production-specific phrase of 6–18 words; every provider query must be 8–16 words. No URLs, filenames, asset IDs, debug labels, template names or production metadata may be audience-facing. Return only strict JSON.\n\nIMMUTABLE SLOTS:\n${JSON.stringify(input.slots)}\n\nFROZEN SCRIPT SECTIONS:\n${JSON.stringify(input.sections)}\n\nFROZEN AUDIO CONTRACT:\n${JSON.stringify({sections:input.audioSections,musicCues:input.musicCues,ambienceZones:input.ambienceZones,sfxCues:input.sfxCues})}\n\nFROZEN VISUAL ROUTES:\n${JSON.stringify({routes:input.routes,visualFamilies:input.visualFamilies,technicalContract:input.technicalContract})}`}
 function outputBudget(slotCount:number){return Math.min(MAX_OUTPUT_TOKENS,4200+slotCount*1500)}
-async function provider(env:Env,input:ReturnType<typeof batchInput>,batchIndex:number,total:number,modelId:string,effort:string){if(!env.OPENAI_API_KEY)throw new Error("Connect OPENAI_API_KEY before Stage 08");const budget=outputBudget(input.slots.length),guardInstruction=`COST GUARD ${GUARD_VERSION}: the complete JSON must fit within ${budget} output tokens. Think only as much as needed to satisfy the schema. Never restate inputs, add commentary, duplicate fields or produce alternatives.`;const r=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{authorization:`Bearer ${env.OPENAI_API_KEY}`,"content-type":"application/json"},body:JSON.stringify({model:modelId,reasoning:{effort},background:true,store:true,max_output_tokens:budget,input:[{role:"user",content:[{type:"input_text",text:`${guardInstruction}\n\n${prompt(input,batchIndex,total)}`}]}],text:{format:{type:"json_schema",name:`v7_shot_batch_${batchIndex+1}_${GUARD_VERSION.toLowerCase()}`,strict:true,schema:schema(input.slots.length)}}}),signal:AbortSignal.timeout(30000)});if(!r.ok)throw new Error(`PROVIDER_START_FAILED · ${r.status} · ${(await r.text()).replace(/\s+/g," ").slice(0,360)}`);return r.json() as Promise<Record<string,unknown>>}
+async function provider(env:Env,input:ReturnType<typeof batchInput>,batchIndex:number,total:number,modelId:string,effort:string){if(!env.OPENAI_API_KEY)throw new Error("Connect OPENAI_API_KEY before Stage 08");const budget=outputBudget(input.slots.length),guardInstruction=`COST GUARD ${GUARD_VERSION}: the complete JSON must fit within ${budget} output tokens. Think only as much as needed to satisfy the schema. Never restate inputs, add commentary, duplicate fields or produce alternatives.`;const r=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{authorization:`Bearer ${env.OPENAI_API_KEY}`,"content-type":"application/json"},body:JSON.stringify({model:modelId,reasoning:{effort},background:true,store:true,max_output_tokens:budget,input:[{role:"user",content:[{type:"input_text",text:`${guardInstruction}\n\n${prompt(input,batchIndex,total)}`}]}],text:{format:{type:"json_schema",name:`v7_shot_batch_${batchIndex+1}_${GUARD_VERSION.toLowerCase()}`,strict:true,schema:schema(input.slots.length)}}}),signal:AbortSignal.timeout(30000)});if(!r.ok)throw new Error(`PROVIDER_START_FAILED · ${r.status}`);return r.json() as Promise<Record<string,unknown>>}
 async function retrieve(env:Env,id:string){if(!env.OPENAI_API_KEY)throw new Error("OpenAI key is required");const r=await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(id)}`,{headers:{authorization:`Bearer ${env.OPENAI_API_KEY}`},signal:AbortSignal.timeout(30000)});if(!r.ok)throw new Error(`Provider status failed (${r.status})`);return r.json() as Promise<Record<string,unknown>>}
 function validateBatch(payload:Record<string,unknown>,input:ReturnType<typeof batchInput>){const shots=arr(payload.shots).map(rec);if(shots.length!==input.slots.length)throw new Error(`BATCH_CONTRACT_FAILED · expected ${input.slots.length} shots, received ${shots.length}`);for(let i=0;i<shots.length;i++){if(String(shots[i].slotId)!==input.slots[i].slotId||String(shots[i].sectionId)!==input.slots[i].sectionId)throw new Error(`BATCH_CONTRACT_FAILED · slot order mismatch at ${input.slots[i].slotId}`)}return shots.map((s,i)=>({...s,...input.slots[i]}))}
 function familyKey(v:unknown){return String(v||"").trim().toUpperCase().replace(/[^A-Z0-9]+/g," ").trim()}
@@ -78,4 +296,45 @@ async function applyCostGuard(){const env=await runtime(),db=env.DB!,run=await d
 async function emergencyStop(){const env=await runtime(),db=env.DB!,result=await stopOutstanding(env,db,"User requested emergency stop",undefined,"USER_EMERGENCY");await db.prepare("UPDATE v7_stage_spend_authorizations SET status='REVOKED_BY_EMERGENCY_STOP',updated_at=? WHERE id=? AND status='ACTIVE'").bind(new Date().toISOString(),`${PROGRAM_ID}-${STAGE}-RECOVERY-AUTH`).run();return{...(await snapshot()),stopResult:result}}
 async function reclassifyCostGuardStop(){const env=await runtime(),db=env.DB!,run=await db.prepare("SELECT id,total_batches FROM v7_shot_runs WHERE program_id=? ORDER BY started_at DESC LIMIT 1").bind(PROGRAM_ID).first<{id:string;total_batches:number}>();if(!run)throw new Error("No Stage 08 run exists");const outstanding=await rows(db,"SELECT id FROM v7_shot_jobs WHERE run_id=? AND (provider_status IN ('queued','in_progress') OR status='CANCEL_PENDING')",run.id);if(outstanding.length)throw new Error("REMOTE_REQUESTS_STILL_ACTIVE");const stored=await rows(db,"SELECT batch_index FROM v7_shot_batches WHERE run_id=?",run.id),g=await guardStats(db,run.id),reason=guardBlocker(g)||`COST_GUARD_PAUSED · automatic circuit breaker preserved ${stored.length}/${Number(run.total_batches)} batches`,evidence=`AUTOMATIC_COST_GUARD · ${stored.length}/${Number(run.total_batches)} stored · zero remote requests remain`,now=new Date().toISOString();await db.batch([db.prepare("UPDATE v7_shot_runs SET status='PAUSED',completed_batches=?,gate_json=?,completed_at=? WHERE id=?").bind(stored.length,JSON.stringify([{id:"COST_GUARD",label:"Automatic Cost Guard stop",status:"PASS",evidence}]),now,run.id),db.prepare("UPDATE v7_stage_states SET status='REPAIR_REQUIRED',blocker=?,evidence_summary=?,updated_at=? WHERE id=?").bind(reason,evidence,now,`${PROGRAM_ID}-STAGE-08`)]);return snapshot()}
 export async function GET(){try{return Response.json(await snapshot())}catch(e){return Response.json({error:e instanceof Error?e.message:"Stage 08 could not load"},{status:500})}}
-export async function POST(r:Request){try{const b=await r.json() as{action?:string;modelId?:string;reasoningEffort?:string;maxSpendUsd?:number;retryBudget?:number};if(b.action==="EMERGENCY_STOP")return Response.json(await emergencyStop());if(b.action==="AUTHORIZE_RECOVERY")return Response.json(await authorizeRecovery(Number(b.maxSpendUsd),Number(b.retryBudget||0)));if(b.action==="REVOKE_AUTHORIZATION")return Response.json(await revokeAuthorization());if(b.action==="RECLASSIFY_COST_GUARD_STOP")return Response.json(await reclassifyCostGuardStop());if(b.action==="RECONCILE_FROZEN_TRUTH")return Response.json(await reconcileFrozenTruth());if(b.action==="NORMALIZE_AND_REAUDIT")return Response.json(await normalizeAndReaudit());if(b.action==="SET_MODEL")return Response.json(await setModel(String(b.modelId||""),String(b.reasoningEffort||"")));if(b.action==="RUN")return Response.json(await start(),{status:202});if(b.action==="RECOVER")return Response.json(await start(true),{status:202});if(b.action==="POLL")return Response.json(await poll());if(b.action==="APPLY_COST_GUARD")return Response.json(await applyCostGuard());return Response.json({error:"Unsupported Stage 08 action"},{status:400})}catch(e){const m=e instanceof Error?e.message:"Stage 08 failed";return Response.json({error:m},{status:m.includes("required")||m.includes("BLOCKED")||m.includes("STILL_ACTIVE")||m.includes("AUTHORIZATION")||m.includes("INVALID")?409:500})}}
+async function executeShotOrchestrationOwnerCommand(command: ShotOrchestrationOwnerCommand) {
+  try {
+    const body = command.payload;
+    if (body.action === "EMERGENCY_STOP") return Response.json(await emergencyStop());
+    if (body.action === "AUTHORIZE_RECOVERY") return Response.json(await authorizeRecovery(body.maxSpendUsd!, body.retryBudget!));
+    if (body.action === "REVOKE_AUTHORIZATION") return Response.json(await revokeAuthorization());
+    if (body.action === "RECLASSIFY_COST_GUARD_STOP") return Response.json(await reclassifyCostGuardStop());
+    if (body.action === "RECONCILE_FROZEN_TRUTH") return Response.json(await reconcileFrozenTruth());
+    if (body.action === "NORMALIZE_AND_REAUDIT") return Response.json(await normalizeAndReaudit());
+    if (body.action === "SET_MODEL") return Response.json(await setModel(body.modelId!, body.reasoningEffort!));
+    if (body.action === "RUN") return Response.json(await start(), { status: 202 });
+    if (body.action === "RECOVER") return Response.json(await start(true), { status: 202 });
+    if (body.action === "POLL") return Response.json(await poll());
+    if (body.action === "APPLY_COST_GUARD") return Response.json(await applyCostGuard());
+    return shotOrchestrationOwnerFailure("STAGE08_OWNER_ACTION_FORBIDDEN", 403);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Stage 08 failed";
+    return Response.json(
+      { error: message },
+      { status: message.includes("required") || message.includes("BLOCKED") || message.includes("STILL_ACTIVE") || message.includes("AUTHORIZATION") || message.includes("INVALID") ? 409 : 500 },
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const authorization = await authorizeShotOrchestrationOwnerWrite(request);
+    if (authorization instanceof Response) return authorization;
+    const command = await readShotOrchestrationOwnerCommand(request);
+    if (command instanceof Response) return command;
+    const identity = await shotOrchestrationOwnerAuditIdentity(request, authorization.normalizedEmail, command);
+    return await runAuditedShotOrchestrationOwnerCommand(
+      authorization.db,
+      identity,
+      command,
+      () => executeShotOrchestrationOwnerCommand(command),
+    );
+  } catch (error) {
+    console.error("Stage 08 owner POST failed", error);
+    return shotOrchestrationOwnerFailure("STAGE08_OWNER_ACTION_FAILED", 500);
+  }
+}

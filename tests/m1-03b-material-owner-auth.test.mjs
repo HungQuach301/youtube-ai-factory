@@ -301,10 +301,10 @@ test("registry and baseline move exactly one owner POST and preserve expected de
     status: "PROTECTED",
     remediationWp: "NONE",
   });
-  assert.equal(baseline.uncoveredHandlers.length, 45);
+  assert.equal(baseline.uncoveredHandlers.length, 44);
   assert.equal(baseline.uncoveredHandlers.some((item) => item.identity === handlerIdentity), false);
-  assert.deepEqual(Object.fromEntries(["GET", "POST", "HEAD"].map((method) => [method, baseline.uncoveredHandlers.filter((item) => item.method === method).length])), { GET: 32, POST: 12, HEAD: 1 });
-  assert.equal(registry.handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 25);
+  assert.deepEqual(Object.fromEntries(["GET", "POST", "HEAD"].map((method) => [method, baseline.uncoveredHandlers.filter((item) => item.method === method).length])), { GET: 32, POST: 11, HEAD: 1 });
+  assert.equal(registry.handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 24);
 });
 
 test("migration head stays 0132 and migrations 0129 through 0132 are byte-identical", () => {
