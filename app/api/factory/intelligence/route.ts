@@ -1,5 +1,12 @@
 import { storeDriveJsonArtifact } from "../../../../lib/google-drive";
 import { AI_USAGE_TABLE_SQL, recordOpenAIUsage } from "../../../../lib/ai-usage";
+import { getChatGPTUser } from "../../../chatgpt-auth";
+import {
+  appendWriteCommandAudit,
+  hashActorSubject,
+  type WriteCommandAuditDatabase,
+  type WriteCommandAuditIdentity,
+} from "../../../../lib/write-command-audit";
 
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
 const MODEL = "gpt-5.6";
@@ -16,7 +23,7 @@ type RuntimeStatement = {
   all: <T>() => Promise<{ results?: T[] }>;
   first: <T>() => Promise<T | null>;
 };
-type RuntimeDatabase = {
+type RuntimeDatabase = WriteCommandAuditDatabase & {
   prepare: (sql: string) => RuntimeStatement;
   batch: (statements: RuntimeStatement[]) => Promise<unknown>;
 };
@@ -24,9 +31,244 @@ type RuntimeBucket = {
   put: (key: string, value: string, options?: Record<string, unknown>) => Promise<unknown>;
   head: (key: string) => Promise<unknown>;
 };
-type RuntimeEnv = { DB?: RuntimeDatabase; BUCKET?: RuntimeBucket; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?: string };
+type RuntimeEnv = { DB?: RuntimeDatabase; BUCKET?: RuntimeBucket; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?: string; FACTORY_EXPERT_EMAILS?: string };
 type Source = { id: string; sourceType: string; title: string; publisher: string; url: string; publishedAt: string; authorityTier: string; freshnessState: string };
 type Gate = { id: string; label: string; status: "PASS" | "FAIL"; evidence: string };
+
+type IntelligenceOwnerAction = "RUN_STAGE" | "POLL_STAGE";
+type IntelligenceOwnerPayload =
+  | { action: "RUN_STAGE"; stage: StageKey }
+  | { action: "POLL_STAGE"; stage: StageKey };
+type IntelligenceOwnerCommand = {
+  action: IntelligenceOwnerAction;
+  payload: IntelligenceOwnerPayload;
+  requestHash: string;
+};
+type IntelligenceOwnerAuditRow = {
+  handler_identity: string;
+  request_hash: string;
+  phase: "AUTHORIZED" | "SUCCEEDED" | "FAILED";
+  domain_receipt_reference: string | null;
+};
+type IntelligenceProgramBinding = { id: string; productionAuthorized: boolean };
+type IntelligenceOwnerEntitlement =
+  | { action: "RUN_STAGE"; kind: "PAID_WEB_GROUNDED_PROVIDER_DISPATCH"; db: RuntimeDatabase; providerApiKey: string }
+  | { action: "POLL_STAGE"; kind: "PROVIDER_STATUS_READ_AND_BOUNDED_FINALIZATION"; db: RuntimeDatabase };
+
+const INTELLIGENCE_OWNER_HANDLER_IDENTITY = "app/api/factory/intelligence/route.ts#POST";
+const INTELLIGENCE_OWNER_ACTIONS = new Set<IntelligenceOwnerAction>(["RUN_STAGE", "POLL_STAGE"]);
+const INTELLIGENCE_OWNER_STAGES = new Set<StageKey>(["01", "02", "03"]);
+const INTELLIGENCE_OWNER_FIELDS: Record<IntelligenceOwnerAction, ReadonlySet<string>> = {
+  RUN_STAGE: new Set(["action", "stage"]),
+  POLL_STAGE: new Set(["action", "stage"]),
+};
+const MAX_INTELLIGENCE_OWNER_BODY_BYTES = 16 * 1024;
+const INTELLIGENCE_OWNER_CORRELATION_ID_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
+const INTELLIGENCE_OWNER_AUDIT_COMPONENT_PATTERN = /[^A-Za-z0-9._:-]/g;
+
+async function intelligenceAuthorizationEnv() {
+  const { env } = await import("cloudflare:workers");
+  return env as unknown as RuntimeEnv;
+}
+
+function intelligenceOwnerFailure(error: string, status: number) {
+  return Response.json({ error }, { status });
+}
+
+function intelligenceOwnerSameOrigin(request: Request) {
+  const url = new URL(request.url);
+  return request.method === "POST"
+    && url.pathname === "/api/factory/intelligence"
+    && url.search === ""
+    && request.headers.get("origin") === url.origin
+    && request.headers.get("sec-fetch-site") === "same-origin";
+}
+
+async function authorizeIntelligenceOwnerWrite(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user?.email) return intelligenceOwnerFailure("SIWC_AUTHENTICATION_REQUIRED", 401);
+  if (!intelligenceOwnerSameOrigin(request)) return intelligenceOwnerFailure("OWNER_WRITE_SAME_ORIGIN_REQUIRED", 403);
+
+  const env = await intelligenceAuthorizationEnv();
+  const normalizedEmail = user.email.trim().toLowerCase();
+  const owners = String(env.FACTORY_EXPERT_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (owners.length === 0) return intelligenceOwnerFailure("OWNER_WRITE_ALLOWLIST_UNCONFIGURED", 503);
+  if (!owners.includes(normalizedEmail)) return intelligenceOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+  if (!env.DB) return intelligenceOwnerFailure("CANONICAL_DATABASE_UNAVAILABLE", 503);
+  return { db: env.DB, env, normalizedEmail, actorType: "CHATGPT_OWNER" as const };
+}
+
+function requireIntelligenceOwnerAuthority(actorType: string) {
+  if (actorType === "AGENT") return intelligenceOwnerFailure("AGENT_OWNER_COMMAND_FORBIDDEN", 403);
+  return actorType === "CHATGPT_OWNER" ? null : intelligenceOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+}
+
+async function intelligenceOwnerSha256RawBytes(bytes: ArrayBuffer | Uint8Array) {
+  const value = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", value));
+  return [...digest].map((item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+function intelligenceOwnerExactKeys(value: Record<string, unknown>, expected: ReadonlySet<string>) {
+  const keys = Object.keys(value);
+  return keys.length === expected.size && keys.every((key) => expected.has(key));
+}
+
+function intelligenceOwnerPayloadValid(payload: IntelligenceOwnerPayload) {
+  return intelligenceOwnerExactKeys(payload as unknown as Record<string, unknown>, INTELLIGENCE_OWNER_FIELDS[payload.action])
+    && typeof payload.stage === "string"
+    && INTELLIGENCE_OWNER_STAGES.has(payload.stage as StageKey);
+}
+
+async function readIntelligenceOwnerCommand(request: Request): Promise<IntelligenceOwnerCommand | Response> {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") return intelligenceOwnerFailure("JSON_CONTENT_TYPE_REQUIRED", 415);
+  const lengthHeader = request.headers.get("content-length");
+  const contentLength = lengthHeader === null ? null : Number(lengthHeader);
+  if (contentLength !== null && (!Number.isFinite(contentLength) || contentLength < 0)) return intelligenceOwnerFailure("OWNER_WRITE_CONTENT_LENGTH_INVALID", 400);
+  if (contentLength !== null && contentLength > MAX_INTELLIGENCE_OWNER_BODY_BYTES) return intelligenceOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+  const raw = await request.arrayBuffer();
+  if (!raw.byteLength || raw.byteLength > MAX_INTELLIGENCE_OWNER_BODY_BYTES) return intelligenceOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(raw));
+  } catch {
+    return intelligenceOwnerFailure("OWNER_WRITE_JSON_INVALID", 400);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return intelligenceOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.action !== "string") return intelligenceOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  if (!INTELLIGENCE_OWNER_ACTIONS.has(record.action as IntelligenceOwnerAction)) return intelligenceOwnerFailure("INTELLIGENCE_OWNER_ACTION_FORBIDDEN", 403);
+  const action = record.action as IntelligenceOwnerAction;
+  const payload = record as IntelligenceOwnerPayload;
+  if (!intelligenceOwnerPayloadValid(payload)) return intelligenceOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  return { action, payload, requestHash: await intelligenceOwnerSha256RawBytes(raw) };
+}
+
+async function bindIntelligenceOwnerResource(db: RuntimeDatabase): Promise<IntelligenceProgramBinding | Response> {
+  const program = await db.prepare("SELECT id,production_authorized FROM v7_program_contracts WHERE id = ? LIMIT 1")
+    .bind(PROGRAM_ID)
+    .first<{ id: string; production_authorized: number }>();
+  if (program?.id !== PROGRAM_ID) return intelligenceOwnerFailure("INTELLIGENCE_RESOURCE_NOT_FOUND", 404);
+  return { id: program.id, productionAuthorized: Boolean(program.production_authorized) };
+}
+
+function authorizeIntelligenceOwnerEntitlement(
+  db: RuntimeDatabase,
+  env: RuntimeEnv,
+  command: IntelligenceOwnerCommand,
+  binding: IntelligenceProgramBinding,
+): IntelligenceOwnerEntitlement | Response {
+  if (command.action === "RUN_STAGE") {
+    if (!binding.productionAuthorized) return intelligenceOwnerFailure("INTELLIGENCE_RUN_ENTITLEMENT_UNAVAILABLE", 409);
+    if (!env.OPENAI_API_KEY) return intelligenceOwnerFailure("PROVIDER_DISPATCH_ENTITLEMENT_UNAVAILABLE", 503);
+    return { action: command.action, kind: "PAID_WEB_GROUNDED_PROVIDER_DISPATCH", db, providerApiKey: env.OPENAI_API_KEY };
+  }
+  return { action: command.action, kind: "PROVIDER_STATUS_READ_AND_BOUNDED_FINALIZATION", db };
+}
+
+function intelligenceOwnerBoundedAuditComponent(value: string) {
+  return value.replace(INTELLIGENCE_OWNER_AUDIT_COMPONENT_PATTERN, "_").slice(0, 200) || "unknown";
+}
+
+function intelligenceOwnerCorrelationId(request: Request) {
+  const supplied = request.headers.get("x-correlation-id")?.trim() ?? "";
+  return INTELLIGENCE_OWNER_CORRELATION_ID_PATTERN.test(supplied) ? supplied : `intelligence-owner:${crypto.randomUUID()}`;
+}
+
+async function intelligenceOwnerAuditIdentity(
+  request: Request,
+  normalizedEmail: string,
+  command: IntelligenceOwnerCommand,
+): Promise<WriteCommandAuditIdentity> {
+  return {
+    handlerIdentity: INTELLIGENCE_OWNER_HANDLER_IDENTITY,
+    actorType: "CHATGPT_OWNER",
+    actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", normalizedEmail),
+    action: command.action,
+    resourceScope: `program:${PROGRAM_ID}:intelligence:stage:${command.payload.stage}`,
+    correlationId: intelligenceOwnerCorrelationId(request),
+    requestHash: command.requestHash,
+  };
+}
+
+async function lookupIntelligenceOwnerReplay(db: RuntimeDatabase, identity: WriteCommandAuditIdentity) {
+  const result = await db.prepare(`SELECT handler_identity,request_hash,phase,domain_receipt_reference
+    FROM factory_write_command_audit WHERE correlation_id = ? ORDER BY canonical_timestamp,id`)
+    .bind(identity.correlationId)
+    .all<IntelligenceOwnerAuditRow>();
+  const rows = result.results ?? [];
+  if (!rows.length) return null;
+  if (rows.some((row) => row.handler_identity !== identity.handlerIdentity || row.request_hash !== identity.requestHash)) {
+    return intelligenceOwnerFailure("OWNER_WRITE_IDEMPOTENCY_CONFLICT", 409);
+  }
+  const succeeded = rows.find((row) => row.phase === "SUCCEEDED");
+  if (succeeded) return Response.json({ ok: true, replay: true, receipt: succeeded.domain_receipt_reference });
+  return intelligenceOwnerFailure("OWNER_WRITE_REPLAY_INCOMPLETE", 409);
+}
+
+function intelligenceOwnerStageRecord(value: unknown, stage: StageKey) {
+  if (!Array.isArray(value)) return undefined;
+  return value.find((item) => item && typeof item === "object" && String((item as Record<string, unknown>).stageKey) === stage) as Record<string, unknown> | undefined;
+}
+
+async function intelligenceOwnerDomainReceipt(command: IntelligenceOwnerCommand, response: Response) {
+  const payload = await response.clone().json().catch(() => ({})) as Record<string, unknown>;
+  const stage = command.payload.stage;
+  const run = intelligenceOwnerStageRecord(payload.runs, stage);
+  const job = intelligenceOwnerStageRecord(payload.jobs, stage);
+  const artifact = intelligenceOwnerStageRecord(payload.artifacts, stage);
+  const reference = [
+    stage,
+    String(run?.id ?? "no-run"),
+    String(job?.id ?? "no-job"),
+    String(job?.providerStatus ?? run?.status ?? "no-status"),
+    String(artifact?.id ?? "no-artifact"),
+  ].map(intelligenceOwnerBoundedAuditComponent).join(":");
+  return `intelligence:${intelligenceOwnerBoundedAuditComponent(PROGRAM_ID)}:${intelligenceOwnerBoundedAuditComponent(command.action)}:${reference}`;
+}
+
+async function runAuditedIntelligenceOwnerCommand(
+  db: RuntimeDatabase,
+  identity: WriteCommandAuditIdentity,
+  command: IntelligenceOwnerCommand,
+  execute: () => Promise<Response>,
+) {
+  await appendWriteCommandAudit(db, identity, "AUTHORIZED", null);
+  let response: Response;
+  try {
+    response = await execute();
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+  if (!response.ok) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    return response;
+  }
+  try {
+    await appendWriteCommandAudit(db, identity, "SUCCEEDED", await intelligenceOwnerDomainReceipt(command, response));
+    return response;
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+}
+
+async function executeIntelligenceOwnerCommand(command: IntelligenceOwnerCommand, entitlement: IntelligenceOwnerEntitlement) {
+  if (command.action !== entitlement.action) return intelligenceOwnerFailure("INTELLIGENCE_OWNER_ENTITLEMENT_MISMATCH", 403);
+  try {
+    if (command.action === "RUN_STAGE") return Response.json(await startStage(command.payload.stage), { status: 202 });
+    return Response.json(await pollStage(command.payload.stage));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Wave 2 intelligence failed";
+    return Response.json({ error: message }, { status: message.includes("not ready") || message.includes("must pass") ? 409 : 500 });
+  }
+}
 
 const schema = [
   AI_USAGE_TABLE_SQL,
@@ -330,13 +572,31 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json() as { action?: string; stage?: string };
-    if (!body.stage || !(body.stage in STAGES)) return Response.json({ error: "Unsupported Wave 2 stage" }, { status: 400 });
-    if (body.action === "RUN_STAGE") return Response.json(await startStage(body.stage as StageKey), { status: 202 });
-    if (body.action === "POLL_STAGE") return Response.json(await pollStage(body.stage as StageKey));
-    return Response.json({ error: "Unsupported Wave 2 action" }, { status: 400 });
+    const authorization = await authorizeIntelligenceOwnerWrite(request);
+    if (authorization instanceof Response) return authorization;
+    const actorDenial = requireIntelligenceOwnerAuthority(authorization.actorType);
+    if (actorDenial) return actorDenial;
+
+    const command = await readIntelligenceOwnerCommand(request);
+    if (command instanceof Response) return command;
+
+    const binding = await bindIntelligenceOwnerResource(authorization.db);
+    if (binding instanceof Response) return binding;
+    const entitlement = authorizeIntelligenceOwnerEntitlement(authorization.db, authorization.env, command, binding);
+    if (entitlement instanceof Response) return entitlement;
+
+    const identity = await intelligenceOwnerAuditIdentity(request, authorization.normalizedEmail, command);
+    const replay = await lookupIntelligenceOwnerReplay(authorization.db, identity);
+    if (replay) return replay;
+
+    return await runAuditedIntelligenceOwnerCommand(
+      authorization.db,
+      identity,
+      command,
+      () => executeIntelligenceOwnerCommand(command, entitlement),
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Wave 2 intelligence failed";
-    return Response.json({ error: message }, { status: message.includes("not ready") || message.includes("must pass") ? 409 : 500 });
+    console.error("Intelligence owner POST failed", error);
+    return intelligenceOwnerFailure("INTELLIGENCE_OWNER_ACTION_FAILED", 500);
   }
 }
