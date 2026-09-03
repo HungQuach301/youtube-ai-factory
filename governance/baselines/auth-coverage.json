@@ -144,21 +144,6 @@
       ]
     },
     {
-      "identity": "app/api/factory/intelligence/route.ts#POST",
-      "route": "/api/factory/intelligence",
-      "method": "POST",
-      "sourceFile": "app/api/factory/intelligence/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/factory/material-production/route.ts#GET",
       "route": "/api/factory/material-production",
       "method": "GET",

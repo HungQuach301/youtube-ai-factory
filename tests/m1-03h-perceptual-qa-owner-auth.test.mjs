@@ -213,15 +213,15 @@ test("registry and auth baseline move exactly one POST to M1-03H ratchets", () =
     identity: handlerIdentity, sourceFile: routePath, routePath: "/api/projects/[id]/perceptual-qa", method: "POST", readWrite: "WRITE", actor: "CHATGPT_OWNER", authentication: "CHATGPT_SIWC", authorization: "FACTORY_EXPERT_EMAILS_ALLOWLIST_AND_SAME_ORIGIN_AND_EXACT_ACTION", audit: "IMMUTABLE_WRITE_COMMAND_AUDIT_AND_DOMAIN_RECEIPT", status: "PROTECTED", remediationWp: "NONE",
   });
   assert.equal(handlers.length, 100);
-  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 24);
-  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 21);
-  assert.deepEqual(["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length), [13, 8]);
-  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 30);
-  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 63);
+  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 25);
+  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 20);
+  assert.deepEqual(["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length), [13, 7]);
+  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 31);
+  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 62);
   const auth = JSON.parse(source("governance/baselines/auth-coverage.json")).uncoveredHandlers;
-  assert.equal(auth.length, 41);
+  assert.equal(auth.length, 40);
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
-  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 8, 1]);
+  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 7, 1]);
   assert.equal(JSON.parse(source("governance/baselines/no-write-in-get.json")).handlersWithReachableWrites.length, 16);
   assert.equal(JSON.parse(source("governance/baselines/actor-separation.json")).unseparatedCommands.length, 17);
 });
