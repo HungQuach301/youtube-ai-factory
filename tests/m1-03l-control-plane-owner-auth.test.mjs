@@ -8,19 +8,19 @@ import ts from "typescript";
 import { analyzeActorSource, analyzeAuthSource } from "../scripts/lib/candidate-ci-policy.mjs";
 
 const root = process.cwd();
-const routePath = "app/api/projects/[id]/references/route.ts";
+const routePath = "app/api/factory/control-plane/route.ts";
 const handlerIdentity = routePath + "#POST";
+const programId = "YTAF-V7-GREENFIELD";
 const source = (path) => readFileSync(join(root, path), "utf8");
 const route = source(routePath);
 const routeFile = ts.createSourceFile(routePath, route, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-const actions = new Set(["DISCOVER_REFERENCES", "RUN_BENCHMARK", "SET_MODE", "APPROVE_BENCHMARK", "TOGGLE_REFERENCE"]);
+const actions = new Set(["SET_MODE", "RECONCILE_AI_USAGE", "RUN_FOUNDATION_AUDIT"]);
 const fields = {
-  DISCOVER_REFERENCES: new Set(["action"]),
-  RUN_BENCHMARK: new Set(["action"]),
-  SET_MODE: new Set(["action", "verificationMode"]),
-  APPROVE_BENCHMARK: new Set(["action"]),
-  TOGGLE_REFERENCE: new Set(["action", "referenceId"]),
+  SET_MODE: new Set(["action", "mode"]),
+  RECONCILE_AI_USAGE: new Set(["action"]),
+  RUN_FOUNDATION_AUDIT: new Set(["action"]),
 };
+const modes = new Set(["AUTOPILOT", "APPROVAL_GATES", "MANUAL"]);
 
 function functionSource(name) {
   const declaration = routeFile.statements.find((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === name);
@@ -38,7 +38,7 @@ function ownerRequest(body = "{}", options = {}) {
   if (!headers.has("content-type")) headers.set("content-type", options.contentType || "application/json");
   if (!headers.has("origin")) headers.set("origin", options.origin || "https://factory.invalid");
   if (!headers.has("sec-fetch-site")) headers.set("sec-fetch-site", options.fetchSite || "same-origin");
-  return new Request(options.url || "https://factory.invalid/api/projects/project-1/references", {
+  return new Request(options.url || "https://factory.invalid/api/factory/control-plane", {
     method: options.method || "POST",
     headers,
     body,
@@ -59,12 +59,12 @@ async function executeGuard(options = {}) {
   }, {
     get(target, property, receiver) {
       if (property === "BUCKET") observed.r2 += 1;
-      if (property === "YOUTUBE_API_KEY") observed.provider += 1;
+      if (property === "OPENAI_API_KEY") observed.provider += 1;
       return Reflect.get(target, property, receiver);
     },
   });
   const result = await vm.runInNewContext(
-    transpile(["referenceOwnerFailure", "referenceOwnerSameOrigin", "authorizeReferenceOwnerWrite"]) + "\nauthorizeReferenceOwnerWrite(request);",
+    transpile(["controlPlaneOwnerFailure", "controlPlaneOwnerSameOrigin", "authorizeControlPlaneOwnerWrite"]) + "\nauthorizeControlPlaneOwnerWrite(request);",
     {
       Response,
       Request,
@@ -80,13 +80,12 @@ async function executeGuard(options = {}) {
 async function readCommand(request) {
   return vm.runInNewContext(
     transpile([
-      "referenceOwnerFailure",
-      "referenceOwnerSha256RawBytes",
-      "referenceOwnerExactKeys",
-      "referenceOwnerBoundedString",
-      "referenceOwnerPayloadValid",
-      "readReferenceOwnerCommand",
-    ]) + "\nreadReferenceOwnerCommand(request);",
+      "controlPlaneOwnerFailure",
+      "controlPlaneOwnerSha256RawBytes",
+      "controlPlaneOwnerExactKeys",
+      "controlPlaneOwnerPayloadValid",
+      "readControlPlaneOwnerCommand",
+    ]) + "\nreadControlPlaneOwnerCommand(request);",
     {
       Response,
       Headers,
@@ -94,35 +93,38 @@ async function readCommand(request) {
       Uint8Array,
       crypto,
       request,
-      REFERENCE_OWNER_ACTIONS: actions,
-      REFERENCE_OWNER_FIELDS: fields,
-      MAX_REFERENCE_OWNER_BODY_BYTES: 16 * 1024,
+      CONTROL_PLANE_OWNER_ACTIONS: actions,
+      CONTROL_PLANE_OWNER_FIELDS: fields,
+      CONTROL_PLANE_MODES: modes,
+      MAX_CONTROL_PLANE_OWNER_BODY_BYTES: 16 * 1024,
     },
   );
 }
 
-test("M1-03K protects references POST before params, body, runtime DDL, D1, R2, provider, spend, usage, audit, and business", () => {
+test("M1-03L protects control-plane POST before body, runtime DDL, D1, R2, provider, reservation, spend, usage, audit, and business", () => {
   const [analysis] = analyzeAuthSource(route, routePath).filter((item) => item.method === "POST");
   assert.equal(analysis.covered, true);
-  assert.equal(analysis.authenticationGuard, "authorizeReferenceOwnerWrite");
-  assert.equal(analysis.authorizationGuard, "authorizeReferenceOwnerWrite");
+  assert.equal(analysis.authenticationGuard, "authorizeControlPlaneOwnerWrite");
+  assert.equal(analysis.authorizationGuard, "authorizeControlPlaneOwnerWrite");
   const post = functionSource("POST");
-  const guard = post.indexOf("await authorizeReferenceOwnerWrite(request)");
-  const actor = post.indexOf("requireOwnerAuthority(authorization.actorType)");
-  const command = post.indexOf("await readReferenceOwnerCommand(request)");
-  const params = post.indexOf("await context.params");
-  const binding = post.indexOf("await bindReferenceOwnerResource(");
-  const replay = post.indexOf("await lookupReferenceOwnerReplay(");
-  const audit = post.indexOf("await runAuditedReferenceOwnerCommand(");
-  const execute = post.indexOf("executeReferenceOwnerCommand(command, id)");
-  assert.ok(guard >= 0 && guard < actor && actor < command && command < params && params < binding && binding < replay && replay < audit && audit < execute);
+  const guard = post.indexOf("await authorizeControlPlaneOwnerWrite(request)");
+  const actor = post.indexOf("requireControlPlaneOwnerAuthority(authorization.actorType)");
+  const command = post.indexOf("await readControlPlaneOwnerCommand(request)");
+  const binding = post.indexOf("await bindControlPlaneOwnerResource(authorization.db)");
+  const entitlement = post.indexOf("authorizeControlPlaneEntitlement(authorization.db, authorization.env, command)");
+  const replay = post.indexOf("await lookupControlPlaneOwnerReplay(");
+  const audit = post.indexOf("await runAuditedControlPlaneOwnerCommand(");
+  const execute = post.indexOf("executeControlPlaneOwnerCommand(command, entitlement)");
+  assert.ok(guard >= 0 && guard < actor && actor < command && command < binding && binding < entitlement && entitlement < replay && replay < audit && audit < execute);
   for (const forbidden of [
     "request.json(",
     "request.arrayBuffer(",
     "request.formData(",
-    "ensureSchema(",
+    "ensureFoundationSchema(",
+    "seedControlPlane(",
     "getDb(",
     ".prepare(",
+    ".batch(",
     ".insert(",
     ".update(",
     ".delete(",
@@ -131,7 +133,8 @@ test("M1-03K protects references POST before params, body, runtime DDL, D1, R2, 
     "reserve",
     "spend",
     "recordOpenAIUsage(",
-  ]) assert.equal(post.includes(forbidden), false, forbidden + " must remain behind authorization");
+    "appendWriteCommandAudit(",
+  ]) assert.equal(post.includes(forbidden), false, forbidden + " must remain behind authorization and binding");
 });
 
 test("anonymous, wrong-origin, non-owner, unconfigured, and unavailable-database denials touch no body or mutable dependency", async () => {
@@ -139,8 +142,8 @@ test("anonymous, wrong-origin, non-owner, unconfigured, and unavailable-database
     { user: null, status: 401, code: "SIWC_AUTHENTICATION_REQUIRED", environment: 0 },
     { origin: "https://evil.invalid", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
     { fetchSite: "cross-site", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
-    { url: "https://factory.invalid/api/projects/project-1/references/extra", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
-    { url: "https://factory.invalid/api/projects/project-1/references?mode=wrong", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
+    { url: "https://factory.invalid/api/factory/control-plane/extra", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
+    { url: "https://factory.invalid/api/factory/control-plane?action=wrong", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
     { method: "PUT", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
     { allowlist: "", status: 503, code: "OWNER_WRITE_ALLOWLIST_UNCONFIGURED", environment: 1 },
     { user: { email: "intruder@example.com" }, status: 403, code: "OWNER_WRITE_AUTHORIZATION_REQUIRED", environment: 1 },
@@ -158,25 +161,25 @@ test("anonymous, wrong-origin, non-owner, unconfigured, and unavailable-database
   }
 });
 
-test("explicit owner authority denies AGENT before APPROVE_BENCHMARK business authority", async () => {
-  const actorSource = functionSource("requireOwnerAuthority");
+test("explicit owner authority denies AGENT before global control-plane business authority", async () => {
+  const actorSource = functionSource("requireControlPlaneOwnerAuthority");
   assert.ok(actorSource.includes('actorType === "AGENT"'));
   assert.ok(actorSource.includes("AGENT_OWNER_COMMAND_FORBIDDEN"));
-  assert.equal(analyzeActorSource(route, routePath).some((item) => item.command === "APPROVE_BENCHMARK"), false);
+  assert.equal(analyzeActorSource(route, routePath).some((item) => ["SET_MODE", "RUN_FOUNDATION_AUDIT"].includes(item.command)), false);
   const denial = await vm.runInNewContext(
-    transpile(["referenceOwnerFailure", "requireOwnerAuthority"]) + '\nrequireOwnerAuthority("AGENT");',
+    transpile(["controlPlaneOwnerFailure", "requireControlPlaneOwnerAuthority"]) + '\nrequireControlPlaneOwnerAuthority("AGENT");',
     { Response },
   );
   assert.equal(denial.status, 403);
 });
 
-test("strict JSON envelope covers exactly five actions, exact fields, modes, bounded references, and raw hashes", async () => {
+test("strict JSON envelope covers exactly three actions, three modes, fixed resource, and raw hashes", async () => {
   const valid = [
-    { action: "DISCOVER_REFERENCES" },
-    { action: "RUN_BENCHMARK" },
-    { action: "SET_MODE", verificationMode: "AUTOPILOT" },
-    { action: "APPROVE_BENCHMARK" },
-    { action: "TOGGLE_REFERENCE", referenceId: "project-1-REF-video-1" },
+    { action: "SET_MODE", mode: "AUTOPILOT" },
+    { action: "SET_MODE", mode: "APPROVAL_GATES" },
+    { action: "SET_MODE", mode: "MANUAL" },
+    { action: "RECONCILE_AI_USAGE" },
+    { action: "RUN_FOUNDATION_AUDIT" },
   ];
   for (const payload of valid) {
     const raw = JSON.stringify(payload);
@@ -188,11 +191,12 @@ test("strict JSON envelope covers exactly five actions, exact fields, modes, bou
     { body: "{", status: 400, code: "OWNER_WRITE_JSON_INVALID" },
     { body: "null", status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
     { body: JSON.stringify({}), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
-    { body: JSON.stringify({ action: "discover_references" }), status: 403, code: "REFERENCE_OWNER_ACTION_FORBIDDEN" },
-    { body: JSON.stringify({ action: "PUBLISH_VIDEO" }), status: 403, code: "REFERENCE_OWNER_ACTION_FORBIDDEN" },
-    { body: JSON.stringify({ action: "RUN_BENCHMARK", referenceId: "extra" }), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
-    { body: JSON.stringify({ action: "SET_MODE", verificationMode: "AGENT" }), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
-    { body: JSON.stringify({ action: "TOGGLE_REFERENCE", referenceId: "" }), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
+    { body: JSON.stringify({ action: "set_mode", mode: "AUTOPILOT" }), status: 403, code: "CONTROL_PLANE_OWNER_ACTION_FORBIDDEN" },
+    { body: JSON.stringify({ action: "PUBLISH_VIDEO" }), status: 403, code: "CONTROL_PLANE_OWNER_ACTION_FORBIDDEN" },
+    { body: JSON.stringify({ action: "SET_MODE" }), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
+    { body: JSON.stringify({ action: "SET_MODE", mode: "AGENT" }), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
+    { body: JSON.stringify({ action: "RUN_FOUNDATION_AUDIT", mode: "MANUAL" }), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
+    { body: JSON.stringify({ action: "RECONCILE_AI_USAGE", programId }), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
   ];
   for (const item of invalid) {
     const response = await readCommand(ownerRequest(item.body));
@@ -215,34 +219,55 @@ test("multipart and binary are rejected before stream materialization", async ()
   }
 });
 
-test("project and reference bindings are D1 reads only and reject unknown or cross-project resources", async () => {
-  const run = async (projectFound, referenceFound, command) => {
+test("fixed global resource binding performs one exact D1 read and rejects a missing or mismatched program", async () => {
+  async function bind(row) {
     const calls = [];
-    const db = {
-      prepare(sql) {
-        const statement = {
-          bind(...values) { calls.push({ sql, values }); return statement; },
-          async first() { return sql.includes("video_projects") ? projectFound : referenceFound; },
-        };
-        return statement;
-      },
+    const statement = {
+      bind(...values) { calls.push(values); return statement; },
+      async first() { return row; },
     };
+    const db = { prepare(sql) { calls.push(sql); return statement; } };
     const response = await vm.runInNewContext(
-      transpile(["referenceOwnerFailure", "referenceOwnerBoundedString", "bindReferenceOwnerResource"]) + "\nbindReferenceOwnerResource(db, projectId, command);",
-      { Response, db, projectId: "project-1", command },
+      transpile(["controlPlaneOwnerFailure", "bindControlPlaneOwnerResource"]) + "\nbindControlPlaneOwnerResource(db);",
+      { Response, db, PROGRAM_ID: programId },
     );
     return { response, calls };
-  };
-  const command = { action: "TOGGLE_REFERENCE", payload: { action: "TOGGLE_REFERENCE", referenceId: "ref-1" }, requestHash: "a".repeat(64) };
-  const missingProject = await run(null, null, command);
-  assert.equal(missingProject.response.status, 404);
-  assert.equal(missingProject.calls.length, 1);
-  const crossProject = await run({ id: "project-1" }, null, command);
-  assert.equal(crossProject.response.status, 404);
-  assert.equal(crossProject.calls.length, 2);
-  assert.deepEqual(crossProject.calls[1].values, ["ref-1", "project-1"]);
-  const bound = await run({ id: "project-1" }, { id: "ref-1" }, command);
-  assert.equal(bound.response, null);
+  }
+  const found = await bind({ id: programId });
+  assert.equal(found.response, null);
+  assert.match(found.calls[0], /SELECT id FROM v7_program_contracts WHERE id = \? LIMIT 1/);
+  assert.deepEqual(found.calls[1], [programId]);
+  for (const row of [null, { id: "other-program" }]) {
+    const missing = await bind(row);
+    assert.equal(missing.response.status, 404);
+  }
+});
+
+test("action entitlements are exact, fail closed, and do not construct provider, reserve, or spend work", async () => {
+  function authorize(action, env) {
+    const db = {};
+    return vm.runInNewContext(
+      transpile(["controlPlaneOwnerFailure", "authorizeControlPlaneEntitlement"]) + "\nauthorizeControlPlaneEntitlement(db, env, command);",
+      { Response, db, env, command: { action, payload: { action }, requestHash: "a".repeat(64) } },
+    );
+  }
+  assert.equal((await authorize("SET_MODE", {})).kind, "CONTROL_PLANE_ZERO_SPEND");
+  const providerMissing = await authorize("RECONCILE_AI_USAGE", {});
+  assert.equal(providerMissing.status, 503);
+  assert.deepEqual(await providerMissing.json(), { error: "PROVIDER_READ_ENTITLEMENT_UNAVAILABLE" });
+  const providerRead = await authorize("RECONCILE_AI_USAGE", { OPENAI_API_KEY: "configured" });
+  assert.equal(providerRead.kind, "NON_DISPATCH_PROVIDER_READ");
+  const bucketMissing = await authorize("RUN_FOUNDATION_AUDIT", {});
+  assert.equal(bucketMissing.status, 503);
+  assert.deepEqual(await bucketMissing.json(), { error: "RUNTIME_OBJECT_STORAGE_UNAVAILABLE" });
+  assert.equal((await authorize("RUN_FOUNDATION_AUDIT", { BUCKET: {} })).kind, "FOUNDATION_AUDIT_STORAGE");
+
+  const execute = functionSource("executeControlPlaneOwnerCommand");
+  assert.ok(execute.includes('method: "GET"'));
+  assert.ok(execute.includes("/v1/responses/${encodeURIComponent(job.provider_response_id)}"));
+  assert.equal(execute.includes('method: "POST"'), false);
+  assert.equal(/\breserve\s*\(/.test(execute), false);
+  assert.equal(/\bspend\s*\(/.test(execute), false);
 });
 
 test("idempotent replay returns the immutable receipt and conflicts on key reuse with a different request", async () => {
@@ -254,63 +279,61 @@ test("idempotent replay returns the immutable receipt and conflicts on key reuse
     const db = { prepare() { return statement; } };
     const identity = { handlerIdentity, requestHash, correlationId: "test:correlation" };
     return vm.runInNewContext(
-      transpile(["referenceOwnerFailure", "lookupReferenceOwnerReplay"]) + "\nlookupReferenceOwnerReplay(db, identity);",
+      transpile(["controlPlaneOwnerFailure", "lookupControlPlaneOwnerReplay"]) + "\nlookupControlPlaneOwnerReplay(db, identity);",
       { Response, db, identity },
     );
   }
-  const replay = await lookup([{ handler_identity: handlerIdentity, request_hash: "a".repeat(64), phase: "SUCCEEDED", domain_receipt_reference: "references:project-1:TOGGLE_REFERENCE:ref-1:EXCLUDED" }]);
+  const receipt = `control-plane:${programId}:SET_MODE:MANUAL`;
+  const replay = await lookup([{ handler_identity: handlerIdentity, request_hash: "a".repeat(64), phase: "SUCCEEDED", domain_receipt_reference: receipt }]);
   assert.equal(replay.status, 200);
-  assert.deepEqual(await replay.json(), { ok: true, replay: true, receipt: "references:project-1:TOGGLE_REFERENCE:ref-1:EXCLUDED" });
-  const conflict = await lookup([{ handler_identity: handlerIdentity, request_hash: "b".repeat(64), phase: "SUCCEEDED", domain_receipt_reference: "receipt" }]);
+  assert.deepEqual(await replay.json(), { ok: true, replay: true, receipt });
+  const conflict = await lookup([{ handler_identity: handlerIdentity, request_hash: "b".repeat(64), phase: "SUCCEEDED", domain_receipt_reference: receipt }]);
   assert.equal(conflict.status, 409);
   const incomplete = await lookup([{ handler_identity: handlerIdentity, request_hash: "a".repeat(64), phase: "AUTHORIZED", domain_receipt_reference: null }]);
   assert.equal(incomplete.status, 409);
   assert.equal(await lookup([]), null);
 });
 
-test("immutable audit emits AUTHORIZED then exactly one terminal phase with a reference-domain receipt", async () => {
-  async function run(responseFactory) {
+test("immutable audit emits AUTHORIZED then exactly one terminal phase with action-bound domain receipts", async () => {
+  async function run(command, responseFactory) {
     const events = [];
     let executions = 0;
-    const command = { action: "TOGGLE_REFERENCE", payload: { action: "TOGGLE_REFERENCE", referenceId: "ref-1" }, requestHash: "a".repeat(64) };
-    const identity = { handlerIdentity, actorType: "CHATGPT_OWNER", actorSubjectHash: "b".repeat(64), action: command.action, resourceScope: "project:project-1:references:reference:ref-1", correlationId: "test:correlation", requestHash: command.requestHash };
+    const identity = { handlerIdentity, actorType: "CHATGPT_OWNER", actorSubjectHash: "b".repeat(64), action: command.action, resourceScope: `program:${programId}:control-plane`, correlationId: "test:correlation", requestHash: command.requestHash };
     const response = await vm.runInNewContext(
-      transpile(["referenceOwnerBoundedAuditComponent", "referenceOwnerDomainReceipt", "runAuditedReferenceOwnerCommand"]) + "\nrunAuditedReferenceOwnerCommand(db, identity, projectId, command, execute);",
+      transpile(["controlPlaneOwnerBoundedAuditComponent", "controlPlaneOwnerDomainReceipt", "runAuditedControlPlaneOwnerCommand"]) + "\nrunAuditedControlPlaneOwnerCommand(db, identity, command, execute);",
       {
         Response,
         db: {},
         identity,
-        projectId: "project-1",
         command,
         execute: async () => { executions += 1; return responseFactory(); },
         appendWriteCommandAudit: async (_db, _identity, phase, receipt) => { events.push({ phase, receipt }); },
-        REFERENCE_OWNER_AUDIT_COMPONENT_PATTERN: /[^A-Za-z0-9._:-]/g,
+        PROGRAM_ID: programId,
+        CONTROL_PLANE_OWNER_AUDIT_COMPONENT_PATTERN: /[^A-Za-z0-9._:-]/g,
       },
     );
     return { response, events, executions };
   }
-  const success = await run(() => Response.json({ ok: true, referenceId: "ref-1", status: "EXCLUDED" }));
+  const command = { action: "SET_MODE", payload: { action: "SET_MODE", mode: "MANUAL" }, requestHash: "a".repeat(64) };
+  const success = await run(command, () => Response.json({ ok: true }));
   assert.equal(success.executions, 1);
   assert.deepEqual(success.events.map((item) => item.phase), ["AUTHORIZED", "SUCCEEDED"]);
-  assert.equal(success.events[1].receipt, "references:project-1:TOGGLE_REFERENCE:ref-1:EXCLUDED");
-  const failure = await run(() => Response.json({ error: "blocked" }, { status: 409 }));
+  assert.equal(success.events[1].receipt, `control-plane:${programId}:SET_MODE:MANUAL`);
+  const failure = await run(command, () => Response.json({ error: "blocked" }, { status: 409 }));
   assert.equal(failure.executions, 1);
   assert.deepEqual(failure.events.map((item) => item.phase), ["AUTHORIZED", "FAILED"]);
 });
 
-test("all five owner actions preserve bounded behavior without R2, reservation, spend, or usage accounting", () => {
-  const execute = functionSource("executeReferenceOwnerCommand");
-  for (const action of actions) assert.ok(execute.includes('payload.action === "' + action + '"'));
-  assert.ok(execute.includes("eq(referenceVideos.id, payload.referenceId!)"));
-  assert.ok(execute.includes("eq(referenceBenchmarkRuns.projectId, projectId)"));
-  assert.ok(execute.includes('nextAction: "Run Universal Quality Gate"'));
-  assert.ok(route.includes("discoverLiveReferences"));
-  assert.equal(route.includes("BUCKET"), false);
-  assert.equal(route.includes("recordOpenAIUsage("), false);
-  assert.equal(/\breserve\s*\(/.test(route), false);
-  assert.equal(/\bspend\s*\(/.test(route), false);
-  assert.equal(route.includes("M1_03K_LIVE_PROVIDER_TEST"), false);
-  assert.equal(route.includes("M1_03K_LIVE_SPEND_TEST"), false);
+test("three owner actions retain their bounded business behavior and add no runtime schema creation", () => {
+  const execute = functionSource("executeControlPlaneOwnerCommand");
+  for (const action of actions) assert.ok(execute.includes('payload.action === "' + action + '"') || execute.includes('payload.action !== "' + action + '"'));
+  assert.ok(execute.includes("recordOpenAIUsage({ db: entitlement.db"));
+  assert.ok(execute.includes("entitlement.bucket.put"));
+  assert.ok(execute.includes("entitlement.bucket.head"));
+  assert.ok(execute.includes("productionAuthorized"));
+  assert.equal((route.match(/CREATE TABLE IF NOT EXISTS/g) || []).length, 10);
+  assert.equal(route.includes("M1_03L_LIVE_PROVIDER_TEST"), false);
+  assert.equal(route.includes("M1_03L_LIVE_SPEND_TEST"), false);
 });
 
 test("registry, auth, actor separation, and GET baselines ratchet exactly once", () => {
@@ -318,13 +341,13 @@ test("registry, auth, actor separation, and GET baselines ratchet exactly once",
   assert.deepEqual(handlers.find((item) => item.identity === handlerIdentity), {
     identity: handlerIdentity,
     sourceFile: routePath,
-    routePath: "/api/projects/[id]/references",
+    routePath: "/api/factory/control-plane",
     method: "POST",
     readWrite: "WRITE",
     actor: "CHATGPT_OWNER",
     authentication: "CHATGPT_SIWC",
-    authorization: "FACTORY_EXPERT_EMAILS_ALLOWLIST_AND_SAME_ORIGIN_AND_EXACT_REFERENCE_ACTION_AND_PROJECT_RESOURCE_BINDING",
-    audit: "IMMUTABLE_WRITE_COMMAND_AUDIT_AND_REFERENCE_DOMAIN_RECEIPT_AND_IDEMPOTENT_REPLAY",
+    authorization: "FACTORY_EXPERT_EMAILS_ALLOWLIST_AND_SAME_ORIGIN_AND_EXACT_CONTROL_PLANE_ACTION_AND_FIXED_PROGRAM_RESOURCE_AND_ACTION_ENTITLEMENT",
+    audit: "IMMUTABLE_WRITE_COMMAND_AUDIT_AND_CONTROL_PLANE_DOMAIN_RECEIPT_AND_IDEMPOTENT_REPLAY",
     status: "PROTECTED",
     remediationWp: "NONE",
   });

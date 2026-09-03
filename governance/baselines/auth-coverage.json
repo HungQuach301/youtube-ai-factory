@@ -87,21 +87,6 @@
       ]
     },
     {
-      "identity": "app/api/factory/control-plane/route.ts#POST",
-      "route": "/api/factory/control-plane",
-      "method": "POST",
-      "sourceFile": "app/api/factory/control-plane/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/factory/creative-contract/route.ts#GET",
       "route": "/api/factory/creative-contract",
       "method": "GET",

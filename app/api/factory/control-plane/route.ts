@@ -1,5 +1,6 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../db";
+import { getChatGPTUser } from "../../../chatgpt-auth";
 import {
   v7AiUsageEvents,
   v7AssetRegistry,
@@ -12,16 +13,253 @@ import {
   v7StorageContracts,
 } from "../../../../db/schema";
 import { AI_USAGE_TABLE_SQL, recordOpenAIUsage } from "../../../../lib/ai-usage";
+import {
+  appendWriteCommandAudit,
+  hashActorSubject,
+  type WriteCommandAuditDatabase,
+  type WriteCommandAuditIdentity,
+} from "../../../../lib/write-command-audit";
 
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
 
 type RuntimeStatement = {
-  bind: (...values: unknown[]) => RuntimeStatement;
-  run: () => Promise<unknown>;
-  all: <T>() => Promise<{ results?: T[] }>;
+  bind(...values: unknown[]): RuntimeStatement;
+  run(): Promise<unknown>;
+  first<T>(): Promise<T | null>;
+  all<T>(): Promise<{ results?: T[] }>;
 };
-type RuntimeDatabase = { prepare: (sql: string) => RuntimeStatement; batch: (statements: RuntimeStatement[]) => Promise<unknown> };
-type RuntimeEnv = { DB?: RuntimeDatabase; OPENAI_API_KEY?: string };
+type RuntimeDatabase = WriteCommandAuditDatabase & {
+  prepare(sql: string): RuntimeStatement;
+  batch(statements: RuntimeStatement[]): Promise<unknown>;
+};
+type RuntimeBucket = {
+  put(key: string, value: string, options?: Record<string, unknown>): Promise<unknown>;
+  head(key: string): Promise<unknown>;
+};
+type RuntimeEnv = {
+  DB?: RuntimeDatabase;
+  BUCKET?: RuntimeBucket;
+  OPENAI_API_KEY?: string;
+  FACTORY_EXPERT_EMAILS?: string;
+};
+
+type ControlPlaneOwnerAction = "SET_MODE" | "RECONCILE_AI_USAGE" | "RUN_FOUNDATION_AUDIT";
+type ControlPlaneOwnerPayload =
+  | { action: "SET_MODE"; mode: "AUTOPILOT" | "APPROVAL_GATES" | "MANUAL" }
+  | { action: "RECONCILE_AI_USAGE" }
+  | { action: "RUN_FOUNDATION_AUDIT" };
+type ControlPlaneOwnerCommand = {
+  action: ControlPlaneOwnerAction;
+  payload: ControlPlaneOwnerPayload;
+  requestHash: string;
+};
+type ControlPlaneOwnerAuditRow = {
+  handler_identity: string;
+  request_hash: string;
+  phase: "AUTHORIZED" | "SUCCEEDED" | "FAILED";
+  domain_receipt_reference: string | null;
+};
+type ControlPlaneEntitlement =
+  | { action: "SET_MODE"; kind: "CONTROL_PLANE_ZERO_SPEND"; db: RuntimeDatabase }
+  | { action: "RECONCILE_AI_USAGE"; kind: "NON_DISPATCH_PROVIDER_READ"; db: RuntimeDatabase; providerApiKey: string }
+  | { action: "RUN_FOUNDATION_AUDIT"; kind: "FOUNDATION_AUDIT_STORAGE"; db: RuntimeDatabase; bucket: RuntimeBucket };
+
+const CONTROL_PLANE_OWNER_HANDLER_IDENTITY = "app/api/factory/control-plane/route.ts#POST";
+const CONTROL_PLANE_OWNER_ACTIONS = new Set<ControlPlaneOwnerAction>(["SET_MODE", "RECONCILE_AI_USAGE", "RUN_FOUNDATION_AUDIT"]);
+const CONTROL_PLANE_OWNER_FIELDS: Record<ControlPlaneOwnerAction, ReadonlySet<string>> = {
+  SET_MODE: new Set(["action", "mode"]),
+  RECONCILE_AI_USAGE: new Set(["action"]),
+  RUN_FOUNDATION_AUDIT: new Set(["action"]),
+};
+const CONTROL_PLANE_MODES = new Set(["AUTOPILOT", "APPROVAL_GATES", "MANUAL"]);
+const MAX_CONTROL_PLANE_OWNER_BODY_BYTES = 16 * 1024;
+const CONTROL_PLANE_OWNER_CORRELATION_ID_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
+const CONTROL_PLANE_OWNER_AUDIT_COMPONENT_PATTERN = /[^A-Za-z0-9._:-]/g;
+
+async function runtimeEnv() {
+  const { env } = await import("cloudflare:workers");
+  return env as unknown as RuntimeEnv;
+}
+
+function controlPlaneOwnerFailure(error: string, status: number) {
+  return Response.json({ error }, { status });
+}
+
+function controlPlaneOwnerSameOrigin(request: Request) {
+  const url = new URL(request.url);
+  return request.method === "POST"
+    && url.pathname === "/api/factory/control-plane"
+    && url.search === ""
+    && request.headers.get("origin") === url.origin
+    && request.headers.get("sec-fetch-site") === "same-origin";
+}
+
+async function authorizeControlPlaneOwnerWrite(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user?.email) return controlPlaneOwnerFailure("SIWC_AUTHENTICATION_REQUIRED", 401);
+  if (!controlPlaneOwnerSameOrigin(request)) return controlPlaneOwnerFailure("OWNER_WRITE_SAME_ORIGIN_REQUIRED", 403);
+
+  const env = await runtimeEnv();
+  const normalizedEmail = user.email.trim().toLowerCase();
+  const owners = String(env.FACTORY_EXPERT_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (owners.length === 0) return controlPlaneOwnerFailure("OWNER_WRITE_ALLOWLIST_UNCONFIGURED", 503);
+  if (!owners.includes(normalizedEmail)) return controlPlaneOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+  if (!env.DB) return controlPlaneOwnerFailure("CANONICAL_DATABASE_UNAVAILABLE", 503);
+  return { db: env.DB, env, normalizedEmail, actorType: "CHATGPT_OWNER" as const };
+}
+
+function requireControlPlaneOwnerAuthority(actorType: string) {
+  if (actorType === "AGENT") return controlPlaneOwnerFailure("AGENT_OWNER_COMMAND_FORBIDDEN", 403);
+  return actorType === "CHATGPT_OWNER" ? null : controlPlaneOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+}
+
+async function controlPlaneOwnerSha256RawBytes(bytes: ArrayBuffer | Uint8Array) {
+  const value = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", value));
+  return [...digest].map((item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+function controlPlaneOwnerExactKeys(value: Record<string, unknown>, expected: ReadonlySet<string>) {
+  const keys = Object.keys(value);
+  return keys.length === expected.size && keys.every((key) => expected.has(key));
+}
+
+function controlPlaneOwnerPayloadValid(payload: ControlPlaneOwnerPayload) {
+  if (!controlPlaneOwnerExactKeys(payload as unknown as Record<string, unknown>, CONTROL_PLANE_OWNER_FIELDS[payload.action])) return false;
+  return payload.action !== "SET_MODE" || (typeof payload.mode === "string" && CONTROL_PLANE_MODES.has(payload.mode));
+}
+
+async function readControlPlaneOwnerCommand(request: Request): Promise<ControlPlaneOwnerCommand | Response> {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") return controlPlaneOwnerFailure("JSON_CONTENT_TYPE_REQUIRED", 415);
+  const lengthHeader = request.headers.get("content-length");
+  const contentLength = lengthHeader === null ? null : Number(lengthHeader);
+  if (contentLength !== null && (!Number.isFinite(contentLength) || contentLength < 0)) return controlPlaneOwnerFailure("OWNER_WRITE_CONTENT_LENGTH_INVALID", 400);
+  if (contentLength !== null && contentLength > MAX_CONTROL_PLANE_OWNER_BODY_BYTES) return controlPlaneOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+  const raw = await request.arrayBuffer();
+  if (!raw.byteLength || raw.byteLength > MAX_CONTROL_PLANE_OWNER_BODY_BYTES) return controlPlaneOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(raw));
+  } catch {
+    return controlPlaneOwnerFailure("OWNER_WRITE_JSON_INVALID", 400);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return controlPlaneOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.action !== "string") return controlPlaneOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  if (!CONTROL_PLANE_OWNER_ACTIONS.has(record.action as ControlPlaneOwnerAction)) return controlPlaneOwnerFailure("CONTROL_PLANE_OWNER_ACTION_FORBIDDEN", 403);
+  const action = record.action as ControlPlaneOwnerAction;
+  const payload = record as ControlPlaneOwnerPayload;
+  if (!controlPlaneOwnerPayloadValid(payload)) return controlPlaneOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  return { action, payload, requestHash: await controlPlaneOwnerSha256RawBytes(raw) };
+}
+
+async function bindControlPlaneOwnerResource(db: RuntimeDatabase) {
+  const program = await db.prepare("SELECT id FROM v7_program_contracts WHERE id = ? LIMIT 1")
+    .bind(PROGRAM_ID)
+    .first<{ id: string }>();
+  return program?.id === PROGRAM_ID ? null : controlPlaneOwnerFailure("CONTROL_PLANE_RESOURCE_NOT_FOUND", 404);
+}
+
+function authorizeControlPlaneEntitlement(
+  db: RuntimeDatabase,
+  env: RuntimeEnv,
+  command: ControlPlaneOwnerCommand,
+): ControlPlaneEntitlement | Response {
+  if (command.action === "SET_MODE") return { action: command.action, kind: "CONTROL_PLANE_ZERO_SPEND", db };
+  if (command.action === "RECONCILE_AI_USAGE") {
+    if (!env.OPENAI_API_KEY) return controlPlaneOwnerFailure("PROVIDER_READ_ENTITLEMENT_UNAVAILABLE", 503);
+    return { action: command.action, kind: "NON_DISPATCH_PROVIDER_READ", db, providerApiKey: env.OPENAI_API_KEY };
+  }
+  if (!env.BUCKET) return controlPlaneOwnerFailure("RUNTIME_OBJECT_STORAGE_UNAVAILABLE", 503);
+  return { action: command.action, kind: "FOUNDATION_AUDIT_STORAGE", db, bucket: env.BUCKET };
+}
+
+function controlPlaneOwnerBoundedAuditComponent(value: string) {
+  return value.replace(CONTROL_PLANE_OWNER_AUDIT_COMPONENT_PATTERN, "_").slice(0, 200) || "unknown";
+}
+
+function controlPlaneOwnerCorrelationId(request: Request) {
+  const supplied = request.headers.get("x-correlation-id")?.trim() ?? "";
+  return CONTROL_PLANE_OWNER_CORRELATION_ID_PATTERN.test(supplied) ? supplied : `control-plane-owner:${crypto.randomUUID()}`;
+}
+
+async function controlPlaneOwnerAuditIdentity(
+  request: Request,
+  normalizedEmail: string,
+  command: ControlPlaneOwnerCommand,
+): Promise<WriteCommandAuditIdentity> {
+  const detail = command.action === "SET_MODE" ? `:mode:${command.payload.mode}` : "";
+  return {
+    handlerIdentity: CONTROL_PLANE_OWNER_HANDLER_IDENTITY,
+    actorType: "CHATGPT_OWNER",
+    actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", normalizedEmail),
+    action: command.action,
+    resourceScope: `program:${PROGRAM_ID}:control-plane${detail}`,
+    correlationId: controlPlaneOwnerCorrelationId(request),
+    requestHash: command.requestHash,
+  };
+}
+
+async function lookupControlPlaneOwnerReplay(db: RuntimeDatabase, identity: WriteCommandAuditIdentity) {
+  const result = await db.prepare(`SELECT handler_identity,request_hash,phase,domain_receipt_reference
+    FROM factory_write_command_audit WHERE correlation_id = ? ORDER BY canonical_timestamp,id`)
+    .bind(identity.correlationId)
+    .all<ControlPlaneOwnerAuditRow>();
+  const rows = result.results ?? [];
+  if (!rows.length) return null;
+  if (rows.some((row) => row.handler_identity !== identity.handlerIdentity || row.request_hash !== identity.requestHash)) {
+    return controlPlaneOwnerFailure("OWNER_WRITE_IDEMPOTENCY_CONFLICT", 409);
+  }
+  const succeeded = rows.find((row) => row.phase === "SUCCEEDED");
+  if (succeeded) return Response.json({ ok: true, replay: true, receipt: succeeded.domain_receipt_reference });
+  return controlPlaneOwnerFailure("OWNER_WRITE_REPLAY_INCOMPLETE", 409);
+}
+
+async function controlPlaneOwnerDomainReceipt(command: ControlPlaneOwnerCommand, response: Response) {
+  const payload = await response.clone().json().catch(() => ({})) as Record<string, unknown>;
+  let reference = "completed";
+  if (command.action === "SET_MODE") reference = String(command.payload.mode ?? "unknown");
+  else if (command.action === "RECONCILE_AI_USAGE") {
+    const reconciliation = payload.reconciliation as Record<string, unknown> | undefined;
+    reference = `${String(reconciliation?.discovered ?? 0)}:${String(reconciliation?.reconciled ?? 0)}:${String(reconciliation?.failed ?? 0)}`;
+  } else {
+    const audit = payload.latestAudit as Record<string, unknown> | undefined;
+    reference = `${String(audit?.id ?? "unknown")}:${String(audit?.status ?? "unknown")}`;
+  }
+  return `control-plane:${controlPlaneOwnerBoundedAuditComponent(PROGRAM_ID)}:${controlPlaneOwnerBoundedAuditComponent(command.action)}:${controlPlaneOwnerBoundedAuditComponent(reference)}`;
+}
+
+async function runAuditedControlPlaneOwnerCommand(
+  db: RuntimeDatabase,
+  identity: WriteCommandAuditIdentity,
+  command: ControlPlaneOwnerCommand,
+  execute: () => Promise<Response>,
+) {
+  await appendWriteCommandAudit(db, identity, "AUTHORIZED", null);
+  let response: Response;
+  try {
+    response = await execute();
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+  if (!response.ok) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    return response;
+  }
+  try {
+    await appendWriteCommandAudit(db, identity, "SUCCEEDED", await controlPlaneOwnerDomainReceipt(command, response));
+    return response;
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+}
 
 const foundationSchema = [
   `CREATE TABLE IF NOT EXISTS v7_program_contracts (id text PRIMARY KEY NOT NULL, channel_id text NOT NULL, version integer DEFAULT 7 NOT NULL, status text DEFAULT 'FOUNDATION_BUILD' NOT NULL, execution_mode text DEFAULT 'AUTOPILOT' NOT NULL, quality_policy text DEFAULT 'MAXIMUM_QUALITY_FIRST' NOT NULL, legacy_policy text DEFAULT 'HISTORICAL_QUARANTINE' NOT NULL, overall_floor integer DEFAULT 92 NOT NULL, critical_floor integer DEFAULT 90 NOT NULL, dimension_floor integer DEFAULT 86 NOT NULL, p0_tolerance integer DEFAULT 0 NOT NULL, p1_tolerance integer DEFAULT 0 NOT NULL, maximum_attempts integer DEFAULT 3 NOT NULL, minimum_improvement integer DEFAULT 3 NOT NULL, production_authorized integer DEFAULT false NOT NULL, created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL, updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL)`,
@@ -38,7 +276,7 @@ const foundationSchema = [
 ] as const;
 
 async function ensureFoundationSchema() {
-  const { env } = await import("cloudflare:workers");
+  const env = await runtimeEnv();
   if (!env.DB) throw new Error("D1 binding DB is unavailable");
   await env.DB.batch(foundationSchema.map((statement) => env.DB.prepare(statement)));
 }
@@ -305,24 +543,19 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function executeControlPlaneOwnerCommand(command: ControlPlaneOwnerCommand, entitlement: ControlPlaneEntitlement) {
   try {
-    const payload = (await request.json()) as { action?: string; mode?: string };
+    const payload = command.payload;
     const db = await seedControlPlane();
     if (payload.action === "SET_MODE") {
-      if (!payload.mode || !["AUTOPILOT", "APPROVAL_GATES", "MANUAL"].includes(payload.mode)) {
-        return Response.json({ error: "Invalid execution mode" }, { status: 400 });
-      }
+      if (entitlement.action !== "SET_MODE" || entitlement.kind !== "CONTROL_PLANE_ZERO_SPEND") return controlPlaneOwnerFailure("CONTROL_PLANE_ENTITLEMENT_MISMATCH", 403);
       await db.update(v7ProgramContracts).set({ executionMode: payload.mode, updatedAt: new Date().toISOString() }).where(eq(v7ProgramContracts.id, PROGRAM_ID));
       return Response.json(await readDashboard());
     }
 
     if (payload.action === "RECONCILE_AI_USAGE") {
-      const { env } = await import("cloudflare:workers");
-      const runtime = env as unknown as RuntimeEnv;
-      if (!runtime.DB) throw new Error("Cost reconciliation database is unavailable");
-      if (!runtime.OPENAI_API_KEY) throw new Error("Connect OPENAI_API_KEY before reconciling AI usage");
-      const result = await runtime.DB.prepare(`SELECT j.run_id,j.stage_key,j.provider_response_id,r.model_id,'WEB_GROUNDED_INTELLIGENCE' AS cost_type
+      if (entitlement.action !== "RECONCILE_AI_USAGE" || entitlement.kind !== "NON_DISPATCH_PROVIDER_READ") return controlPlaneOwnerFailure("CONTROL_PLANE_ENTITLEMENT_MISMATCH", 403);
+      const result = await entitlement.db.prepare(`SELECT j.run_id,j.stage_key,j.provider_response_id,r.model_id,'WEB_GROUNDED_INTELLIGENCE' AS cost_type
         FROM v7_intelligence_jobs j JOIN v7_intelligence_runs r ON r.id=j.run_id WHERE j.program_id=?
         UNION ALL
         SELECT j.run_id,'04' AS stage_key,j.provider_response_id,r.model_id,'CREATIVE_TOURNAMENT' AS cost_type
@@ -339,12 +572,13 @@ export async function POST(request: Request) {
         await Promise.all(jobs.slice(index, index + 4).map(async (job) => {
           try {
             const response = await fetch(`https://api.openai.com/v1/responses/${encodeURIComponent(job.provider_response_id)}`, {
-              headers: { authorization: `Bearer ${runtime.OPENAI_API_KEY}` },
+              method: "GET",
+              headers: { authorization: `Bearer ${entitlement.providerApiKey}` },
               signal: AbortSignal.timeout(30000),
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const providerPayload = await response.json() as Record<string, unknown>;
-            await recordOpenAIUsage({ db: runtime.DB!, programId: PROGRAM_ID, runId: job.run_id, stageKey: job.stage_key, costType: job.cost_type, payload: providerPayload, fallbackModel: job.model_id });
+            await recordOpenAIUsage({ db: entitlement.db, programId: PROGRAM_ID, runId: job.run_id, stageKey: job.stage_key, costType: job.cost_type, payload: providerPayload, fallbackModel: job.model_id });
             reconciled += 1;
           } catch (error) {
             failures.push(`${job.stage_key}/${job.provider_response_id}: ${error instanceof Error ? error.message : "unknown error"}`);
@@ -356,21 +590,19 @@ export async function POST(request: Request) {
     }
 
     if (payload.action !== "RUN_FOUNDATION_AUDIT") {
-      return Response.json({ error: "Unsupported control-plane action" }, { status: 400 });
+      return controlPlaneOwnerFailure("CONTROL_PLANE_OWNER_ACTION_FORBIDDEN", 403);
     }
+    if (entitlement.action !== "RUN_FOUNDATION_AUDIT" || entitlement.kind !== "FOUNDATION_AUDIT_STORAGE") return controlPlaneOwnerFailure("CONTROL_PLANE_ENTITLEMENT_MISMATCH", 403);
 
     const now = new Date().toISOString();
     let r2Verified = false;
     try {
-      const { env } = await import("cloudflare:workers");
-      if (env.BUCKET) {
-        const markerKey = "v7/system/wave-1-foundation.json";
-        await env.BUCKET.put(markerKey, JSON.stringify({ programId: PROGRAM_ID, verifiedAt: now }), {
-          httpMetadata: { contentType: "application/json" },
-          customMetadata: { pipelineVersion: "7", evidenceType: "FOUNDATION_AUDIT" },
-        });
-        r2Verified = Boolean(await env.BUCKET.head(markerKey));
-      }
+      const markerKey = "v7/system/wave-1-foundation.json";
+      await entitlement.bucket.put(markerKey, JSON.stringify({ programId: PROGRAM_ID, verifiedAt: now }), {
+        httpMetadata: { contentType: "application/json" },
+        customMetadata: { pipelineVersion: "7", evidenceType: "FOUNDATION_AUDIT" },
+      });
+      r2Verified = Boolean(await entitlement.bucket.head(markerKey));
     } catch {
       r2Verified = false;
     }
@@ -430,6 +662,37 @@ export async function POST(request: Request) {
 
     return Response.json(await readDashboard());
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Unable to execute Wave 1 audit" }, { status: 500 });
+    return controlPlaneOwnerFailure(error instanceof Error ? error.message : "CONTROL_PLANE_OWNER_ACTION_FAILED", 500);
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const authorization = await authorizeControlPlaneOwnerWrite(request);
+    if (authorization instanceof Response) return authorization;
+    const actorDenial = requireControlPlaneOwnerAuthority(authorization.actorType);
+    if (actorDenial) return actorDenial;
+
+    const command = await readControlPlaneOwnerCommand(request);
+    if (command instanceof Response) return command;
+
+    const bindingDenial = await bindControlPlaneOwnerResource(authorization.db);
+    if (bindingDenial) return bindingDenial;
+    const entitlement = authorizeControlPlaneEntitlement(authorization.db, authorization.env, command);
+    if (entitlement instanceof Response) return entitlement;
+
+    const identity = await controlPlaneOwnerAuditIdentity(request, authorization.normalizedEmail, command);
+    const replay = await lookupControlPlaneOwnerReplay(authorization.db, identity);
+    if (replay) return replay;
+
+    return await runAuditedControlPlaneOwnerCommand(
+      authorization.db,
+      identity,
+      command,
+      () => executeControlPlaneOwnerCommand(command, entitlement),
+    );
+  } catch (error) {
+    console.error("Control-plane owner POST failed", error);
+    return controlPlaneOwnerFailure("CONTROL_PLANE_OWNER_ACTION_FAILED", 500);
   }
 }
