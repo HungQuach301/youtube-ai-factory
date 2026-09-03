@@ -91,7 +91,7 @@ test("registry classifies exactly 100 handlers and protects the INTERNAL_SYSTEM 
   const owner = byIdentity.get(`${ownerRoutePath}#POST`);
   assert.equal(registry.handlers.length, 100);
   assert.equal(baseline.uncoveredHandlers.length, 43);
-  assert.equal(registry.handlers.filter((entry) => entry.status === "GAP_UNAUTHENTICATED_WRITE").length, 23);
+  assert.equal(registry.handlers.filter((entry) => entry.status === "GAP_UNAUTHENTICATED_WRITE").length, 22);
   assert.deepEqual({ actor: executor.actor, authentication: executor.authentication, authorization: executor.authorization, audit: executor.audit, status: executor.status }, {
     actor: "INTERNAL_SYSTEM",
     authentication: "INTERNAL_EXECUTOR_SECRET_OR_ONE_TIME_MOTION_CAPABILITY",

@@ -543,21 +543,6 @@
       ]
     },
     {
-      "identity": "app/api/projects/[id]/references/route.ts#POST",
-      "route": "/api/projects/[id]/references",
-      "method": "POST",
-      "sourceFile": "app/api/projects/[id]/references/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/projects/[id]/render/route.ts#GET",
       "route": "/api/projects/[id]/render",
       "method": "GET",

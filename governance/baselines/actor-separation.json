@@ -107,12 +107,6 @@
       "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
     },
     {
-      "identity": "app/api/projects/[id]/references/route.ts#POST:APPROVE_BENCHMARK",
-      "handler": "app/api/projects/[id]/references/route.ts#POST",
-      "command": "APPROVE_BENCHMARK",
-      "reason": "AGENT_DENY_BEFORE_MUTATION_NOT_PROVEN"
-    },
-    {
       "identity": "app/api/projects/[id]/voice/route.ts#POST:APPROVE_SEGMENT",
       "handler": "app/api/projects/[id]/voice/route.ts#POST",
       "command": "APPROVE_SEGMENT",
