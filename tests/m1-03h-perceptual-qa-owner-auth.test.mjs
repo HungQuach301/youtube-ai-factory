@@ -213,17 +213,17 @@ test("registry and auth baseline move exactly one POST to M1-03H ratchets", () =
     identity: handlerIdentity, sourceFile: routePath, routePath: "/api/projects/[id]/perceptual-qa", method: "POST", readWrite: "WRITE", actor: "CHATGPT_OWNER", authentication: "CHATGPT_SIWC", authorization: "FACTORY_EXPERT_EMAILS_ALLOWLIST_AND_SAME_ORIGIN_AND_EXACT_ACTION", audit: "IMMUTABLE_WRITE_COMMAND_AUDIT_AND_DOMAIN_RECEIPT", status: "PROTECTED", remediationWp: "NONE",
   });
   assert.equal(handlers.length, 100);
-  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 22);
-  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 23);
-  assert.deepEqual(["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length), [13, 10]);
-  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 28);
-  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 65);
+  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 23);
+  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 22);
+  assert.deepEqual(["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length), [13, 9]);
+  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 29);
+  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 64);
   const auth = JSON.parse(source("governance/baselines/auth-coverage.json")).uncoveredHandlers;
-  assert.equal(auth.length, 43);
+  assert.equal(auth.length, 42);
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
-  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 10, 1]);
+  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 9, 1]);
   assert.equal(JSON.parse(source("governance/baselines/no-write-in-get.json")).handlersWithReachableWrites.length, 16);
-  assert.equal(JSON.parse(source("governance/baselines/actor-separation.json")).unseparatedCommands.length, 18);
+  assert.equal(JSON.parse(source("governance/baselines/actor-separation.json")).unseparatedCommands.length, 17);
 });
 
 test("migration head remains 0132 and migrations 0129 through 0132 are byte-identical", () => {

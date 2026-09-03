@@ -1,9 +1,23 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { getDb } from "../../../../../db";
+import { getChatGPTUser } from "../../../../chatgpt-auth";
+import {
+  appendWriteCommandAudit,
+  hashActorSubject,
+  type WriteCommandAuditDatabase,
+  type WriteCommandAuditIdentity,
+} from "../../../../../lib/write-command-audit";
 import { mediaAssets, referenceBenchmarkRuns, referenceSettings, referenceVideos, sceneManifest, videoProjects, videoRenders, workflowEvents } from "../../../../../db/schema";
 
-type RuntimeD1 = { prepare(sql: string): { run(): Promise<unknown> } };
-type RuntimeEnv = { DB?: RuntimeD1; YOUTUBE_API_KEY?: string };
+type RuntimeQueryResult<T> = { results?: T[] };
+type RuntimeStatement = {
+  bind(...values: unknown[]): RuntimeStatement;
+  run(): Promise<unknown>;
+  first<T>(): Promise<T | null>;
+  all<T>(): Promise<RuntimeQueryResult<T>>;
+};
+type RuntimeD1 = WriteCommandAuditDatabase & { prepare(sql: string): RuntimeStatement };
+type RuntimeEnv = { DB?: RuntimeD1; YOUTUBE_API_KEY?: string; FACTORY_EXPERT_EMAILS?: string };
 
 type ReferenceSeed = { videoId: string; title: string; channel: string; group: "PROVEN" | "RECENT" | "OUTLIER"; score: number; angle: string; hook: string; lesson: string };
 
@@ -19,6 +33,51 @@ const referenceSeeds: ReferenceSeed[] = [
   { videoId: "K6ZvZIItie0", title: "How a Credit Card Transaction Works", channel: "Nuvei", group: "OUTLIER", score: 80, angle: "Full payment infrastructure flow", hook: "Follow one transaction end to end", lesson: "A route-map metaphor makes complex infrastructure legible." },
   { videoId: "c3rZ2-aAM58", title: "How Card Companies Quietly Make $118,800,000,000 a Year", channel: "Business documentary", group: "OUTLIER", score: 88, angle: "Hidden economics and incentives", hook: "A very large quantified consequence", lesson: "Packaging performs better when the system explanation reveals who profits." },
 ];
+
+type ReferenceOwnerAction =
+  | "DISCOVER_REFERENCES"
+  | "RUN_BENCHMARK"
+  | "SET_MODE"
+  | "APPROVE_BENCHMARK"
+  | "TOGGLE_REFERENCE";
+
+type ReferenceOwnerPayload = {
+  action: ReferenceOwnerAction;
+  verificationMode?: "AUTOPILOT" | "REVIEW";
+  referenceId?: string;
+};
+
+type ReferenceOwnerCommand = {
+  action: ReferenceOwnerAction;
+  payload: ReferenceOwnerPayload;
+  requestHash: string;
+};
+
+type ReferenceOwnerAuditRow = {
+  handler_identity: string;
+  request_hash: string;
+  phase: "AUTHORIZED" | "SUCCEEDED" | "FAILED";
+  domain_receipt_reference: string | null;
+};
+
+const REFERENCE_OWNER_HANDLER_IDENTITY = "app/api/projects/[id]/references/route.ts#POST";
+const REFERENCE_OWNER_ACTIONS = new Set<ReferenceOwnerAction>([
+  "DISCOVER_REFERENCES",
+  "RUN_BENCHMARK",
+  "SET_MODE",
+  "APPROVE_BENCHMARK",
+  "TOGGLE_REFERENCE",
+]);
+const REFERENCE_OWNER_FIELDS: Record<ReferenceOwnerAction, ReadonlySet<string>> = {
+  DISCOVER_REFERENCES: new Set(["action"]),
+  RUN_BENCHMARK: new Set(["action"]),
+  SET_MODE: new Set(["action", "verificationMode"]),
+  APPROVE_BENCHMARK: new Set(["action"]),
+  TOGGLE_REFERENCE: new Set(["action", "referenceId"]),
+};
+const MAX_REFERENCE_OWNER_BODY_BYTES = 16 * 1024;
+const REFERENCE_OWNER_CORRELATION_ID_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
+const REFERENCE_OWNER_AUDIT_COMPONENT_PATTERN = /[^A-Za-z0-9._:-]/g;
 
 let schemaReady: Promise<void> | null = null;
 
@@ -49,6 +108,185 @@ async function ensureSchema() {
     )`).run();
   })().catch((error) => { schemaReady = null; throw error; });
   await schemaReady;
+}
+
+function referenceOwnerFailure(error: string, status: number) {
+  return Response.json({ error }, { status });
+}
+
+function referenceOwnerSameOrigin(request: Request) {
+  const url = new URL(request.url);
+  return request.method === "POST"
+    && /^\/api\/projects\/[^/]+\/references$/.test(url.pathname)
+    && url.search === ""
+    && request.headers.get("origin") === url.origin
+    && request.headers.get("sec-fetch-site") === "same-origin";
+}
+
+async function authorizeReferenceOwnerWrite(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user?.email) return referenceOwnerFailure("SIWC_AUTHENTICATION_REQUIRED", 401);
+  if (!referenceOwnerSameOrigin(request)) return referenceOwnerFailure("OWNER_WRITE_SAME_ORIGIN_REQUIRED", 403);
+
+  const env = await runtimeEnv();
+  const normalizedEmail = user.email.trim().toLowerCase();
+  const owners = String(env.FACTORY_EXPERT_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (owners.length === 0) return referenceOwnerFailure("OWNER_WRITE_ALLOWLIST_UNCONFIGURED", 503);
+  if (!owners.includes(normalizedEmail)) return referenceOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+  if (!env.DB) return referenceOwnerFailure("CANONICAL_DATABASE_UNAVAILABLE", 503);
+  return { db: env.DB, normalizedEmail, actorType: "CHATGPT_OWNER" as const };
+}
+
+function requireOwnerAuthority(actorType: string) {
+  if (actorType === "AGENT") return referenceOwnerFailure("AGENT_OWNER_COMMAND_FORBIDDEN", 403);
+  return actorType === "CHATGPT_OWNER" ? null : referenceOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+}
+
+async function referenceOwnerSha256RawBytes(bytes: ArrayBuffer | Uint8Array) {
+  const value = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", value));
+  return [...digest].map((item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+function referenceOwnerExactKeys(value: Record<string, unknown>, expected: ReadonlySet<string>) {
+  const keys = Object.keys(value);
+  return keys.length === expected.size && keys.every((key) => expected.has(key));
+}
+
+function referenceOwnerBoundedString(value: unknown, maximum = 300): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= maximum;
+}
+
+function referenceOwnerPayloadValid(payload: ReferenceOwnerPayload) {
+  if (!referenceOwnerExactKeys(payload as unknown as Record<string, unknown>, REFERENCE_OWNER_FIELDS[payload.action])) return false;
+  if (payload.action === "SET_MODE") return payload.verificationMode === "AUTOPILOT" || payload.verificationMode === "REVIEW";
+  if (payload.action === "TOGGLE_REFERENCE") return referenceOwnerBoundedString(payload.referenceId);
+  return true;
+}
+
+async function readReferenceOwnerCommand(request: Request): Promise<ReferenceOwnerCommand | Response> {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") return referenceOwnerFailure("JSON_CONTENT_TYPE_REQUIRED", 415);
+  const lengthHeader = request.headers.get("content-length");
+  const contentLength = lengthHeader === null ? null : Number(lengthHeader);
+  if (contentLength !== null && (!Number.isFinite(contentLength) || contentLength < 0)) return referenceOwnerFailure("OWNER_WRITE_CONTENT_LENGTH_INVALID", 400);
+  if (contentLength !== null && contentLength > MAX_REFERENCE_OWNER_BODY_BYTES) return referenceOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+  const raw = await request.arrayBuffer();
+  if (!raw.byteLength || raw.byteLength > MAX_REFERENCE_OWNER_BODY_BYTES) return referenceOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(raw));
+  } catch {
+    return referenceOwnerFailure("OWNER_WRITE_JSON_INVALID", 400);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return referenceOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.action !== "string") return referenceOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  if (!REFERENCE_OWNER_ACTIONS.has(record.action as ReferenceOwnerAction)) return referenceOwnerFailure("REFERENCE_OWNER_ACTION_FORBIDDEN", 403);
+  const action = record.action as ReferenceOwnerAction;
+  const payload = record as ReferenceOwnerPayload;
+  if (!referenceOwnerPayloadValid(payload)) return referenceOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  return { action, payload, requestHash: await referenceOwnerSha256RawBytes(raw) };
+}
+
+async function bindReferenceOwnerResource(db: RuntimeD1, projectId: string, command: ReferenceOwnerCommand) {
+  if (!referenceOwnerBoundedString(projectId)) return referenceOwnerFailure("PROJECT_BINDING_INVALID", 400);
+  const project = await db.prepare("SELECT id FROM video_projects WHERE id = ? LIMIT 1").bind(projectId).first<{ id: string }>();
+  if (!project) return referenceOwnerFailure("PROJECT_NOT_FOUND", 404);
+  if (command.action === "TOGGLE_REFERENCE") {
+    const reference = await db.prepare("SELECT id FROM reference_videos WHERE id = ? AND project_id = ? LIMIT 1")
+      .bind(command.payload.referenceId, projectId)
+      .first<{ id: string }>();
+    if (!reference) return referenceOwnerFailure("REFERENCE_NOT_FOUND", 404);
+  }
+  return null;
+}
+
+function referenceOwnerBoundedAuditComponent(value: string) {
+  return value.replace(REFERENCE_OWNER_AUDIT_COMPONENT_PATTERN, "_").slice(0, 200) || "unknown";
+}
+
+function referenceOwnerCorrelationId(request: Request) {
+  const supplied = request.headers.get("x-correlation-id")?.trim() ?? "";
+  return REFERENCE_OWNER_CORRELATION_ID_PATTERN.test(supplied) ? supplied : `references-owner:${crypto.randomUUID()}`;
+}
+
+async function referenceOwnerAuditIdentity(
+  request: Request,
+  projectId: string,
+  normalizedEmail: string,
+  command: ReferenceOwnerCommand,
+): Promise<WriteCommandAuditIdentity> {
+  const detail = command.action === "TOGGLE_REFERENCE"
+    ? `:reference:${referenceOwnerBoundedAuditComponent(command.payload.referenceId ?? "unknown")}`
+    : command.action === "APPROVE_BENCHMARK" ? ":benchmark:latest" : "";
+  return {
+    handlerIdentity: REFERENCE_OWNER_HANDLER_IDENTITY,
+    actorType: "CHATGPT_OWNER",
+    actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", normalizedEmail),
+    action: command.action,
+    resourceScope: `project:${referenceOwnerBoundedAuditComponent(projectId)}:references${detail}`,
+    correlationId: referenceOwnerCorrelationId(request),
+    requestHash: command.requestHash,
+  };
+}
+
+async function lookupReferenceOwnerReplay(db: RuntimeD1, identity: WriteCommandAuditIdentity) {
+  const result = await db.prepare(`SELECT handler_identity,request_hash,phase,domain_receipt_reference
+    FROM factory_write_command_audit WHERE correlation_id = ? ORDER BY canonical_timestamp,id`)
+    .bind(identity.correlationId)
+    .all<ReferenceOwnerAuditRow>();
+  const rows = result.results ?? [];
+  if (!rows.length) return null;
+  if (rows.some((row) => row.handler_identity !== identity.handlerIdentity || row.request_hash !== identity.requestHash)) {
+    return referenceOwnerFailure("OWNER_WRITE_IDEMPOTENCY_CONFLICT", 409);
+  }
+  const succeeded = rows.find((row) => row.phase === "SUCCEEDED");
+  if (succeeded) return Response.json({ ok: true, replay: true, receipt: succeeded.domain_receipt_reference });
+  return referenceOwnerFailure("OWNER_WRITE_REPLAY_INCOMPLETE", 409);
+}
+
+async function referenceOwnerDomainReceipt(projectId: string, command: ReferenceOwnerCommand, response: Response) {
+  const payload = await response.clone().json().catch(() => ({})) as Record<string, unknown>;
+  let reference = "completed";
+  if (command.action === "DISCOVER_REFERENCES") reference = `${String(payload.sourceMode ?? "unknown")}:${String(payload.count ?? 0)}`;
+  else if (command.action === "RUN_BENCHMARK") reference = String(payload.id ?? "unknown");
+  else if (command.action === "SET_MODE") reference = String(command.payload.verificationMode ?? "unknown");
+  else if (command.action === "TOGGLE_REFERENCE") reference = `${String(command.payload.referenceId ?? "unknown")}:${String(payload.status ?? "unknown")}`;
+  else if (command.action === "APPROVE_BENCHMARK") reference = `${String(payload.benchmarkId ?? "unknown")}:PASSED`;
+  return `references:${referenceOwnerBoundedAuditComponent(projectId)}:${referenceOwnerBoundedAuditComponent(command.action)}:${referenceOwnerBoundedAuditComponent(reference)}`;
+}
+
+async function runAuditedReferenceOwnerCommand(
+  db: RuntimeD1,
+  identity: WriteCommandAuditIdentity,
+  projectId: string,
+  command: ReferenceOwnerCommand,
+  execute: () => Promise<Response>,
+) {
+  await appendWriteCommandAudit(db, identity, "AUTHORIZED", null);
+  let response: Response;
+  try {
+    response = await execute();
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+  if (!response.ok) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    return response;
+  }
+  try {
+    await appendWriteCommandAudit(db, identity, "SUCCEEDED", await referenceOwnerDomainReceipt(projectId, command, response));
+    return response;
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
 }
 
 function parseDuration(value: string) {
@@ -135,14 +373,62 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   catch (error) { console.error("Reference intelligence GET failed", error); return Response.json({ error: "Reference intelligence could not be loaded" }, { status: 500 }); }
 }
 
+async function executeReferenceOwnerCommand(command: ReferenceOwnerCommand, projectId: string) {
+  await ensureSchema();
+  const db = await getDb();
+  const payload = command.payload;
+  if (payload.action === "DISCOVER_REFERENCES") return Response.json({ ok: true, ...(await discoverReferences(projectId)) });
+  if (payload.action === "RUN_BENCHMARK") return Response.json({ ok: true, ...(await runBenchmark(projectId)) });
+  if (payload.action === "SET_MODE") {
+    await db.insert(referenceSettings).values({ projectId, verificationMode: payload.verificationMode!, minimumScore: 75, market: "US", language: "en", updatedAt: new Date().toISOString() })
+      .onConflictDoUpdate({ target: referenceSettings.projectId, set: { verificationMode: payload.verificationMode!, updatedAt: new Date().toISOString() } });
+    return Response.json({ ok: true, verificationMode: payload.verificationMode });
+  }
+  if (payload.action === "TOGGLE_REFERENCE") {
+    const [reference] = await db.select().from(referenceVideos).where(eq(referenceVideos.id, payload.referenceId!)).limit(1);
+    if (!reference || reference.projectId !== projectId) return referenceOwnerFailure("REFERENCE_NOT_FOUND", 404);
+    const status = reference.status === "INCLUDED" ? "EXCLUDED" : "INCLUDED";
+    await db.update(referenceVideos).set({ status, updatedAt: new Date().toISOString() }).where(eq(referenceVideos.id, reference.id));
+    return Response.json({ ok: true, referenceId: reference.id, status });
+  }
+  if (payload.action === "APPROVE_BENCHMARK") {
+    const [latest] = await db.select().from(referenceBenchmarkRuns).where(eq(referenceBenchmarkRuns.projectId, projectId)).orderBy(desc(referenceBenchmarkRuns.version)).limit(1);
+    if (!latest || latest.decision === "RECOMPOSE_REQUIRED") return Response.json({ error: "A critical production gap must be resolved first" }, { status: 409 });
+    await db.update(referenceBenchmarkRuns).set({ status: "PASSED" }).where(eq(referenceBenchmarkRuns.id, latest.id));
+    await db.update(videoProjects).set({ nextAction: "Run Universal Quality Gate", updatedAt: new Date().toISOString() }).where(eq(videoProjects.id, projectId));
+    await db.insert(workflowEvents).values({ projectId, toStatus: "REFERENCE_PASSED", eventType: "REFERENCE_GATE_APPROVED", summary: `Human approved benchmark v${latest.version}; Universal Quality Gate unlocked` });
+    return Response.json({ ok: true, benchmarkId: latest.id, status: "PASSED" });
+  }
+  return referenceOwnerFailure("REFERENCE_OWNER_ACTION_FORBIDDEN", 403);
+}
+
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await context.params; await ensureSchema(); const db = await getDb(); const payload = await request.json() as { action?: "DISCOVER_REFERENCES" | "RUN_BENCHMARK" | "SET_MODE" | "APPROVE_BENCHMARK" | "TOGGLE_REFERENCE"; verificationMode?: "AUTOPILOT" | "REVIEW"; referenceId?: string };
-    if (payload.action === "DISCOVER_REFERENCES") return Response.json({ ok: true, ...(await discoverReferences(id)) });
-    if (payload.action === "RUN_BENCHMARK") return Response.json({ ok: true, ...(await runBenchmark(id)) });
-    if (payload.action === "SET_MODE") { if (!payload.verificationMode) return Response.json({ error: "Verification mode is required" }, { status: 400 }); await db.insert(referenceSettings).values({ projectId: id, verificationMode: payload.verificationMode, minimumScore: 75, market: "US", language: "en", updatedAt: new Date().toISOString() }).onConflictDoUpdate({ target: referenceSettings.projectId, set: { verificationMode: payload.verificationMode, updatedAt: new Date().toISOString() } }); return Response.json({ ok: true }); }
-    if (payload.action === "TOGGLE_REFERENCE") { if (!payload.referenceId) return Response.json({ error: "Reference is required" }, { status: 400 }); const [reference] = await db.select().from(referenceVideos).where(eq(referenceVideos.id, payload.referenceId)).limit(1); if (!reference || reference.projectId !== id) return Response.json({ error: "Reference not found" }, { status: 404 }); await db.update(referenceVideos).set({ status: reference.status === "INCLUDED" ? "EXCLUDED" : "INCLUDED", updatedAt: new Date().toISOString() }).where(eq(referenceVideos.id, reference.id)); return Response.json({ ok: true }); }
-    if (payload.action === "APPROVE_BENCHMARK") { const [latest] = await db.select().from(referenceBenchmarkRuns).where(eq(referenceBenchmarkRuns.projectId, id)).orderBy(desc(referenceBenchmarkRuns.version)).limit(1); if (!latest || latest.decision === "RECOMPOSE_REQUIRED") return Response.json({ error: "A critical production gap must be resolved first" }, { status: 409 }); await db.update(referenceBenchmarkRuns).set({ status: "PASSED" }).where(eq(referenceBenchmarkRuns.id, latest.id)); await db.update(videoProjects).set({ nextAction: "Run Universal Quality Gate", updatedAt: new Date().toISOString() }).where(eq(videoProjects.id, id)); await db.insert(workflowEvents).values({ projectId: id, toStatus: "REFERENCE_PASSED", eventType: "REFERENCE_GATE_APPROVED", summary: `Human approved benchmark v${latest.version}; Universal Quality Gate unlocked` }); return Response.json({ ok: true }); }
-    return Response.json({ error: "Unknown reference action" }, { status: 400 });
-  } catch (error) { console.error("Reference intelligence POST failed", error); return Response.json({ error: "Reference action could not be completed" }, { status: 500 }); }
+    const authorization = await authorizeReferenceOwnerWrite(request);
+    if (authorization instanceof Response) return authorization;
+    const actorDenial = requireOwnerAuthority(authorization.actorType);
+    if (actorDenial) return actorDenial;
+
+    const command = await readReferenceOwnerCommand(request);
+    if (command instanceof Response) return command;
+
+    const { id } = await context.params;
+    const bindingDenial = await bindReferenceOwnerResource(authorization.db, id, command);
+    if (bindingDenial) return bindingDenial;
+
+    const identity = await referenceOwnerAuditIdentity(request, id, authorization.normalizedEmail, command);
+    const replay = await lookupReferenceOwnerReplay(authorization.db, identity);
+    if (replay) return replay;
+
+    return await runAuditedReferenceOwnerCommand(
+      authorization.db,
+      identity,
+      id,
+      command,
+      () => executeReferenceOwnerCommand(command, id),
+    );
+  } catch (error) {
+    console.error("Reference intelligence POST failed", error);
+    return referenceOwnerFailure("REFERENCE_OWNER_ACTION_FAILED", 500);
+  }
 }

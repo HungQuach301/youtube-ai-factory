@@ -285,21 +285,21 @@ test("governance ratchets are exact while M1-06 actor debt remains untouched", (
     remediationWp: "NONE",
   });
   assert.equal(handlers.length, 100);
-  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 22);
-  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 28);
-  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 65);
-  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 23);
+  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 23);
+  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 29);
+  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 64);
+  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 22);
   assert.deepEqual(
     ["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length),
-    [13, 10],
+    [13, 9],
   );
 
   const auth = JSON.parse(source("governance/baselines/auth-coverage.json")).uncoveredHandlers;
-  assert.equal(auth.length, 43);
+  assert.equal(auth.length, 42);
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
   assert.deepEqual(
     ["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length),
-    [32, 10, 1],
+    [32, 9, 1],
   );
 
   const noWrite = JSON.parse(source("governance/baselines/no-write-in-get.json"));
@@ -308,7 +308,7 @@ test("governance ratchets are exact while M1-06 actor debt remains untouched", (
 
   const actor = JSON.parse(source("governance/baselines/actor-separation.json"));
   const actorEntries = actor.unseparatedCommands;
-  assert.equal(actorEntries.length, 18);
+  assert.equal(actorEntries.length, 17);
   assert.equal(actorEntries.some((item) =>
     JSON.stringify(item).includes(handlerIdentity + ":APPROVE_SCENE")), true);
   assert.equal(analyzeActorSource(route, routePath).some((item) =>
