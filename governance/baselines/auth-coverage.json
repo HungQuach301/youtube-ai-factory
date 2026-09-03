@@ -101,21 +101,6 @@
       ]
     },
     {
-      "identity": "app/api/factory/creative-contract/route.ts#POST",
-      "route": "/api/factory/creative-contract",
-      "method": "POST",
-      "sourceFile": "app/api/factory/creative-contract/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/factory/discovery/route.ts#GET",
       "route": "/api/factory/discovery",
       "method": "GET",
