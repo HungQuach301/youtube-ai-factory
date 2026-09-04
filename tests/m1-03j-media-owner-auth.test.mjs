@@ -369,15 +369,15 @@ test("registry, auth, actor separation, and GET baselines ratchet exactly once",
     remediationWp: "NONE",
   });
   assert.equal(handlers.length, 100);
-  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 25);
-  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 20);
-  assert.deepEqual(["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length), [13, 7]);
-  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 31);
-  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 62);
+  assert.equal(handlers.filter((item) => item.status === "PROTECTED").length, 26);
+  assert.equal(handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE").length, 19);
+  assert.deepEqual(["GET", "POST"].map((method) => handlers.filter((item) => item.status === "GAP_UNAUTHENTICATED_WRITE" && item.method === method).length), [13, 6]);
+  assert.equal(handlers.filter((item) => item.actor === "CHATGPT_OWNER").length, 32);
+  assert.equal(handlers.filter((item) => item.actor === "UNCLASSIFIED").length, 61);
   const auth = JSON.parse(source("governance/baselines/auth-coverage.json")).uncoveredHandlers;
-  assert.equal(auth.length, 40);
+  assert.equal(auth.length, 39);
   assert.equal(auth.some((item) => item.identity === handlerIdentity), false);
-  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 7, 1]);
+  assert.deepEqual(["GET", "POST", "HEAD"].map((method) => auth.filter((item) => item.method === method).length), [32, 6, 1]);
   const actor = JSON.parse(source("governance/baselines/actor-separation.json")).unseparatedCommands;
   assert.equal(actor.length, 17);
   assert.equal(actor.some((item) => item.handler === handlerIdentity), false);

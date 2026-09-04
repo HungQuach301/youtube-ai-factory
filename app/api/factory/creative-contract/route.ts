@@ -1,5 +1,12 @@
 import { storeDriveJsonArtifact } from "../../../../lib/google-drive";
 import { AI_USAGE_TABLE_SQL, recordOpenAIUsage } from "../../../../lib/ai-usage";
+import { getChatGPTUser } from "../../../chatgpt-auth";
+import {
+  appendWriteCommandAudit,
+  hashActorSubject,
+  type WriteCommandAuditDatabase,
+  type WriteCommandAuditIdentity,
+} from "../../../../lib/write-command-audit";
 
 const PROGRAM_ID = "YTAF-V7-GREENFIELD";
 const STAGE = "04";
@@ -7,10 +14,276 @@ const THRESHOLD = 90;
 const MODEL = "gpt-5.6";
 
 type Statement = { bind: (...values: unknown[]) => Statement; run: () => Promise<unknown>; all: <T>() => Promise<{ results?: T[] }>; first: <T>() => Promise<T | null> };
-type Database = { prepare: (sql: string) => Statement; batch: (statements: Statement[]) => Promise<unknown> };
+type Database = WriteCommandAuditDatabase & { prepare: (sql: string) => Statement; batch: (statements: Statement[]) => Promise<unknown> };
 type Bucket = { put: (key: string, value: string, options?: Record<string, unknown>) => Promise<unknown>; head: (key: string) => Promise<unknown> };
-type Runtime = { DB?: Database; BUCKET?: Bucket; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?: string };
+type Runtime = { DB?: Database; BUCKET?: Bucket; OPENAI_API_KEY?: string; OPENAI_QA_MODEL?: string; FACTORY_EXPERT_EMAILS?: string };
 type Gate = { id: string; label: string; status: "PASS" | "FAIL"; evidence: string };
+
+
+type CreativeOwnerAction = "RUN" | "POLL" | "REPAIR_SCORING";
+type CreativeOwnerPayload =
+  | { action: "RUN" }
+  | { action: "POLL" }
+  | { action: "REPAIR_SCORING" };
+type CreativeOwnerCommand = {
+  action: CreativeOwnerAction;
+  payload: CreativeOwnerPayload;
+  requestHash: string;
+};
+type CreativeOwnerAuditRow = {
+  handler_identity: string;
+  request_hash: string;
+  phase: "AUTHORIZED" | "SUCCEEDED" | "FAILED";
+  domain_receipt_reference: string | null;
+};
+type CreativeProgramBinding = {
+  id: string;
+  productionAuthorized: boolean;
+  stageKey: typeof STAGE;
+  stageStatus: string;
+  stageAttempt: number;
+};
+type CreativeOwnerEntitlement =
+  | { action: "RUN"; kind: "PAID_BACKGROUND_CREATIVE_TOURNAMENT"; db: Database; providerApiKey: string }
+  | { action: "POLL"; kind: "PROVIDER_STATUS_READ_AND_BOUNDED_FINALIZATION"; db: Database; providerApiKey: string; activeJobId: string }
+  | { action: "REPAIR_SCORING"; kind: "DETERMINISTIC_CREATIVE_SCORE_REPAIR"; db: Database; artifactId: string };
+
+const CREATIVE_OWNER_HANDLER_IDENTITY = "app/api/factory/creative-contract/route.ts#POST";
+const CREATIVE_OWNER_ACTIONS = new Set<CreativeOwnerAction>(["RUN", "POLL", "REPAIR_SCORING"]);
+const CREATIVE_OWNER_FIELDS: Record<CreativeOwnerAction, ReadonlySet<string>> = {
+  RUN: new Set(["action"]),
+  POLL: new Set(["action"]),
+  REPAIR_SCORING: new Set(["action"]),
+};
+const MAX_CREATIVE_OWNER_BODY_BYTES = 16 * 1024;
+const CREATIVE_OWNER_CORRELATION_ID_PATTERN = /^[A-Za-z0-9._:-]{8,200}$/;
+const CREATIVE_OWNER_AUDIT_COMPONENT_PATTERN = /[^A-Za-z0-9._:-]/g;
+
+async function creativeAuthorizationEnv() {
+  const { env } = await import("cloudflare:workers");
+  return env as unknown as Runtime;
+}
+
+function creativeOwnerFailure(error: string, status: number) {
+  return Response.json({ error }, { status });
+}
+
+function creativeOwnerSameOrigin(request: Request) {
+  const url = new URL(request.url);
+  return request.method === "POST"
+    && url.pathname === "/api/factory/creative-contract"
+    && url.search === ""
+    && request.headers.get("origin") === url.origin
+    && request.headers.get("sec-fetch-site") === "same-origin";
+}
+
+async function authorizeCreativeOwnerWrite(request: Request) {
+  const user = await getChatGPTUser();
+  if (!user?.email) return creativeOwnerFailure("SIWC_AUTHENTICATION_REQUIRED", 401);
+  if (!creativeOwnerSameOrigin(request)) return creativeOwnerFailure("OWNER_WRITE_SAME_ORIGIN_REQUIRED", 403);
+
+  const env = await creativeAuthorizationEnv();
+  const normalizedEmail = user.email.trim().toLowerCase();
+  const owners = String(env.FACTORY_EXPERT_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (owners.length === 0) return creativeOwnerFailure("OWNER_WRITE_ALLOWLIST_UNCONFIGURED", 503);
+  if (!owners.includes(normalizedEmail)) return creativeOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+  if (!env.DB) return creativeOwnerFailure("CANONICAL_DATABASE_UNAVAILABLE", 503);
+  return { db: env.DB, env, normalizedEmail, actorType: "CHATGPT_OWNER" as const };
+}
+
+function requireCreativeOwnerAuthority(actorType: string) {
+  if (actorType === "AGENT") return creativeOwnerFailure("AGENT_OWNER_COMMAND_FORBIDDEN", 403);
+  return actorType === "CHATGPT_OWNER" ? null : creativeOwnerFailure("OWNER_WRITE_AUTHORIZATION_REQUIRED", 403);
+}
+
+async function creativeOwnerSha256RawBytes(bytes: ArrayBuffer | Uint8Array) {
+  const value = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", value));
+  return [...digest].map((item) => item.toString(16).padStart(2, "0")).join("");
+}
+
+function creativeOwnerExactKeys(value: Record<string, unknown>, expected: ReadonlySet<string>) {
+  const keys = Object.keys(value);
+  return keys.length === expected.size && keys.every((key) => expected.has(key));
+}
+
+async function readCreativeOwnerCommand(request: Request): Promise<CreativeOwnerCommand | Response> {
+  const contentType = request.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") return creativeOwnerFailure("JSON_CONTENT_TYPE_REQUIRED", 415);
+  const lengthHeader = request.headers.get("content-length");
+  const contentLength = lengthHeader === null ? null : Number(lengthHeader);
+  if (contentLength !== null && (!Number.isFinite(contentLength) || contentLength < 0)) return creativeOwnerFailure("OWNER_WRITE_CONTENT_LENGTH_INVALID", 400);
+  if (contentLength !== null && contentLength > MAX_CREATIVE_OWNER_BODY_BYTES) return creativeOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+  const raw = await request.arrayBuffer();
+  if (!raw.byteLength || raw.byteLength > MAX_CREATIVE_OWNER_BODY_BYTES) return creativeOwnerFailure("OWNER_WRITE_BODY_TOO_LARGE", 413);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(raw));
+  } catch {
+    return creativeOwnerFailure("OWNER_WRITE_JSON_INVALID", 400);
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return creativeOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.action !== "string") return creativeOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  if (!CREATIVE_OWNER_ACTIONS.has(record.action as CreativeOwnerAction)) return creativeOwnerFailure("CREATIVE_OWNER_ACTION_FORBIDDEN", 403);
+  const action = record.action as CreativeOwnerAction;
+  if (!creativeOwnerExactKeys(record, CREATIVE_OWNER_FIELDS[action])) return creativeOwnerFailure("OWNER_WRITE_COMMAND_INVALID", 400);
+  const payload = record as CreativeOwnerPayload;
+  return { action, payload, requestHash: await creativeOwnerSha256RawBytes(raw) };
+}
+
+async function bindCreativeOwnerResource(db: Database): Promise<CreativeProgramBinding | Response> {
+  const program = await db.prepare("SELECT id,production_authorized FROM v7_program_contracts WHERE id = ? LIMIT 1")
+    .bind(PROGRAM_ID)
+    .first<{ id: string; production_authorized: number }>();
+  if (program?.id !== PROGRAM_ID) return creativeOwnerFailure("CREATIVE_PROGRAM_RESOURCE_NOT_FOUND", 404);
+  const stage = await db.prepare("SELECT program_id,stage_key,status,attempt FROM v7_stage_states WHERE id = ? AND program_id = ? AND stage_key = ? LIMIT 1")
+    .bind(`${PROGRAM_ID}-STAGE-${STAGE}`, PROGRAM_ID, STAGE)
+    .first<{ program_id: string; stage_key: string; status: string; attempt: number }>();
+  if (!stage || stage.program_id !== PROGRAM_ID || stage.stage_key !== STAGE) return creativeOwnerFailure("CREATIVE_STAGE04_RESOURCE_NOT_FOUND", 404);
+  return {
+    id: program.id,
+    productionAuthorized: Boolean(program.production_authorized),
+    stageKey: STAGE,
+    stageStatus: stage.status,
+    stageAttempt: Number(stage.attempt),
+  };
+}
+
+async function authorizeCreativeOwnerEntitlement(
+  db: Database,
+  env: Runtime,
+  command: CreativeOwnerCommand,
+  binding: CreativeProgramBinding,
+): Promise<CreativeOwnerEntitlement | Response> {
+  if (command.action === "RUN") {
+    if (!binding.productionAuthorized) return creativeOwnerFailure("CREATIVE_RUN_ENTITLEMENT_UNAVAILABLE", 409);
+    if (!["READY", "REPAIR_REQUIRED"].includes(binding.stageStatus)) return creativeOwnerFailure("CREATIVE_RUN_ENTITLEMENT_UNAVAILABLE", 409);
+    if (!Number.isInteger(binding.stageAttempt) || binding.stageAttempt < 0 || binding.stageAttempt >= 3) return creativeOwnerFailure("CREATIVE_RUN_ENTITLEMENT_UNAVAILABLE", 409);
+    if (!env.OPENAI_API_KEY) return creativeOwnerFailure("PROVIDER_DISPATCH_ENTITLEMENT_UNAVAILABLE", 503);
+    return { action: command.action, kind: "PAID_BACKGROUND_CREATIVE_TOURNAMENT", db, providerApiKey: env.OPENAI_API_KEY };
+  }
+  if (command.action === "POLL") {
+    if (binding.stageStatus !== "RUNNING") return creativeOwnerFailure("CREATIVE_POLL_ENTITLEMENT_UNAVAILABLE", 409);
+    if (!env.OPENAI_API_KEY) return creativeOwnerFailure("PROVIDER_STATUS_ENTITLEMENT_UNAVAILABLE", 503);
+    const active = await db.prepare("SELECT id FROM v7_creative_jobs WHERE program_id = ? AND status = 'ACTIVE' ORDER BY started_at DESC LIMIT 1")
+      .bind(PROGRAM_ID)
+      .first<{ id: string }>();
+    if (!active?.id) return creativeOwnerFailure("CREATIVE_POLL_ENTITLEMENT_UNAVAILABLE", 409);
+    return { action: command.action, kind: "PROVIDER_STATUS_READ_AND_BOUNDED_FINALIZATION", db, providerApiKey: env.OPENAI_API_KEY, activeJobId: active.id };
+  }
+  if (!binding.productionAuthorized || binding.stageStatus !== "REPAIR_REQUIRED") return creativeOwnerFailure("CREATIVE_REPAIR_ENTITLEMENT_UNAVAILABLE", 409);
+  const artifact = await db.prepare("SELECT id FROM v7_creative_artifacts WHERE program_id = ? AND lifecycle_state = 'REPAIR_REQUIRED' ORDER BY created_at DESC LIMIT 1")
+    .bind(PROGRAM_ID)
+    .first<{ id: string }>();
+  if (!artifact?.id) return creativeOwnerFailure("CREATIVE_REPAIR_ENTITLEMENT_UNAVAILABLE", 409);
+  return { action: command.action, kind: "DETERMINISTIC_CREATIVE_SCORE_REPAIR", db, artifactId: artifact.id };
+}
+
+function creativeOwnerBoundedAuditComponent(value: string) {
+  return value.replace(CREATIVE_OWNER_AUDIT_COMPONENT_PATTERN, "_").slice(0, 200) || "unknown";
+}
+
+function creativeOwnerCorrelationId(request: Request) {
+  const supplied = request.headers.get("x-correlation-id")?.trim() ?? "";
+  return CREATIVE_OWNER_CORRELATION_ID_PATTERN.test(supplied) ? supplied : `creative-owner:${crypto.randomUUID()}`;
+}
+
+async function creativeOwnerAuditIdentity(
+  request: Request,
+  normalizedEmail: string,
+  command: CreativeOwnerCommand,
+): Promise<WriteCommandAuditIdentity> {
+  return {
+    handlerIdentity: CREATIVE_OWNER_HANDLER_IDENTITY,
+    actorType: "CHATGPT_OWNER",
+    actorSubjectHash: await hashActorSubject("CHATGPT_OWNER", normalizedEmail),
+    action: command.action,
+    resourceScope: `program:${PROGRAM_ID}:creative-contract:stage:${STAGE}`,
+    correlationId: creativeOwnerCorrelationId(request),
+    requestHash: command.requestHash,
+  };
+}
+
+async function lookupCreativeOwnerReplay(db: Database, identity: WriteCommandAuditIdentity) {
+  const result = await db.prepare(`SELECT handler_identity,request_hash,phase,domain_receipt_reference
+    FROM factory_write_command_audit WHERE correlation_id = ? ORDER BY canonical_timestamp,id`)
+    .bind(identity.correlationId)
+    .all<CreativeOwnerAuditRow>();
+  const rows = result.results ?? [];
+  if (!rows.length) return null;
+  if (rows.some((row) => row.handler_identity !== identity.handlerIdentity || row.request_hash !== identity.requestHash)) {
+    return creativeOwnerFailure("OWNER_WRITE_IDEMPOTENCY_CONFLICT", 409);
+  }
+  const succeeded = rows.find((row) => row.phase === "SUCCEEDED");
+  if (succeeded) return Response.json({ ok: true, replay: true, receipt: succeeded.domain_receipt_reference });
+  return creativeOwnerFailure("OWNER_WRITE_REPLAY_INCOMPLETE", 409);
+}
+
+function creativeOwnerFirstRecord(value: unknown) {
+  if (!Array.isArray(value) || !value[0] || typeof value[0] !== "object") return undefined;
+  return value[0] as Record<string, unknown>;
+}
+
+async function creativeOwnerDomainReceipt(command: CreativeOwnerCommand, response: Response) {
+  const payload = await response.clone().json().catch(() => ({})) as Record<string, unknown>;
+  const stage = payload.stage && typeof payload.stage === "object" ? payload.stage as Record<string, unknown> : {};
+  const run = creativeOwnerFirstRecord(payload.runs);
+  const job = creativeOwnerFirstRecord(payload.jobs);
+  const artifact = creativeOwnerFirstRecord(payload.artifacts);
+  const reference = [
+    STAGE,
+    String(run?.id ?? "no-run"),
+    String(job?.id ?? "no-job"),
+    String(job?.providerStatus ?? run?.status ?? stage.status ?? "no-status"),
+    String(artifact?.id ?? "no-artifact"),
+    String(artifact?.contentHash ?? "no-hash"),
+  ].map(creativeOwnerBoundedAuditComponent).join(":");
+  return `creative:${creativeOwnerBoundedAuditComponent(PROGRAM_ID)}:${creativeOwnerBoundedAuditComponent(command.action)}:${reference}`;
+}
+
+async function runAuditedCreativeOwnerCommand(
+  db: Database,
+  identity: WriteCommandAuditIdentity,
+  command: CreativeOwnerCommand,
+  execute: () => Promise<Response>,
+) {
+  await appendWriteCommandAudit(db, identity, "AUTHORIZED", null);
+  let response: Response;
+  try {
+    response = await execute();
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+  if (!response.ok) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    return response;
+  }
+  try {
+    await appendWriteCommandAudit(db, identity, "SUCCEEDED", await creativeOwnerDomainReceipt(command, response));
+    return response;
+  } catch (error) {
+    await appendWriteCommandAudit(db, identity, "FAILED", null);
+    throw error;
+  }
+}
+
+async function executeCreativeOwnerCommand(command: CreativeOwnerCommand, entitlement: CreativeOwnerEntitlement) {
+  if (command.action !== entitlement.action) return creativeOwnerFailure("CREATIVE_OWNER_ENTITLEMENT_MISMATCH", 403);
+  try {
+    if (command.action === "RUN") return Response.json(await start(), { status: 202 });
+    if (command.action === "POLL") return Response.json(await poll());
+    return Response.json(await repairScoringContract());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Creative Contract failed";
+    return Response.json({ error: message }, { status: message.includes("not ready") || message.includes("must be frozen") || message.includes("repairable") ? 409 : 500 });
+  }
+}
 
 const tables = [
   AI_USAGE_TABLE_SQL,
@@ -186,4 +459,33 @@ async function repairScoringContract(){
 async function poll(){const env=await runtime();const db=env.DB!;const job=await db.prepare("SELECT id,run_id,provider_response_id FROM v7_creative_jobs WHERE program_id=? AND status='ACTIVE' ORDER BY started_at DESC LIMIT 1").bind(PROGRAM_ID).first<{id:string;run_id:string;provider_response_id:string}>();if(!job)return snapshot();let payload:Record<string,unknown>;try{payload=await retrieveProvider(env,job.provider_response_id);}catch(error){const message=error instanceof Error?error.message:"Provider status unavailable";await db.prepare("UPDATE v7_creative_jobs SET heartbeat_at=?,error=? WHERE id=?").bind(new Date().toISOString(),message,job.id).run();throw new Error(`${message}. The job remains resumable.`);}try{const status=String(payload.status||"unknown");const now=new Date().toISOString();await db.batch([db.prepare("UPDATE v7_creative_jobs SET provider_status=?,heartbeat_at=? WHERE id=?").bind(status,now,job.id),db.prepare("UPDATE v7_stage_states SET evidence_summary=?,updated_at=? WHERE id=?").bind(`Creative board · ${status.replaceAll("_"," ")} · heartbeat ${now.slice(11,19)} UTC`,now,`${PROGRAM_ID}-STAGE-${STAGE}`)]);if(["queued","in_progress"].includes(status))return await snapshot();if(status!=="completed"){await recordOpenAIUsage({db,programId:PROGRAM_ID,runId:job.run_id,stageKey:STAGE,costType:"CREATIVE_TOURNAMENT",payload,fallbackModel:MODEL});await fail(db,job.run_id,job.id,`Provider ended with status ${status}`);return await snapshot();}await finalize(env,job.run_id,job.id,payload);return await snapshot();}catch(error){const message=error instanceof Error?error.message:"Creative Contract finalization failed";await fail(db,job.run_id,job.id,message);throw error;}}
 
 export async function GET(){try{return Response.json(await snapshot());}catch(error){return Response.json({error:error instanceof Error?error.message:"Creative Contract could not load"},{status:500});}}
-export async function POST(request:Request){try{const body=await request.json() as {action?:string};if(body.action==="RUN")return Response.json(await start(),{status:202});if(body.action==="POLL")return Response.json(await poll());if(body.action==="REPAIR_SCORING")return Response.json(await repairScoringContract());return Response.json({error:"Unsupported Creative Contract action"},{status:400});}catch(error){const message=error instanceof Error?error.message:"Creative Contract failed";return Response.json({error:message},{status:message.includes("not ready")||message.includes("must be frozen")||message.includes("repairable")?409:500});}}
+export async function POST(request: Request) {
+  try {
+    const authorization = await authorizeCreativeOwnerWrite(request);
+    if (authorization instanceof Response) return authorization;
+    const actorDenial = requireCreativeOwnerAuthority(authorization.actorType);
+    if (actorDenial) return actorDenial;
+
+    const command = await readCreativeOwnerCommand(request);
+    if (command instanceof Response) return command;
+
+    const binding = await bindCreativeOwnerResource(authorization.db);
+    if (binding instanceof Response) return binding;
+    const entitlement = await authorizeCreativeOwnerEntitlement(authorization.db, authorization.env, command, binding);
+    if (entitlement instanceof Response) return entitlement;
+
+    const identity = await creativeOwnerAuditIdentity(request, authorization.normalizedEmail, command);
+    const replay = await lookupCreativeOwnerReplay(authorization.db, identity);
+    if (replay) return replay;
+
+    return await runAuditedCreativeOwnerCommand(
+      authorization.db,
+      identity,
+      command,
+      () => executeCreativeOwnerCommand(command, entitlement),
+    );
+  } catch (error) {
+    console.error("Creative Contract owner POST failed", error);
+    return creativeOwnerFailure("CREATIVE_OWNER_ACTION_FAILED", 500);
+  }
+}
