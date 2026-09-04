@@ -355,21 +355,6 @@
       ]
     },
     {
-      "identity": "app/api/factory/story-architecture/route.ts#POST",
-      "route": "/api/factory/story-architecture",
-      "method": "POST",
-      "sourceFile": "app/api/factory/story-architecture/route.ts",
-      "handlerExport": "POST",
-      "classification": "OWNER_WRITE",
-      "authenticationGuard": null,
-      "authorizationGuard": null,
-      "covered": false,
-      "reasons": [
-        "AUTH_GUARD_MISSING",
-        "WRITE_AUTHORIZATION_MISSING"
-      ]
-    },
-    {
       "identity": "app/api/projects/[id]/evidence/route.ts#GET",
       "route": "/api/projects/[id]/evidence",
       "method": "GET",
