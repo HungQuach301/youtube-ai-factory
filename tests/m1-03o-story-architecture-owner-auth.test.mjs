@@ -8,18 +8,17 @@ import ts from "typescript";
 import { analyzeActorSource, analyzeAuthSource } from "../scripts/lib/candidate-ci-policy.mjs";
 
 const root = process.cwd();
-const routePath = "app/api/factory/creative-contract/route.ts";
+const routePath = "app/api/factory/story-architecture/route.ts";
 const handlerIdentity = routePath + "#POST";
 const programId = "YTAF-V7-GREENFIELD";
-const stageKey = "04";
+const stageKey = "05";
 const source = (path) => readFileSync(join(root, path), "utf8");
 const route = source(routePath);
 const routeFile = ts.createSourceFile(routePath, route, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-const actions = new Set(["RUN", "POLL", "REPAIR_SCORING"]);
+const actions = new Set(["RUN", "POLL"]);
 const fields = {
   RUN: new Set(["action"]),
   POLL: new Set(["action"]),
-  REPAIR_SCORING: new Set(["action"]),
 };
 
 function functionSource(name) {
@@ -38,7 +37,7 @@ function ownerRequest(body = "{}", options = {}) {
   if (!headers.has("content-type")) headers.set("content-type", options.contentType || "application/json");
   if (!headers.has("origin")) headers.set("origin", options.origin || "https://factory.invalid");
   if (!headers.has("sec-fetch-site")) headers.set("sec-fetch-site", options.fetchSite || "same-origin");
-  return new Request(options.url || "https://factory.invalid/api/factory/creative-contract", {
+  return new Request(options.url || "https://factory.invalid/api/factory/story-architecture", {
     method: options.method || "POST",
     headers,
     body,
@@ -62,13 +61,13 @@ async function executeGuard(options = {}) {
   const originalArrayBuffer = request.arrayBuffer.bind(request);
   request.arrayBuffer = async () => { observed.body += 1; return originalArrayBuffer(); };
   const result = await vm.runInNewContext(
-    transpile(["creativeOwnerFailure", "creativeOwnerSameOrigin", "authorizeCreativeOwnerWrite"]) + "\nauthorizeCreativeOwnerWrite(request);",
+    transpile(["storyOwnerFailure", "storyOwnerSameOrigin", "authorizeStoryOwnerWrite"]) + "\nauthorizeStoryOwnerWrite(request);",
     {
       Response,
       URL,
       request,
       getChatGPTUser: async () => options.user === undefined ? { email: "owner@example.com" } : options.user,
-      creativeAuthorizationEnv: async () => { observed.environment += 1; return environment; },
+      storyAuthorizationEnv: async () => { observed.environment += 1; return environment; },
     },
   );
   return { result, observed };
@@ -77,39 +76,39 @@ async function executeGuard(options = {}) {
 async function readCommand(request) {
   return vm.runInNewContext(
     transpile([
-      "creativeOwnerFailure",
-      "creativeOwnerSha256RawBytes",
-      "creativeOwnerExactKeys",
-      "readCreativeOwnerCommand",
-    ]) + "\nreadCreativeOwnerCommand(request);",
+      "storyOwnerFailure",
+      "storyOwnerSha256RawBytes",
+      "storyOwnerExactKeys",
+      "readStoryOwnerCommand",
+    ]) + "\nreadStoryOwnerCommand(request);",
     {
       Response,
       TextDecoder,
       Uint8Array,
       crypto,
       request,
-      CREATIVE_OWNER_ACTIONS: actions,
-      CREATIVE_OWNER_FIELDS: fields,
-      MAX_CREATIVE_OWNER_BODY_BYTES: 16 * 1024,
+      STORY_OWNER_ACTIONS: actions,
+      STORY_OWNER_FIELDS: fields,
+      MAX_STORY_OWNER_BODY_BYTES: 16 * 1024,
     },
   );
 }
 
-test("M1-03N protects creative-contract POST before body, runtime DDL, D1, R2, Drive, provider, spend, usage, audit, and business", () => {
+test("M1-03O protects story-architecture POST before body, runtime DDL, D1, R2, Drive, provider, spend, usage, audit, and business", () => {
   const [analysis] = analyzeAuthSource(route, routePath).filter((item) => item.method === "POST");
   assert.equal(analysis.covered, true);
-  assert.equal(analysis.authenticationGuard, "authorizeCreativeOwnerWrite");
-  assert.equal(analysis.authorizationGuard, "authorizeCreativeOwnerWrite");
+  assert.equal(analysis.authenticationGuard, "authorizeStoryOwnerWrite");
+  assert.equal(analysis.authorizationGuard, "authorizeStoryOwnerWrite");
   const post = functionSource("POST");
-  const guard = post.indexOf("await authorizeCreativeOwnerWrite(request)");
-  const actor = post.indexOf("requireCreativeOwnerAuthority(authorization.actorType)");
-  const command = post.indexOf("await readCreativeOwnerCommand(request)");
-  const binding = post.indexOf("await bindCreativeOwnerResource(authorization.db)");
-  const entitlement = post.indexOf("await authorizeCreativeOwnerEntitlement(");
-  const identity = post.indexOf("await creativeOwnerAuditIdentity(");
-  const replay = post.indexOf("await lookupCreativeOwnerReplay(");
-  const audit = post.indexOf("await runAuditedCreativeOwnerCommand(");
-  const execute = post.indexOf("executeCreativeOwnerCommand(command, entitlement)");
+  const guard = post.indexOf("await authorizeStoryOwnerWrite(request)");
+  const actor = post.indexOf("requireStoryOwnerAuthority(authorization.actorType)");
+  const command = post.indexOf("await readStoryOwnerCommand(request)");
+  const binding = post.indexOf("await bindStoryOwnerResource(authorization.db)");
+  const entitlement = post.indexOf("await authorizeStoryOwnerEntitlement(");
+  const identity = post.indexOf("await storyOwnerAuditIdentity(");
+  const replay = post.indexOf("await lookupStoryOwnerReplay(");
+  const audit = post.indexOf("runAuditedStoryOwnerCommand(");
+  const execute = post.indexOf("executeStoryOwnerCommand(command, entitlement)");
   assert.ok(guard >= 0 && guard < actor && actor < command && command < binding && binding < entitlement && entitlement < identity && identity < replay && replay < audit && audit < execute);
   for (const forbidden of [
     "request.json(", "request.arrayBuffer(", "request.formData(", "runtime(", "tables.map(", "getDb(", ".prepare(",
@@ -122,8 +121,8 @@ test("anonymous, wrong-origin, non-owner, unconfigured, and unavailable-database
     { user: null, status: 401, code: "SIWC_AUTHENTICATION_REQUIRED", environment: 0 },
     { origin: "https://evil.invalid", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
     { fetchSite: "cross-site", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
-    { url: "https://factory.invalid/api/factory/creative-contract/extra", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
-    { url: "https://factory.invalid/api/factory/creative-contract?action=RUN", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
+    { url: "https://factory.invalid/api/factory/story-architecture/extra", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
+    { url: "https://factory.invalid/api/factory/story-architecture?action=RUN", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
     { method: "PUT", status: 403, code: "OWNER_WRITE_SAME_ORIGIN_REQUIRED", environment: 0 },
     { allowlist: "", status: 503, code: "OWNER_WRITE_ALLOWLIST_UNCONFIGURED", environment: 1 },
     { user: { email: "intruder@example.com" }, status: 403, code: "OWNER_WRITE_AUTHORIZATION_REQUIRED", environment: 1 },
@@ -142,19 +141,19 @@ test("anonymous, wrong-origin, non-owner, unconfigured, and unavailable-database
   }
 });
 
-test("explicit owner authority denies AGENT before creative commands", async () => {
-  const actorSource = functionSource("requireCreativeOwnerAuthority");
+test("explicit owner authority denies AGENT before story commands", async () => {
+  const actorSource = functionSource("requireStoryOwnerAuthority");
   assert.ok(actorSource.includes('actorType === "AGENT"'));
   assert.ok(actorSource.includes("AGENT_OWNER_COMMAND_FORBIDDEN"));
   assert.equal(analyzeActorSource(route, routePath).some((item) => actions.has(item.command)), false);
   const denial = await vm.runInNewContext(
-    transpile(["creativeOwnerFailure", "requireCreativeOwnerAuthority"]) + '\nrequireCreativeOwnerAuthority("AGENT");',
+    transpile(["storyOwnerFailure", "requireStoryOwnerAuthority"]) + '\nrequireStoryOwnerAuthority("AGENT");',
     { Response },
   );
   assert.equal(denial.status, 403);
 });
 
-test("strict JSON envelope covers exactly RUN, POLL, and REPAIR_SCORING with action-only raw hashes", async () => {
+test("strict JSON envelope covers exactly RUN and POLL with action-only raw hashes", async () => {
   for (const action of actions) {
     const payload = { action };
     const raw = JSON.stringify(payload);
@@ -167,12 +166,11 @@ test("strict JSON envelope covers exactly RUN, POLL, and REPAIR_SCORING with act
     { body: "{", status: 400, code: "OWNER_WRITE_JSON_INVALID" },
     { body: "null", status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
     { body: JSON.stringify({}), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
-    { body: JSON.stringify({ action: "run" }), status: 403, code: "CREATIVE_OWNER_ACTION_FORBIDDEN" },
-    { body: JSON.stringify({ action: "RUN_STAGE" }), status: 403, code: "CREATIVE_OWNER_ACTION_FORBIDDEN" },
-    { body: JSON.stringify({ action: "PUBLISH_VIDEO" }), status: 403, code: "CREATIVE_OWNER_ACTION_FORBIDDEN" },
+    { body: JSON.stringify({ action: "run" }), status: 403, code: "STORY_OWNER_ACTION_FORBIDDEN" },
+    { body: JSON.stringify({ action: "RUN_STAGE" }), status: 403, code: "STORY_OWNER_ACTION_FORBIDDEN" },
+    { body: JSON.stringify({ action: "PUBLISH_VIDEO" }), status: 403, code: "STORY_OWNER_ACTION_FORBIDDEN" },
     { body: JSON.stringify({ action: "RUN", stage: "04" }), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
     { body: JSON.stringify({ action: "POLL", programId }), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
-    { body: JSON.stringify({ action: "REPAIR_SCORING", mode: "extra" }), status: 400, code: "OWNER_WRITE_COMMAND_INVALID" },
   ];
   for (const item of invalid) {
     const response = await readCommand(ownerRequest(item.body));
@@ -198,7 +196,7 @@ test("multipart, binary, empty, and oversized bodies are rejected before command
   assert.equal((await readCommand(ownerRequest("x".repeat(16 * 1024 + 1)))).status, 413);
 });
 
-test("fixed resource binding requires the canonical program and its exact Stage 04 row", async () => {
+test("fixed resource binding requires the canonical program and its exact Stage 05 row", async () => {
   async function bind(programRow, stageRow) {
     const calls = [];
     const db = {
@@ -213,7 +211,7 @@ test("fixed resource binding requires the canonical program and its exact Stage 
       },
     };
     const response = await vm.runInNewContext(
-      transpile(["creativeOwnerFailure", "bindCreativeOwnerResource"]) + "\nbindCreativeOwnerResource(db);",
+      transpile(["storyOwnerFailure", "bindStoryOwnerResource"]) + "\nbindStoryOwnerResource(db);",
       { Response, db, PROGRAM_ID: programId, STAGE: stageKey },
     );
     return { response, calls };
@@ -234,17 +232,17 @@ test("fixed resource binding requires the canonical program and its exact Stage 
   assert.deepEqual(found.calls[1].bindings, [programId + "-STAGE-" + stageKey, programId, stageKey]);
   assert.equal((await bind(null, null)).response.status, 404);
   assert.equal((await bind({ id: programId, production_authorized: 1 }, { program_id: "other", stage_key: stageKey, status: "READY", attempt: 0 })).response.status, 404);
-  assert.equal((await bind({ id: programId, production_authorized: 1 }, { program_id: programId, stage_key: "05", status: "READY", attempt: 0 })).response.status, 404);
+  assert.equal((await bind({ id: programId, production_authorized: 1 }, { program_id: programId, stage_key: "04", status: "READY", attempt: 0 })).response.status, 404);
 });
 
-test("action entitlements fail closed for paid RUN, active-job POLL, and deterministic score repair", async () => {
+test("action entitlements fail closed for paid RUN and active-job POLL", async () => {
   async function authorize(action, options = {}) {
     const command = { action, payload: { action }, requestHash: "a".repeat(64) };
     const binding = {
       id: programId,
       productionAuthorized: options.productionAuthorized ?? true,
       stageKey,
-      stageStatus: options.stageStatus ?? (action === "RUN" ? "READY" : action === "POLL" ? "RUNNING" : "REPAIR_REQUIRED"),
+      stageStatus: options.stageStatus ?? (action === "RUN" ? "READY" : "RUNNING"),
       stageAttempt: options.stageAttempt ?? 0,
     };
     const env = options.apiKey === false ? {} : { OPENAI_API_KEY: "configured" };
@@ -253,32 +251,31 @@ test("action entitlements fail closed for paid RUN, active-job POLL, and determi
         const statement = {
           bind() { return statement; },
           async first() {
-            if (sql.includes("v7_creative_jobs")) return options.activeJob === false ? null : { id: "job-1" };
-            return options.repairArtifact === false ? null : { id: "artifact-1" };
+            if (sql.includes("v7_story_jobs")) return options.activeJob === false ? null : { id: "job-1" };
+            return options.upstreamArtifact === false ? null : { id: "creative-artifact-1" };
           },
         };
         return statement;
       },
     };
     return vm.runInNewContext(
-      transpile(["creativeOwnerFailure", "authorizeCreativeOwnerEntitlement"]) + "\nauthorizeCreativeOwnerEntitlement(db, env, command, binding);",
+      transpile(["storyOwnerFailure", "authorizeStoryOwnerEntitlement"]) + "\nauthorizeStoryOwnerEntitlement(db, env, command, binding);",
       { Response, db, env, command, binding, PROGRAM_ID: programId },
     );
   }
   assert.equal((await authorize("RUN", { productionAuthorized: false })).status, 409);
   assert.equal((await authorize("RUN", { stageStatus: "BLOCKED_UPSTREAM" })).status, 409);
   assert.equal((await authorize("RUN", { stageAttempt: 3 })).status, 409);
+  assert.equal((await authorize("RUN", { upstreamArtifact: false })).status, 409);
   assert.equal((await authorize("RUN", { apiKey: false })).status, 503);
-  assert.equal((await authorize("RUN")).kind, "PAID_BACKGROUND_CREATIVE_TOURNAMENT");
+  assert.equal((await authorize("RUN")).kind, "PAID_BACKGROUND_STORY_ARCHITECTURE");
   assert.equal((await authorize("POLL", { stageStatus: "READY" })).status, 409);
   assert.equal((await authorize("POLL", { apiKey: false })).status, 503);
   assert.equal((await authorize("POLL", { activeJob: false })).status, 409);
   assert.equal((await authorize("POLL")).kind, "PROVIDER_STATUS_READ_AND_BOUNDED_FINALIZATION");
-  assert.equal((await authorize("REPAIR_SCORING", { productionAuthorized: false })).status, 409);
-  assert.equal((await authorize("REPAIR_SCORING", { stageStatus: "READY" })).status, 409);
-  assert.equal((await authorize("REPAIR_SCORING", { repairArtifact: false })).status, 409);
-  assert.equal((await authorize("REPAIR_SCORING")).kind, "DETERMINISTIC_CREATIVE_SCORE_REPAIR");
-  const entitlementSource = functionSource("authorizeCreativeOwnerEntitlement");
+  const entitlementSource = functionSource("authorizeStoryOwnerEntitlement");
+  assert.ok(entitlementSource.includes("v7_creative_artifacts"));
+  assert.ok(entitlementSource.includes("lifecycle_state = 'FROZEN'"));
   for (const forbidden of ["fetch(", "startProvider(", "retrieveProvider(", ".run(", ".batch(", ".put(", "storeDriveJsonArtifact(", "recordOpenAIUsage(", "reserve", "spend"]) {
     assert.equal(entitlementSource.includes(forbidden), false);
   }
@@ -290,11 +287,11 @@ test("idempotent replay returns the immutable receipt and conflicts on key reuse
     const db = { prepare() { return statement; } };
     const identity = { handlerIdentity, requestHash, correlationId: "test:correlation" };
     return vm.runInNewContext(
-      transpile(["creativeOwnerFailure", "lookupCreativeOwnerReplay"]) + "\nlookupCreativeOwnerReplay(db, identity);",
+      transpile(["storyOwnerFailure", "lookupStoryOwnerReplay"]) + "\nlookupStoryOwnerReplay(db, identity);",
       { Response, db, identity },
     );
   }
-  const receipt = "creative:" + programId + ":RUN:04:run-1:job-1:queued:no-artifact:no-hash";
+  const receipt = "story:" + programId + ":RUN:05:run-1:job-1:queued:no-artifact:no-hash";
   const replay = await lookup([{ handler_identity: handlerIdentity, request_hash: "a".repeat(64), phase: "SUCCEEDED", domain_receipt_reference: receipt }]);
   assert.equal(replay.status, 200);
   assert.deepEqual(await replay.json(), { ok: true, replay: true, receipt });
@@ -303,7 +300,7 @@ test("idempotent replay returns the immutable receipt and conflicts on key reuse
   assert.equal(await lookup([]), null);
 });
 
-test("immutable audit emits AUTHORIZED then exactly one terminal phase with Stage 04 domain receipts", async () => {
+test("immutable audit emits AUTHORIZED then exactly one terminal phase with Stage 05 story receipts", async () => {
   async function run(responseFactory) {
     const events = [];
     const command = { action: "RUN", payload: { action: "RUN" }, requestHash: "a".repeat(64) };
@@ -312,17 +309,17 @@ test("immutable audit emits AUTHORIZED then exactly one terminal phase with Stag
       actorType: "CHATGPT_OWNER",
       actorSubjectHash: "b".repeat(64),
       action: command.action,
-      resourceScope: "program:" + programId + ":creative-contract:stage:" + stageKey,
+      resourceScope: "program:" + programId + ":story-architecture:stage:" + stageKey,
       correlationId: "test:correlation",
       requestHash: command.requestHash,
     };
     const response = await vm.runInNewContext(
       transpile([
-        "creativeOwnerBoundedAuditComponent",
-        "creativeOwnerFirstRecord",
-        "creativeOwnerDomainReceipt",
-        "runAuditedCreativeOwnerCommand",
-      ]) + "\nrunAuditedCreativeOwnerCommand(db, identity, command, execute);",
+        "storyOwnerBoundedAuditComponent",
+        "storyOwnerFirstRecord",
+        "storyOwnerDomainReceipt",
+        "runAuditedStoryOwnerCommand",
+      ]) + "\nrunAuditedStoryOwnerCommand(db, identity, command, execute);",
       {
         Response,
         db: {},
@@ -332,7 +329,7 @@ test("immutable audit emits AUTHORIZED then exactly one terminal phase with Stag
         appendWriteCommandAudit: async (_db, _identity, phase, receipt) => { events.push({ phase, receipt }); },
         PROGRAM_ID: programId,
         STAGE: stageKey,
-        CREATIVE_OWNER_AUDIT_COMPONENT_PATTERN: /[^A-Za-z0-9._:-]/g,
+        STORY_OWNER_AUDIT_COMPONENT_PATTERN: /[^A-Za-z0-9._:-]/g,
       },
     );
     return { response, events };
@@ -344,28 +341,24 @@ test("immutable audit emits AUTHORIZED then exactly one terminal phase with Stag
     artifacts: [],
   }));
   assert.deepEqual(success.events.map((item) => item.phase), ["AUTHORIZED", "SUCCEEDED"]);
-  assert.equal(success.events[1].receipt, "creative:" + programId + ":RUN:04:run-1:job-1:queued:no-artifact:no-hash");
+  assert.equal(success.events[1].receipt, "story:" + programId + ":RUN:05:run-1:job-1:queued:no-artifact:no-hash");
   const failure = await run(() => Response.json({ error: "blocked" }, { status: 409 }));
   assert.deepEqual(failure.events.map((item) => item.phase), ["AUTHORIZED", "FAILED"]);
 });
 
-test("three commands preserve existing Creative Contract provider, repair, storage, usage, and GET behavior", () => {
-  const execute = functionSource("executeCreativeOwnerCommand");
+test("two commands preserve existing Story Architecture provider, storage, finalization, usage, and GET behavior", () => {
+  const execute = functionSource("executeStoryOwnerCommand");
   assert.ok(execute.includes('command.action === "RUN"'));
-  assert.ok(execute.includes('command.action === "POLL"'));
   assert.ok(execute.includes("start()"));
   assert.ok(execute.includes("poll()"));
-  assert.ok(execute.includes("repairScoringContract()"));
   for (const forbidden of ["fetch(", "tables.map(", "storeDriveJsonArtifact(", "recordOpenAIUsage("]) assert.equal(execute.includes(forbidden), false);
-  assert.equal(functionSource("GET"), 'export async function GET(){try{return Response.json(await snapshot());}catch(error){return Response.json({error:error instanceof Error?error.message:"Creative Contract could not load"},{status:500});}}');
+  assert.equal(functionSource("GET"), 'export async function GET(){try{return Response.json(await snapshot());}catch(error){return Response.json({error:error instanceof Error?error.message:"Story Architecture could not load"},{status:500});}}');
   assert.equal(programId, "YTAF-V7-GREENFIELD");
-  assert.equal(stageKey, "04");
-  assert.ok(functionSource("start").includes("stage.attempt>=3"));
+  assert.equal(stageKey, "05");
+  assert.ok(functionSource("start").includes("up.stage.attempt>=3"));
   assert.ok(functionSource("start").indexOf("await startProvider") < functionSource("start").indexOf("await db.batch"));
-  assert.ok(functionSource("startProvider").includes('method: "POST"'));
+  assert.ok(functionSource("startProvider").includes('method:"POST"'));
   assert.ok(functionSource("poll").includes("retrieveProvider"));
-  assert.equal(functionSource("repairScoringContract").includes("startProvider"), false);
-  assert.equal(functionSource("repairScoringContract").includes("retrieveProvider"), false);
   assert.ok(functionSource("finalize").includes("env.BUCKET.put"));
   assert.ok(functionSource("finalize").includes("env.BUCKET.head"));
   assert.ok(functionSource("finalize").includes("storeDriveJsonArtifact"));
@@ -377,13 +370,13 @@ test("registry, auth, actor separation, and GET baselines ratchet exactly once",
   assert.deepEqual(handlers.find((item) => item.identity === handlerIdentity), {
     identity: handlerIdentity,
     sourceFile: routePath,
-    routePath: "/api/factory/creative-contract",
+    routePath: "/api/factory/story-architecture",
     method: "POST",
     readWrite: "WRITE",
     actor: "CHATGPT_OWNER",
     authentication: "CHATGPT_SIWC",
-    authorization: "FACTORY_EXPERT_EMAILS_ALLOWLIST_AND_SAME_ORIGIN_AND_EXACT_CREATIVE_ACTION_AND_FIXED_PROGRAM_RESOURCE_AND_STAGE_ENTITLEMENT",
-    audit: "IMMUTABLE_WRITE_COMMAND_AUDIT_AND_CREATIVE_DOMAIN_RECEIPT_AND_IDEMPOTENT_REPLAY",
+    authorization: "FACTORY_EXPERT_EMAILS_ALLOWLIST_AND_SAME_ORIGIN_AND_EXACT_STORY_ACTION_AND_FIXED_PROGRAM_RESOURCE_AND_STAGE_ENTITLEMENT",
+    audit: "IMMUTABLE_WRITE_COMMAND_AUDIT_AND_STORY_DOMAIN_RECEIPT_AND_IDEMPOTENT_REPLAY",
     status: "PROTECTED",
     remediationWp: "NONE",
   });
